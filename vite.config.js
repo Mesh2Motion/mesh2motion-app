@@ -29,7 +29,7 @@ export default {
     },
   plugins:
     [
-      glsl(),
       customBaseUrlToHtml(base),
+      glsl(),
     ]
 }
