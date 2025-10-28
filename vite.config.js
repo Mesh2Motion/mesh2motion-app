@@ -1,6 +1,7 @@
 const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env
 
 import { resolve } from 'path'
+import { customBaseUrlToHtml } from './src/lib/BaseUrl'
 
 // allows us to use external shaders files to be imported into our materials
 import glsl from 'vite-plugin-glsl'
@@ -28,6 +29,7 @@ export default {
     },
   plugins:
     [
-      glsl()
+      glsl(),
+      customBaseUrlToHtml(),
     ]
 }
