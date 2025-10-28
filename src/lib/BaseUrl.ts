@@ -17,7 +17,7 @@ export const customBaseUrlToHtml = () => ({
         handler(html: string) {
             return html.replace(
                 /%BASE_URL_NO_TRAILING_SLASH%/g,
-                noTrailingSlash
+                'helloworld'
             );
         }
     }

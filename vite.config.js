@@ -6,7 +6,7 @@ import { customBaseUrlToHtml } from './src/lib/BaseUrl'
 // allows us to use external shaders files to be imported into our materials
 import glsl from 'vite-plugin-glsl'
 
-import { loadEnv } from 'vite' //for BASE_URL to be loaded in customBaseUrltoHtml
+//~ import { loadEnv } from 'vite' //for BASE_URL to be loaded in customBaseUrltoHtml
 // Plugin to replace custom variable in static HTML files
 //~ const customBaseUrlToHtml = (base) => ({
     //~ name: 'custom-base-url-to-html',
