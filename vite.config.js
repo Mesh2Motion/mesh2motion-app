@@ -30,6 +30,6 @@ export default {
   plugins:
     [
       glsl(),
-      customBaseUrlToHtml(),
+      customBaseUrlToHtml(base),
     ]
 }

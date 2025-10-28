@@ -1,5 +1,8 @@
 const viteBase = import.meta.env.BASE_URL;
-const noTrailingSlash = viteBase.replace(/\/+$/g, '');
+
+const trimTrailingSlash = (str: string): string => str.replace(/\/+$/g, '');
+
+const noTrailingSlash = trimTrailingSlash(viteBase);
 
 export const BaseUrl = {
 	viteBase,
@@ -7,14 +10,14 @@ export const BaseUrl = {
 }
 
 // Plugin to replace custom variable in static HTML files
-export const customBaseUrlToHtml = () => ({
+export const customBaseUrlToHtml = (base: string) => ({
     name: 'custom-base-url-to-html',
     transformIndexHtml: {
         //order: 'pre',
         handler(html: string) {
             return html.replace(
                 /%BASE_URL_NO_TRAILING_SLASH%/g,
-                noTrailingSlash
+                trimTrailingSlash(base)
             );
         }
     }
