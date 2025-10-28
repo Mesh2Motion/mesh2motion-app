@@ -1,3 +1,4 @@
+import { BaseUrl } from '../lib/BaseUrl'
 import { ProcessStep } from '../lib/enums/ProcessStep'
 import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
@@ -29,25 +30,25 @@ export class MarketingBootstrap {
     const dragon_button: HTMLElement | null = document.getElementById('load-dragon-model-button')
 
     human_button?.addEventListener('click', () => {
-      this.mesh2motion_engine.load_model_step.load_model_file('../models/model-human.glb', 'glb')
+      this.mesh2motion_engine.load_model_step.load_model_file(BaseUrl.noTrailingSlash + '/models/model-human.glb', 'glb')
       this.skeleton_type = SkeletonType.Human
       this.change_active_skeleton(human_button)
     })
 
     fox_button?.addEventListener('click', () => {
-      this.mesh2motion_engine.load_model_step.load_model_file('../models/model-fox.glb', 'glb')
+      this.mesh2motion_engine.load_model_step.load_model_file(BaseUrl.noTrailingSlash + '/models/model-fox.glb', 'glb')
       this.skeleton_type = SkeletonType.Quadraped
       this.change_active_skeleton(fox_button)
     })
 
     bird_button?.addEventListener('click', () => {
-      this.mesh2motion_engine.load_model_step.load_model_file('../models/model-bird.glb', 'glb')
+      this.mesh2motion_engine.load_model_step.load_model_file(BaseUrl.noTrailingSlash + '/models/model-bird.glb', 'glb')
       this.skeleton_type = SkeletonType.Bird
       this.change_active_skeleton(bird_button)
     })
 
     dragon_button?.addEventListener('click', () => {
-      this.mesh2motion_engine.load_model_step.load_model_file('../models/model-dragon.glb', 'glb')
+      this.mesh2motion_engine.load_model_step.load_model_file(BaseUrl.noTrailingSlash + '/models/model-dragon.glb', 'glb')
       this.skeleton_type = SkeletonType.Dragon
       this.change_active_skeleton(dragon_button)
     })
@@ -65,13 +66,13 @@ export class MarketingBootstrap {
     this.mesh2motion_engine.load_model_step.addEventListener('modelLoaded', () => {
       // this (this.skeleton_type) value contains the filename for the skeleton rig
       this.mesh2motion_engine.process_step_changed(ProcessStep.LoadSkeleton)
-      this.mesh2motion_engine.load_skeleton_step.load_skeleton_file('../' + this.skeleton_type)
+      this.mesh2motion_engine.load_skeleton_step.load_skeleton_file(BaseUrl.noTrailingSlash + '/' + this.skeleton_type)
       this.mesh2motion_engine.load_skeleton_step.set_skeleton_type(this.skeleton_type)
     })
 
     // need to automatically finish the edit skeleton step and move onto the next step
     this.mesh2motion_engine.load_skeleton_step.addEventListener('skeletonLoaded', () => {
-      this.mesh2motion_engine.animations_listing_step.set_animations_file_path('../animations/')
+      this.mesh2motion_engine.animations_listing_step.set_animations_file_path(BaseUrl.noTrailingSlash + '/animations/')
       this.mesh2motion_engine.process_step_changed(ProcessStep.BindPose)
     })
   }
