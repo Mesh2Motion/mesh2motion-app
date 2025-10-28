@@ -10,7 +10,7 @@ export const BaseUrl = {
 export const customBaseUrlToHtml = () => ({
     name: 'custom-base-url-to-html',
     transformIndexHtml: {
-        order: 'pre',
+        //order: 'pre',
         handler(html: string) {
             return html.replace(
                 /%BASE_URL_NO_TRAILING_SLASH%/g,
