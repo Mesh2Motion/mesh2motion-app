@@ -1,25 +1,25 @@
 const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env
 
 import { resolve } from 'path'
-//~ import { customBaseUrlToHtml } from './src/lib/BaseUrl'
+import { customBaseUrlToHtml } from './src/lib/BaseUrl'
 
 // allows us to use external shaders files to be imported into our materials
 import glsl from 'vite-plugin-glsl'
 
-//~ import { loadEnv } from 'vite' //for BASE_URL to be loaded in customBaseUrltoHtml
+import { loadEnv } from 'vite' //for BASE_URL to be loaded in customBaseUrltoHtml
 // Plugin to replace custom variable in static HTML files
-const customBaseUrlToHtml = (base) => ({
-    name: 'custom-base-url-to-html',
-    transformIndexHtml: {
+//~ const customBaseUrlToHtml = (base) => ({
+    //~ name: 'custom-base-url-to-html',
+    //~ transformIndexHtml: {
         //~ order: 'pre',
-        handler(html) {
-            return html.replace(
-                /%BASE_URL_NO_TRAILING_SLASH%/g,
-                base.replace(/\/+$/g, '')
-            );
-        }
-    }
-});
+        //~ handler(html) {
+            //~ return html.replace(
+                //~ /%BASE_URL_NO_TRAILING_SLASH%/g,
+                //~ base.replace(/\/+$/g, '')
+            //~ );
+        //~ }
+    //~ }
+//~ });
 
 
 export default {
@@ -45,7 +45,7 @@ export default {
     },
   plugins:
     [
-      customBaseUrlToHtml(base),
+      customBaseUrlToHtml(),
       glsl(),
     ]
 }
