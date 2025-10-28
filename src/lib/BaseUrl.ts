@@ -10,14 +10,14 @@ export const BaseUrl = {
 }
 
 // Plugin to replace custom variable in static HTML files
-export const customBaseUrlToHtml = (base: string) => ({
+export const customBaseUrlToHtml = () => ({
     name: 'custom-base-url-to-html',
     transformIndexHtml: {
         //order: 'pre',
         handler(html: string) {
             return html.replace(
                 /%BASE_URL_NO_TRAILING_SLASH%/g,
-                trimTrailingSlash(base)
+                noTrailingSlash
             );
         }
     }
