@@ -8,11 +8,11 @@ import glsl from 'vite-plugin-glsl'
 
 //~ import { loadEnv } from 'vite' //for BASE_URL to be loaded in customBaseUrltoHtml
 // Plugin to replace custom variable in static HTML files
-const customBaseUrlToHtml = (base: string) => ({
+const customBaseUrlToHtml = (base) => ({
     name: 'custom-base-url-to-html',
     transformIndexHtml: {
         //~ order: 'pre',
-        handler(html: string) {
+        handler(html) {
             return html.replace(
                 /%BASE_URL_NO_TRAILING_SLASH%/g,
                 base.replace(/\/+$/g, '')
