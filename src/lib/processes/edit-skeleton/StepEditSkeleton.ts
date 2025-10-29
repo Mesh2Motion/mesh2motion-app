@@ -46,8 +46,8 @@ export class StepEditSkeleton extends EventTarget {
   private _main_scene_ref: Scene | null = null
 
   // Preview plane state
-  private preview_plane_visible: boolean = false
-  private preview_plane_height: number = 0.0
+  private enable_head_weight_correction: boolean = false
+  private head_weight_correction_height: number = 1.4 // default
 
   private readonly joint_texture = new TextureLoader().load('images/skeleton-joint-point.png')
 
@@ -96,14 +96,7 @@ export class StepEditSkeleton extends EventTarget {
     return result
   }
 
-  public setup_scene (main_scene: Scene): void {
-    // add the skeleton to the scene
-    this._main_scene_ref = main_scene
-    // Initialize the preview plane manager with the scene
-    this.preview_plane_manager.initialize(main_scene)
-  }
-
-  public begin (): void {
+  public begin (main_scene: Scene): void {
     // show UI elemnents for editing mesh
     if (this.ui.dom_current_step_index != null) {
       this.ui.dom_current_step_index.innerHTML = '3'
@@ -140,6 +133,27 @@ export class StepEditSkeleton extends EventTarget {
       this.undo_redo_system.can_undo(),
       this.undo_redo_system.can_redo()
     )
+
+    this.initialize_preview_plane(main_scene)
+  }
+
+  private initialize_preview_plane (main_scene: Scene): void {
+    // add the skeleton to the scene
+    // Initialize the preview plane manager with the scene and set default height
+    this._main_scene_ref = main_scene
+    this.preview_plane_manager.initialize(main_scene)
+
+    // if head_weight correct is enabled, show the preview plane
+    // it is off by default, but can be enabled if we navigate back to the step
+    console.log('is the head weight correction enabled?', this.enable_head_weight_correction)
+    this.preview_plane_manager.set_visibility(this.enable_head_weight_correction)
+    this.preview_plane_manager.update_height(this.head_weight_correction_height)
+
+    // set default value (and label) for preview plane height on UI
+    if (this.ui.dom_preview_plane_height_input !== null && this.ui.dom_preview_plane_height_label !== null) {
+      this.ui.dom_preview_plane_height_input.value = this.head_weight_correction_height.toString()
+      this.ui.dom_preview_plane_height_label.textContent = this.head_weight_correction_height.toFixed(2)
+    }
   }
 
   private update_bind_button_text (): void {
@@ -186,16 +200,17 @@ export class StepEditSkeleton extends EventTarget {
    * Toggle the visibility of the preview plane
    * @param visible Whether the plane should be visible
    */
-  public set_preview_plane_visible (visible: boolean): void {
-    this.preview_plane_visible = visible
-    this.preview_plane_manager.set_visibility(visible)
+  public set_use_head_weight_correction (is_enabled: boolean): void {
+    this.enable_head_weight_correction = is_enabled
+    this.preview_plane_manager.set_visibility(is_enabled)
+    this.preview_plane_manager.update_height(this.head_weight_correction_height)
   }
 
   /**
    * Get the current visibility state of the preview plane
    */
-  public is_preview_plane_visible (): boolean {
-    return this.preview_plane_visible
+  public use_head_weight_correction (): boolean {
+    return this.enable_head_weight_correction
   }
 
   /**
@@ -203,7 +218,7 @@ export class StepEditSkeleton extends EventTarget {
    * @param height The Y coordinate height for the plane
    */
   public set_preview_plane_height (height: number): void {
-    this.preview_plane_height = height
+    this.head_weight_correction_height = height
     this.preview_plane_manager.update_height(height)
   }
 
@@ -211,7 +226,7 @@ export class StepEditSkeleton extends EventTarget {
    * Get the current height of the preview plane
    */
   public get_preview_plane_height (): number {
-    return this.preview_plane_height
+    return this.head_weight_correction_height
   }
 
   public add_event_listeners (): void {
@@ -222,20 +237,6 @@ export class StepEditSkeleton extends EventTarget {
         this.threejs_skeleton.bones[0].updateWorldMatrix(true, true) // update on renderer
       })
     }
-
-    // if (this.ui.dom_scale_skeleton_button !== null && this.ui.dom_scale_skeleton_input_box !== null) {
-    //   this.ui.dom_scale_skeleton_button.addEventListener('click', () => {
-    //     // Store undo state before scaling
-    //     this.store_bone_state_for_undo()
-
-    //     const modify_scale = 1.0 + (this.ui.dom_scale_skeleton_input_box.value / 100.0)
-    //     Utility.scale_armature_by_scalar(this.edited_armature, modify_scale)
-    //     this.edited_armature.updateWorldMatrix(true, true)
-
-    //     // Dispatch skeleton transformed event to update UI
-    //     this.dispatchEvent(new CustomEvent('skeletonTransformed'))
-    //   })
-    // }
 
     if (this.ui.dom_mirror_skeleton_checkbox !== null) {
       this.ui.dom_mirror_skeleton_checkbox.addEventListener('change', (event) => {
@@ -271,18 +272,20 @@ export class StepEditSkeleton extends EventTarget {
     // Add preview plane event listeners
     this.ui.dom_preview_plane_checkbox?.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement
-      this.set_preview_plane_visible(target.checked)
+      this.set_use_head_weight_correction(target.checked)
     })
 
     this.ui.dom_preview_plane_height_input?.addEventListener('input', (event) => {
       const target = event.target as HTMLInputElement
       const height = parseFloat(target.value)
-      const final_height = isNaN(height) ? 0.0 : height
-      this.set_preview_plane_height(final_height)
-      
+      const final_height = isNaN(height) ? 0.00 : height
+      this.head_weight_correction_height = final_height
+
+      this.set_preview_plane_height(this.head_weight_correction_height)
+
       // Update the label to show current value
       if (this.ui.dom_preview_plane_height_label !== null) {
-        this.ui.dom_preview_plane_height_label.textContent = final_height.toFixed(2)
+        this.ui.dom_preview_plane_height_label.textContent = this.head_weight_correction_height.toFixed(2)
       }
     })
   }
@@ -365,7 +368,6 @@ export class StepEditSkeleton extends EventTarget {
    */
   private remove_preview_plane (): void {
     this.preview_plane_manager.cleanup()
-    this.preview_plane_visible = false
   }
 
   /*

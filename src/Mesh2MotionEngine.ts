@@ -286,8 +286,7 @@ export class Mesh2MotionEngine {
 
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton())
       process_step = ProcessStep.EditSkeleton
-      this.edit_skeleton_step.begin()
-      this.edit_skeleton_step.setup_scene(this.scene)
+      this.edit_skeleton_step.begin(this.scene)
       this.transform_controls.enabled = true
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
 
