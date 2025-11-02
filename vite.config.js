@@ -8,8 +8,8 @@ export default {
   publicDir: '../static/',
   base: './',
   define: {
-    // expose all Cloudflare environment variables to client
-    PROCESS_ENV: JSON.stringify(process.env || 'unknown')
+    // expose all Cloudflare environment variables to client from window object
+    'window.PROCESS_ENV': JSON.stringify(process.env || 'unknown')
   },
   server:
     {
