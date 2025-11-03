@@ -34,7 +34,7 @@ import glsl from 'vite-plugin-glsl'
     //~ }
 //~ });
 
-const customBaseUrlToHtml = (): Plugin => ({
+const customBaseUrlToHtml = () => ({
     name: 'transform-html',
     transformIndexHtml: {
         order: 'pre',
