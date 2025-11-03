@@ -71,7 +71,7 @@ export default {
   plugins:
     [
       //~ customBaseUrlToHtml(),
-      customBaseUrlToHtml({ base_url_no_trailing_slash: base })
+      customBaseUrlToHtml({ base_url_no_trailing_slash: base }),
       glsl(),
     ]
 }
