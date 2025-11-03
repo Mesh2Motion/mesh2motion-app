@@ -21,14 +21,27 @@ import glsl from 'vite-plugin-glsl'
     //~ }
 //~ });
 // Plugin to replace custom variable in static HTML files
-const customBaseUrlToHtml = () => ({
-    name: 'custom-base-url-to-html',
+//~ const customBaseUrlToHtml = () => ({
+    //~ name: 'custom-base-url-to-html',
+    //~ transformIndexHtml: {
+        //~ //order: 'pre',
+        //~ handler(html) {
+            //~ return html.replace(
+                //~ /%BASE_URL_NO_TRAILING_SLASH%/g,
+                //~ 'helloworld'
+            //~ );
+        //~ }
+    //~ }
+//~ });
+
+const customBaseUrlToHtml = (): Plugin => ({
+    name: 'transform-html',
     transformIndexHtml: {
-        //order: 'pre',
-        handler(html) {
+        order: 'pre',
+        handler(html: string) {
             return html.replace(
-                /%BASE_URL_NO_TRAILING_SLASH%/g,
-                'helloworld'
+                /<%=\s*(\w+)\s*%>/gi,
+                (match, p1) => data[p1] || ''
             );
         }
     }
@@ -57,7 +70,8 @@ export default {
     },
   plugins:
     [
-      customBaseUrlToHtml(),
+      //~ customBaseUrlToHtml(),
+      customBaseUrlToHtml({ base_url_no_trailing_slash: base })
       glsl(),
     ]
 }

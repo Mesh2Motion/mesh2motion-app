@@ -2,23 +2,23 @@
 <html lang="en">
 <head>
     <title style="display: none">Mesh2Motion - Create</title>
-    <link rel="icon" type="image/png" href="%BASE_URL_NO_TRAILING_SLASH%/images/favicon.png"/>
-    <link rel="shortcut icon" type="image/x-icon" href="%BASE_URL_NO_TRAILING_SLASH%/favicon.ico" />
+    <link rel="icon" type="image/png" href="<%= base_url_no_trailing_slash %>/images/favicon.png"/>
+    <link rel="shortcut icon" type="image/x-icon" href="<%= base_url_no_trailing_slash %>/favicon.ico" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0">
-    <script type="module" src="%BASE_URL_NO_TRAILING_SLASH%/CustomModelUploadBootstrap.ts"></script>
-    <link href="%BASE_URL_NO_TRAILING_SLASH%/styles.css" rel="stylesheet" crossorigin="anonymous" />
-    <link rel="stylesheet" href="%BASE_URL_NO_TRAILING_SLASH%/radio-button-group.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="%BASE_URL_NO_TRAILING_SLASH%/animation-player.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="%BASE_URL_NO_TRAILING_SLASH%/dialog.css" crossorigin="anonymous" />
+    <script type="module" src="<%= base_url_no_trailing_slash %>/CustomModelUploadBootstrap.ts"></script>
+    <link href="<%= base_url_no_trailing_slash %>/styles.css" rel="stylesheet" crossorigin="anonymous" />
+    <link rel="stylesheet" href="<%= base_url_no_trailing_slash %>/radio-button-group.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="<%= base_url_no_trailing_slash %>/animation-player.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="<%= base_url_no_trailing_slash %>/dialog.css" crossorigin="anonymous" />
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
     <nav>
         <div style="display: inline-flex; align-items: center;">
-            <a href="https://mesh2motion.org"><img src="%BASE_URL_NO_TRAILING_SLASH%/images/mesh2motion.svg" width="200" /></a>
+            <a href="https://mesh2motion.org"><img src="<%= base_url_no_trailing_slash %>/images/mesh2motion.svg" width="200" /></a>
             <a href="/">Explore</a>
             <span class="active-nav-item">Create</span>
         </div>
@@ -42,14 +42,14 @@
     <!-- Top toolbar with mouse controls -->
     <div id="header-ui">
         <div>
-            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/mouse-left.svg" height="30" width="30" style="vertical-align: middle;"/> Rotate
+            <img src="<%= base_url_no_trailing_slash %>/images/mouse-left.svg" height="30" width="30" style="vertical-align: middle;"/> Rotate
         </div>
 
         <div>
-            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/mouse-right.svg" height="30" width="30" style="vertical-align: middle;"/> Pan
+            <img src="<%= base_url_no_trailing_slash %>/images/mouse-right.svg" height="30" width="30" style="vertical-align: middle;"/> Pan
         </div>
         <div>
-            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/mouse-middle.svg" height="30" width="30" style="vertical-align: middle;"/> Zoom
+            <img src="<%= base_url_no_trailing_slash %>/images/mouse-middle.svg" height="30" width="30" style="vertical-align: middle;"/> Zoom
         </div>
     </div>
 
@@ -192,10 +192,10 @@
                 <fieldset style="position: fixed; right: 272px; top: 52px;">
                     <div style="display: flex; gap: 2px;">
                         <button id="undo-button" class="secondary-button" title="Undo (Ctrl+Z)" disabled>
-                            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/undo.png" alt="Undo" width="16" height="16" />
+                            <img src="<%= base_url_no_trailing_slash %>/images/icons/undo.png" alt="Undo" width="16" height="16" />
                         </button>
                         <button id="redo-button" class="secondary-button" title="Redo (Ctrl+Y)" disabled>
-                            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/redo.png" alt="Redo" width="16" height="16" />
+                            <img src="<%= base_url_no_trailing_slash %>/images/icons/redo.png" alt="Redo" width="16" height="16" />
                         </button>
                     </div>
                 </fieldset>
@@ -215,11 +215,11 @@
                         <div id="mesh-preview-group" class="toggle">
                         <input id="preview-painted" type="radio" name="mesh-preview-type" value="weight-painted" checked="checked" />
                             <label for="preview-painted">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/display-weight-painted.svg" alt="Weights" width="20" height="20" title="Weight painted mesh" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/display-weight-painted.svg" alt="Weights" width="20" height="20" title="Weight painted mesh" />
                             </label>
                             <input id="preview-textured" type="radio" name="mesh-preview-type" value="textured"  />
                             <label for="preview-textured">
-                            <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/display-textured.svg" alt="Textured" width="20" height="20" title="Textured Mesh" />
+                            <img src="<%= base_url_no_trailing_slash %>/images/icons/display-textured.svg" alt="Textured" width="20" height="20" title="Textured Mesh" />
                             </label>
     
                         </div>
@@ -230,11 +230,11 @@
                         <div id="transform-control-type-group" class="toggle">
                             <input type="radio" name="transform-control-type" value="translate" id="transform-translate" checked="checked" />
                             <label for="transform-translate">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/tool-move.svg" alt="Translate" width="20" height="20" title="Translation" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/tool-move.svg" alt="Translate" width="20" height="20" title="Translation" />
                             </label>
                             <input type="radio" name="transform-control-type" value="rotation" id="transform-rotate" />
                             <label for="transform-rotate">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/tool-rotate.svg" alt="Rotate" width="20" height="20" title="Rotation" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/tool-rotate.svg" alt="Rotate" width="20" height="20" title="Rotation" />
                             </label>
                         </div>
                     </fieldset>
@@ -244,11 +244,11 @@
                         <div id="transform-space-group" class="toggle">
                             <input type="radio" name="transform-space" value="global" id="transform-global" checked="checked" />
                             <label for="transform-global">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/tool-global.svg" alt="Global" width="20" height="20" title="Global" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/tool-global.svg" alt="Global" width="20" height="20" title="Global" />
                             </label>
                             <input type="radio" name="transform-space" value="local" id="transform-local" />
                             <label for="transform-local">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/tool-local.svg" alt="Local" width="20" height="20" title="Local" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/tool-local.svg" alt="Local" width="20" height="20" title="Local" />
                             </label>
                         </div>
                     </fieldset>
@@ -340,7 +340,7 @@
                         <div class="styled-checkbox icon-toggle">
                             <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display:none;">
                             <label for="show-skeleton-checkbox" data-tippy-content="Show skeleton"  tabindex="0">
-                                <img src="%BASE_URL_NO_TRAILING_SLASH%/images/icons/bone-display.svg" width="30" height="30" alt="Show skeleton" />
+                                <img src="<%= base_url_no_trailing_slash %>/images/icons/bone-display.svg" width="30" height="30" alt="Show skeleton" />
                             </label>
                         </div>
 
