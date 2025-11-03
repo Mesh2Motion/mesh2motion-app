@@ -38,7 +38,7 @@ const customBaseUrlToHtml = () => ({
     name: 'transform-html',
     transformIndexHtml: {
         order: 'pre',
-        handler(html: string) {
+        handler(html) {
             return html.replace(
                 /<%=\s*(\w+)\s*%>/gi,
                 (match, p1) => data[p1] || ''
