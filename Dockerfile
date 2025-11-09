@@ -1,4 +1,4 @@
-FROM node:18.15-alpine
+FROM node:24.11.0-alpine
 
 # Comment this out if you'd prefer to use the repo clone otherwise stick with this for development.
 COPY . /app
