@@ -1,7 +1,7 @@
 const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env
 
 import { resolve } from 'path'
-//~ import { customBaseUrlToHtml } from './src/lib/BaseUrl'
+import { trimTrailingSlash, customBaseUrlToHtml } from './src/lib/BaseUrl'
 
 // allows us to use external shaders files to be imported into our materials
 import glsl from 'vite-plugin-glsl'
@@ -33,24 +33,25 @@ import glsl from 'vite-plugin-glsl'
         //~ }
     //~ }
 //~ });
+const BASE_URL = './'; //you can change base URL here
 
-const customBaseUrlToHtml = () => ({
-    name: 'transform-html',
-    transformIndexHtml: {
-        order: 'pre',
-        handler(html) {
-            return html.replace(
-                /<%=\s*(\w+)\s*%>/gi,
-                (match, p1) => data[p1] || ''
-            );
-        }
-    }
-});
+//~ const customBaseUrlToHtml = () => ({
+    //~ name: 'transform-html',
+    //~ transformIndexHtml: {
+        //~ order: 'pre',
+        //~ handler(html) {
+            //~ return html.replace(
+                //~ /<%=\s*(\w+)\s*%>/gi,
+                //~ (match, p1) => data[p1] || ''
+            //~ );
+        //~ }
+    //~ }
+//~ });
 
 export default {
   root: 'src/',
   publicDir: '../static/',
-  base: './',
+  base: BASE_URL,
   server:
     {
       host: true,
@@ -70,8 +71,8 @@ export default {
     },
   plugins:
     [
-      //~ customBaseUrlToHtml(),
-      customBaseUrlToHtml({ base_url_no_trailing_slash: base }),
+      baseUrl.customBaseUrlToHtml(trimTrailingSlash(BASE_URL)),
+      //~ baseUrl.customBaseUrlToHtml({ base_url_no_trailing_slash: baseUrl.trimTrailingSlash(BASE_URL) }),
       glsl(),
     ]
 }

@@ -4,24 +4,25 @@ const trimTrailingSlash = (str: string): string => str.replace(/\/+$/g, '');
 
 const noTrailingSlash = trimTrailingSlash(viteBase);
 
+// Plugin to replace custom variable in static HTML files
+const customBaseUrlToHtml = (baseUrl: string = viteBase): Plugin => ({
+    name: 'custom-baseurl-to-html',
+    customBaseUrlToHtml: {
+        order: 'pre',
+        handler(html: string) {
+            return html.replace(
+                /%BASE_URL_NO_TRAILING_SLASH%/g,
+                baseUrl
+            );
+        }
+    }
+});
+
 export const BaseUrl = {
 	viteBase,
 	noTrailingSlash,
+	customBaseUrlToHtml,
 }
-
-//~ // Plugin to replace custom variable in static HTML files
-//~ export const customBaseUrlToHtml = () => ({
-    //~ name: 'custom-base-url-to-html',
-    //~ transformIndexHtml: {
-        //~ //order: 'pre',
-        //~ handler(html: string) {
-            //~ return html.replace(
-                //~ /%BASE_URL_NO_TRAILING_SLASH%/g,
-                //~ 'helloworld'
-            //~ );
-        //~ }
-    //~ }
-//~ });
 
 //~ const transformHtmlPlugin = (data: Record<string, string>): Plugin => ({
     //~ name: 'transform-html',
