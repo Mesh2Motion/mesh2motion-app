@@ -1,3 +1,5 @@
+All the code and software is licensed under MIT
+
 MIT License
 
 Copyright (c) 2025 Scott Petrovic
