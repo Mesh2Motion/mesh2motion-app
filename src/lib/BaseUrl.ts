@@ -19,7 +19,7 @@ const customBaseUrlToHtml = (baseUrl: string = viteBase): Plugin => ({
 });
 
 export const UrlUtils = {
-	trimTrailingSlash
+	trimTrailingSlash,
 	customBaseUrlToHtml,
 }
 
