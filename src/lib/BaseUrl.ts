@@ -20,10 +20,12 @@ const customBaseUrlToHtml = (baseUrl: string = viteBase): Plugin => ({
 
 export const BaseUrl = {
 	viteBase,
-	trimTrailingSlash,
 	noTrailingSlash,
 	customBaseUrlToHtml,
 }
+
+export trimTrailingSlash;
+export customBaseUrlToHtml;
 
 //~ const transformHtmlPlugin = (data: Record<string, string>): Plugin => ({
     //~ name: 'transform-html',
