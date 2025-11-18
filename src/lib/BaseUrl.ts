@@ -1,4 +1,4 @@
-const viteBase = import.meta.env.BASE_URL;
+const viteBase = import.meta.env.BASE_URL || '';
 
 const trimTrailingSlash = (str: string): string => str.replace(/\/+$/g, '');
 
@@ -18,14 +18,15 @@ const customBaseUrlToHtml = (baseUrl: string = viteBase): Plugin => ({
     }
 });
 
-export const BaseUrl = {
-	viteBase,
-	noTrailingSlash,
+export const UrlUtils = {
+	trimTrailingSlash
 	customBaseUrlToHtml,
 }
 
-export trimTrailingSlash;
-export customBaseUrlToHtml;
+export const BaseUrl = {
+	viteBase,
+	noTrailingSlash,
+}
 
 //~ const transformHtmlPlugin = (data: Record<string, string>): Plugin => ({
     //~ name: 'transform-html',

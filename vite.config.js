@@ -1,7 +1,7 @@
 const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env
 
 import { resolve } from 'path'
-import { trimTrailingSlash, customBaseUrlToHtml } from './src/lib/BaseUrl'
+import { UrlUtils } from './src/lib/BaseUrl'
 
 // allows us to use external shaders files to be imported into our materials
 import glsl from 'vite-plugin-glsl'
@@ -71,7 +71,7 @@ export default {
     },
   plugins:
     [
-      customBaseUrlToHtml(trimTrailingSlash(BASE_URL)),
+      UrlUtils.customBaseUrlToHtml(UrlUtils.trimTrailingSlash(BASE_URL)),
       //~ baseUrl.customBaseUrlToHtml({ base_url_no_trailing_slash: baseUrl.trimTrailingSlash(BASE_URL) }),
       glsl(),
     ]
