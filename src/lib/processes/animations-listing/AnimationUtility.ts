@@ -100,8 +100,8 @@ export class AnimationUtility {
           )
 
           // Convert quaternion to Euler angles to check and constrain rotation
-          const euler = new Vector3()
-          this.quaternion_to_constrained_euler(quat, euler)
+          const euler = new Euler()
+          euler.setFromQuaternion(quat, 'XYZ')
 
           // Constrain finger rotations to prevent backward bending
           // Fingers typically bend in one direction (curling forward)
@@ -124,7 +124,7 @@ export class AnimationUtility {
 
           // Convert constrained Euler angles back to quaternion
           const constrained_quat = new Quaternion()
-          constrained_quat.setFromEuler(new Euler(euler.x, euler.y, euler.z, 'XYZ'))
+          constrained_quat.setFromEuler(euler)
 
           // Write back the constrained quaternion
           values[i] = constrained_quat.x
@@ -134,20 +134,6 @@ export class AnimationUtility {
         }
       })
     })
-  }
-
-  /**
-   * Converts a quaternion to Euler angles safely
-   * @param quat - Input quaternion
-   * @param euler - Output Euler angles as Vector3
-   */
-  private static quaternion_to_constrained_euler (quat: Quaternion, euler: Vector3): void {
-    // Create a temporary Euler to extract angles
-    const temp_euler = new Euler()
-    temp_euler.setFromQuaternion(quat, 'XYZ')
-    euler.x = temp_euler.x
-    euler.y = temp_euler.y
-    euler.z = temp_euler.z
   }
 
   static apply_arm_extension_warp (animation_clips: TransformedAnimationClipPair[], percentage: number): void {
