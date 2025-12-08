@@ -389,6 +389,12 @@ export class Mesh2MotionEngine {
         this.transform_controls_type = TransformControlType.Rotation
         this.transform_controls.setMode('rotate')
         break
+      case 'snap-to-volume':
+        this.transform_controls_type = TransformControlType.SnapToVolume
+        // For snap-to-volume, we don't show transform controls
+        // User will click on mesh to snap bone to volume center
+        this.transform_controls.detach()
+        break
       default:
         console.warn(`Unknown transform mode selected: ${radio_button_selected}`)
         break
@@ -414,6 +420,12 @@ export class Mesh2MotionEngine {
 
     // when we are done with skinned mesh, we shouldn't be editing transforms
     if (!this.transform_controls.enabled) {
+      return
+    }
+
+    // Handle snap-to-volume mode differently
+    if (this.transform_controls_type === TransformControlType.SnapToVolume) {
+      this.handle_snap_to_volume_click(mouse_event)
       return
     }
 
@@ -514,6 +526,169 @@ export class Mesh2MotionEngine {
     
     // Clear the stored positions after restoring
     this.child_bone_positions.clear()
+  }
+
+  /**
+   * Handle snap to volume center mode
+   * When user clicks on the mesh, move the currently selected bone to the volume center
+   */
+  private handle_snap_to_volume_click (mouse_event: MouseEvent): void {
+    // First, select the bone
+    const skeleton_to_test: Skeleton | undefined = this.edit_skeleton_step.skeleton()
+    
+    if (skeleton_to_test === undefined) {
+      console.warn('No skeleton to test for snap to volume')
+      return
+    }
+
+    // Find the closest bone to mouse position
+    const [closest_bone, closest_bone_index, closest_distance] = Utility.raycast_closest_bone_test(this.camera, mouse_event, skeleton_to_test)
+
+    // don't allow to select root bone
+    if (closest_bone?.name === 'root') {
+      return
+    }
+
+    // Only select bone if we are close enough
+    if (closest_distance === null || closest_distance > this.transform_controls_hover_distance) {
+      return
+    }
+
+    if (closest_bone === null) {
+      return
+    }
+
+    // Store the selected bone
+    this.edit_skeleton_step.set_currently_selected_bone(closest_bone)
+
+    // Now raycast to find mesh intersection
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(Utility.normalized_mouse_position(mouse_event), this.camera)
+
+    // Get the model meshes to raycast against
+    const model_meshes = this.load_model_step.model_meshes()
+    
+    // Collect all mesh objects for raycasting
+    const meshes_to_test: THREE.Mesh[] = []
+    model_meshes.traverse((child) => {
+      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
+        meshes_to_test.push(child as THREE.Mesh)
+      }
+    })
+
+    if (meshes_to_test.length === 0) {
+      console.warn('No meshes found to raycast against')
+      return
+    }
+
+    // Perform raycasting
+    const intersections = raycaster.intersectObjects(meshes_to_test, true)
+
+    if (intersections.length === 0) {
+      console.log('No mesh intersection found at click position')
+      return
+    }
+
+    // Get the first intersection
+    const intersection = intersections[0]
+    const mesh = intersection.object as THREE.Mesh
+
+    // Calculate the local bounding box of the mesh around the intersection point
+    // We'll use a sphere to define a "volume" around the click point
+    const volume_center = this.calculate_local_volume_center(mesh, intersection.point)
+
+    // Store undo state before making changes
+    this.edit_skeleton_step.store_bone_state_for_undo()
+
+    // Move the bone to the volume center
+    // Convert world position to local position relative to bone's parent
+    if (closest_bone.parent !== null) {
+      const parent_world_matrix = new THREE.Matrix4()
+      closest_bone.parent.updateWorldMatrix(true, false)
+      parent_world_matrix.copy(closest_bone.parent.matrixWorld).invert()
+      const local_position = volume_center.clone().applyMatrix4(parent_world_matrix)
+      closest_bone.position.copy(local_position)
+    } else {
+      closest_bone.position.copy(volume_center)
+    }
+
+    closest_bone.updateWorldMatrix(true, true)
+
+    // Apply mirror mode if enabled
+    if (this.edit_skeleton_step.is_mirror_mode_enabled()) {
+      this.edit_skeleton_step.apply_mirror_mode(closest_bone, 'translate')
+    }
+
+    // Update skeleton helper
+    if (this.skeleton_helper !== undefined) {
+      this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton(), 'Skeleton Helper')
+    }
+
+    // Refresh weight painting if in weight painted mode
+    if (this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
+      this.regenerate_weight_painted_preview_mesh()
+    }
+
+    console.log(`Bone ${closest_bone.name} snapped to volume center at`, volume_center)
+  }
+
+  /**
+   * Calculate the volume center of the mesh around a given point
+   * This uses the mesh's geometry to find vertices near the intersection point
+   * and calculates their bounding box center
+   */
+  private calculate_local_volume_center (mesh: THREE.Mesh, intersection_point: THREE.Vector3): THREE.Vector3 {
+    const geometry = mesh.geometry
+    
+    if (geometry === undefined || geometry === null) {
+      return intersection_point.clone()
+    }
+
+    // Get position attribute
+    const positions = geometry.attributes.position
+    
+    if (positions === undefined) {
+      return intersection_point.clone()
+    }
+
+    // Transform intersection point to local space of the mesh
+    const local_intersection = intersection_point.clone()
+    const inverse_matrix = new THREE.Matrix4()
+    mesh.updateWorldMatrix(true, false)
+    inverse_matrix.copy(mesh.matrixWorld).invert()
+    local_intersection.applyMatrix4(inverse_matrix)
+
+    // Find vertices within a radius of the intersection point
+    const search_radius = 0.15 // Adjust this to control volume size
+    const nearby_vertices: THREE.Vector3[] = []
+
+    for (let i = 0; i < positions.count; i++) {
+      const vertex = new THREE.Vector3(
+        positions.getX(i),
+        positions.getY(i),
+        positions.getZ(i)
+      )
+
+      const distance = vertex.distanceTo(local_intersection)
+      if (distance < search_radius) {
+        nearby_vertices.push(vertex)
+      }
+    }
+
+    // If we found nearby vertices, calculate their bounding box center
+    if (nearby_vertices.length > 0) {
+      const bbox = new THREE.Box3()
+      bbox.setFromPoints(nearby_vertices)
+      const center = new THREE.Vector3()
+      bbox.getCenter(center)
+      
+      // Transform back to world space
+      center.applyMatrix4(mesh.matrixWorld)
+      return center
+    }
+
+    // If no nearby vertices, just return the intersection point
+    return intersection_point.clone()
   }
 
   public remove_skinned_meshes_from_scene (): void {
