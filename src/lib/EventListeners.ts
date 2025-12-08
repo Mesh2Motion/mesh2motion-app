@@ -52,7 +52,7 @@ export class EventListeners {
       }
 
       // Handle snap-to-volume dragging
-      if (this.bootstrap.is_snap_to_volume_dragging) {
+      if (this.bootstrap.is_snap_to_volume_dragging()) {
         this.bootstrap.handle_snap_to_volume_dragging(event)
       }
 
@@ -75,7 +75,7 @@ export class EventListeners {
 
     this.bootstrap.renderer.domElement.addEventListener('mouseup', (event: MouseEvent) => {
       // Handle snap-to-volume mode mouse up
-      if (this.bootstrap.is_snap_to_volume_dragging) {
+      if (this.bootstrap.is_snap_to_volume_dragging()) {
         this.bootstrap.handle_snap_to_volume_mouse_up()
       }
     }, false)
