@@ -228,6 +228,9 @@ export class StepAnimationsListing extends EventTarget {
 
     /// Apply the arm extension warp:
     AnimationUtility.apply_arm_extension_warp(this.animation_clips_loaded, this.warp_arm_amount)
+
+    // Apply finger rotation constraints to prevent backward bending
+    AnimationUtility.apply_finger_rotation_constraints(this.animation_clips_loaded)
   }
 
   /**

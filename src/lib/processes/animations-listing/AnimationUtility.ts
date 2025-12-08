@@ -1,4 +1,4 @@
-import { AnimationClip, Quaternion, Vector3, type KeyframeTrack, type QuaternionKeyframeTrack } from 'three'
+import { AnimationClip, Quaternion, Vector3, Euler, type KeyframeTrack, type QuaternionKeyframeTrack } from 'three'
 import type { TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 
 export class AnimationUtility {
@@ -47,7 +47,7 @@ export class AnimationUtility {
           .filter((x: KeyframeTrack) => x.name.includes('quaternion') ||
           x.name.toLowerCase().includes('hips.position') ||
           x.name.toLowerCase().includes('root.position'))
-          console.log('Preserving root position for clip: ' + animation_clip.name)
+        console.log('Preserving root position for clip: ' + animation_clip.name)
       } else {
         rotation_tracks = animation_clip.tracks
           .filter((x: KeyframeTrack) => x.name.includes('quaternion') ||
@@ -56,6 +56,98 @@ export class AnimationUtility {
 
       animation_clip.tracks = rotation_tracks // update track data
     })
+  }
+
+  /**
+   * Applies rotation constraints to finger bones to prevent unnatural backward bending.
+   * This is especially important for models with simplified hand skeletons (2-3 bones)
+   * where animations designed for full 5-finger skeletons can cause issues.
+   * @param animation_clips - The animation clips to constrain
+   */
+  static apply_finger_rotation_constraints (animation_clips: TransformedAnimationClipPair[]): void {
+    animation_clips.forEach((warped_clip: TransformedAnimationClipPair) => {
+      warped_clip.display_animation_clip.tracks.forEach((track: KeyframeTrack) => {
+        // Only process quaternion tracks for finger bones
+        if (!track.name.includes('quaternion')) {
+          return
+        }
+
+        const track_name_lower = track.name.toLowerCase()
+
+        // Check if this is a finger bone (thumb, index, middle, ring, pinky)
+        const is_finger_bone = track_name_lower.includes('thumb') ||
+                              track_name_lower.includes('index') ||
+                              track_name_lower.includes('middle') ||
+                              track_name_lower.includes('ring') ||
+                              track_name_lower.includes('pinky') ||
+                              track_name_lower.includes('finger')
+
+        if (!is_finger_bone) {
+          return
+        }
+
+        const quaternion_track: QuaternionKeyframeTrack = track as QuaternionKeyframeTrack
+        const values = quaternion_track.values
+        const units_in_quaternions = 4
+
+        // Process each quaternion keyframe
+        for (let i = 0; i < values.length; i += units_in_quaternions) {
+          const quat = new Quaternion(
+            values[i], // x
+            values[i + 1], // y
+            values[i + 2], // z
+            values[i + 3] // w
+          )
+
+          // Convert quaternion to Euler angles to check and constrain rotation
+          const euler = new Vector3()
+          this.quaternion_to_constrained_euler(quat, euler)
+
+          // Constrain finger rotations to prevent backward bending
+          // Fingers typically bend in one direction (curling forward)
+          // We'll limit the extension (backward bending) while allowing natural curling
+
+          // X-axis: finger curl/extension (main bending axis)
+          // Limit extension to prevent backward bending (negative values = extension)
+          euler.x = Math.max(euler.x, -0.2) // Limit backward bend to ~11 degrees
+          euler.x = Math.min(euler.x, 1.8) // Allow forward curl up to ~103 degrees
+
+          // Y-axis: side-to-side movement (adduction/abduction)
+          // Allow some side movement but not excessive
+          euler.y = Math.max(euler.y, -0.5) // ~-29 degrees
+          euler.y = Math.min(euler.y, 0.5) // ~29 degrees
+
+          // Z-axis: rotation along finger length
+          // Minimal rotation along this axis for natural movement
+          euler.z = Math.max(euler.z, -0.3) // ~-17 degrees
+          euler.z = Math.min(euler.z, 0.3) // ~17 degrees
+
+          // Convert constrained Euler angles back to quaternion
+          const constrained_quat = new Quaternion()
+          constrained_quat.setFromEuler(new Euler(euler.x, euler.y, euler.z, 'XYZ'))
+
+          // Write back the constrained quaternion
+          values[i] = constrained_quat.x
+          values[i + 1] = constrained_quat.y
+          values[i + 2] = constrained_quat.z
+          values[i + 3] = constrained_quat.w
+        }
+      })
+    })
+  }
+
+  /**
+   * Converts a quaternion to Euler angles safely
+   * @param quat - Input quaternion
+   * @param euler - Output Euler angles as Vector3
+   */
+  private static quaternion_to_constrained_euler (quat: Quaternion, euler: Vector3): void {
+    // Create a temporary Euler to extract angles
+    const temp_euler = new Euler()
+    temp_euler.setFromQuaternion(quat, 'XYZ')
+    euler.x = temp_euler.x
+    euler.y = temp_euler.y
+    euler.z = temp_euler.z
   }
 
   static apply_arm_extension_warp (animation_clips: TransformedAnimationClipPair[], percentage: number): void {
@@ -142,7 +234,7 @@ export class AnimationUtility {
           }
         }
       }
- 
+
       // Perform the swaps with quaternion mirroring
       track_swaps.forEach(({ leftIndex, rightIndex, clipDetails }) => {
         const left_track = tracks[leftIndex]
