@@ -42,7 +42,7 @@ export class Mesh2MotionEngine {
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
   private readonly snap_to_volume_search_radius: number = 0.15 // radius for finding nearby vertices when snapping to volume center
-  private child_bone_positions: Map<string, THREE.Vector3> = new Map()
+  private is_snap_to_volume_dragging: boolean = false // tracks if we're currently dragging in snap-to-volume mode
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
 
@@ -424,9 +424,9 @@ export class Mesh2MotionEngine {
       return
     }
 
-    // Handle snap-to-volume mode differently
+    // Handle snap-to-volume mode differently - start dragging
     if (this.transform_controls_type === TransformControlType.SnapToVolume) {
-      this.handle_snap_to_volume_click(mouse_event)
+      this.handle_snap_to_volume_mouse_down(mouse_event)
       return
     }
 
@@ -465,80 +465,9 @@ export class Mesh2MotionEngine {
   }
 
   /**
-   * Store the world positions of all child bones of the currently selected bone
-   * This is used when "move only joint" mode is enabled
+   * Handle mouse down in snap to volume mode - start dragging
    */
-  public store_child_bone_positions (): void {
-    this.child_bone_positions.clear()
-    const selected_object = this.transform_controls.object
-    
-    if (selected_object === undefined || selected_object === null || selected_object.type !== 'Bone') {
-      return
-    }
-    
-    const selected_bone = selected_object as Bone
-
-    // Store world positions of all child bones recursively
-    const store_recursive = (bone: THREE.Object3D): void => {
-      bone.children.forEach((child) => {
-        if (child.type === 'Bone') {
-          const world_position = new THREE.Vector3()
-          child.getWorldPosition(world_position)
-          this.child_bone_positions.set(child.uuid, world_position.clone())
-          store_recursive(child)
-        }
-      })
-    }
-
-    store_recursive(selected_bone)
-  }
-
-  /**
-   * Restore the world positions of all child bones that were stored
-   * This is used when "move only joint" mode is enabled
-   */
-  public restore_child_bone_positions (): void {
-    const selected_object = this.transform_controls.object
-    
-    if (selected_object === undefined || selected_object === null || selected_object.type !== 'Bone') {
-      return
-    }
-    
-    const selected_bone = selected_object as Bone
-
-    // Restore world positions of all child bones recursively
-    const restore_recursive = (bone: THREE.Object3D): void => {
-      bone.children.forEach((child) => {
-        if (child.type === 'Bone') {
-          const stored_position = this.child_bone_positions.get(child.uuid)
-          if (stored_position !== undefined) {
-            // Convert world position back to local position
-            const parent_world_matrix = new THREE.Matrix4()
-            if (child.parent !== null) {
-              child.parent.updateWorldMatrix(true, false)
-              parent_world_matrix.copy(child.parent.matrixWorld).invert()
-            }
-            const local_position = stored_position.clone().applyMatrix4(parent_world_matrix)
-            child.position.copy(local_position)
-            child.updateWorldMatrix(true, false)
-          }
-          restore_recursive(child)
-        }
-      })
-    }
-
-    restore_recursive(selected_bone)
-    
-    // Clear the stored positions after restoring
-    this.child_bone_positions.clear()
-  }
-
-  /**
-   * Handle snap to volume center mode
-   * When user clicks on the mesh, move the currently selected bone to the volume center
-   */
-  private handle_snap_to_volume_click (mouse_event: MouseEvent): void {
-    // First, select the bone
+  private handle_snap_to_volume_mouse_down (mouse_event: MouseEvent): void {
     const skeleton_to_test: Skeleton | undefined = this.edit_skeleton_step.skeleton()
     
     if (skeleton_to_test === undefined) {
@@ -565,8 +494,58 @@ export class Mesh2MotionEngine {
 
     // Store the selected bone
     this.edit_skeleton_step.set_currently_selected_bone(closest_bone)
+    
+    // Store undo state before making changes (only once at start of drag)
+    this.edit_skeleton_step.store_bone_state_for_undo()
+    
+    // Start dragging mode
+    this.is_snap_to_volume_dragging = true
+    
+    // Disable orbit controls while dragging
+    if (this.controls !== undefined) {
+      this.controls.enabled = false
+    }
 
-    // Now raycast to find mesh intersection
+    // Perform the initial snap
+    this.snap_bone_to_volume_at_mouse_position(mouse_event, closest_bone)
+  }
+
+  /**
+   * Handle mouse move while dragging in snap to volume mode
+   */
+  public handle_snap_to_volume_dragging (mouse_event: MouseEvent): void {
+    const selected_bone = this.edit_skeleton_step.get_currently_selected_bone()
+    
+    if (selected_bone === null) {
+      return
+    }
+
+    // Continuously update bone position as mouse moves
+    this.snap_bone_to_volume_at_mouse_position(mouse_event, selected_bone)
+  }
+
+  /**
+   * Handle mouse up in snap to volume mode - stop dragging
+   */
+  public handle_snap_to_volume_mouse_up (): void {
+    this.is_snap_to_volume_dragging = false
+    
+    // Re-enable orbit controls
+    if (this.controls !== undefined) {
+      this.controls.enabled = true
+    }
+
+    // Refresh weight painting if in weight painted mode
+    if (this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
+      this.regenerate_weight_painted_preview_mesh()
+    }
+  }
+
+  /**
+   * Snap the bone to the volume center at the current mouse position
+   */
+  private snap_bone_to_volume_at_mouse_position (mouse_event: MouseEvent, bone: Bone): void {
+    // Raycast to find mesh intersection
     const raycaster = new THREE.Raycaster()
     raycaster.setFromCamera(Utility.normalized_mouse_position(mouse_event), this.camera)
 
@@ -582,7 +561,6 @@ export class Mesh2MotionEngine {
     })
 
     if (meshes_to_test.length === 0) {
-      console.warn('No meshes found to raycast against')
       return
     }
 
@@ -590,7 +568,6 @@ export class Mesh2MotionEngine {
     const intersections = raycaster.intersectObjects(meshes_to_test, true)
 
     if (intersections.length === 0) {
-      console.log('No mesh intersection found at click position')
       return
     }
 
@@ -598,43 +575,31 @@ export class Mesh2MotionEngine {
     const intersection = intersections[0]
     const mesh = intersection.object as THREE.Mesh
 
-    // Calculate the local bounding box of the mesh around the intersection point
-    // We'll use a sphere to define a "volume" around the click point
+    // Calculate the local volume center around the intersection point
     const volume_center = this.calculate_local_volume_center(mesh, intersection.point)
 
-    // Store undo state before making changes
-    this.edit_skeleton_step.store_bone_state_for_undo()
-
     // Move the bone to the volume center
-    // Convert world position to local position relative to bone's parent
-    if (closest_bone.parent !== null) {
+    if (bone.parent !== null) {
       const parent_world_matrix = new THREE.Matrix4()
-      closest_bone.parent.updateWorldMatrix(true, false)
-      parent_world_matrix.copy(closest_bone.parent.matrixWorld).invert()
+      bone.parent.updateWorldMatrix(true, false)
+      parent_world_matrix.copy(bone.parent.matrixWorld).invert()
       const local_position = volume_center.clone().applyMatrix4(parent_world_matrix)
-      closest_bone.position.copy(local_position)
+      bone.position.copy(local_position)
     } else {
-      closest_bone.position.copy(volume_center)
+      bone.position.copy(volume_center)
     }
 
-    closest_bone.updateWorldMatrix(true, true)
+    bone.updateWorldMatrix(true, true)
 
     // Apply mirror mode if enabled
     if (this.edit_skeleton_step.is_mirror_mode_enabled()) {
-      this.edit_skeleton_step.apply_mirror_mode(closest_bone, 'translate')
+      this.edit_skeleton_step.apply_mirror_mode(bone, 'translate')
     }
 
     // Update skeleton helper
     if (this.skeleton_helper !== undefined) {
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton(), 'Skeleton Helper')
     }
-
-    // Refresh weight painting if in weight painted mode
-    if (this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
-      this.regenerate_weight_painted_preview_mesh()
-    }
-
-    console.log(`Bone ${closest_bone.name} snapped to volume center at`, volume_center)
   }
 
   /**

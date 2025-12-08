@@ -51,6 +51,11 @@ export class EventListeners {
         this.bootstrap.handle_transform_controls_moving()
       }
 
+      // Handle snap-to-volume dragging
+      if (this.bootstrap.is_snap_to_volume_dragging) {
+        this.bootstrap.handle_snap_to_volume_dragging(event)
+      }
+
       // edit skeleton step logic that deals with hovering over bones
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton) {
         this.bootstrap.edit_skeleton_step.calculate_bone_hover_effect(event, this.bootstrap.camera, this.bootstrap.transform_controls_hover_distance)
@@ -68,6 +73,13 @@ export class EventListeners {
       }
     }, false)
 
+    this.bootstrap.renderer.domElement.addEventListener('mouseup', (event: MouseEvent) => {
+      // Handle snap-to-volume mode mouse up
+      if (this.bootstrap.is_snap_to_volume_dragging) {
+        this.bootstrap.handle_snap_to_volume_mouse_up()
+      }
+    }, false)
+
     // custom event listeners for the transform controls.
     // we can know about the "mouseup" event with this
     this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
@@ -77,18 +89,6 @@ export class EventListeners {
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton && this.bootstrap.edit_skeleton_step !== undefined) {
         this.bootstrap.edit_skeleton_step.store_bone_state_for_undo()
-        
-        // If move-only-joint mode is enabled, store child positions before dragging
-        if (this.bootstrap.edit_skeleton_step.is_move_only_joint_enabled()) {
-          this.bootstrap.store_child_bone_positions()
-        }
-      }
-
-      // When dragging stops (event.value = false), restore child positions if needed
-      if (!event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton && this.bootstrap.edit_skeleton_step !== undefined) {
-        if (this.bootstrap.edit_skeleton_step.is_move_only_joint_enabled()) {
-          this.bootstrap.restore_child_bone_positions()
-        }
       }
 
       // if we stopped dragging, that means a mouse up.
