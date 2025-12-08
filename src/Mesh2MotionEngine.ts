@@ -41,6 +41,7 @@ export class Mesh2MotionEngine {
   public readonly transform_controls: TransformControls = new TransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
+  private child_bone_positions: Map<string, THREE.Vector3> = new Map()
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
 
@@ -448,6 +449,71 @@ export class Mesh2MotionEngine {
     } else {
       this.edit_skeleton_step.set_currently_selected_bone(null)
     }
+  }
+
+  /**
+   * Store the world positions of all child bones of the currently selected bone
+   * This is used when "move only joint" mode is enabled
+   */
+  public store_child_bone_positions (): void {
+    this.child_bone_positions.clear()
+    const selected_bone = this.transform_controls.object as Bone
+    
+    if (selected_bone === undefined || selected_bone === null) {
+      return
+    }
+
+    // Store world positions of all child bones recursively
+    const store_recursive = (bone: THREE.Object3D): void => {
+      bone.children.forEach((child) => {
+        if (child.type === 'Bone') {
+          const world_position = new THREE.Vector3()
+          child.getWorldPosition(world_position)
+          this.child_bone_positions.set(child.uuid, world_position.clone())
+          store_recursive(child)
+        }
+      })
+    }
+
+    store_recursive(selected_bone)
+  }
+
+  /**
+   * Restore the world positions of all child bones that were stored
+   * This is used when "move only joint" mode is enabled
+   */
+  public restore_child_bone_positions (): void {
+    const selected_bone = this.transform_controls.object as Bone
+    
+    if (selected_bone === undefined || selected_bone === null) {
+      return
+    }
+
+    // Restore world positions of all child bones recursively
+    const restore_recursive = (bone: THREE.Object3D): void => {
+      bone.children.forEach((child) => {
+        if (child.type === 'Bone') {
+          const stored_position = this.child_bone_positions.get(child.uuid)
+          if (stored_position !== undefined) {
+            // Convert world position back to local position
+            const parent_world_matrix = new THREE.Matrix4()
+            if (child.parent !== null) {
+              child.parent.updateWorldMatrix(true, false)
+              parent_world_matrix.copy(child.parent.matrixWorld).invert()
+            }
+            const local_position = stored_position.clone().applyMatrix4(parent_world_matrix)
+            child.position.copy(local_position)
+            child.updateWorldMatrix(true, false)
+          }
+          restore_recursive(child)
+        }
+      })
+    }
+
+    restore_recursive(selected_bone)
+    
+    // Clear the stored positions after restoring
+    this.child_bone_positions.clear()
   }
 
   public remove_skinned_meshes_from_scene (): void {

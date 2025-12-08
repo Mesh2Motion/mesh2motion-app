@@ -38,6 +38,7 @@ export class StepEditSkeleton extends EventTarget {
   // Skeleton created from the armature that Three.js uses
   private threejs_skeleton: Skeleton = new Skeleton()
   private mirror_mode_enabled: boolean = true
+  private move_only_joint_enabled: boolean = false
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
 
@@ -211,6 +212,14 @@ export class StepEditSkeleton extends EventTarget {
     return this.mirror_mode_enabled
   }
 
+  public set_move_only_joint_enabled (value: boolean): void {
+    this.move_only_joint_enabled = value
+  }
+
+  public is_move_only_joint_enabled (): boolean {
+    return this.move_only_joint_enabled
+  }
+
   public algorithm (): string | null {
     return this.skinning_algorithm
   }
@@ -261,6 +270,13 @@ export class StepEditSkeleton extends EventTarget {
       this.ui.dom_mirror_skeleton_checkbox.addEventListener('change', (event) => {
         // mirror skeleton movements along the X axis
         this.set_mirror_mode_enabled(event.target.checked)
+      })
+    }
+
+    if (this.ui.dom_move_only_joint_checkbox !== null) {
+      this.ui.dom_move_only_joint_checkbox.addEventListener('change', (event) => {
+        // toggle move only this joint mode
+        this.set_move_only_joint_enabled(event.target.checked)
       })
     }
 
