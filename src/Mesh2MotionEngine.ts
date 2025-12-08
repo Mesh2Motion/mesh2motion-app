@@ -41,6 +41,7 @@ export class Mesh2MotionEngine {
   public readonly transform_controls: TransformControls = new TransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
+  private readonly snap_to_volume_search_radius: number = 0.15 // radius for finding nearby vertices when snapping to volume center
   private child_bone_positions: Map<string, THREE.Vector3> = new Map()
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
@@ -469,11 +470,13 @@ export class Mesh2MotionEngine {
    */
   public store_child_bone_positions (): void {
     this.child_bone_positions.clear()
-    const selected_bone = this.transform_controls.object as Bone
+    const selected_object = this.transform_controls.object
     
-    if (selected_bone === undefined || selected_bone === null) {
+    if (selected_object === undefined || selected_object === null || selected_object.type !== 'Bone') {
       return
     }
+    
+    const selected_bone = selected_object as Bone
 
     // Store world positions of all child bones recursively
     const store_recursive = (bone: THREE.Object3D): void => {
@@ -495,11 +498,13 @@ export class Mesh2MotionEngine {
    * This is used when "move only joint" mode is enabled
    */
   public restore_child_bone_positions (): void {
-    const selected_bone = this.transform_controls.object as Bone
+    const selected_object = this.transform_controls.object
     
-    if (selected_bone === undefined || selected_bone === null) {
+    if (selected_object === undefined || selected_object === null || selected_object.type !== 'Bone') {
       return
     }
+    
+    const selected_bone = selected_object as Bone
 
     // Restore world positions of all child bones recursively
     const restore_recursive = (bone: THREE.Object3D): void => {
@@ -659,7 +664,6 @@ export class Mesh2MotionEngine {
     local_intersection.applyMatrix4(inverse_matrix)
 
     // Find vertices within a radius of the intersection point
-    const search_radius = 0.15 // Adjust this to control volume size
     const nearby_vertices: THREE.Vector3[] = []
 
     for (let i = 0; i < positions.count; i++) {
@@ -670,7 +674,7 @@ export class Mesh2MotionEngine {
       )
 
       const distance = vertex.distanceTo(local_intersection)
-      if (distance < search_radius) {
+      if (distance < this.snap_to_volume_search_radius) {
         nearby_vertices.push(vertex)
       }
     }

@@ -75,7 +75,7 @@ export class EventListeners {
       this.bootstrap.controls.enabled = !event.value
 
       // Store undo state when we start dragging (event.value = true)
-      if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {
+      if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton && this.bootstrap.edit_skeleton_step !== undefined) {
         this.bootstrap.edit_skeleton_step.store_bone_state_for_undo()
         
         // If move-only-joint mode is enabled, store child positions before dragging
@@ -85,7 +85,7 @@ export class EventListeners {
       }
 
       // When dragging stops (event.value = false), restore child positions if needed
-      if (!event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {
+      if (!event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton && this.bootstrap.edit_skeleton_step !== undefined) {
         if (this.bootstrap.edit_skeleton_step.is_move_only_joint_enabled()) {
           this.bootstrap.restore_child_bone_positions()
         }
