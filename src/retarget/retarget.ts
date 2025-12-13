@@ -2,6 +2,7 @@ import { Mesh2MotionEngine } from '../Mesh2MotionEngine.ts'
 import { type Group, type Object3DEventMap, type SkinnedMesh, Vector3 } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
 import { StepLoadTargetSkeleton } from './StepLoadTargetSkeleton.ts'
+import { StepBoneMapping } from './StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
 
 class RetargetModule {
@@ -10,6 +11,7 @@ class RetargetModule {
   private load_model_button: HTMLLabelElement | null = null
   private bone_map_button: HTMLButtonElement | null = null
   private readonly step_load_target_skeleton: StepLoadTargetSkeleton
+  private readonly step_bone_mapping: StepBoneMapping
 
   constructor () {
     // Set up camera position similar to marketing bootstrap
@@ -19,6 +21,9 @@ class RetargetModule {
     
     // Initialize skeleton loading step
     this.step_load_target_skeleton = new StepLoadTargetSkeleton(this.mesh2motion_engine.get_scene())
+    
+    // Initialize bone mapping step
+    this.step_bone_mapping = new StepBoneMapping(this.mesh2motion_engine.get_scene())
   }
 
   public init (): void {
@@ -36,6 +41,13 @@ class RetargetModule {
     this.fileInput.addEventListener('change', (event) => {
       console.log('File input changed', event)
       this.handleFileSelect(event)
+    })
+    
+    // Listen for target skeleton loaded
+    this.step_load_target_skeleton.addEventListener('skeleton-loaded', () => {
+      const target_armature = this.step_load_target_skeleton.get_loaded_target_armature()
+      const skeleton_type = this.step_load_target_skeleton.get_skeleton_type()
+      this.step_bone_mapping.set_target_skeleton_data(target_armature, skeleton_type)
     })
     
     // Bone map button click listener
@@ -88,8 +100,8 @@ class RetargetModule {
             // Add skeleton helper
             this.add_skeleton_helper(retargetable_meshes)
             
-            // Transition to skeleton loading step
-            this.transition_to_skeleton_loading()
+            // Set source skeleton data in bone mapping
+            this.step_bone_mapping.set_source_skeleton_data(retargetable_meshes)
           }
         }, { once: true })
       } catch (error) {
@@ -108,22 +120,14 @@ class RetargetModule {
       }
     })
   }
-  
-  private transition_to_skeleton_loading (): void {
-    // Hide the model loading button
-    // if (this.load_model_button !== null) {
-    //   this.load_model_button.style.display = 'none'
-    // }
 
-    // TODO: don't need this since we are doing both model and skeleton loading in same step
-
-  }
-  
   private handle_bone_map_requested (): void {
     console.log('Bone map requested - proceeding to bone mapping step')
     console.log('Target skeleton type:', this.step_load_target_skeleton.get_skeleton_type())
     console.log('Target armature:', this.step_load_target_skeleton.get_loaded_target_armature())
-    // TODO: Implement bone mapping step
+    
+    // Begin the bone mapping step
+    this.step_bone_mapping.begin()
   }
 }
 

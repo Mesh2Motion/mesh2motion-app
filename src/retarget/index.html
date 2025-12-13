@@ -42,7 +42,7 @@
             <!-- there are some issues going on with scaling the skeleton for FBX and other formats
                  so we will start simple for now with just GLB files -->
             <input type="file" id="upload-file" accept=".glb" style="display: none;" />
-            <label for="upload-file" class="button" id="load-model-button">Choose 3D Model File</label>
+            <label for="upload-file" class="button" id="load-model-button">Choose Skinned 3d Model File</label>
             
             <div id="skeleton-selection-container" >
                 <label for="skeleton-type-select">Choose Target Skeleton:</label>
@@ -56,6 +56,25 @@
             </div>
 
              <button class="button" id="bone-map-button" >Bone Map</button>
+             
+             <!-- Bone Mapping UI -->
+             <div id="bone-mapping-container" style="display: none; margin-top: 2rem;">
+                <h3>Bone Mapping</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4>Source Skeleton Bones</h4>
+                        <div id="source-bones-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 1rem;">
+                            <!-- Source bones will be populated here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4>Target Skeleton Bones</h4>
+                        <div id="target-bones-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 1rem;">
+                            <!-- Target bones will be populated here -->
+                        </div>
+                    </div>
+                </div>
+             </div>
         </div>
 
         <!-- 3d view controls shown on bottom right. This helps with click events -->
