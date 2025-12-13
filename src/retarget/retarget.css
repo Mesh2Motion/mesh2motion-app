@@ -15,3 +15,42 @@ h1 {
     background-color: var(--bg-alternate);
     border-radius: 0.25rem;
 }
+
+/* Bone mapping list item styles with drag and drop styles */
+.bone-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.bone-item-source {
+    cursor: grab;
+    user-select: none;
+}
+
+.bone-item-source.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.bone-item-target {
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bone-item-target.drag-over {
+    background-color: rgba(76, 175, 80, 0.2);
+}
+
+/* Bone mapping display styles */
+.mapping-arrow {
+    color: var(--primary-color, #4CAF50);
+    font-weight: bold;
+}
+
+.mapping-source-name {
+    color: var(--primary-color, #4CAF50);
+    font-style: italic;
+    font-size: 0.9em;
+}

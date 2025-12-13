@@ -10,6 +10,13 @@ export class StepBoneMapping extends EventTarget {
   // DOM references
   private source_bones_list: HTMLDivElement | null = null
   private target_bones_list: HTMLDivElement | null = null
+  private clear_mappings_button: HTMLButtonElement | null = null
+
+  // Bone mapping: target bone name -> source bone name
+  private bone_mapping: Map<string, string> = new Map()
+
+  // Track if event listeners have been added
+  private added_event_listeners: boolean = false
 
   constructor (main_scene: Scene) {
     super()
@@ -20,9 +27,17 @@ export class StepBoneMapping extends EventTarget {
     // Get DOM references
     this.source_bones_list = document.getElementById('source-bones-list') as HTMLDivElement
     this.target_bones_list = document.getElementById('target-bones-list') as HTMLDivElement
+    this.clear_mappings_button = document.getElementById('clear-mappings-button') as HTMLButtonElement
+
+    // Add event listener for clear mappings button
+    this.clear_mappings_button?.addEventListener('click', () => {
+      this.clear_all_bone_mappings()
+      console.log('All bone mappings cleared')
+    })
 
     // Populate the lists
     this.update_bone_lists()
+    this.update_clear_button_visibility()
   }
 
   public set_source_skeleton_data (skeleton_data: Group<Object3DEventMap>): void {
@@ -119,8 +134,16 @@ export class StepBoneMapping extends EventTarget {
     bone_names.forEach((name) => {
       const bone_item = document.createElement('div')
       bone_item.textContent = name
-      bone_item.style.padding = '0.5rem'
-      bone_item.style.borderBottom = '1px solid #eee'
+      bone_item.className = 'bone-item bone-item-source'
+      
+      // Make the bone draggable
+      bone_item.draggable = true
+      bone_item.dataset.boneName = name
+      
+      // Add drag event listeners
+      bone_item.addEventListener('dragstart', this.handle_drag_start.bind(this))
+      bone_item.addEventListener('dragend', this.handle_drag_end.bind(this))
+      
       this.source_bones_list?.appendChild(bone_item)
     })
   }
@@ -137,10 +160,135 @@ export class StepBoneMapping extends EventTarget {
     this.target_bones_list.innerHTML = ''
     bone_names.forEach((name) => {
       const bone_item = document.createElement('div')
-      bone_item.textContent = name
-      bone_item.style.padding = '0.5rem'
-      bone_item.style.borderBottom = '1px solid #eee'
+      bone_item.className = 'bone-item bone-item-target'
+      bone_item.dataset.targetBoneName = name
+      
+      // Check if this target bone has a mapping
+      const mapped_source_bone = this.bone_mapping.get(name)
+      if (mapped_source_bone !== undefined) {
+        // Show the mapping with an arrow
+        const arrow_span = document.createElement('span')
+        arrow_span.textContent = '← '
+        arrow_span.className = 'mapping-arrow'
+        
+        const source_name_span = document.createElement('span')
+        source_name_span.textContent = mapped_source_bone
+        source_name_span.className = 'mapping-source-name'
+        
+        const target_name_span = document.createElement('span')
+        target_name_span.textContent = name
+        
+        bone_item.appendChild(arrow_span)
+        bone_item.appendChild(source_name_span)
+        bone_item.appendChild(target_name_span)
+      } else {
+        bone_item.textContent = name
+      }
+      
+      // Make the bone a drop target
+      bone_item.addEventListener('dragover', this.handle_drag_over.bind(this))
+      bone_item.addEventListener('dragleave', this.handle_drag_leave.bind(this))
+      bone_item.addEventListener('drop', this.handle_drop.bind(this))
+      
       this.target_bones_list?.appendChild(bone_item)
     })
+  }
+
+  // Drag and drop event handlers
+  private handle_drag_start (event: DragEvent): void {
+    const target = event.target as HTMLElement
+    const bone_name = target.dataset.boneName
+    
+    if (bone_name !== undefined && event.dataTransfer !== null) {
+      event.dataTransfer.effectAllowed = 'copy'
+      event.dataTransfer.setData('text/plain', bone_name)
+      target.classList.add('dragging')
+    }
+  }
+
+  private handle_drag_end (event: DragEvent): void {
+    const target = event.target as HTMLElement
+    target.classList.remove('dragging')
+  }
+
+  private handle_drag_over (event: DragEvent): void {
+    event.preventDefault() // Allow drop
+    const target = event.target as HTMLElement
+    
+    // Visual feedback for drop zone
+    if (event.dataTransfer !== null) {
+      event.dataTransfer.dropEffect = 'copy'
+    }
+    target.classList.add('drag-over')
+  }
+
+  private handle_drag_leave (event: DragEvent): void {
+    const target = event.target as HTMLElement
+    target.classList.remove('drag-over')
+  }
+
+  private handle_drop (event: DragEvent): void {
+    event.preventDefault()
+    const target = event.target as HTMLElement
+    target.classList.remove('drag-over')
+    
+    if (event.dataTransfer !== null) {
+      const source_bone_name = event.dataTransfer.getData('text/plain')
+      const target_bone_name = target.dataset.targetBoneName
+      
+      if (source_bone_name !== '' && target_bone_name !== undefined) {
+        // Update the mapping
+        this.bone_mapping.set(target_bone_name, source_bone_name)
+        console.log(`Mapped: ${target_bone_name} <- ${source_bone_name}`)
+        
+        // Update the UI to show the mapping
+        this.update_target_bones_list()
+        this.update_clear_button_visibility()
+        
+        // Dispatch event to notify of mapping change
+        this.dispatchEvent(new CustomEvent('bone-mapping-updated', {
+          detail: {
+            target_bone: target_bone_name,
+            source_bone: source_bone_name
+          }
+        }))
+        
+        // Dispatch event to notify about mapping state change
+        this.dispatchEvent(new CustomEvent('bone-mappings-changed'))
+      }
+    }
+  }
+
+  // Getter for the bone mapping
+  public get_bone_mapping (): Map<string, string> {
+    return new Map(this.bone_mapping)
+  }
+
+  // Check if there are any bone mappings
+  public has_bone_mappings (): boolean {
+    return this.bone_mapping.size > 0
+  }
+
+  // Update visibility of clear mappings button
+  private update_clear_button_visibility (): void {
+    if (this.clear_mappings_button === null) return
+
+    this.clear_mappings_button.style.display = this.has_bone_mappings() ? 'block' : 'none'
+  }
+
+  // Clear a specific mapping
+  public clear_bone_mapping (target_bone_name: string): void {
+    this.bone_mapping.delete(target_bone_name)
+    this.update_target_bones_list()
+    this.update_clear_button_visibility()
+    this.dispatchEvent(new CustomEvent('bone-mappings-changed'))
+  }
+
+  // Clear all mappings
+  public clear_all_bone_mappings (): void {
+    this.bone_mapping.clear()
+    this.update_target_bones_list()
+    this.update_clear_button_visibility()
+    this.dispatchEvent(new CustomEvent('bone-mappings-changed'))
   }
 }
