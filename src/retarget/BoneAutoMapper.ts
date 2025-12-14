@@ -209,6 +209,13 @@ export class BoneAutoMapper {
       return BoneSide.Right
     }
 
+    // let's look to see if "right" or "left" appears anywhere in the name
+    if (normalized.includes('left')) {
+      return BoneSide.Left
+    } else if (normalized.includes('right')) {
+      return BoneSide.Right
+    }
+
     return BoneSide.Unknown // mark as unknown to help us develop this more later
   }
 
