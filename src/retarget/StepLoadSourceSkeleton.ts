@@ -4,10 +4,10 @@ import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import type GLTFResult from '../lib/processes/load-skeleton/interfaces/GLTFResult.ts'
 import { ModalDialog } from '../lib/ModalDialog.ts'
 
-export class StepLoadTargetSkeleton extends EventTarget {
+export class StepLoadSourceSkeleton extends EventTarget {
   private readonly loader: GLTFLoader = new GLTFLoader() // all skeletons are in GLB format
   private readonly _main_scene: Scene
-  private loaded_target_armature: Object3D = new Object3D()
+  private loaded_source_armature: Object3D = new Object3D()
   private skeleton_helper: SkeletonHelper | null = null
   private _added_event_listeners: boolean = false
   
@@ -111,14 +111,14 @@ export class StepLoadTargetSkeleton extends EventTarget {
       return
     }
 
-    this.loaded_target_armature = armature.clone()
-    this.loaded_target_armature.name = 'Target Armature'
+    this.loaded_source_armature = armature.clone()
+    this.loaded_source_armature.name = 'Source Armature (Mesh2Motion)'
 
-    // Offset position to the side so it's visible next to the source skeleton
-    this.loaded_target_armature.position.set(2.5, 0, 0)
-    this.loaded_target_armature.updateWorldMatrix(true, true)
+    // Offset position to the side so it's visible next to the target skeleton
+    this.loaded_source_armature.position.set(2.5, 0, 0)
+    this.loaded_source_armature.updateWorldMatrix(true, true)
 
-    console.log('Target skeleton loaded successfully:', this.loaded_target_armature)
+    console.log('Source skeleton (Mesh2Motion) loaded successfully:', this.loaded_source_armature)
 
     // Add to scene and create skeleton helper
     this.add_skeleton_and_helper_to_scene()
@@ -147,22 +147,22 @@ export class StepLoadTargetSkeleton extends EventTarget {
   }
 
   private add_skeleton_and_helper_to_scene (): void {
-    // Add the target skeleton to the scene
-    this._main_scene.add(this.loaded_target_armature)
+    // Add the source skeleton to the scene
+    this._main_scene.add(this.loaded_source_armature)
     
     // Create skeleton helper for visualization
-    this.skeleton_helper = new SkeletonHelper(this.loaded_target_armature)
-    this.skeleton_helper.name = 'Target Skeleton Helper'
+    this.skeleton_helper = new SkeletonHelper(this.loaded_source_armature)
+    this.skeleton_helper.name = 'Source Skeleton Helper (Mesh2Motion)'
     this._main_scene.add(this.skeleton_helper)
     
-    console.log('Target skeleton added to scene with helper')
+    console.log('Source skeleton added to scene with helper')
   }
 
   private clear_previous_skeleton (): void {
     // Remove previous armature from scene
-    if (this.loaded_target_armature.parent !== null) {
-      this._main_scene.remove(this.loaded_target_armature)
-      console.log('Removed previous target armature from scene')
+    if (this.loaded_source_armature.parent !== null) {
+      this._main_scene.remove(this.loaded_source_armature)
+      console.log('Removed previous source armature from scene')
     }
     
     // Remove previous skeleton helper from scene
@@ -179,8 +179,8 @@ export class StepLoadTargetSkeleton extends EventTarget {
   }
 
   // Getters to be used by main retarget module
-  public get_loaded_target_armature (): Object3D {
-    return this.loaded_target_armature
+  public get_loaded_source_armature (): Object3D {
+    return this.loaded_source_armature
   }
 
   public get_skeleton_type (): SkeletonType {

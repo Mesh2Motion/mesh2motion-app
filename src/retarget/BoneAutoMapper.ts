@@ -33,13 +33,15 @@ export interface BoneMetadata {
 
 /**
  * BoneAutoMapper - Handles automatic bone mapping between source and target skeletons
+ * Source = Mesh2Motion skeleton (draggable bones)
+ * Target = Uploaded mesh skeleton (drop zones)
  * Uses string comparison and pattern matching to suggest bone mappings
  */
 export class BoneAutoMapper {
   /**
-   * Attempts to automatically map source bones to target bones
-   * @param source_bone_names - Array of bone names from the source skeleton
-   * @param target_bone_names - Array of bone names from the target skeleton
+   * Attempts to automatically map source bones (Mesh2Motion) to target bones (uploaded mesh)
+   * @param source_bone_names - Array of bone names from the Mesh2Motion skeleton (source)
+   * @param target_bone_names - Array of bone names from the uploaded mesh skeleton (target)
    * @returns Map of target bone name -> source bone name
    */
   public static auto_map_bones (source_bone_names: string[], target_bone_names: string[]): Map<string, string> {
@@ -232,9 +234,9 @@ export class BoneAutoMapper {
   }
 
   /**
-   * Find the best matching source bone for a given target bone
-   * @param target_bone_meta - Target bone metadata to match
-   * @param source_bones_meta - Array of source bone metadata to search
+   * Find the best matching source bone (Mesh2Motion) for a given target bone (uploaded mesh)
+   * @param target_bone_meta - Target bone metadata to match (uploaded mesh)
+   * @param source_bones_meta - Array of source bone metadata to search (Mesh2Motion skeleton)
    * @param used_source_bones - Set of source bone names that have already been mapped
    * @returns Best matching source bone metadata, or null if no good match found
    */

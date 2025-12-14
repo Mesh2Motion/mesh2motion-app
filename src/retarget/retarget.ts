@@ -1,7 +1,7 @@
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine.ts'
 import { type Group, type Object3DEventMap, type SkinnedMesh, Vector3 } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
-import { StepLoadTargetSkeleton } from './StepLoadTargetSkeleton.ts'
+import { StepLoadSourceSkeleton } from './StepLoadSourceSkeleton.ts'
 import { StepBoneMapping } from './StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
 
@@ -9,7 +9,7 @@ class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
   private fileInput: HTMLInputElement | null = null
   private load_model_button: HTMLLabelElement | null = null
-  private readonly step_load_target_skeleton: StepLoadTargetSkeleton
+  private readonly step_load_source_skeleton: StepLoadSourceSkeleton
   private readonly step_bone_mapping: StepBoneMapping
 
   constructor () {
@@ -18,8 +18,8 @@ class RetargetModule {
     const camera_position = new Vector3().set(0, 1.7, 5)
     this.mesh2motion_engine.set_camera_position(camera_position)
     
-    // Initialize skeleton loading step
-    this.step_load_target_skeleton = new StepLoadTargetSkeleton(this.mesh2motion_engine.get_scene())
+    // Initialize Mesh2Motion skeleton loading step (source)
+    this.step_load_source_skeleton = new StepLoadSourceSkeleton(this.mesh2motion_engine.get_scene())
     
     // Initialize bone mapping step
     this.step_bone_mapping = new StepBoneMapping(this.mesh2motion_engine.get_scene())
@@ -27,7 +27,7 @@ class RetargetModule {
 
   public init (): void {
     this.add_event_listeners()
-    this.step_load_target_skeleton.begin()
+    this.step_load_source_skeleton.begin()
     this.step_bone_mapping.begin()
   }
 
@@ -42,11 +42,11 @@ class RetargetModule {
       this.handleFileSelect(event)
     })
     
-    // Listen for target skeleton loaded
-    this.step_load_target_skeleton.addEventListener('skeleton-loaded', () => {
-      const target_armature = this.step_load_target_skeleton.get_loaded_target_armature()
-      const skeleton_type = this.step_load_target_skeleton.get_skeleton_type()
-      this.step_bone_mapping.set_target_skeleton_data(target_armature, skeleton_type)
+    // Listen for source skeleton (Mesh2Motion) loaded
+    this.step_load_source_skeleton.addEventListener('skeleton-loaded', () => {
+      const source_armature = this.step_load_source_skeleton.get_loaded_source_armature()
+      const skeleton_type = this.step_load_source_skeleton.get_skeleton_type()
+      this.step_bone_mapping.set_source_skeleton_data(source_armature, skeleton_type)
     })
   }
 
@@ -83,7 +83,7 @@ class RetargetModule {
           console.log('Model loaded for retargeting successfully.')
           URL.revokeObjectURL(file_url) // Revoke the object URL after loading is complete
 
-          // read in mesh2motion engine's retargetable model data
+          // read in mesh2motion engine's retargetable model data (this is the target)
           const retargetable_meshes = this.mesh2motion_engine.load_model_step.get_final_retargetable_model_data()
           const is_valid_skinned_mesh = RetargetUtils.validate_skinned_mesh_has_bones(retargetable_meshes)
           if (is_valid_skinned_mesh) {
@@ -94,8 +94,8 @@ class RetargetModule {
             // Add skeleton helper
             this.add_skeleton_helper(retargetable_meshes)
             
-            // Set source skeleton data in bone mapping
-            this.step_bone_mapping.set_source_skeleton_data(retargetable_meshes)
+            // Set target skeleton data in bone mapping (uploaded mesh)
+            this.step_bone_mapping.set_target_skeleton_data(retargetable_meshes)
           }
         }, { once: true })
       } catch (error) {

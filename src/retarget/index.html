@@ -44,15 +44,21 @@
 
             <p>Instructions and information go here with what this page is for</p>
             <div style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
-                <!-- imported 3d skinned mesh and bones list-->
+                <!-- Mesh2Motion skeleton (source) - draggable bones -->
                 <div class="bone-map-section">
-                    <p class="bone-map-heading">Your 3d rig model</p>
+                    <h2 class="bone-map-heading">Mesh2Motion Skeleton (Source)</h2>
                     <div class="bone-map-content">
-                        <!-- there are some issues going on with scaling the skeleton for FBX and other formats so we will start simple for now with just GLB files -->
-                        <input type="file" id="upload-file" accept=".glb" style="display: none;" />
-                        <label for="upload-file" class="button" id="load-model-button">Upload GLB</label>
+                        <div id="skeleton-selection-container" >
+                            <select id="skeleton-type-select" class="button">
+                                <option value="">-- Select Skeleton --</option>
+                                <option value="human">Human</option>
+                                <option value="quadraped">Quadruped (Fox)</option>
+                                <option value="bird">Bird</option>
+                                <option value="dragon">Dragon</option>
+                            </select>
+                        </div>
                         
-                        <p>Bones List <span id="source-bone-count">(0)</span></p>
+                        <p>Bones List (Drag from here) <span id="source-bone-count">(0)</span></p>
                         <div id="source-bones-list">
                             <p style="color: var(--text-secondary);">No source skeleton loaded</p>
                         </div>
@@ -64,23 +70,16 @@
                     ⇨
                 </div>  
 
-                <!-- target skeleton selection and bones list-->
+                <!-- imported 3d skinned mesh (target) - drop zone for bones -->
                 <div class="bone-map-section">
-                    <h2 class="bone-map-heading">Mesh2Motion Skeleton</h2>
+                    <p class="bone-map-heading">Your 3D Rig Model (Target)</p>
                     <div class="bone-map-content">
-                        <div id="skeleton-selection-container" >
-                            <!-- <label for="skeleton-type-select">Choose Target Skeleton:</label> -->
-                            <select id="skeleton-type-select" class="button">
-                                <option value="">-- Select Skeleton --</option>
-                                <option value="human">Human</option>
-                                <option value="quadraped">Quadruped (Fox)</option>
-                                <option value="bird">Bird</option>
-                                <option value="dragon">Dragon</option>
-                            </select>
-                        </div>
+                        <!-- there are some issues going on with scaling the skeleton for FBX and other formats so we will start simple for now with just GLB files -->
+                        <input type="file" id="upload-file" accept=".glb" style="display: none;" />
+                        <label for="upload-file" class="button" id="load-model-button">Upload GLB</label>
                         
-                        <p>Bones List <span id="target-bone-count">(0)</span></p>
-                        <div id="target-bones-list" >
+                        <p>Bones List (Drop here) <span id="target-bone-count">(0)</span></p>
+                        <div id="target-bones-list">
                             <p style="color: var(--text-secondary);">No target skeleton loaded</p>
                         </div>
                     </div>
