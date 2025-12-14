@@ -4,6 +4,7 @@ import { ModalDialog } from '../lib/ModalDialog.ts'
 import { StepLoadSourceSkeleton } from './StepLoadSourceSkeleton.ts'
 import { StepBoneMapping } from './StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
+import { RetargetAnimationPreview } from './RetargetAnimationPreview.ts'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -11,6 +12,7 @@ class RetargetModule {
   private load_model_button: HTMLLabelElement | null = null
   private readonly step_load_source_skeleton: StepLoadSourceSkeleton
   private readonly step_bone_mapping: StepBoneMapping
+  private readonly retarget_animation_preview: RetargetAnimationPreview
 
   constructor () {
     // Set up camera position similar to marketing bootstrap
@@ -23,12 +25,22 @@ class RetargetModule {
     
     // Initialize bone mapping step
     this.step_bone_mapping = new StepBoneMapping(this.mesh2motion_engine.get_scene())
+    
+    // Initialize animation preview
+    this.retarget_animation_preview = new RetargetAnimationPreview(
+      this.mesh2motion_engine.get_scene(),
+      this.step_bone_mapping
+    )
+    
+    // Set up animation loop for preview updates
+    this.setup_animation_loop()
   }
 
   public init (): void {
     this.add_event_listeners()
     this.step_load_source_skeleton.begin()
     this.step_bone_mapping.begin()
+    this.retarget_animation_preview.begin()
   }
 
   public add_event_listeners (): void {
@@ -47,7 +59,18 @@ class RetargetModule {
       const source_armature = this.step_load_source_skeleton.get_loaded_source_armature()
       const skeleton_type = this.step_load_source_skeleton.get_skeleton_type()
       this.step_bone_mapping.set_source_skeleton_data(source_armature, skeleton_type)
+      this.try_start_preview()
     })
+  }
+
+  private try_start_preview (): void {
+    // Start preview when both skeletons are loaded
+    if (this.step_bone_mapping.has_both_skeletons()) {
+      console.log('Both skeletons loaded, starting animation preview...')
+      this.retarget_animation_preview.start_preview().catch((error) => {
+        console.error('Failed to start preview:', error)
+      })
+    }
   }
 
   private handleFileSelect (event: Event): void {
@@ -96,6 +119,7 @@ class RetargetModule {
             
             // Set target skeleton data in bone mapping (uploaded mesh)
             this.step_bone_mapping.set_target_skeleton_data(retargetable_meshes)
+            this.try_start_preview()
           }
         }, { once: true })
       } catch (error) {
@@ -114,7 +138,22 @@ class RetargetModule {
       }
     })
   }
-}
+  private setup_animation_loop (): void {
+    let last_time = performance.now()
+    
+    const animate = (): void => {
+      requestAnimationFrame(animate)
+      
+      const current_time = performance.now()
+      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
+      last_time = current_time
+      
+      // Update animation preview
+      this.retarget_animation_preview.update(delta_time)
+    }
+    
+    animate()
+  }}
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
