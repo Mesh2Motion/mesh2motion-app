@@ -6,8 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
 import { MathUtils } from 'three/src/math/MathUtils.js'
-import { FrontSide } from 'three/src/constants.js'
-import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D, type SkinnedMesh } from 'three'
+import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
 
@@ -317,9 +316,9 @@ export class StepLoadModel extends EventTarget {
     // retargeting mesh could be a Group object, so accept both and share this variable
     let clean_scene_with_only_models: Scene | Group<Object3DEventMap>
     if (this.preserve_skinned_mesh) {
-      clean_scene_with_only_models = this.strip_out_retargeting_model_data(this.original_model_data)
+      clean_scene_with_only_models = ModelCleanupUtility.strip_out_retargeting_model_data(this.original_model_data)
     } else {
-      clean_scene_with_only_models = this.strip_out_all_unecessary_model_data(this.original_model_data)
+      clean_scene_with_only_models = ModelCleanupUtility.strip_out_all_unecessary_model_data(this.original_model_data, this.model_display_name, this.debug_model_loading)
     }
 
     // if there are no valid mesh, or skinned mesh, show error dialog
@@ -367,72 +366,6 @@ export class StepLoadModel extends EventTarget {
     console.log('final mesh data should be prepared at this point', this.final_mesh_data)
 
     this.dispatchEvent(new CustomEvent('modelLoaded'))
-  }
-
-  /**
-   * We need to keep parents of skinned meshes and bones for retargeting
-   * This is because the hierarchy is important for retargeting to work properly
-   * @param model_data
-   * @returns Group with everything needed for retargeting (SkinnedMesh, Bones, and their parents)
-   */
-  private strip_out_retargeting_model_data (model_data: Scene | Group): Group<Object3DEventMap> {
-    // Create a new Group to hold only the objects we want to keep
-    const filtered_group = new Group()
-    filtered_group.name = 'Filtered Retargeting Data'
-
-    // Find SkinnedMesh objects and preserve their complete bone hierarchy
-    const skinned_meshes: SkinnedMesh[] = []
-    model_data.traverse((child) => {
-      console.log('building out retargetable model data, inspecting child:', child)
-      if (child.type === 'SkinnedMesh') {
-        skinned_meshes.push(child as SkinnedMesh)
-      }
-    })
-
-    // For each SkinnedMesh, clone it along with its skeleton to preserve bone hierarchy
-    skinned_meshes.forEach((skinned_mesh) => {
-      // Clone the SkinnedMesh to avoid modifying the original
-      const cloned_skinned_mesh = skinned_mesh.clone()
-
-      // The clone should preserve the skeleton with proper bone hierarchy
-      // Since we're cloning, the skeleton hierarchy should remain intact
-      filtered_group.add(cloned_skinned_mesh)
-    })
-
-    return filtered_group
-  }
-
-  private strip_out_all_unecessary_model_data (model_data: Scene): Scene {
-    // create a new scene object, and only include meshes
-    const new_scene = new Scene()
-    new_scene.name = this.model_display_name
-
-    model_data.traverse((child) => {
-      let new_mesh: Mesh
-
-      // if the child is a skinned mesh, create a new mesh object and apply the geometry and material
-      if (child.type === 'SkinnedMesh') {
-        new_mesh = new Mesh((child as SkinnedMesh).geometry, (child as SkinnedMesh).material)
-        new_mesh.name = child.name
-        new_scene.add(new_mesh)
-      } else if (child.type === 'Mesh') {
-        new_mesh = (child as Mesh).clone()
-        new_mesh.name = child.name
-        new_scene.add(new_mesh)
-      }
-
-      // potentially use normal material to help debugging models that look odd
-      // some materials have some odd transparency or back-face things that make it look odd
-      let material_to_use: MeshPhongMaterial
-      if (this.debug_model_loading && new_mesh !== undefined) {
-        material_to_use = new MeshPhongMaterial()
-        material_to_use.side = FrontSide
-        material_to_use.color.set(0x00aaee)
-        new_mesh.material = material_to_use
-      }
-    })
-
-    return new_scene
   }
 
   public model_meshes (): Scene {
@@ -490,5 +423,4 @@ export class StepLoadModel extends EventTarget {
       }
     })
   }
-
 }

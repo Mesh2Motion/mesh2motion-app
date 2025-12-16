@@ -1,4 +1,5 @@
-import { Box3, type Group, type Object3DEventMap, type Object3D, Scene, Mesh } from 'three'
+import { Box3, Group, type Object3DEventMap, type Object3D, Scene, Mesh, MeshPhongMaterial, type SkinnedMesh } from 'three'
+import { FrontSide } from 'three/src/constants.js'
 
 /**
  * Utility helpers to clean up and normalize loaded model geometry.
@@ -72,5 +73,67 @@ export class ModelCleanupUtility {
         mesh_obj.geometry.computeBoundingSphere()
       }
     })
+  }
+
+  public static strip_out_all_unecessary_model_data (model_data: Scene, model_display_name: string, debug_model_loading: boolean): Scene {
+    const new_scene = new Scene()
+    new_scene.name = model_display_name
+
+    model_data.traverse((child) => {
+      let new_mesh: Mesh
+
+      if (child.type === 'SkinnedMesh') {
+        new_mesh = new Mesh((child as SkinnedMesh).geometry, (child as SkinnedMesh).material)
+        new_mesh.name = child.name
+        new_scene.add(new_mesh)
+      } else if (child.type === 'Mesh') {
+        new_mesh = (child as Mesh).clone()
+        new_mesh.name = child.name
+        new_scene.add(new_mesh)
+      }
+
+      let material_to_use: MeshPhongMaterial
+      if (debug_model_loading && new_mesh !== undefined) {
+        material_to_use = new MeshPhongMaterial()
+        material_to_use.side = FrontSide
+        material_to_use.color.set(0x00aaee)
+        new_mesh.material = material_to_use
+      }
+    })
+
+    return new_scene
+  }
+
+  /**
+   * We need to keep parents of skinned meshes and bones for retargeting
+   * This is because the hierarchy is important for retargeting to work properly
+   * @param model_data Scene or Group containing the model
+   * @returns Group with everything needed for retargeting (SkinnedMesh, Bones, and their parents)
+   */
+  public static strip_out_retargeting_model_data (model_data: Scene | Group): Group<Object3DEventMap> {
+    // Create a new Group to hold only the objects we want to keep
+    const filtered_group = new Group()
+    filtered_group.name = 'Filtered Retargeting Data'
+
+    // Find SkinnedMesh objects and preserve their complete bone hierarchy
+    const skinned_meshes: SkinnedMesh[] = []
+    model_data.traverse((child) => {
+      console.log('building out retargetable model data, inspecting child:', child)
+      if (child.type === 'SkinnedMesh') {
+        skinned_meshes.push(child as SkinnedMesh)
+      }
+    })
+
+    // For each SkinnedMesh, clone it along with its skeleton to preserve bone hierarchy
+    skinned_meshes.forEach((skinned_mesh) => {
+      // Clone the SkinnedMesh to avoid modifying the original
+      const cloned_skinned_mesh = skinned_mesh.clone()
+
+      // The clone should preserve the skeleton with proper bone hierarchy
+      // Since we're cloning, the skeleton hierarchy should remain intact
+      filtered_group.add(cloned_skinned_mesh)
+    })
+
+    return filtered_group
   }
 }
