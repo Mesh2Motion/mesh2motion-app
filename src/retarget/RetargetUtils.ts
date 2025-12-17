@@ -1,5 +1,6 @@
 import { type Group, type Object3DEventMap, type Skeleton, type SkinnedMesh } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
+import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RetargetUtils {
@@ -39,5 +40,31 @@ export class RetargetUtils {
 
     console.log('skinned meshes found. ready to start retargeting process:', skinned_meshes)
     return true
+  }
+
+  /**
+   * Get the animation file path based on skeleton type
+   */
+  static get_animation_file_path (skeleton_type: SkeletonType): string | null {
+    switch (skeleton_type) {
+      case SkeletonType.Human:
+        return '/animations/human-base-animations.glb'
+      case SkeletonType.Quadraped:
+        return '/animations/quad-creature-animations.glb'
+      case SkeletonType.Bird:
+        return '/animations/bird-animations.glb'
+      case SkeletonType.Dragon:
+        return '/animations/dragon-animations.glb'
+      default:
+        return null
+    }
+  }
+
+  /**
+   * Create a track name in the format expected by Three.js
+   * For named bones, use: BoneName.property
+   */
+  static create_track_name (bone_name: string, property: string): string {
+    return `${bone_name}.${property}`
   }
 }

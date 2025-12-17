@@ -14,7 +14,7 @@ export enum TargetBoneMappingType {
 
 export class StepBoneMapping extends EventTarget {
   private readonly _main_scene: Scene
-  private target_skeleton_data: Group<Object3DEventMap> | null = null
+  private target_skeleton_data: Scene | null = null
   private target_mapping_template: TargetBoneMappingType = TargetBoneMappingType.None
 
   private source_armature: Object3D | null = null
@@ -29,10 +29,10 @@ export class StepBoneMapping extends EventTarget {
   private target_bone_count: HTMLSpanElement | null = null
 
   // Bone mapping: target bone name (uploaded mesh) -> source bone name (Mesh2Motion skeleton)
-  private bone_mapping: Map<string, string> = new Map()
+  private bone_mapping = new Map<string, string>()
 
   // Track if event listeners have been added
-  private added_event_listeners: boolean = false
+  private has_added_event_listeners: boolean = false
 
   constructor (main_scene: Scene) {
     super()
@@ -50,16 +50,7 @@ export class StepBoneMapping extends EventTarget {
     this.source_bone_count = document.getElementById('source-bone-count') as HTMLSpanElement
     this.target_bone_count = document.getElementById('target-bone-count') as HTMLSpanElement
 
-    // Add event listener for clear mappings button
-    this.clear_mappings_button?.addEventListener('click', () => {
-      this.clear_all_bone_mappings()
-      console.log('All bone mappings cleared')
-    })
-
-    // Add event listener for auto-map button
-    this.auto_map_button?.addEventListener('click', () => {
-      this.auto_map_bones()
-    })
+    this.add_event_listeners()
 
     // Populate the lists
     this.update_bone_lists()
@@ -67,15 +58,35 @@ export class StepBoneMapping extends EventTarget {
     this.update_auto_map_button_visibility()
   }
 
+  private add_event_listeners (): void {
+    if (!this.has_added_event_listeners) {
+      // Add event listener for clear mappings button
+      this.clear_mappings_button?.addEventListener('click', () => {
+        this.clear_all_bone_mappings()
+        console.log('All bone mappings cleared')
+      })
+
+      // Add event listener for auto-map button
+      this.auto_map_button?.addEventListener('click', () => {
+        this.auto_map_bones()
+      })
+
+      this.has_added_event_listeners = true
+    }
+  }
+
   public set_source_skeleton_data (armature: Object3D, skeleton_type: SkeletonType): void {
     this.source_armature = armature
+
+    console.log('setting the source armature in bone mapping:', this.source_armature)
+
     this.source_skeleton_type = skeleton_type
     console.log('Source skeleton data set in bone mapping:', this.source_armature, 'Type:', this.source_skeleton_type)
     this.update_source_bones_list()
     this.update_auto_map_button_visibility()
   }
 
-  public set_target_skeleton_data (skeleton_data: Group<Object3DEventMap>): void {
+  public set_target_skeleton_data (skeleton_data: Scene): void {
     this.target_skeleton_data = skeleton_data
     console.log('Target skeleton data set in bone mapping:', this.target_skeleton_data)
     this.update_target_bones_list()
@@ -99,7 +110,7 @@ export class StepBoneMapping extends EventTarget {
     return this.source_armature
   }
 
-  public get_target_skeleton_data (): Group<Object3DEventMap> | null {
+  public get_target_skeleton_data (): Scene | null {
     return this.target_skeleton_data
   }
 
@@ -162,20 +173,20 @@ export class StepBoneMapping extends EventTarget {
   private update_source_bones_list (): void {
     if (this.source_bones_list === null) return
 
-    const bone_names = this.get_source_bone_names()
+    const source_bone_names = this.get_source_bone_names()
 
     // Update bone count display
     if (this.source_bone_count !== null) {
-      this.source_bone_count.textContent = `(${bone_names.length})`
+      this.source_bone_count.textContent = `(${source_bone_names.length})`
     }
 
-    if (bone_names.length === 0) {
+    if (source_bone_names.length === 0) {
       this.source_bones_list.innerHTML = '<em>No source skeleton loaded</em>'
       return
     }
 
     this.source_bones_list.innerHTML = ''
-    bone_names.forEach((name) => {
+    source_bone_names.forEach((name) => {
       const bone_item = document.createElement('div')
       bone_item.textContent = name
       bone_item.className = 'bone-item bone-item-source'
@@ -195,20 +206,20 @@ export class StepBoneMapping extends EventTarget {
   private update_target_bones_list (): void {
     if (this.target_bones_list === null) return
 
-    const bone_names = this.get_target_bone_names()
+    const target_bone_names = this.get_target_bone_names()
 
     // Update bone count display
     if (this.target_bone_count !== null) {
-      this.target_bone_count.textContent = `(${bone_names.length})`
+      this.target_bone_count.textContent = `(${target_bone_names.length})`
     }
 
-    if (bone_names.length === 0) {
+    if (target_bone_names.length === 0) {
       this.target_bones_list.innerHTML = '<em>No target skeleton loaded</em>'
       return
     }
 
     this.target_bones_list.innerHTML = ''
-    bone_names.forEach((name) => {
+    target_bone_names.forEach((name) => {
       const bone_item = document.createElement('div')
       bone_item.className = 'bone-item bone-item-target'
       bone_item.dataset.targetBoneName = name

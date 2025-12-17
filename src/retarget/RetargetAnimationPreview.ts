@@ -1,9 +1,9 @@
-import { AnimationClip, AnimationMixer, type Scene, type SkinnedMesh, VectorKeyframeTrack, QuaternionKeyframeTrack, type AnimationAction, Quaternion, Euler, type Object3D, Vector3 } from 'three'
+import { AnimationClip, AnimationMixer, Object3D, type Scene, type SkinnedMesh, VectorKeyframeTrack, QuaternionKeyframeTrack, type AnimationAction, Quaternion, Euler, Vector3 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import type { StepBoneMapping } from './StepBoneMapping.ts'
 import { TargetBoneMappingType } from './StepBoneMapping.ts'
+import { RetargetUtils } from './RetargetUtils.ts'
 
 /**
  * RetargetAnimationPreview - Provides live preview of bone retargeting by automatically
@@ -20,7 +20,7 @@ export class RetargetAnimationPreview extends EventTarget {
   private target_skinned_meshes: SkinnedMesh[] = []
 
   private is_preview_active: boolean = false
-  private _added_event_listeners: boolean = false
+  private has_added_event_listeners: boolean = false
 
   constructor (main_scene: Scene, step_bone_mapping: StepBoneMapping) {
     super()
@@ -29,9 +29,9 @@ export class RetargetAnimationPreview extends EventTarget {
   }
 
   public begin (): void {
-    if (!this._added_event_listeners) {
+    if (!this.has_added_event_listeners) {
       this.add_event_listeners()
-      this._added_event_listeners = true
+      this.has_added_event_listeners = true
     }
   }
 
@@ -72,7 +72,9 @@ export class RetargetAnimationPreview extends EventTarget {
     }
 
     // Create animation mixer for the target skeleton
-    this.animation_mixer = new AnimationMixer(this.target_skinned_meshes[0])
+    // Use a dummy Object3D as root since we apply animations directly to skinned meshes
+    // there are often more than one skinned mesh we want to animate at a time
+    this.animation_mixer = new AnimationMixer(new Object3D())
 
     // Load the first animation based on skeleton type
     await this.load_first_animation()
@@ -100,8 +102,9 @@ export class RetargetAnimationPreview extends EventTarget {
    * Load the first animation from the appropriate animation file
    */
   private async load_first_animation (): Promise<void> {
+    // get location of animation file to load that has preview animations
     const source_skeleton_type = this.step_bone_mapping.get_source_skeleton_type()
-    const animation_file_path = this.get_animation_file_path(source_skeleton_type)
+    const animation_file_path = RetargetUtils.get_animation_file_path(source_skeleton_type)
 
     if (animation_file_path === null) {
       console.log('No animation file found for skeleton type:', source_skeleton_type)
@@ -139,24 +142,6 @@ export class RetargetAnimationPreview extends EventTarget {
       })
     } catch (error) {
       console.error('Error loading animation:', error)
-    }
-  }
-
-  /**
-   * Get the animation file path based on skeleton type
-   */
-  private get_animation_file_path (skeleton_type: SkeletonType): string | null {
-    switch (skeleton_type) {
-      case SkeletonType.Human:
-        return '/animations/human-base-animations.glb'
-      case SkeletonType.Quadraped:
-        return '/animations/quad-creature-animations.glb'
-      case SkeletonType.Bird:
-        return '/animations/bird-animations.glb'
-      case SkeletonType.Dragon:
-        return '/animations/dragon-animations.glb'
-      default:
-        return null
     }
   }
 
@@ -237,7 +222,7 @@ export class RetargetAnimationPreview extends EventTarget {
 
       // Create a track for each target bone this source bone maps to
       target_bone_names.forEach((target_bone_name) => {
-        const new_track_name = this.create_track_name(target_bone_name, property)
+        const new_track_name = RetargetUtils.create_track_name(target_bone_name, property)
 
         // Clone the track with the new name
         if (property === 'quaternion') {
@@ -345,7 +330,7 @@ export class RetargetAnimationPreview extends EventTarget {
    * @param target_bone_name - Name of the bone in the target skeleton
    * @returns The rotation difference as a quaternion (Y-axis only), or null if bones not found
    */
- private calculate_bone_rotation_delta (source_bone_name: string, target_bone_name: string): Quaternion | null {
+  private calculate_bone_rotation_delta (source_bone_name: string, target_bone_name: string): Quaternion | null {
     // Get both skeleton roots
     const source_armature = this.step_bone_mapping.get_source_armature()
     const target_skeleton_data = this.step_bone_mapping.get_target_skeleton_data()
@@ -429,35 +414,24 @@ export class RetargetAnimationPreview extends EventTarget {
     return null
   }
 
-  /**
-   * Create a track name in the format expected by Three.js
-   * For named bones, use: BoneName.property
-   */
-  private create_track_name (bone_name: string, property: string): string {
-    return `${bone_name}.${property}`
-  }
+
 
   /**
    * Update animation mixer on each frame
    */
   public update (delta_time: number): void {
-    if (this.animation_mixer !== null && this.is_preview_active) {
-      this.animation_mixer.update(delta_time)
-
-      // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
-      // Why do I need this when I don't need it in the main Mesh2Motion engine?
-      this.target_skinned_meshes.forEach((skinned_mesh) => {
-        skinned_mesh.skeleton.bones.forEach(bone => {
-          bone.updateMatrixWorld(true)
-        })
-      })
+    if (this.animation_mixer === null || !this.is_preview_active) {
+      return
     }
-  }
 
-  /**
-   * Check if preview is currently active
-   */
-  public is_active (): boolean {
-    return this.is_preview_active
+    this.animation_mixer.update(delta_time)
+
+    // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
+    // Why do I need this when I don't need it in the main Mesh2Motion engine?
+    this.target_skinned_meshes.forEach((skinned_mesh) => {
+      skinned_mesh.skeleton.bones.forEach(bone => {
+        bone.updateMatrixWorld(true)
+      })
+    })
   }
 }
