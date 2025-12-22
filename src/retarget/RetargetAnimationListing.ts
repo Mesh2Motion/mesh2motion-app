@@ -27,6 +27,8 @@ export class RetargetAnimationListing extends EventTarget {
   
   public animation_search: AnimationSearch | null = null
 
+  private is_animations_active: boolean = false
+
   constructor (theme_manager: ThemeManager, step_bone_mapping: StepBoneMapping) {
     super()
     this.theme_manager = theme_manager
@@ -56,13 +58,16 @@ export class RetargetAnimationListing extends EventTarget {
     return this.animation_mixer
   }
 
-  public frame_change (delta_time: number): void {
-    this.mixer().update(delta_time)
-    this.animation_player.update(delta_time)
-  }
-
   public animation_clips (): AnimationClip[] {
     return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
+  }
+
+  public start_preview (): void {
+    this.is_animations_active = true
+  }
+
+  public stop_preview (): void {
+    this.is_animations_active = false
   }
 
   public load_and_apply_default_animation_to_skinned_mesh (retarget_meshes: Scene): void {
@@ -192,6 +197,7 @@ export class RetargetAnimationListing extends EventTarget {
   private add_event_listeners (): void {
     // Add any retarget-specific event listeners here
     // For now, keeping it minimal
+     this.setup_animation_loop()
   }
 
   public get_animation_player (): AnimationPlayer {
@@ -200,5 +206,42 @@ export class RetargetAnimationListing extends EventTarget {
 
   public get_selected_animation_indices (): number[] {
     return this.animation_search?.get_selected_animation_indices() ?? []
+  }
+
+  // public frame_change (delta_time: number): void {
+  //   this.mixer().update(delta_time)
+  //   this.animation_player.update(delta_time)
+  // }
+
+  private setup_animation_loop (): void {
+    let last_time = performance.now()
+    const animate = (): void => {
+      requestAnimationFrame(animate)
+
+      // calculate delta time and pass it into preview
+      const current_time = performance.now()
+      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
+      last_time = current_time
+
+      if (this.is_animations_active) {
+        this.animation_frame_logic(delta_time)
+      }
+    }
+    animate()
+  }
+
+  private animation_frame_logic (delta_time: number): void {
+    if (this.animation_mixer === null) return
+
+    this.animation_mixer.update(delta_time)
+    this.animation_player.update(delta_time)
+
+    // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
+    // Why do I need this when I don't need it in the main Mesh2Motion engine?
+    this.skinned_meshes_to_animate.forEach((skinned_mesh) => {
+      skinned_mesh.skeleton.bones.forEach(bone => {
+        bone.updateMatrixWorld(true)
+      })
+    })
   }
 }

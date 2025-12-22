@@ -66,7 +66,10 @@ class RetargetModule {
         bone_mapping_step.style.display = 'inline'
       }
 
-      // TODO: stop the animation listing step
+      // stop the animation listing step
+      if (this.animation_listing_step !== null) {
+        this.animation_listing_step.stop_preview()
+      }
 
       // start the live preview again
       this.start_live_preview()
@@ -111,7 +114,13 @@ class RetargetModule {
       this.animation_listing_step.begin(this.step_load_source_skeleton.get_skeleton_type())
 
       const retargetable_meshes: Scene | null = this.step_load_target_model.get_retargetable_meshes()
-      this.animation_listing_step.load_and_apply_default_animation_to_skinned_mesh(retargetable_meshes)
+
+      if (retargetable_meshes !== null) {
+        this.animation_listing_step.load_and_apply_default_animation_to_skinned_mesh(retargetable_meshes)
+        this.animation_listing_step.start_preview()
+      } else {
+        console.error('Retargetable meshes are null while processing click button.')
+      }
     }
   }
 

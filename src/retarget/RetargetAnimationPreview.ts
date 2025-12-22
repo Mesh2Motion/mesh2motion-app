@@ -234,8 +234,6 @@ export class RetargetAnimationPreview extends EventTarget {
 
     this.animation_mixer.update(delta_time)
 
-    console.log('Animation preview loop playing!!')
-
     // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
     // Why do I need this when I don't need it in the main Mesh2Motion engine?
     this.target_skinned_meshes.forEach((skinned_mesh) => {
