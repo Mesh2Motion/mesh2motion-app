@@ -34,19 +34,7 @@ export class AnimationRetargetService {
     target_skeleton_data: Scene | null = null,
     target_skinned_meshes: SkinnedMesh[] = []
   ): AnimationClip {
-    const new_tracks: any[] = []
-
-    // Create a reverse mapping for easier lookup: source bone name -> target bone names[]
-    const reverse_mappings = new Map<string, string[]>()
-    bone_mappings.forEach((source_bone_name, target_bone_name) => {
-      if (!reverse_mappings.has(source_bone_name)) {
-        reverse_mappings.set(source_bone_name, [])
-      }
-      const target_list = reverse_mappings.get(source_bone_name)
-      if (target_list !== undefined) {
-        target_list.push(target_bone_name)
-      }
-    })
+    const new_tracks: any[] = [] // store new retargeted tracks
 
     // Process each track in the source animation
     source_clip.tracks.forEach((track) => {
@@ -58,40 +46,30 @@ export class AnimationRetargetService {
       }
 
       // Check if this bone is mapped to any target bones
-      const target_bone_names = reverse_mappings.get(track_parts.bone_name)
+      const target_bone_names = this.reverse_bone_mapping(bone_mappings).get(track_parts.bone_name)
       if (target_bone_names === undefined || target_bone_names.length === 0) {
         return // Skip unmapped bones
       }
 
-      // Create a track for each target bone this source bone maps to
+      // Create a track for each target bone this source bone maps to. Will mostly just rename
+      // a bone with the mapping
       target_bone_names.forEach((target_bone_name) => {
         const new_track_name = RetargetUtils.create_track_name(target_bone_name, track_parts.property)
 
-        // Clone the track with the new name
         if (track_parts.property === 'quaternion') {
-          const new_track = new QuaternionKeyframeTrack(
-            new_track_name,
-            track.times.slice(),
-            track.values.slice()
-          )
+          const new_track = new QuaternionKeyframeTrack(new_track_name, track.times.slice(), track.values.slice())
           new_tracks.push(new_track)
         } else if (track_parts.property === 'position' || track_parts.property === 'scale') {
-          const new_track = new VectorKeyframeTrack(
-            new_track_name,
-            track.times.slice(),
-            track.values.slice()
-          )
+          const new_track = new VectorKeyframeTrack(new_track_name, track.times.slice(), track.values.slice())
           new_tracks.push(new_track)
+        } else {
+          console.warn('This track contains unsupported property for retargeting:', track_parts.property)
         }
       })
     })
 
     // Create the retargeted animation clip
-    const retargeted_clip = new AnimationClip(
-      `${source_clip.name}_retargeted`,
-      source_clip.duration,
-      new_tracks
-    )
+    const retargeted_clip = new AnimationClip(`${source_clip.name}`, source_clip.duration, new_tracks)
 
     // Apply Mixamo-specific corrections if needed
     if (target_mapping_type === TargetBoneMappingType.Mixamo) {
@@ -106,6 +84,23 @@ export class AnimationRetargetService {
 
     console.log(`Retargeted animation: ${source_clip.name} (${new_tracks.length} tracks)`)
     return retargeted_clip
+  }
+
+  /**
+   * Create a reverse mapping: source bone name -> array of target bone names
+   */
+  private static reverse_bone_mapping (bone_mappings: Map<string, string>): Map<string, string[]> {
+    const reverse_mappings = new Map<string, string[]>()
+    bone_mappings.forEach((source_bone_name, target_bone_name) => {
+      if (!reverse_mappings.has(source_bone_name)) {
+        reverse_mappings.set(source_bone_name, [])
+      }
+      const target_list = reverse_mappings.get(source_bone_name)
+      if (target_list !== undefined) {
+        target_list.push(target_bone_name)
+      }
+    })
+    return reverse_mappings
   }
 
   /**
