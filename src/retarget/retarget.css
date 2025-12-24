@@ -1,0 +1,122 @@
+h1 {
+    font-size: 1.7rem;
+}
+
+.bone-map-section {
+    display: inline-flex; 
+    flex-direction: column;
+    border: 1px solid var(--bg-tertiary);
+    padding: 0;
+}
+
+.bone-map-heading {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0.5rem;
+    background: var(--bg-alternate);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+.bone-map-content {
+    padding: 1rem;
+    padding-top: 0;
+}
+
+#source-bones-list, #target-bones-list {
+    max-height: calc(100vh - 400px);
+    overflow-y: auto;
+    background-color: var(--bg-alternate);
+    border-radius: 0.25rem;
+}
+
+/* Custom scrollbar styling */
+#source-bones-list::-webkit-scrollbar,
+#target-bones-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+#source-bones-list::-webkit-scrollbar-track,
+#target-bones-list::-webkit-scrollbar-track {
+    background: var(--bg-alternate);
+    border-radius: 0.25rem;
+}
+
+#source-bones-list::-webkit-scrollbar-thumb,
+#target-bones-list::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+    border-radius: 0.25rem;
+    opacity: 0.5;
+}
+
+#source-bones-list::-webkit-scrollbar-thumb:hover,
+#target-bones-list::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+/* Firefox scrollbar styling */
+#source-bones-list,
+#target-bones-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-secondary) var(--bg-alternate);
+}
+
+/* Bone mapping list item styles with drag and drop styles */
+.bone-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--bg-tertiary)
+}
+
+.bone-item-source {
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.bone-item-source::before {
+    content: '⋮⋮';
+    margin-right: 0.5rem;
+    color: var(--text-secondary);
+    font-weight: bold;
+    opacity: 0.6;
+    line-height: 1;
+}
+
+.bone-item-source:hover::before {
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+.bone-item-source.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.bone-item-target {
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: space-between;
+}
+
+.bone-item-target.drag-over {
+    background-color: var(--bg-tertiary);
+    border: 1px dashed var(--primary-color);
+}
+
+.mapping-source-name {
+    color: var(--bg-primary);
+    background: var(--text-alternate);
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+}
+
+#animations-items {
+    max-height: calc(100vh - 14rem);
+}
+
+#animation-listing-count {
+    top: 1.4rem;
+}

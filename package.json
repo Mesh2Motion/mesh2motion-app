@@ -5,18 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
     "@types/three": "^0.179.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
     "eslint": "^8.56.0",
     "eslint-config-standard-with-typescript": "^43.0.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-n": "^16.5.0",
     "eslint-plugin-promise": "^6.1.1",
+    "jsdom": "^25.0.1",
     "typescript": "^5.3.3",
-    "vite": "^7.2.0"
+    "vite": "^7.2.0",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "file-saver": "^2.0.5",

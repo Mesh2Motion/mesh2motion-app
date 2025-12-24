@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Retarget Rigged Mesh</title>
+
+        <!-- Stylesheets-->
+        <link href="../styles.css" rel="stylesheet" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../animation-player.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="./retarget.css" crossorigin="anonymous" />
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+        <link rel="stylesheet" href="../dialog.css" crossorigin="anonymous" />
+
+    </head>
+
+    <body style="margin: 0">
+
+        <nav>
+        <div style="display: inline-flex; align-items: center;">
+            <a href="https://mesh2motion.org"><img src="../images/mesh2motion.svg" width="200" /></a>
+            <a href="/">Explore</a>
+            <a href="/create.html" >Create</a>
+            <span class="active-nav-item">Retarget</span>
+        </div>
+
+        <div style="display: inline-flex; align-items: center;">
+            <a href="https://support.mesh2motion.org" target="_blank"> 💗 Support</a>
+            <a href="https://github.com/scottpetrovic/mesh2motion-app" target="_blank">Github</a>
+            <a href="#" id="attribution-link">Contributors</a>
+
+            <!-- Theme Toggle -->
+            <button id="theme-toggle">
+                <!-- icon will fill in here-->
+                <span class="theme-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+        <!-- Tool Options Panel -->
+        <div id="tool-panel">
+
+            <!-- bone mapping step to hook up source and target rig -->
+            <span id="bone-mapping-step">
+                <h1>Bring your own rigged model</h1>
+
+                <p>Instructions and information go here with what this page is for</p>
+                <div style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
+                    <!-- Mesh2Motion skeleton (source) - draggable bones -->
+                    <div class="bone-map-section">
+                        <h2 class="bone-map-heading">Mesh2Motion Skeleton (Source)</h2>
+                        <div class="bone-map-content">
+                            <div id="skeleton-selection-container" >
+                                <select id="skeleton-type-select" class="button">
+                                    <option value="human" selected>Human</option>
+                                    <option value="quadraped">Quadruped (Fox)</option>
+                                    <option value="bird">Bird</option>
+                                    <option value="dragon">Dragon</option>
+                                </select>
+                            </div>
+                            
+                            <p>Bones List <span id="source-bone-count">(0)</span></p>
+                            <div id="source-bones-list">
+                                <p style="color: var(--text-secondary);">No source skeleton loaded</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style="align-self: center; font-size: 2rem; color: var(--text-secondary);">
+                        ⇨
+                    </div>  
+
+                    <!-- imported 3d skinned mesh (target) - drop zone for bones -->
+                    <div class="bone-map-section">
+                        <p class="bone-map-heading">Your 3D Rig Model (Target)</p>
+                        <div class="bone-map-content">
+                            <div style="display: flex; gap: 0.5rem;">
+                                <!-- there are some issues going on with scaling the skeleton for FBX and other formats so we will start simple for now with just GLB files -->
+                                <input type="file" id="upload-file" accept=".glb, .fbx, .zip" style="display: none;" />
+                                <label for="upload-file" class="button" id="load-model-button">Upload Rig</label>
+
+                                <button id="auto-map-button" class="secondary-button" style="display: none;">Auto-Map Bones</button>
+                                <button id="clear-mappings-button" class="secondary-button" style="display: none;">Clear Mappings</button>
+                            </div>
+                            
+                            <p>Bones List  <span id="target-bone-count">(0)</span></p>
+                            <div id="target-bones-list">
+                                <p style="color: var(--text-secondary);">No target skeleton loaded</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div style="display: flex; padding: 1rem; justify-content: flex-end;">
+                    <button id="continue-to-listing-button" style="display: none">Continue</button>
+                </div>
+            </span>
+
+            <!-- animation listings area -->             
+            <span id="skinned-step-animation-export-options">
+
+                <div id="animations-listing">
+    
+                    <!-- Filter textbox for animations -->     
+                    <div id="animation-listing-count">0</div>
+                    <input type="text" id="animation-filter" placeholder="Filter animations...">
+       
+                    <!-- loading progress when animations start getting larger. -->
+                    <div id="animation-progress-loader-container" style="display: none">
+                        <div id="loading-status-text">Loading animation data</div>
+                        <div id="loading-progress-bar"></div>
+                        <div id="current-file-progress-bar"></div>
+                    </div>
+       
+        
+                    <!-- javascript will populate this item with animations
+                         that we get from the animations file(s)  -->
+                    <div id="animations-items"> </div> 
+
+
+
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="secondary-button" id="back_to_bone_map_button" >&#x2039; Back</button>
+
+
+                        <!-- checkbox option to show skeleton -->
+                        <div class="styled-checkbox icon-toggle">
+                            <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display:none;">
+                            <label for="show-skeleton-checkbox" data-tippy-content="Show skeleton"  tabindex="0">
+                                <img src="../images/icons/bone-display.svg" width="30" height="30" alt="Show skeleton" />
+                            </label>
+                        </div>
+
+                        <!-- I renamed the button ID since we need to process the aniamtions different
+                             -->
+                        <button id="export-retargeting-button" title="Export animations. Make sure to select the animations you want to export first.">
+                            <span class="button-icon-group">
+                                <span class="material-symbols-outlined">save_alt</span>
+                                <span>Download <span id="animation-selection-count">0</span></span>
+                            </span>
+                        </button>
+                        <a id="download-hidden-link" href="#" style="display:none"></a>
+
+                    </div>
+
+
+       
+                </div>
+        
+               
+            </span>
+
+        </div>
+
+        <!-- Free-floating Animation Player -->
+        <div id="animation-player">
+            <div id="current-animation-container">
+                <span id="current-animation-name">No animation selected</span>
+            </div>
+            <div id="play-controls">
+                <button id="play-pause-button" class="animation-control-button" disabled>
+                    <span class="material-symbols-outlined">play_arrow</span>
+                </button>
+                <span>
+                    <span id="current-time">0f</span> / 
+                    <span id="total-time">0f</span>
+                </span>
+                <input type="range" id="animation-scrubber" min="0" max="100" value="0" disabled>
+            </div>
+
+        </div>
+
+        <!-- 3d view controls shown on bottom right. This helps with click events -->
+        <div id="view-control-hitbox"></div>
+
+        <script type="module" src="./retarget.ts"></script>
+    </body>
+</html>

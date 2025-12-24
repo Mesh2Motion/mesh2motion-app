@@ -38,7 +38,7 @@ export class AnimationLoader extends EventTarget {
    */
   public async load_animations (
     skeleton_type: SkeletonType,
-    skeleton_scale: number
+    skeleton_scale: number = 1.0
   ): Promise<TransformedAnimationClipPair[]> {
     const file_paths = this.get_animation_file_paths(skeleton_type)
 

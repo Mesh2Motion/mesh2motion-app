@@ -179,7 +179,7 @@ export class Generators {
 
   static create_camera (): PerspectiveCamera {
     const field_of_view = 15 // in millimeters. Lower makes the camera more isometric
-    const camera = new PerspectiveCamera(field_of_view, window.innerWidth / window.innerHeight, 0.1, 1000)
+    const camera = new PerspectiveCamera(field_of_view, window.innerWidth / window.innerHeight, 0.1, 10000)
     camera.position.z = 10
     camera.position.y = 5
     camera.position.x = 5

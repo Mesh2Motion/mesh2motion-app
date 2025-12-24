@@ -95,6 +95,17 @@ export class Mesh2MotionEngine {
     this.setup_tooltips()
   }
 
+  public get_theme_manager(): ThemeManager {
+    return this.theme_manager
+  }
+
+  /** Eventually make the scene its own singleton/manager class
+   * that we can inject into other classes that need it
+   */
+  public get_scene (): Scene {
+    return this.scene
+  }
+
   /* Add this attribute to an HTML element to give it a tooltip */
   private setup_tooltips (): void {
     tippy('[data-tippy-content]', { theme: 'mesh2motion' })
@@ -114,6 +125,27 @@ export class Mesh2MotionEngine {
   public set_camera_position (position: Vector3): void {
     this.camera.position.copy(position)
     this.controls?.update()
+  }
+
+  public set_zoom_limits (min_distance: number, max_distance: number): void {
+    if (this.controls !== undefined) {
+      this.controls.minDistance = min_distance
+      this.controls.maxDistance = max_distance
+      this.controls.update()
+    }
+  }
+
+  public set_fog_enabled (enabled: boolean): void {
+    if (enabled) {
+      // Determine fog color based on theme
+      let floor_color = 0x2d4353
+      if (this.theme_manager.get_current_theme() === 'light') {
+        floor_color = 0xecf0f1
+      }
+      this.scene.fog = new THREE.Fog(floor_color, 20, 80)
+    } else {
+      this.scene.fog = null
+    }
   }
 
   private setup_environment (): void {
@@ -237,6 +269,21 @@ export class Mesh2MotionEngine {
     }
   }
 
+  // the retargeting functionality also uses, so expose this out publicly
+  public show_animation_player (show: boolean): void {
+    if (this.ui.dom_animation_player === null) {
+      console.error('Cannot find animation player DOM element to show/hide')
+      return
+    }
+
+    if (show) {
+      this.ui.dom_animation_player.style.display = 'flex'
+      return
+    }
+
+    this.ui.dom_animation_player.style.display = 'none'
+  }
+
   public process_step_changed (process_step: ProcessStep): ProcessStep {
     // we will have the current step turn on the UI elements it needs
     this.ui.hide_all_elements()
@@ -249,12 +296,10 @@ export class Mesh2MotionEngine {
     this.load_skeleton_step.dispose()
 
     // only show animation player on the animation listing page
-    if (this.ui.dom_animation_player !== null) {
-      this.ui.dom_animation_player.style.display = 'none'
-
-      if (process_step === ProcessStep.AnimationsListing) {
-        this.ui.dom_animation_player.style.display = 'flex'
-      }
+    if (process_step === ProcessStep.AnimationsListing) {
+      this.show_animation_player(true)
+    } else {
+      this.show_animation_player(false)
     }
 
     /**********

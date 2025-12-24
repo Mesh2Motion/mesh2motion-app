@@ -3,6 +3,7 @@ import { ModelPreviewDisplay } from './enums/ModelPreviewDisplay'
 import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
+import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
 
 export class EventListeners {
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
@@ -112,7 +113,8 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_move_model_to_floor_button?.addEventListener('click', () => {
-      this.bootstrap.load_model_step.move_model_to_floor()
+      const mesh_data = this.bootstrap.load_model_step.model_meshes()
+      ModelCleanupUtility.move_model_to_floor(mesh_data)
     })
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {

@@ -35,6 +35,9 @@ export class StepExportToFile extends EventTarget {
       export_scene.add(final_skinned_mesh)
     })
 
+    console.log('SKINNED MESH DATA TO EXPORT:', skinned_meshes)
+    console.log('animations to export', this.animation_clips_to_export)
+
     this.export_glb(export_scene, this.animation_clips_to_export, filename)
       .then(() => {
         // Move the skinned meshes back to their original parents
