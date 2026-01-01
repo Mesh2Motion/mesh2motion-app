@@ -23,7 +23,6 @@ export class AnimationRetargetService {
    * Get/set for the skeleton type. This will be the source of truth
    * for other classes to grab this data
    */
-  private skeleton_type: SkeletonType = SkeletonType.None
   private source_armature: Group | null = null
   public set_source_armature (armature: Group | null): void {
     this.source_armature = armature
@@ -33,6 +32,7 @@ export class AnimationRetargetService {
     return this.source_armature
   }
 
+  private skeleton_type: SkeletonType = SkeletonType.None
   public set_skeleton_type (type: SkeletonType): void {
     this.skeleton_type = type
   }
@@ -62,10 +62,19 @@ export class AnimationRetargetService {
    * @returns A new animation clip retargeted for the target skeleton
    */
 
+  private target_mapping_type: TargetBoneMappingType = TargetBoneMappingType.None
+
+  public set_target_mapping_type (type: TargetBoneMappingType): void {
+    this.target_mapping_type = type
+  }
+
+  public get_target_mapping_type (): TargetBoneMappingType {
+    return this.target_mapping_type
+  }
+
   public retarget_animation_clip (
     source_clip: AnimationClip,
     bone_mappings: Map<string, string>,
-    target_mapping_type: TargetBoneMappingType,
     target_skeleton_data: Scene | null = null,
     target_skinned_meshes: SkinnedMesh[] = []
   ): AnimationClip {
@@ -107,7 +116,7 @@ export class AnimationRetargetService {
     const retargeted_clip = new AnimationClip(`${source_clip.name}`, source_clip.duration, new_tracks)
 
     // Apply Mixamo-specific corrections if needed
-    if (target_mapping_type === TargetBoneMappingType.Mixamo) {
+    if (this.target_mapping_type === TargetBoneMappingType.Mixamo) {
       this.apply_bone_rotation_correction(
         retargeted_clip,
         bone_mappings,

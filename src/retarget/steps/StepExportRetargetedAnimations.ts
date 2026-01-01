@@ -8,15 +8,14 @@ export class StepExportRetargetedAnimations extends EventTarget {
 
   // Retargeting-related properties
   private bone_mapping = new Map<string, string>()
-  private target_mapping_type: TargetBoneMappingType = TargetBoneMappingType.None
+  // target_mapping_type is now managed by AnimationRetargetService singleton
   private target_skeleton_data: Scene | null = null
   private target_skinned_meshes: SkinnedMesh[] = []
   private target_rig_scene: Scene | null = null
 
   public setup_retargeting (target_rig_scene: Scene, meshes: SkinnedMesh[], bone_mapping: Map<string, string>,
-    mapping_type: TargetBoneMappingType, skeleton_data: Scene | null): void {
+    skeleton_data: Scene | null): void {
     this.bone_mapping = bone_mapping
-    this.target_mapping_type = mapping_type
     this.target_skeleton_data = skeleton_data
     this.target_skinned_meshes = meshes
     this.target_rig_scene = target_rig_scene
@@ -48,7 +47,6 @@ export class StepExportRetargetedAnimations extends EventTarget {
       AnimationRetargetService.getInstance().retarget_animation_clip(
         clip,
         this.bone_mapping,
-        this.target_mapping_type,
         this.target_skeleton_data,
         this.target_skinned_meshes // use the meshes being exported as the target
       )
