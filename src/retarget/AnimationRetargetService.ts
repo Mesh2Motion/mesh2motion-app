@@ -1,10 +1,14 @@
 import {
   AnimationClip, Euler, type Object3D, Quaternion, QuaternionKeyframeTrack, Vector3,
-  VectorKeyframeTrack, Scene, Group, type SkinnedMesh
+  VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
+  Skeleton,
+  type Bone
 } from 'three'
 import { RetargetUtils } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './steps/StepBoneMapping.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
+import { Retargeter } from './human-retargeting/Retargeter.ts'
+import { Rig } from './human-retargeting/Rig.ts'
 
 /**
  * Parsed animation track name containing bone name and property type
@@ -99,11 +103,22 @@ export class AnimationRetargetService {
   /**
    * Retarget an animation clip using bone mappings
    * @param source_clip - The original animation clip from the source skeleton
-   * @param bone_mappings - Map of target bone name -> source bone name
    * @returns A new animation clip retargeted for the target skeleton
    */
   public retarget_animation_clip (source_clip: AnimationClip): AnimationClip {
     const new_tracks: any[] = [] // store new retargeted tracks
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // if the source skeleton is of type human and the target mapping is Mixamo,
+    // we can try to apply the new Human Retarger system to do the retargeting
+    if (this.skeleton_type === SkeletonType.Human && this.target_mapping_type === TargetBoneMappingType.Mixamo) {
+      console.log('Using Human Retargeter for retargeting animation clip:', source_clip.name)
+      return this.apply_swing_twist_retargeting(source_clip)
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Besides the above special case, the standard retargeting will just be bone mapping applied
+    // Maybe in the future we can do other more advanced things.
 
     // Process each track in the source animation
     source_clip.tracks.forEach((track) => {
@@ -140,13 +155,6 @@ export class AnimationRetargetService {
     // Create the retargeted animation clip
     const retargeted_clip = new AnimationClip(`${source_clip.name}`, source_clip.duration, new_tracks)
 
-    // Apply Mixamo-specific corrections if needed
-    if (this.target_mapping_type === TargetBoneMappingType.Mixamo) {
-      this.apply_bone_rotation_correction(
-        retargeted_clip
-      )
-    }
-
     console.log(`Retargeted animation: ${source_clip.name} (${new_tracks.length} tracks)`)
     return retargeted_clip
   }
@@ -154,6 +162,85 @@ export class AnimationRetargetService {
   // #endregion
 
   // #region PRIVATE METHODS
+
+  private apply_swing_twist_retargeting (source_clip: AnimationClip): AnimationClip {
+    // the retargeter needs Skeleton inputs fot both source and target.
+    // the source armature is a Group, so we need to convert to a THREE.Skeleton before we can continue
+    const source_skeleton: Skeleton | null = this.create_skeleton_from_source(this.source_armature)
+    if (source_skeleton === null) {
+      console.error('Failed to extract source skeleton from source armature for Human Retargeter.')
+      return source_clip
+    }
+
+    // create a custom "Rig" for the source and the target skeletons
+    const source_rig: Rig = new Rig(source_skeleton)
+    source_rig.fromConfig({
+      pelvis: { names: ['DEF-hips'] },
+      spine: { names: ['DEF-spine001', 'DEF-spine002', 'DEF-spine003'] },
+      head: { names: ['DEF-neck', 'DEF-head'] },
+      armL: { names: ['DEF-upper_armL', 'DEF-forearmL', 'DEF-handL'] },
+      armR: { names: ['DEF-upper_armR', 'DEF-forearmR', 'DEF-handR'] },
+      legL: { names: ['DEF-thighL', 'DEF-shinL', 'DEF-footL'] },
+      legR: { names: ['DEF-thighR', 'DEF-shinR', 'DEF-footR'] }
+    })
+
+    // TODO: Can build out the target config from the bone mappings if they should be 1:1
+    const target_rig: Rig = new Rig(this.target_skinned_meshes[0].skeleton)
+    target_rig.fromConfig({
+      pelvis: { names: ['mixamorigHips'] },
+      spine: { names: ['mixamorigSpine', 'mixamorigSpine1', 'mixamorigSpine2'] },
+      head: { names: ['mixamorigNeck', 'mixamorigHead'] },
+      armL: { names: ['mixamorigLeftArm', 'mixamorigLeftForeArm', 'mixamorigLeftHand'] },
+      armR: { names: ['mixamorigRightArm', 'mixamorigRightForeArm', 'mixamorigRightHand'] },
+      legL: { names: ['mixamorigLeftUpLeg', 'mixamorigLeftLeg', 'mixamorigLeftFoot'] },
+      legR: { names: ['mixamorigRightUpLeg', 'mixamorigRightLeg', 'mixamorigRightFoot'] }
+    })
+
+    const retargeter: Retargeter = new Retargeter(source_rig, target_rig, source_clip)
+
+    // TODO: experiment with the additives later with T-pose correction
+    // retargeter.additives.push(
+    //     (Ref.addAxis  = new AxisAdditive( 'armL', 'y', 0 * Math.PI / 180 )),
+    //     (Ref.addTwist = new ChainTwistAdditive( 'armR', 0 * Math.PI / 180 )),
+    // );
+
+    retargeter.update(0.001) // small delta to initalize
+
+    return source_clip
+  }
+
+  /**
+   * Utility: Convert a Group (with Armature and Bone hierarchy) to a THREE.Skeleton
+   * @param group - The root Group containing the Armature and Bone hierarchy
+   * @returns Skeleton or null if not found
+   */
+  private create_skeleton_from_source (group: Group): Skeleton | null {
+    // Find the Armature child
+    const armature = group.children.find(child => child.type === 'Object3D' &&
+      child.name.toLowerCase().includes('armature'))
+
+    if (armature === undefined) return null
+
+    // Find the root Bone under the Armature
+    const root_bone = armature.children.find(child => child.type === 'Bone') as Bone | undefined
+
+    if (root_bone === undefined) return null
+
+    const bones = this.collect_bones(root_bone)
+
+    if (bones.length === 0) return null
+
+    const skeleton = new Skeleton(bones)
+    skeleton.calculateInverses()
+    return skeleton
+  }
+
+  // Recursively collect all bones. part of extract_skeleton_from_group()
+  private collect_bones (object: Object3D, bones: Bone[] = []): Bone[] {
+    if (object.type === 'Bone') bones.push(object as Bone)
+    object.children.forEach(child => this.collect_bones(child, bones))
+    return bones
+  }
 
   /**
    * Create a reverse mapping: source bone name -> array of target bone names

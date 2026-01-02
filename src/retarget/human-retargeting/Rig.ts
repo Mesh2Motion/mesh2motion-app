@@ -12,6 +12,11 @@ import type * as THREE from 'three'
 // that speaks a single language of whats what.
 export class Rig {
   public readonly skel: THREE.Skeleton
+
+  /**
+   * The T-Pose of the rig, representing the default pose of the skeleton
+   * Initially set by passing in the base skeleton data
+   */
   public readonly tpose: Pose
   public readonly chains: Record<string, RigItem[]> = {}
   public scalar: number = 1.0

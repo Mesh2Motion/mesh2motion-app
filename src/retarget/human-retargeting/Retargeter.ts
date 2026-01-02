@@ -197,8 +197,8 @@ export class Retargeter {
       this.pose.setRot(itm.idx, rot)
 
       // -----------------------
-      const debug_transform: Transform = new Transform() // Debug
-      this.pose.getWorld(itm.idx, debug_transform)
+      // const debug_transform: Transform = new Transform() // Debug
+      // this.pose.getWorld(itm.idx, debug_transform)
       // const vv: Vec3 = new Vec3() // Debug
       // Debug.pnt.add(debug_transform.pos, 0x00ff00, 1, 1)
       // Debug.ln.add(debug_transform.pos, vv.fromQuat(debug_transform.rot, itm.swing).scale(0.1).add(debug_transform.pos), 0xffff00)

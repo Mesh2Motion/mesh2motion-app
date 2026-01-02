@@ -32,7 +32,8 @@ export class Pose {
    */
   getJoint (o: number | string): Joint | null {
     switch (typeof o) {
-      case 'number': return this.joints[o]
+      case 'number':
+        return this.joints[o]
       case 'string': {
         const idx = this.nameIdx.get(o)
         return (idx !== undefined) ? this.joints[idx] : null
@@ -203,6 +204,10 @@ export class Pose {
     }
 
     // Work up the heirarchy till the root bone
+    if (joint.local === undefined) {
+      console.error('Pose.getWorld - joint.local is undefined', joint)
+    }
+
     out_transform.copy(joint.local)
     while (joint.pindex !== -1) {
       joint = this.joints[joint.pindex]
