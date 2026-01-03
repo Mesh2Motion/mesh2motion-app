@@ -174,47 +174,49 @@ export class AnimationRetargetService {
 
     // create a custom "Rig" for the source and the target skeletons
     const source_rig: Rig = new Rig(source_skeleton)
-    source_rig.fromConfig({
-      pelvis: { names: ['DEF-hips'] },
-      spine: { names: ['DEF-spine001', 'DEF-spine002', 'DEF-spine003'] },
-      head: { names: ['DEF-neck', 'DEF-head'] },
-      armL: { names: ['DEF-upper_armL', 'DEF-forearmL', 'DEF-handL'] },
-      armR: { names: ['DEF-upper_armR', 'DEF-forearmR', 'DEF-handR'] },
-      legL: { names: ['DEF-thighL', 'DEF-shinL', 'DEF-footL'] },
-      legR: { names: ['DEF-thighR', 'DEF-shinR', 'DEF-footR'] },
-      fingersThumbL: { names: ['DEF-thumb01L', 'DEF-thumb02L', 'DEF-thumb03L', 'DEF-thumb04_tipL'] },
-      fingersThumbR: { names: ['DEF-thumb01R', 'DEF-thumb02R', 'DEF-thumb03R', 'DEF-thumb04_tipR'] },
-      fingersIndexL: { names: ['DEF-f_index01L', 'DEF-f_index02L', 'DEF-f_index03L', 'DEF-f_index04_tipL'] },
-      fingersIndexR: { names: ['DEF-f_index01R', 'DEF-f_index02R', 'DEF-f_index03R', 'DEF-f_index04_tipR'] },
-      fingersMiddleL: { names: ['DEF-f_middle01L', 'DEF-f_middle02L', 'DEF-f_middle03L', 'DEF-f_middle04_tipL'] },
-      fingersMiddleR: { names: ['DEF-f_middle01R', 'DEF-f_middle02R', 'DEF-f_middle03R', 'DEF-f_middle04_tipR'] },
-      fingersRingL: { names: ['DEF-f_ring01L', 'DEF-f_ring02L', 'DEF-f_ring03L', 'DEF-f_ring04_tipL'] },
-      fingersRingR: { names: ['DEF-f_ring01R', 'DEF-f_ring02R', 'DEF-f_ring03R', 'DEF-f_ring04_tipR'] },
-      fingersPinkyL: { names: ['DEF-f_pinky01L', 'DEF-f_pinky02L', 'DEF-f_pinky03L', 'DEF-f_pinky04_tipL'] },
-      fingersPinkyR: { names: ['DEF-f_pinky01R', 'DEF-f_pinky02R', 'DEF-f_pinky03R', 'DEF-f_pinky04_tipR'] }
-    })
+    const source_chain_config: Record<string, string[]> = {
+      pelvis: ['DEF-hips'],
+      spine: ['DEF-spine001', 'DEF-spine002', 'DEF-spine003'],
+      head: ['DEF-neck', 'DEF-head'],
+      armL: ['DEF-upper_armL', 'DEF-forearmL', 'DEF-handL'],
+      armR: ['DEF-upper_armR', 'DEF-forearmR', 'DEF-handR'],
+      legL: ['DEF-thighL', 'DEF-shinL', 'DEF-footL'],
+      legR: ['DEF-thighR', 'DEF-shinR', 'DEF-footR'],
+      fingersThumbL: ['DEF-thumb01L', 'DEF-thumb02L', 'DEF-thumb03L', 'DEF-thumb04_tipL'],
+      fingersThumbR: ['DEF-thumb01R', 'DEF-thumb02R', 'DEF-thumb03R', 'DEF-thumb04_tipR'],
+      fingersIndexL: ['DEF-f_index01L', 'DEF-f_index02L', 'DEF-f_index03L', 'DEF-f_index04_tipL'],
+      fingersIndexR: ['DEF-f_index01R', 'DEF-f_index02R', 'DEF-f_index03R', 'DEF-f_index04_tipR'],
+      fingersMiddleL: ['DEF-f_middle01L', 'DEF-f_middle02L', 'DEF-f_middle03L', 'DEF-f_middle04_tipL'],
+      fingersMiddleR: ['DEF-f_middle01R', 'DEF-f_middle02R', 'DEF-f_middle03R', 'DEF-f_middle04_tipR'],
+      fingersRingL: ['DEF-f_ring01L', 'DEF-f_ring02L', 'DEF-f_ring03L', 'DEF-f_ring04_tipL'],
+      fingersRingR: ['DEF-f_ring01R', 'DEF-f_ring02R', 'DEF-f_ring03R', 'DEF-f_ring04_tipR'],
+      fingersPinkyL: ['DEF-f_pinky01L', 'DEF-f_pinky02L', 'DEF-f_pinky03L', 'DEF-f_pinky04_tipL'],
+      fingersPinkyR: ['DEF-f_pinky01R', 'DEF-f_pinky02R', 'DEF-f_pinky03R', 'DEF-f_pinky04_tipR']
+    }
+    source_rig.fromConfig(source_chain_config)
 
     //  maybe convert this from the bone map?
     const target_rig: Rig = new Rig(this.target_skinned_meshes[0].skeleton)
-    target_rig.fromConfig({
-      pelvis: { names: ['mixamorigHips'] },
-      spine: { names: ['mixamorigSpine', 'mixamorigSpine1', 'mixamorigSpine2'] },
-      head: { names: ['mixamorigNeck', 'mixamorigHead'] },
-      armL: { names: ['mixamorigLeftArm', 'mixamorigLeftForeArm', 'mixamorigLeftHand'] },
-      armR: { names: ['mixamorigRightArm', 'mixamorigRightForeArm', 'mixamorigRightHand'] },
-      legL: { names: ['mixamorigLeftUpLeg', 'mixamorigLeftLeg', 'mixamorigLeftFoot'] },
-      legR: { names: ['mixamorigRightUpLeg', 'mixamorigRightLeg', 'mixamorigRightFoot'] },
-      fingersThumbL: { names: ['mixamorigLeftHandThumb1', 'mixamorigLeftHandThumb2', 'mixamorigLeftHandThumb3', 'mixamorigLeftHandThumb4'] },
-      fingersThumbR: { names: ['mixamorigRightHandThumb1', 'mixamorigRightHandThumb2', 'mixamorigRightHandThumb3', 'mixamorigRightHandThumb4'] },
-      fingersIndexL: { names: ['mixamorigLeftHandIndex1', 'mixamorigLeftHandIndex2', 'mixamorigLeftHandIndex3', 'mixamorigLeftHandIndex4'] },
-      fingersIndexR: { names: ['mixamorigRightHandIndex1', 'mixamorigRightHandIndex2', 'mixamorigRightHandIndex3', 'mixamorigRightHandIndex4'] },
-      fingersMiddleL: { names: ['mixamorigLeftHandMiddle1', 'mixamorigLeftHandMiddle2', 'mixamorigLeftHandMiddle3', 'mixamorigLeftHandMiddle4'] },
-      fingersMiddleR: { names: ['mixamorigRightHandMiddle1', 'mixamorigRightHandMiddle2', 'mixamorigRightHandMiddle3', 'mixamorigRightHandMiddle4'] },
-      fingersRingL: { names: ['mixamorigLeftHandRing1', 'mixamorigLeftHandRing2', 'mixamorigLeftHandRing3', 'mixamorigLeftHandRing4'] },
-      fingersRingR: { names: ['mixamorigRightHandRing1', 'mixamorigRightHandRing2', 'mixamorigRightHandRing3', 'mixamorigRightHandRing4'] },
-      fingersPinkyL: { names: ['mixamorigLeftHandPinky1', 'mixamorigLeftHandPinky2', 'mixamorigLeftHandPinky3', 'mixamorigLeftHandPinky4'] },
-      fingersPinkyR: { names: ['mixamorigRightHandPinky1', 'mixamorigRightHandPinky2', 'mixamorigRightHandPinky3', 'mixamorigRightHandPinky4'] }
-    })
+    const target_chain_config: Record<string, string[]> = {
+      pelvis: ['mixamorigHips'],
+      spine: ['mixamorigSpine', 'mixamorigSpine1', 'mixamorigSpine2'],
+      head: ['mixamorigNeck', 'mixamorigHead'],
+      armL: ['mixamorigLeftArm', 'mixamorigLeftForeArm', 'mixamorigLeftHand'],
+      armR: ['mixamorigRightArm', 'mixamorigRightForeArm', 'mixamorigRightHand'],
+      legL: ['mixamorigLeftUpLeg', 'mixamorigLeftLeg', 'mixamorigLeftFoot'],
+      legR: ['mixamorigRightUpLeg', 'mixamorigRightLeg', 'mixamorigRightFoot'],
+      fingersThumbL: ['mixamorigLeftHandThumb1', 'mixamorigLeftHandThumb2', 'mixamorigLeftHandThumb3', 'mixamorigLeftHandThumb4'],
+      fingersThumbR: ['mixamorigRightHandThumb1', 'mixamorigRightHandThumb2', 'mixamorigRightHandThumb3', 'mixamorigRightHandThumb4'],
+      fingersIndexL: ['mixamorigLeftHandIndex1', 'mixamorigLeftHandIndex2', 'mixamorigLeftHandIndex3', 'mixamorigLeftHandIndex4'],
+      fingersIndexR: ['mixamorigRightHandIndex1', 'mixamorigRightHandIndex2', 'mixamorigRightHandIndex3', 'mixamorigRightHandIndex4'],
+      fingersMiddleL: ['mixamorigLeftHandMiddle1', 'mixamorigLeftHandMiddle2', 'mixamorigLeftHandMiddle3', 'mixamorigLeftHandMiddle4'],
+      fingersMiddleR: ['mixamorigRightHandMiddle1', 'mixamorigRightHandMiddle2', 'mixamorigRightHandMiddle3', 'mixamorigRightHandMiddle4'],
+      fingersRingL: ['mixamorigLeftHandRing1', 'mixamorigLeftHandRing2', 'mixamorigLeftHandRing3', 'mixamorigLeftHandRing4'],
+      fingersRingR: ['mixamorigRightHandRing1', 'mixamorigRightHandRing2', 'mixamorigRightHandRing3', 'mixamorigRightHandRing4'],
+      fingersPinkyL: ['mixamorigLeftHandPinky1', 'mixamorigLeftHandPinky2', 'mixamorigLeftHandPinky3', 'mixamorigLeftHandPinky4'],
+      fingersPinkyR: ['mixamorigRightHandPinky1', 'mixamorigRightHandPinky2', 'mixamorigRightHandPinky3', 'mixamorigRightHandPinky4']
+    }
+    target_rig.fromConfig(target_chain_config)
 
     const retargeter: Retargeter = new Retargeter(source_rig, target_rig, source_clip)
 
