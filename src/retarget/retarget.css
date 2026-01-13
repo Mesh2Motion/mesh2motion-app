@@ -24,7 +24,7 @@ h1 {
 }
 
 #source-bones-list, #target-bones-list {
-    max-height: calc(100vh - 400px);
+    max-height: calc(100vh - 450px);
     overflow-y: auto;
     background-color: var(--bg-alternate);
     border-radius: 0.25rem;

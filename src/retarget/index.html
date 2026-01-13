@@ -46,12 +46,15 @@
             <span id="bone-mapping-step">
                 <h1>Bring your own rigged model</h1>
 
-                <p>Instructions and information go here with what this page is for</p>
+                <div style="max-width: 30rem;">
+                    <p style="margin: 0"><strong>Experimental:</strong> The best workflow for this right now is to take a Mesh2Motion rig,  skin your model, then export to GLB. Then upload here. <a style="font-size: 1rem" target="_blank" href="https://github.com/Mesh2Motion/mesh2motion-assets/tree/main/rigs">See the existing rigs available.</a></p>
+                </div>
+
                 <div style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
                     <!-- Mesh2Motion skeleton (source) - draggable bones -->
                     <div class="bone-map-section">
                         <h2 class="bone-map-heading">
-                            <span>Mesh2Motion Skeleton (Source)</span>
+                            <span>Mesh2Motion Skeleton</span>
                         </h2>
                         <div class="bone-map-content">
                             <div id="skeleton-selection-container" >
@@ -63,7 +66,7 @@
                                 </select>
                             </div>
                             
-                            <p>Bones List <span id="source-bone-count">(0)</span></p>
+                            <p>Source Bones <span id="source-bone-count">(0)</span></p>
                             <div id="source-bones-list">
                                 <p style="color: var(--text-secondary);">No source skeleton loaded</p>
                             </div>
@@ -78,7 +81,7 @@
                     <!-- imported 3d skinned mesh (target) - drop zone for bones -->
                     <div class="bone-map-section">
                         <p class="bone-map-heading">
-                            <span>Your 3D Rig Model (Target)</span>
+                            <span>Your 3D Rig Model</span>
                             <span id="auto-bone-map-match">✨Mixamo</span>
                         </p>
                         <div class="bone-map-content">
@@ -92,7 +95,7 @@
                             </div>
                             
                             <span id="target-bones-list-container">
-                                <p>Bones List  <span id="target-bone-count">(0)</span></p>
+                                <p>Target Bones <span id="target-bone-count">(0)</span></p>
                                 <div id="target-bones-list">
                                     <p style="color: var(--text-secondary);">No target skeleton loaded</p>
                                 </div>
