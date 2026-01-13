@@ -22,11 +22,18 @@ export class Generators {
   static get_contributors_list (): string {
     // Return a list of contributors
     return `
-      <p>Scott Petrovic: Project Maintainer</p>
-      <p>Quaternius: Human model, rig, and animations. Visit <a href="http://quaternius.com/" target="_blank" rel="noopener noreferrer">quaternius.com</a></p>
+    <span style="text-align: left;">
+    <ul>
+      <li>Scott Petrovic: Project Maintainer</li>
+      <li>Quaternius: Base human model, rig, and animations. <a href="http://quaternius.com/" target="_blank" rel="noopener noreferrer">quaternius.com</a></li>
+      <li>Sketchpunklab: Provided algorithm to help retarget human rigs for animations. <a target="_blank" href="https://x.com/SketchpunkLabs">See social media account</a></li>
+      <li>Three.js Contributors: For the amazing Three.js library. <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">threejs.org</a></li>
+    </ul>
+
       <hr/>
       <p>Check out the <a href="https://github.com/Mesh2Motion" target="_blank">project's guide</a> for instructions on contributing.
       </p>
+      </span>
     `
   }
 
