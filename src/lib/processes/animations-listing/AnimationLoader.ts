@@ -165,10 +165,16 @@ export class AnimationLoader extends EventTarget {
     AnimationUtility.apply_skeleton_scale_to_position_keyframes(cloned_animations, skeleton_scale)
 
     // Create the transformed pairs
-    return cloned_animations.map(clip => ({
+    const transformed_pairs = cloned_animations.map(clip => ({
       original_animation_clip: clip,
       display_animation_clip: AnimationUtility.deep_clone_animation_clip(clip)
     }))
+
+    // Apply finger rotation constraints to prevent backward bending
+    // This is especially important for models with simplified hand skeletons
+    AnimationUtility.apply_finger_rotation_constraints(transformed_pairs)
+
+    return transformed_pairs
   }
 
   /**
