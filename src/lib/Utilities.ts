@@ -81,11 +81,20 @@ export class Utility {
       }
 
       if (obj.material !== undefined) {
-        if (obj.material.map) {
-          obj.material.map.dispose()
+        // this obj.material could be an array or a single material
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(material => {
+            if (material.map) {
+              material.map.dispose()
+            }
+            material.dispose()
+          })
+        } else {
+          if (obj.material.map) {
+            obj.material.map.dispose()
+          }
+          obj.material.dispose()
         }
-
-        obj.material.dispose()
       }
     }
 

@@ -37,7 +37,7 @@ export class ModelCleanupUtility {
       console.log('Model is very large or small, so scaling applied: ', bounding_box, ' units is bounding box')
     }
 
-    scale_factor = 1.5 / height
+    scale_factor = 1.5 / largest_dimension
 
     scene_object.traverse((child) => {
       const child_obj = child as Mesh

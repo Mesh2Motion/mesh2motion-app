@@ -86,8 +86,17 @@ export class StepLoadModel extends EventTarget {
           return
         }
 
-        const new_material: Material = (child as Mesh).material.clone()
-        this.material_list.push(new_material)
+        // handle multiple materials (array) or single material
+        if (Array.isArray((child as Mesh).material)) {
+          // clone each material in the array and preserve array structure
+          const materials = (child as Mesh).material as Material[]
+          const cloned_materials = materials.map(mat => mat.clone())
+          this.material_list.push(cloned_materials as any)
+        } else {
+          // single material case
+          const new_material: Material = ((child as Mesh).material as Material).clone()
+          this.material_list.push(new_material)
+        }
       }
     })
   }
