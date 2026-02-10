@@ -1,5 +1,6 @@
 import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
+import { ModalDialog } from '../../ModalDialog.ts'
 
 import {
   type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D
@@ -351,6 +352,29 @@ export class StepAnimationsListing extends EventTarget {
       this.play_animation(this.current_playing_index)
     })
 
+    this.ui.dom_import_animations_button?.addEventListener('click', () => {
+      this.ui.dom_import_animations_input?.click()
+    })
+
+    this.ui.dom_import_animations_input?.addEventListener('change', async (event) => {
+      const input = event.target as HTMLInputElement
+      const files = input.files
+      if (files === null || files.length === 0) {
+        return
+      }
+
+      for (const file of Array.from(files)) {
+        const file_name = file.name.toLowerCase()
+        if (!file_name.endsWith('.glb')) {
+          new ModalDialog('Unsupported file type. Please select a GLB file.', 'Error').show()
+          continue
+        }
+        await this.import_animation_glb(file)
+      }
+
+      input.value = ''
+    })
+
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
   }
@@ -381,5 +405,67 @@ export class StepAnimationsListing extends EventTarget {
       return []
     }
     return this.animation_search.get_selected_animation_indices()
+  }
+
+  /**
+   * Load custom animations from imported skeleton storage
+   */
+  private load_custom_animations (animations: AnimationClip[]): void {
+    this.animation_clips_loaded = []
+    this.animation_mixer = new AnimationMixer(new Object3D())
+
+    // Process the custom animations through the same pipeline
+    const cloned_anims: AnimationClip[] = AnimationUtility.deep_clone_animation_clips(animations)
+
+    // Clean track data
+    AnimationUtility.clean_track_data(cloned_anims)
+
+    // Apply skeleton scaling
+    AnimationUtility.apply_skeleton_scale_to_position_keyframes(cloned_anims, this.skeleton_scale)
+
+    // Add to animation clips loaded
+    this.animation_clips_loaded.push(...cloned_anims.map(clip => ({
+      original_animation_clip: clip,
+      display_animation_clip: AnimationUtility.deep_clone_animation_clip(clip)
+    })))
+
+    console.log(`Loaded ${this.animation_clips_loaded.length} custom animations`)
+
+    this.onAllAnimationsLoaded()
+    this.play_animation(0)
+  }
+
+  private async import_animation_glb (file: File): Promise<void> {
+    try {
+      const new_animation_clips = await this.animation_loader.load_animations_from_file(file, this.skeleton_scale)
+      if (new_animation_clips.length === 0) {
+        new ModalDialog('No animations were found in that GLB file.', 'Error').show()
+        return
+      }
+
+      this.animation_clips_loaded.push(...new_animation_clips)
+
+      this.apply_rest_pose_rotation_corrections()
+      this.rebuild_warped_animations()
+
+      if (this.animation_search === null) {
+        this.build_animation_clip_ui(
+          this.animation_clips_loaded.map(clip => clip.display_animation_clip),
+          this.theme_manager
+        )
+      } else {
+        this.animation_search.add_animations(new_animation_clips.map(clip => clip.display_animation_clip))
+      }
+
+      this.update_filtered_animation_listing_ui()
+      this.update_download_button_enabled()
+
+      if (this.skinned_meshes_to_animate.length > 0) {
+        this.play_animation(this.current_playing_index)
+      }
+    } catch (error) {
+      console.error('Failed to import animations:', error)
+      new ModalDialog('Failed to import animations from the GLB file.', 'Error').show()
+    }
   }
 }

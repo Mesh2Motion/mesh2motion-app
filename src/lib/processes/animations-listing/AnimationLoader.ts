@@ -125,6 +125,62 @@ export class AnimationLoader extends EventTarget {
   }
 
   /**
+   * Loads animations from a local GLB file.
+   */
+  public async load_animations_from_file (
+    file: File,
+    skeleton_scale: number = 1.0
+  ): Promise<TransformedAnimationClipPair[]> {
+    const file_url = URL.createObjectURL(file)
+    const file_total = file.size > 0 ? file.size : 1
+
+    this.file_progress_map.clear()
+    this.completed_files = 0
+    this.total_files = 1
+    this.file_progress_map.set(file.name, { loaded: 0, total: file_total })
+    this.emit_enhanced_progress(file.name, 0, file_total)
+
+    return await new Promise((resolve, reject) => {
+      this.gltf_loader.load(
+        file_url,
+        (gltf: any) => {
+          URL.revokeObjectURL(file_url)
+
+          try {
+            const animations = gltf.animations as AnimationClip[]
+            if (animations === null || animations === undefined || animations.length === 0) {
+              reject(new Error('No animations found in the GLB file.'))
+              return
+            }
+
+            this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
+            this.completed_files = 1
+            this.emit_enhanced_progress(file.name, file_total, file_total)
+
+            const processed_clips = this.process_loaded_animations(animations, skeleton_scale)
+            resolve(processed_clips)
+          } catch (error) {
+            const error_message = error instanceof Error ? error.message : String(error)
+            reject(new Error(`Failed to process animations from ${file.name}: ${error_message}`))
+          }
+        },
+        (progress_event) => {
+          if (progress_event.lengthComputable) {
+            const total_bytes = progress_event.total > 0 ? progress_event.total : file_total
+            this.file_progress_map.set(file.name, { loaded: progress_event.loaded, total: total_bytes })
+            this.emit_enhanced_progress(file.name, progress_event.loaded, total_bytes)
+          }
+        },
+        (error) => {
+          URL.revokeObjectURL(file_url)
+          const error_message = error instanceof Error ? error.message : String(error)
+          reject(new Error(`Failed to load animation file ${file.name}: ${error_message}`))
+        }
+      )
+    })
+  }
+
+  /**
    * Gets the file paths for animations based on skeleton type
    */
   private get_animation_file_paths (skeleton_type: SkeletonType): string[] {

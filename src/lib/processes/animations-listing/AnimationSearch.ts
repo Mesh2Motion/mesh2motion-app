@@ -35,6 +35,19 @@ export class AnimationSearch extends EventTarget {
     this.render_filtered_animations('')
   }
 
+  public add_animations (animations: AnimationClip[]): void {
+    const new_animations = animations.map(clip => {
+      const animation_with_state: AnimationWithState = clip as any
+      animation_with_state.name = clip.name
+      animation_with_state.isChecked = false
+      return animation_with_state
+    })
+
+    this.all_animations.push(...new_animations)
+    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+    this.render_filtered_animations(filter_text)
+  }
+
   private setup_event_listeners (): void {
     this.setup_filter_listener()
     this.setup_checkbox_listeners()
