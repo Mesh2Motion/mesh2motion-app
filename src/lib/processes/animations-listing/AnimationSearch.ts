@@ -25,27 +25,25 @@ export class AnimationSearch extends EventTarget {
 
   public initialize_animations (animations: AnimationClip[]): void {
     // Convert to animations with state tracking
-    this.all_animations = animations.map(clip => {
-      const animation_with_state: AnimationWithState = clip as any
-      animation_with_state.name = clip.name
-      animation_with_state.isChecked = false
-      return animation_with_state
-    })
+    this.all_animations = this.map_animations_to_state(animations)
 
     this.render_filtered_animations('')
   }
 
   public add_animations (animations: AnimationClip[]): void {
-    const new_animations = animations.map(clip => {
-      const animation_with_state: AnimationWithState = clip as any
-      animation_with_state.name = clip.name
-      animation_with_state.isChecked = false
-      return animation_with_state
-    })
+    const new_animations = this.map_animations_to_state(animations)
 
     this.all_animations.push(...new_animations)
     const filter_text = this.filter_input?.value.toLowerCase() ?? ''
     this.render_filtered_animations(filter_text)
+  }
+
+  private map_animations_to_state (animations: AnimationClip[]): AnimationWithState[] {
+    return animations.map((clip) => {
+      const animation_with_state = clip as unknown as AnimationWithState
+      animation_with_state.isChecked = false
+      return animation_with_state
+    })
   }
 
   private setup_event_listeners (): void {

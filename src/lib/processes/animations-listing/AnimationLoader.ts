@@ -149,7 +149,10 @@ export class AnimationLoader extends EventTarget {
           try {
             const animations = gltf.animations as AnimationClip[]
             if (animations === null || animations === undefined || animations.length === 0) {
-              reject(new Error('No animations found in the GLB file.'))
+              this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
+              this.completed_files = 1
+              this.emit_enhanced_progress(file.name, file_total, file_total)
+              resolve([])
               return
             }
 
