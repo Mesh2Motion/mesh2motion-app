@@ -415,23 +415,17 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_clips_loaded = []
     this.animation_mixer = new AnimationMixer(new Object3D())
 
-    // Process the custom animations through the same pipeline
-    const cloned_anims: AnimationClip[] = AnimationUtility.deep_clone_animation_clips(animations)
+    // Process the custom animations through the same centralized pipeline
+    const processed_animations = this.animation_loader.process_loaded_animations(
+      animations,
+      this.skeleton_scale
+    )
 
-    // Clean track data
-    AnimationUtility.clean_track_data(cloned_anims)
+    this.animation_clips_loaded.push(...processed_animations)
 
-    // Apply skeleton scaling
-    AnimationUtility.apply_skeleton_scale_to_position_keyframes(cloned_anims, this.skeleton_scale)
-
-    // Add to animation clips loaded
-    this.animation_clips_loaded.push(...cloned_anims.map(clip => ({
-      original_animation_clip: clip,
-      display_animation_clip: AnimationUtility.deep_clone_animation_clip(clip)
-    })))
-
-    console.log(`Loaded ${this.animation_clips_loaded.length} custom animations`)
-
+    // Ensure custom animations go through the same post-processing steps
+    this.apply_rest_pose_rotation_corrections()
+    this.rebuild_warped_animations()
     this.onAllAnimationsLoaded()
     this.play_animation(0)
   }
