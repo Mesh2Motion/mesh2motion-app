@@ -102,6 +102,7 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_player.clear_animation()
   }
 
+
   public mixer (): AnimationMixer {
     return this.animation_mixer
   }
@@ -445,24 +446,7 @@ export class StepAnimationsListing extends EventTarget {
 
       this.animation_clips_loaded.push(...new_animation_clips)
 
-      this.apply_rest_pose_rotation_corrections()
-      this.rebuild_warped_animations()
-
-      if (this.animation_search === null) {
-        this.build_animation_clip_ui(
-          this.animation_clips_loaded.map(clip => clip.display_animation_clip),
-          this.theme_manager
-        )
-      } else {
-        this.animation_search.add_animations(new_animation_clips.map(clip => clip.display_animation_clip))
-      }
-
-      this.update_filtered_animation_listing_ui()
-      this.update_download_button_enabled()
-
-      if (this.skinned_meshes_to_animate.length > 0) {
-        this.play_animation(this.current_playing_index)
-      }
+      this.onAllAnimationsLoaded()
     } catch (error) {
       console.error('Failed to import animations:', error)
       new ModalDialog('Failed to import animations from the GLB file.', 'Error').show()
