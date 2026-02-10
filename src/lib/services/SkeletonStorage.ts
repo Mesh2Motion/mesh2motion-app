@@ -1,4 +1,5 @@
 import { type Object3D, type AnimationClip, Bone, Skeleton } from 'three'
+import { type Quaternion } from 'three'
 import { BVHImporter } from '../processes/import/BVHImporter'
 
 export interface StoredSkeletonInfo {
@@ -30,10 +31,19 @@ export class SkeletonStorage {
   private static instance: SkeletonStorage
   private bvhImporter: BVHImporter = new BVHImporter()
   private skeletonCache: Map<string, StoredSkeleton> = new Map()
+  private rest_pose_rotation_corrections: Map<string, Quaternion> | null = null
 
   private constructor () {
     // Load metadata from localStorage on initialization
     this.loadFromStorage()
+  }
+
+  public setRestPoseRotationCorrections (corrections: Map<string, Quaternion>): void {
+    this.rest_pose_rotation_corrections = corrections
+  }
+
+  public getRestPoseRotationCorrections (): Map<string, Quaternion> | null {
+    return this.rest_pose_rotation_corrections
   }
 
   public static getInstance (): SkeletonStorage {

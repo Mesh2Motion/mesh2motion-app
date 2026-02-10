@@ -65,6 +65,7 @@ export class StepAnimationsListing extends EventTarget {
     this.skeleton_scale = skeleton_scale
     this.custom_skeleton_id = custom_skeleton_id
 
+
     if (this.ui.dom_current_step_index != null) {
       this.ui.dom_current_step_index.innerHTML = '4'
     }
@@ -92,6 +93,18 @@ export class StepAnimationsListing extends EventTarget {
     }
 
     this.update_download_button_enabled()
+  }
+
+  private apply_rest_pose_rotation_corrections (): void {
+    const corrections = skeletonStorage.getRestPoseRotationCorrections()
+    if (corrections === null || corrections.size === 0) {
+      return
+    }
+
+    this.animation_clips_loaded.forEach((clip_pair) => {
+      AnimationUtility.apply_rest_pose_rotation_corrections([clip_pair.original_animation_clip], corrections)
+      AnimationUtility.apply_rest_pose_rotation_corrections([clip_pair.display_animation_clip], corrections)
+    })
   }
 
   public reset_step_data (): void {
@@ -160,6 +173,7 @@ export class StepAnimationsListing extends EventTarget {
   }
 
   private onAllAnimationsLoaded (): void {
+    this.apply_rest_pose_rotation_corrections()
     // sort all animation names alphabetically
     this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
       if (a.display_animation_clip.name < b.display_animation_clip.name) { return -1 }
@@ -238,6 +252,14 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_clips_loaded.forEach((warped_clip: TransformedAnimationClipPair) => {
       warped_clip.display_animation_clip = AnimationUtility.deep_clone_animation_clip(warped_clip.original_animation_clip)
     })
+
+    const corrections = skeletonStorage.getRestPoseRotationCorrections()
+    if (corrections !== null && corrections.size > 0) {
+      AnimationUtility.apply_rest_pose_rotation_corrections(
+        this.animation_clips_loaded.map(clip => clip.display_animation_clip),
+        corrections
+      )
+    }
 
     if (this.mirror_animations_enabled) {
       AnimationUtility.apply_animation_mirroring(this.animation_clips_loaded)
