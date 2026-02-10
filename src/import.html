@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title style="display: none">Mesh2Motion - Import Skeleton</title>
+    <link rel="icon" type="image/png" href="./images/favicon.png"/>
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0">
+    <script type="module" src="./ImportBootstrap.ts"></script>
+    <link href="./styles.css" rel="stylesheet" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <nav>
+        <div style="display: inline-flex; align-items: center;">
+            <a href="https://mesh2motion.org"><img src="./images/mesh2motion.svg" width="200" /></a>
+            <a href="/">Explore</a>
+            <a href="/create.html">Use Your Model</a>
+            <a href="/retarget/index.html">Use Your Rigged Model</a>
+            <span class="active-nav-item">Import</span>
+        </div>
+
+        <div style="display: inline-flex; align-items: center;">
+            <a href="https://support.mesh2motion.org" target="_blank"> 💗 Support</a>
+            <a href="https://github.com/scottpetrovic/mesh2motion-app" target="_blank">Github</a>
+            <a href="#" id="attribution-link">Contributors</a>
+
+            <!-- Theme Toggle -->
+            <button id="theme-toggle">
+                <span class="theme-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Top toolbar with mouse controls -->
+    <div id="header-ui">
+        <div>
+            <img src="images/mouse-left.svg" height="30" width="30" style="vertical-align: middle;"/> Rotate
+        </div>
+        <div>
+            <img src="images/mouse-right.svg" height="30" width="30" style="vertical-align: middle;"/> Pan
+        </div>
+        <div>
+            <img src="images/mouse-middle.svg" height="30" width="30" style="vertical-align: middle;"/> Zoom
+        </div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div id="theme-toggle-container">
+        <button id="theme-toggle">
+            <span class="theme-icon"></span>
+        </button>
+    </div>
+
+    <div id="tool-panel">
+        <div id="tool-selection-group">
+            <div style="margin-bottom: 1rem; padding: 0;">
+                <span id="current-step-index">1</span>
+                <span id="current-step-label">Import Skeleton</span>
+            </div>
+
+            <div id="import-tools">
+                <p class="step-instructions">Import a custom skeleton with animation from a BVH file. The skeleton will be available in the Create page.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <label for="import-bvh-upload" class="button" data-tippy-content="Import a BVH file containing skeleton hierarchy and animation">
+                        <span class="button-icon-group">
+                            <span class="material-symbols-outlined">upload</span>
+                            <span>Import BVH File</span>
+                            <span class="material-symbols-outlined">help</span>
+                        </span>
+                    </label>
+                    <input id="import-bvh-upload" type="file" accept=".bvh" />
+
+                    <div id="imported-skeleton-info" style="display: none;" class="alternate-background-section">
+                        <span>Imported: <span id="imported-skeleton-name">-</span></span>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: var(--muted-text-color);">
+                            This skeleton is now available in the Create page's skeleton template dropdown.
+                        </p>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <span>Stored Skeletons</span>
+                    <div id="stored-skeletons-list" style="max-height: 200px; overflow-y: auto;">
+                        <p style="color: var(--muted-text-color); font-style: italic;">No imported skeletons yet.</p>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="/create.html" class="button" style="text-decoration: none; text-align: center;">Go to Create &nbsp;&#x203a;</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="build-version" style="position: fixed; bottom: 10px; right: 10px; font-size: 0.75rem; color: var(--muted-text-color);"></div>
+</body>
+</html>

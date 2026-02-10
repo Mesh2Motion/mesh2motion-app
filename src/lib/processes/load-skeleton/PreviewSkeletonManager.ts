@@ -1,4 +1,4 @@
-import { Group, type Object3D, type Object3DEventMap, SkeletonHelper, type Scene } from 'three'
+import { Group, Object3D, type Object3DEventMap, SkeletonHelper, type Scene } from 'three'
 import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import type GLTFResult from './interfaces/GLTFResult'
 import { type HandSkeletonType, SkeletonType } from '../../enums/SkeletonType'
@@ -68,4 +68,41 @@ export function remove_preview_skeleton (root: Scene): void {
   if ((skeleton_group?.parent) != null) {
     skeleton_group.parent.remove(skeleton_group)
   }
+}
+
+// Function to add a preview skeleton from an already-loaded BVH armature
+export async function add_preview_skeleton_from_bvh (
+  root: Scene,
+  armature: Object3D,
+  skeleton_scale: number = 1.0
+): Promise<void> {
+  // Remove existing preview
+  remove_preview_skeleton(root)
+
+  // Bake the scale into the armature bone positions
+  if (skeleton_scale !== 1) {
+    armature.scale.set(1, 1, 1)
+    armature.traverse((obj) => {
+      if (obj instanceof Object3D && obj !== armature) {
+        obj.position.multiplyScalar(skeleton_scale)
+      }
+    })
+    armature.updateMatrixWorld(true)
+  }
+
+  // Create new preview skeleton group
+  const preview_skeleton_group = new Group()
+  preview_skeleton_group.name = skeleton_group_name
+  preview_skeleton_group.userData.is_bvh_import = true
+  // Don't apply scale at group level since we've baked it into positions
+  preview_skeleton_group.scale.set(1, 1, 1)
+  root.add(preview_skeleton_group)
+
+  // Create skeleton helper from the armature
+  const skeleton_helper = new SkeletonHelper(armature)
+  skeleton_helper.name = 'preview_skeleton'
+  preview_skeleton_group.add(skeleton_helper)
+
+  // Add the armature itself to the group so it can be animated
+  preview_skeleton_group.add(armature)
 }

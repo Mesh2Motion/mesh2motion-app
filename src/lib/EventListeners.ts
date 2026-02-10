@@ -4,6 +4,7 @@ import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
+import { skeletonStorage } from './services/SkeletonStorage.ts'
 
 export class EventListeners {
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
@@ -41,7 +42,7 @@ export class EventListeners {
 
     // listen for view helper changes
     document.getElementById('view-control-hitbox')?.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (this.bootstrap.view_helper.handleClick(event)) {
+      if (this.bootstrap.view_helper !== undefined && this.bootstrap.view_helper.handleClick(event)) {
         event.stopPropagation()
         event.preventDefault()
       }
@@ -62,10 +63,9 @@ export class EventListeners {
       this.bootstrap.handle_transform_controls_mouse_down(event)
 
       // update UI with current bone name
-      if (this.bootstrap.ui.dom_selected_bone_label !== null &&
-        this.bootstrap.edit_skeleton_step.get_currently_selected_bone() !== null) {
-        this.bootstrap.ui.dom_selected_bone_label.innerHTML =
-          this.bootstrap.edit_skeleton_step.get_currently_selected_bone().name
+      const selected_bone = this.bootstrap.edit_skeleton_step.get_currently_selected_bone()
+      if (this.bootstrap.ui.dom_selected_bone_label !== null && selected_bone !== null) {
+        this.bootstrap.ui.dom_selected_bone_label.innerHTML = selected_bone.name
       }
     }, false)
 
@@ -73,7 +73,9 @@ export class EventListeners {
     // we can know about the "mouseup" event with this
     this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
       this.bootstrap.is_transform_controls_dragging = event.value
-      this.bootstrap.controls.enabled = !event.value
+      if (this.bootstrap.controls !== undefined) {
+        this.bootstrap.controls.enabled = !event.value
+      }
 
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {
@@ -93,6 +95,8 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_bind_pose_button?.addEventListener('click', () => {
+      const corrections = this.bootstrap.edit_skeleton_step.get_rest_pose_rotation_corrections()
+      skeletonStorage.setRestPoseRotationCorrections(corrections)
       this.bootstrap.setup_weight_skinning_config()
       this.bootstrap.process_step_changed(ProcessStep.BindPose)
     })
@@ -117,7 +121,11 @@ export class EventListeners {
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {
       if (this.bootstrap.skeleton_helper !== undefined) {
-        this.bootstrap.skeleton_helper.visible = event.target.checked
+        const target = event.target as HTMLInputElement | null
+        if (target === null) {
+          return
+        }
+        this.bootstrap.skeleton_helper.visible = target.checked
       } else {
         console.warn('Skeleton helper is undefined, so we cannot show it')
       }
@@ -159,7 +167,8 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_type_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const target = event.target as HTMLInputElement | null
+      const radio_button_selected: string | null = target?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform type change')
@@ -170,7 +179,8 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_space_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const target = event.target as HTMLInputElement | null
+      const radio_button_selected: string | null = target?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform space change')
@@ -182,7 +192,8 @@ export class EventListeners {
 
     // changing the 3d model preview while editing the skeleton bones
     this.bootstrap.ui.dom_mesh_preview_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const target = event.target as HTMLInputElement | null
+      const radio_button_selected: string | null = target?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for mesh preview type change')

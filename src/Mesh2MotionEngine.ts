@@ -370,7 +370,11 @@ export class Mesh2MotionEngine {
     }
     else if (this.process_step === ProcessStep.AnimationsListing) {
       this.process_step = ProcessStep.AnimationsListing
-      this.animations_listing_step.begin(this.load_skeleton_step.skeleton_type(), this.load_skeleton_step.skeleton_scale())
+      this.animations_listing_step.begin(
+        this.load_skeleton_step.skeleton_type(),
+        this.load_skeleton_step.skeleton_scale(),
+        this.load_skeleton_step.get_selected_custom_skeleton_id()
+      )
 
       // update reference of skeleton helper to use the final skinned mesh
       this.regenerate_skeleton_helper(this.weight_skin_step.skeleton())
@@ -385,6 +389,9 @@ export class Mesh2MotionEngine {
       this.update_a_pose_options_visibility()
 
       this.animations_listing_step.load_and_apply_default_animation_to_skinned_mesh(this.weight_skin_step.final_skinned_meshes())
+        .catch((err) => {
+          console.error('Error loading animations for custom skeleton:', err)
+        })
 
       if (this.skeleton_helper !== undefined) {
         this.skeleton_helper.hide() // hide skeleton helper in animations listing step

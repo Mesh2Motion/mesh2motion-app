@@ -15,9 +15,12 @@ import {
   Points,
   Float32BufferAttribute,
   TextureLoader,
-  type Camera
+  type Camera,
+  Quaternion,
+  Matrix4
 } from 'three'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
+import type BoneTransformState from '../../interfaces/BoneTransformState.ts'
 
 /*
  * StepEditSkeleton
@@ -53,6 +56,8 @@ export class StepEditSkeleton extends EventTarget {
 
   private _added_event_listeners: boolean = false
   private readonly preview_plane_manager: PreviewPlaneManager = PreviewPlaneManager.getInstance()
+
+  private original_bone_transforms: BoneTransformState[] | null = null
 
   constructor () {
     super()
@@ -190,7 +195,7 @@ export class StepEditSkeleton extends EventTarget {
    * @description This is the bone that is currently selected in the UI while editing
    * the skeleton.
    */
-  public set_currently_selected_bone (bone: Bone): void {
+  public set_currently_selected_bone (bone: Bone | null): void {
     this.currently_selected_bone = bone
   }
 
@@ -254,13 +259,21 @@ export class StepEditSkeleton extends EventTarget {
 
     if (this.ui.dom_mirror_skeleton_checkbox !== null) {
       this.ui.dom_mirror_skeleton_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+        if (target === null) {
+          return
+        }
         // mirror skeleton movements along the X axis
-        this.set_mirror_mode_enabled(event.target.checked)
+        this.set_mirror_mode_enabled(target.checked)
       })
     }
 
     this.ui.dom_enable_skin_debugging?.addEventListener('change', (event) => {
-      this.show_debug = event.target.checked
+      const target = event.target as HTMLInputElement | null
+      if (target === null) {
+        return
+      }
+      this.show_debug = target.checked
       this.update_bind_button_text()
     })
 
@@ -382,12 +395,14 @@ export class StepEditSkeleton extends EventTarget {
 
     // Initialize the undo/redo system with the skeleton
     this.undo_redo_system.set_skeleton(this.threejs_skeleton)
+
+    // Store the original rest pose for correction calculations
+    this.original_bone_transforms = Utility.store_bone_transforms(this.threejs_skeleton)
   }
 
   private create_threejs_skeleton_object (): Skeleton {
     // create skeleton and helper to visualize
     this.threejs_skeleton = Generators.create_skeleton(this.edited_armature.children[0])
-    this.threejs_skeleton.name = 'Editing Skeleton'
 
     // update the world matrix for the skeleton
     // without this the skeleton helper won't appear when the bones are first loaded
@@ -402,6 +417,140 @@ export class StepEditSkeleton extends EventTarget {
 
   public skeleton (): Skeleton {
     return this.threejs_skeleton
+  }
+
+  /**
+   * Compute per-bone rotation corrections from the original rest pose to the edited rest pose.
+   * These corrections can be applied to animation keyframes to keep rotations aligned.
+   */
+  public get_rest_pose_rotation_corrections (): Map<string, Quaternion> {
+    const corrections = new Map<string, Quaternion>()
+
+    if (this.original_bone_transforms === null) {
+      return corrections
+    }
+
+    const find_bone = (names: string[]): Bone | undefined => {
+      const name_set = names.map(name => name.toLowerCase())
+      return this.threejs_skeleton.bones.find((bone) => {
+        const bone_name = bone.name.toLowerCase()
+        return name_set.some(name => bone_name === name || bone_name.includes(name))
+      })
+    }
+
+    const compute_forward_vector = (): Vector3 => {
+      const hips = find_bone(['hips', 'pelvis'])
+      const spine = find_bone(['spine', 'spine1', 'spine2', 'lowerback'])
+      const left_leg = find_bone(['leftupleg', 'lhip', 'lefthip', 'lhipjoint'])
+      const right_leg = find_bone(['rightupleg', 'rhip', 'righthip', 'rhipjoint'])
+      const left_arm = find_bone(['leftarm', 'leftshoulder'])
+      const right_arm = find_bone(['rightarm', 'rightshoulder'])
+
+      let up = new Vector3(0, 1, 0)
+      if (hips !== undefined && spine !== undefined) {
+        const hips_pos = Utility.world_position_from_object(hips)
+        const spine_pos = Utility.world_position_from_object(spine)
+        const up_dir = new Vector3().subVectors(spine_pos, hips_pos)
+        if (up_dir.lengthSq() > 0) {
+          up = up_dir.normalize()
+        }
+      }
+
+      let left_right = new Vector3(1, 0, 0)
+      if (left_leg !== undefined && right_leg !== undefined) {
+        const left_pos = Utility.world_position_from_object(left_leg)
+        const right_pos = Utility.world_position_from_object(right_leg)
+        const lr_dir = new Vector3().subVectors(right_pos, left_pos)
+        if (lr_dir.lengthSq() > 0) {
+          left_right = lr_dir.normalize()
+        }
+      } else if (left_arm !== undefined && right_arm !== undefined) {
+        const left_pos = Utility.world_position_from_object(left_arm)
+        const right_pos = Utility.world_position_from_object(right_arm)
+        const lr_dir = new Vector3().subVectors(right_pos, left_pos)
+        if (lr_dir.lengthSq() > 0) {
+          left_right = lr_dir.normalize()
+        }
+      }
+
+      const forward = new Vector3().crossVectors(left_right, up)
+      if (forward.lengthSq() === 0) {
+        return new Vector3(0, 0, 1)
+      }
+      return forward.normalize()
+    }
+
+    const compute_rest_rotation = (bone: Bone, forward: Vector3): Quaternion | null => {
+      const child = bone.children.find(child_obj => child_obj.type === 'Bone') as Bone | undefined
+      if (child === undefined) {
+        return null
+      }
+
+      const bone_position = Utility.world_position_from_object(bone)
+      const child_position = Utility.world_position_from_object(child)
+      const direction = new Vector3().subVectors(child_position, bone_position)
+      if (direction.lengthSq() === 0) {
+        return null
+      }
+      const y_axis = direction.normalize()
+
+      let z_axis = forward.clone().sub(y_axis.clone().multiplyScalar(forward.dot(y_axis)))
+      if (z_axis.lengthSq() === 0) {
+        const parent = bone.parent
+        if (parent !== null && parent.type === 'Bone') {
+          const parent_pos = Utility.world_position_from_object(parent as Bone)
+          const parent_dir = new Vector3().subVectors(bone_position, parent_pos)
+          z_axis = parent_dir.cross(y_axis)
+        }
+      }
+
+      if (z_axis.lengthSq() === 0) {
+        const fallback_axis = Math.abs(y_axis.y) < 0.99 ? new Vector3(0, 1, 0) : new Vector3(1, 0, 0)
+        z_axis = fallback_axis.cross(y_axis)
+      }
+
+      z_axis.normalize()
+      const x_axis = new Vector3().crossVectors(y_axis, z_axis).normalize()
+      z_axis.crossVectors(x_axis, y_axis).normalize()
+
+      const basis = new Matrix4().makeBasis(x_axis, y_axis, z_axis)
+      return new Quaternion().setFromRotationMatrix(basis)
+    }
+
+    const current_bone_transforms = Utility.store_bone_transforms(this.threejs_skeleton)
+    Utility.restore_bone_transforms(this.threejs_skeleton, this.original_bone_transforms)
+    this.threejs_skeleton.bones.forEach((bone) => bone.updateWorldMatrix(true, true))
+
+    const forward = compute_forward_vector()
+    const original_rest_rotations = new Map<string, Quaternion>()
+    this.threejs_skeleton.bones.forEach((bone) => {
+      const rest_rotation = compute_rest_rotation(bone, forward)
+      if (rest_rotation !== null) {
+        original_rest_rotations.set(bone.name, rest_rotation)
+      }
+    })
+
+    Utility.restore_bone_transforms(this.threejs_skeleton, current_bone_transforms)
+    this.threejs_skeleton.bones.forEach((bone) => bone.updateWorldMatrix(true, true))
+
+    this.threejs_skeleton.bones.forEach((bone) => {
+      const original_rest_rotation = original_rest_rotations.get(bone.name)
+      if (original_rest_rotation === undefined) {
+        return
+      }
+
+      const edited_rest_rotation = compute_rest_rotation(bone, forward)
+      if (edited_rest_rotation === null) {
+        return
+      }
+
+      const correction = edited_rest_rotation.clone().invert().multiply(original_rest_rotation)
+      if (1 - Math.abs(correction.w) > 1e-5) {
+        corrections.set(bone.name, correction)
+      }
+    })
+
+    return corrections
   }
 
   public apply_mirror_mode (selected_bone: Bone, transform_type: string): void {

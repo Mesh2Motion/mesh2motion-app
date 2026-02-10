@@ -4,8 +4,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType, type HandSkeletonType } from '../../enums/SkeletonType.js'
 import type GLTFResult from './interfaces/GLTFResult.ts'
 import { add_origin_markers, remove_origin_markers } from './OriginMarkerManager'
-import { add_preview_skeleton, remove_preview_skeleton } from './PreviewSkeletonManager.ts'
+import { add_preview_skeleton, remove_preview_skeleton, add_preview_skeleton_from_bvh } from './PreviewSkeletonManager.ts'
 import { HandHelper } from './HandHelper.ts'
+import { skeletonStorage } from '../../services/SkeletonStorage.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepLoadSkeleton extends EventTarget {
@@ -25,6 +26,13 @@ export class StepLoadSkeleton extends EventTarget {
   // this helps the marketing page set the type and doesn't rely on a DOM value
   // probably could refactor this a bit to be cleaner later.
   private manual_set_skeleton_type: SkeletonType = SkeletonType.None
+
+  // Store the ID of the selected custom skeleton from storage
+  private selected_custom_skeleton_id: string | null = null
+
+  public get_selected_custom_skeleton_id (): string | null {
+    return this.selected_custom_skeleton_id
+  }
 
   public skeleton_type (): SkeletonType {
     if (this.skeleton_file_path() === SkeletonType.None) {
@@ -62,6 +70,9 @@ export class StepLoadSkeleton extends EventTarget {
       this.ui.dom_load_skeleton_tools.style.display = 'flex'
     }
 
+    // Populate the dropdown with any imported skeletons from storage
+    this.populate_skeleton_dropdown()
+
     // if we are navigating back to this step, we don't want to add the event listeners again
     if (!this._added_event_listeners) {
       this.add_event_listeners()
@@ -71,10 +82,17 @@ export class StepLoadSkeleton extends EventTarget {
     // when we come back to this step, there is a good chance we already selected a skeleton
     // so just use that and load the preview right when we enter this step
     if (!this.has_select_skeleton_ui_option()) {
-      add_preview_skeleton(this._main_scene, this.skeleton_file_path(),
-        this.hand_skeleton_type(), this.skeleton_scale_percentage).catch((err) => {
-        console.error('error loading preview skeleton: ', err)
-      })
+      const selectedValue = this.ui.dom_skeleton_drop_type?.value
+      if (selectedValue?.startsWith('custom:')) {
+        // Load custom skeleton from storage
+        this.load_custom_skeleton_preview(selectedValue)
+      } else {
+        // Load standard skeleton
+        add_preview_skeleton(this._main_scene, this.skeleton_file_path(),
+          this.hand_skeleton_type(), this.skeleton_scale_percentage).catch((err) => {
+          console.error('error loading preview skeleton: ', err)
+        })
+      }
     }
 
     // Initialize hand skeleton hand options visibility
@@ -92,6 +110,78 @@ export class StepLoadSkeleton extends EventTarget {
     }
   }
 
+  /**
+   * Populate the skeleton dropdown with imported skeletons from storage
+   */
+  private populate_skeleton_dropdown (): void {
+    const dropdown = this.ui.dom_skeleton_drop_type
+    if (!dropdown) return
+
+    // Remove any existing custom skeleton options (keep the standard ones)
+    const optionsToRemove: HTMLOptionElement[] = []
+    for (let i = 0; i < dropdown.options.length; i++) {
+      const option = dropdown.options[i]
+      if (option.value.startsWith('custom:')) {
+        optionsToRemove.push(option)
+      }
+    }
+    optionsToRemove.forEach(option => dropdown.removeChild(option))
+
+    // Add imported skeletons from storage (using sync metadata method)
+    const storedSkeletons = skeletonStorage.getAllSkeletonsInfo()
+    if (storedSkeletons.length > 0) {
+      // Add a separator option
+      const separator = document.createElement('option')
+      separator.disabled = true
+      separator.textContent = '--- Imported ---'
+      dropdown.appendChild(separator)
+
+      // Add each stored skeleton
+      storedSkeletons.forEach(skeleton => {
+        const option = document.createElement('option')
+        option.value = `custom:${skeleton.id}`
+        option.textContent = skeleton.name
+        dropdown.appendChild(option)
+      })
+    }
+  }
+
+  /**
+   * Load a custom skeleton from storage and show preview
+   */
+  private async load_custom_skeleton_preview (customId: string): Promise<void> {
+    const id = customId.replace('custom:', '')
+    const storedSkeleton = await skeletonStorage.getSkeleton(id)
+
+    if (!storedSkeleton) {
+      console.error('Custom skeleton not found:', id)
+      return
+    }
+
+    this.selected_custom_skeleton_id = id
+
+    // Clone and bake scale into armature positions (scale 1.0 since we bake it)
+    const clonedArmature = storedSkeleton.armature.clone()
+    clonedArmature.name = storedSkeleton.name
+    clonedArmature.position.set(0, 0, 0)
+
+    // Bake scale into positions
+    if (this.skeleton_scale_percentage !== 1) {
+      clonedArmature.traverse((obj) => {
+        if (obj instanceof Object3D && obj !== clonedArmature) {
+          obj.position.multiplyScalar(this.skeleton_scale_percentage)
+        }
+      })
+    }
+    clonedArmature.updateMatrixWorld(true)
+
+    // Show preview with scale 1.0 (scale is baked into positions)
+    add_preview_skeleton_from_bvh(this._main_scene, clonedArmature, 1.0)
+      .catch((err) => {
+        console.error('Error loading custom skeleton preview:', err)
+      })
+  }
+
   public regenerate_origin_markers (): void {
     add_origin_markers(this._main_scene)
   }
@@ -105,6 +195,11 @@ export class StepLoadSkeleton extends EventTarget {
     // get currently selected option out of the model-selection drop-down
     const skeleton_selection = this.ui.dom_skeleton_drop_type.options
     const skeleton_file: string = skeleton_selection[skeleton_selection.selectedIndex].value
+
+    // Check if it's a custom skeleton
+    if (skeleton_file.startsWith('custom:')) {
+      return SkeletonType.Custom
+    }
 
     // set the skeleton type. This will be used for the animations listing later
     // so it knows what animations to load
@@ -151,27 +246,41 @@ export class StepLoadSkeleton extends EventTarget {
         // show the scale skeleton options in case they are hidden
         this.ui.dom_scale_skeleton_controls!.style.display = 'flex'
 
-        // load the preview skeleton
-        // need to get the file name for the correct skeleton
-        // we pass the skeleton scale in the case where we set a skeleton, change scale, then change the skeleton
-        add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale()).then(() => {
-          // enable the ability to progress to next step
+        // Get the selected value
+        const selectedValue = this.ui.dom_skeleton_drop_type?.value
+
+        // Check if it's a custom skeleton
+        if (selectedValue?.startsWith('custom:')) {
+          const customId = selectedValue.replace('custom:', '')
+          this.selected_custom_skeleton_id = customId
+          this.load_custom_skeleton_preview(selectedValue)
           this.allow_proceeding_to_next_step(true)
-        }).catch((err) => {
-          console.error('error loading preview skeleton: ', err)
-        })
+        } else {
+          // Reset custom skeleton selection
+          this.selected_custom_skeleton_id = null
+
+          // load the preview skeleton
+          // need to get the file name for the correct skeleton
+          // we pass the skeleton scale in the case where we set a skeleton, change scale, then change the skeleton
+          add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale()).then(() => {
+            // enable the ability to progress to next step
+            this.allow_proceeding_to_next_step(true)
+          }).catch((err) => {
+            console.error('error loading preview skeleton: ', err)
+          })
+        }
       })
     }
 
     if (this.ui.dom_load_skeleton_button !== null) {
-      this.ui.dom_load_skeleton_button.addEventListener('click', () => {
+      this.ui.dom_load_skeleton_button.addEventListener('click', async () => {
         if (this.ui.dom_skeleton_drop_type === null) {
           console.warn('could not find skeleton selection drop down HTML element')
           return
         }
 
         // add back loading information here
-        this.load_skeleton_file(this.skeleton_file_path())
+        await this.load_skeleton_file(this.skeleton_file_path())
       })
     }// end if statement
 
@@ -204,14 +313,31 @@ export class StepLoadSkeleton extends EventTarget {
     if (this.ui.dom_scale_skeleton_percentage_display !== null) {
       this.ui.dom_scale_skeleton_percentage_display.textContent = display_value
     }
+
     // re-add the preview skeleton with the new scale
-    add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage)
-      .catch((err) => {
-        console.error('error loading preview skeleton: ', err)
-      })
+    if (this.selected_custom_skeleton_id) {
+      // For custom skeletons, reload from storage with new scale
+      const customId = `custom:${this.selected_custom_skeleton_id}`
+      this.load_custom_skeleton_preview(customId)
+        .catch((err) => {
+          console.error('error loading custom skeleton preview: ', err)
+        })
+    } else {
+      // For standard skeletons, use the existing function
+      add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage)
+        .catch((err) => {
+          console.error('error loading preview skeleton: ', err)
+        })
+    }
   }
 
-  public load_skeleton_file (file_path: string): void {
+  public async load_skeleton_file (file_path: string): Promise<void> {
+    // Check if this is a custom skeleton from storage
+    if (this.selected_custom_skeleton_id) {
+      await this.load_custom_skeleton_from_storage()
+      return
+    }
+
     // load skeleton from GLB file
     this.loader.load(file_path, (gltf: GLTFResult) => {
       // traverse scene and find first bone object
@@ -252,6 +378,52 @@ export class StepLoadSkeleton extends EventTarget {
 
       this.dispatchEvent(new CustomEvent('skeletonLoaded', { detail: this.loaded_armature }))
     })
+  }
+
+  /**
+   * Load a custom skeleton from storage
+   */
+  private async load_custom_skeleton_from_storage (): Promise<void> {
+    if (!this.selected_custom_skeleton_id) {
+      console.error('No custom skeleton ID selected')
+      return
+    }
+
+    const storedSkeleton = await skeletonStorage.getSkeleton(this.selected_custom_skeleton_id)
+    if (!storedSkeleton) {
+      console.error('Custom skeleton not found in storage:', this.selected_custom_skeleton_id)
+      return
+    }
+
+    // Clone the stored armature
+    this.loaded_armature = storedSkeleton.armature.clone()
+    this.loaded_armature.name = storedSkeleton.name
+
+    // reset the armature to 0,0,0 in case it is off for some reason
+    this.loaded_armature.position.set(0, 0, 0)
+    this.loaded_armature.updateWorldMatrix(true, true)
+
+    // For custom skeletons, we bake the scale into bone positions directly
+    // This avoids the double-scaling issue when going back and forth between steps
+    this.bake_scale_into_armature(this.loaded_armature, this.skeleton_scale())
+
+    // Dispatch event with the loaded armature
+    this.dispatchEvent(new CustomEvent('skeletonLoaded', { detail: this.loaded_armature }))
+  }
+
+  /**
+   * Bake scale directly into bone positions (for custom skeletons)
+   */
+  private bake_scale_into_armature (armature: Object3D, scale: number): void {
+    if (scale === 1) return
+
+    armature.scale.set(1, 1, 1)
+    armature.traverse((obj) => {
+      if (obj instanceof Object3D && obj !== armature) {
+        obj.position.multiplyScalar(scale)
+      }
+    })
+    armature.updateMatrixWorld(true)
   }
 
   private has_select_skeleton_ui_option (): boolean {

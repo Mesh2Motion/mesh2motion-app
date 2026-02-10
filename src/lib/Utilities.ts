@@ -1,6 +1,6 @@
 import {
   Vector3, Vector2, type Object3D, Mesh, Group, Bone, type Skeleton, Euler, Raycaster,
-  type PerspectiveCamera, type Scene, type Object3DEventMap, type BufferAttribute, type BufferGeometry, type InterleavedBufferAttribute
+  type Camera, type Scene, type Object3DEventMap, type BufferAttribute, type BufferGeometry, type InterleavedBufferAttribute
 } from 'three'
 import BoneTransformState from './interfaces/BoneTransformState'
 import type BoneCalculationData from './interfaces/BoneCalculationData'
@@ -221,7 +221,7 @@ export class Utility {
   }
 
   // Find the closest bone for raycaster using screen-space distance to account for camera zoom
-  static raycast_closest_bone_test (camera: PerspectiveCamera, mouse_event: MouseEvent, skeleton: Skeleton): [Bone | null, number, number] {
+  static raycast_closest_bone_test (camera: Camera, mouse_event: MouseEvent, skeleton: Skeleton): [Bone | null, number, number] {
     const raycaster: Raycaster = new Raycaster()
     raycaster.setFromCamera(Utility.normalized_mouse_position(mouse_event), camera)
     const mouse_position = Utility.normalized_mouse_position(mouse_event)
