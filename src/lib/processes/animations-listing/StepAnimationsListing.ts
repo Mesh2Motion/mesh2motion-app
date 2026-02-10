@@ -13,6 +13,7 @@ import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
 import { AnimationSearch } from './AnimationSearch.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
+import { skeletonStorage } from '../../services/SkeletonStorage.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -26,6 +27,7 @@ export class StepAnimationsListing extends EventTarget {
   private skinned_meshes_to_animate: SkinnedMesh[] = []
   private current_playing_index: number = 0
   private skeleton_type: SkeletonType = SkeletonType.Human
+  private custom_skeleton_id: string | null = null
 
   private animations_file_path: string = 'animations/'
 
@@ -59,8 +61,9 @@ export class StepAnimationsListing extends EventTarget {
     this.theme_manager = theme_manager
   }
 
-  public begin (skeleton_type: SkeletonType, skeleton_scale: number): void {
+  public begin (skeleton_type: SkeletonType, skeleton_scale: number, custom_skeleton_id: string | null = null): void {
     this.skeleton_scale = skeleton_scale
+    this.custom_skeleton_id = custom_skeleton_id
 
     if (this.ui.dom_current_step_index != null) {
       this.ui.dom_current_step_index.innerHTML = '4'
@@ -119,11 +122,25 @@ export class StepAnimationsListing extends EventTarget {
     return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
   }
 
-  public load_and_apply_default_animation_to_skinned_mesh (final_skinned_meshes: SkinnedMesh[]): void {
+  public async load_and_apply_default_animation_to_skinned_mesh (final_skinned_meshes: SkinnedMesh[]): Promise<void> {
     this.skinned_meshes_to_animate = final_skinned_meshes
 
     // Set the animations file path on the loader
     this.animation_loader.set_animations_file_path(this.animations_file_path)
+
+    // Handle custom skeleton - load animations from storage
+    if (this.skeleton_type === SkeletonType.Custom && this.custom_skeleton_id) {
+      const storedSkeleton = await skeletonStorage.getSkeleton(this.custom_skeleton_id)
+      if (storedSkeleton && storedSkeleton.animations.length > 0) {
+        this.load_custom_animations(storedSkeleton.animations)
+        return
+      } else {
+        console.warn('No animations found for custom skeleton:', this.custom_skeleton_id)
+        return
+      }
+    }
+
+    // The AnimationLoader handles GLB selection internally now
 
     // Reset the animation clips loaded
     this.animation_clips_loaded = []
@@ -381,5 +398,33 @@ export class StepAnimationsListing extends EventTarget {
       return []
     }
     return this.animation_search.get_selected_animation_indices()
+  }
+
+  /**
+   * Load custom animations from imported skeleton storage
+   */
+  private load_custom_animations (animations: AnimationClip[]): void {
+    this.animation_clips_loaded = []
+    this.animation_mixer = new AnimationMixer(new Object3D())
+
+    // Process the custom animations through the same pipeline
+    const cloned_anims: AnimationClip[] = AnimationUtility.deep_clone_animation_clips(animations)
+
+    // Clean track data
+    AnimationUtility.clean_track_data(cloned_anims)
+
+    // Apply skeleton scaling
+    AnimationUtility.apply_skeleton_scale_to_position_keyframes(cloned_anims, this.skeleton_scale)
+
+    // Add to animation clips loaded
+    this.animation_clips_loaded.push(...cloned_anims.map(clip => ({
+      original_animation_clip: clip,
+      display_animation_clip: AnimationUtility.deep_clone_animation_clip(clip)
+    })))
+
+    console.log(`Loaded ${this.animation_clips_loaded.length} custom animations`)
+
+    this.onAllAnimationsLoaded()
+    this.play_animation(0)
   }
 }
