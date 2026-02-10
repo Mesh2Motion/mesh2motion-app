@@ -2,5 +2,6 @@
 // setting the 'mode' property of the TransformControls in three.js
 export enum TransformControlType {
   Translation = 'translate',
-  Rotation = 'rotate'
+  Rotation = 'rotate',
+  SnapToVolume = 'snap-to-volume'
 }
