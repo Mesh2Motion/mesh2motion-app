@@ -504,31 +504,6 @@ export class StepAnimationsListing extends EventTarget {
     return this.animation_search.get_selected_animation_indices()
   }
 
-  /**
-   * Load custom animations from imported skeleton storage
-   */
-  public load_custom_animations (animations: AnimationClip[]): void {
-    if (!this.validate_animation_bones_match(animations)) {
-      return
-    }
-
-    // Process the custom animations through the same centralized pipeline
-    const processed_animations = this.animation_loader.process_loaded_animations(
-      animations,
-      this.skeleton_scale
-    )
-
-    this.animation_clips_loaded = []
-    this.animation_mixer = new AnimationMixer(new Object3D())
-
-    this.animation_clips_loaded.push(...processed_animations)
-
-    // Ensure custom animations go through the same post-processing steps
-    this.rebuild_warped_animations()
-    this.onAllAnimationsLoaded()
-    this.play_animation(0)
-  }
-
   private async import_animation_glb (file: File): Promise<void> {
     try {
       const new_animation_clips = await this.animation_loader.load_animations_from_file(file, this.skeleton_scale)
