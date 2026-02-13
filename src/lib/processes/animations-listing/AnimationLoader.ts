@@ -212,7 +212,7 @@ export class AnimationLoader extends EventTarget {
   /**
    * Processes raw animation clips from GLTF file
    */
-  private process_loaded_animations (
+  public process_loaded_animations (
     raw_animations: AnimationClip[],
     skeleton_scale: number
   ): TransformedAnimationClipPair[] {

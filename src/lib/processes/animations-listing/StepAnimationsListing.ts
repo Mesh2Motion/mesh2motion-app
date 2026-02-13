@@ -229,6 +229,71 @@ export class StepAnimationsListing extends EventTarget {
     }
   }
 
+  private get_target_bone_names (): Set<string> {
+    const bone_names = new Set<string>()
+    this.skinned_meshes_to_animate.forEach((skinned_mesh: SkinnedMesh) => {
+      skinned_mesh.skeleton.bones.forEach((bone) => {
+        bone_names.add(bone.name.toLowerCase())
+      })
+    })
+    return bone_names
+  }
+
+  private extract_bone_name_from_track (track_name: string): string | null {
+    const bones_match = track_name.match(/\.bones\[([^\]]+)\]\.(?:quaternion|position|scale)$/)
+    if (bones_match !== null) {
+      return bones_match[1].toLowerCase()
+    }
+
+    const simple_match = track_name.match(/^([^.]+)\.(?:quaternion|position|scale)$/)
+    if (simple_match !== null) {
+      return simple_match[1].toLowerCase()
+    }
+
+    return null
+  }
+
+  private get_animation_bone_names (animation_clips: AnimationClip[]): Set<string> {
+    const bone_names = new Set<string>()
+    animation_clips.forEach((clip) => {
+      clip.tracks.forEach((track) => {
+        const bone_name = this.extract_bone_name_from_track(track.name)
+        if (bone_name !== null) {
+          bone_names.add(bone_name)
+        }
+      })
+    })
+    return bone_names
+  }
+
+  private validate_animation_bones_match (animation_clips: AnimationClip[]): boolean {
+    if (this.skinned_meshes_to_animate.length === 0) {
+      new ModalDialog('No skinned meshes available to validate animations.', 'Error').show()
+      return false
+    }
+
+    const target_bone_names = this.get_target_bone_names()
+    const animation_bone_names = this.get_animation_bone_names(animation_clips)
+
+    if (animation_bone_names.size === 0) {
+      new ModalDialog('Imported animations do not contain recognizable bone tracks.', 'Error').show()
+      return false
+    }
+
+    const missing_bones = Array.from(animation_bone_names).filter(bone => !target_bone_names.has(bone))
+    if (missing_bones.length > 0) {
+      const preview = missing_bones.slice(0, 5).join(', ')
+      const suffix = missing_bones.length > 5 ? '...' : ''
+      new ModalDialog(
+        `Imported animations reference bones not in the current skeleton: ${preview}${suffix}`,
+        'Error'
+      ).show()
+      return false
+    }
+
+    return true
+  }
+
   /**
    * Rebuilds all of the warped animations by applying the specified warps.
    */
@@ -442,9 +507,10 @@ export class StepAnimationsListing extends EventTarget {
   /**
    * Load custom animations from imported skeleton storage
    */
-  private load_custom_animations (animations: AnimationClip[]): void {
-    this.animation_clips_loaded = []
-    this.animation_mixer = new AnimationMixer(new Object3D())
+  public load_custom_animations (animations: AnimationClip[]): void {
+    if (!this.validate_animation_bones_match(animations)) {
+      return
+    }
 
     // Process the custom animations through the same centralized pipeline
     const processed_animations = this.animation_loader.process_loaded_animations(
@@ -452,10 +518,12 @@ export class StepAnimationsListing extends EventTarget {
       this.skeleton_scale
     )
 
+    this.animation_clips_loaded = []
+    this.animation_mixer = new AnimationMixer(new Object3D())
+
     this.animation_clips_loaded.push(...processed_animations)
 
     // Ensure custom animations go through the same post-processing steps
-    this.apply_rest_pose_rotation_corrections()
     this.rebuild_warped_animations()
     this.onAllAnimationsLoaded()
     this.play_animation(0)
@@ -466,6 +534,10 @@ export class StepAnimationsListing extends EventTarget {
       const new_animation_clips = await this.animation_loader.load_animations_from_file(file, this.skeleton_scale)
       if (new_animation_clips.length === 0) {
         new ModalDialog('No animations were found in that GLB file.', 'Error').show()
+        return
+      }
+
+      if (!this.validate_animation_bones_match(new_animation_clips.map(clip => clip.display_animation_clip))) {
         return
       }
 
