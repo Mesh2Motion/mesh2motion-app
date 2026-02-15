@@ -1,5 +1,6 @@
 import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
+import { ModalDialog } from '../../ModalDialog.ts'
 
 import {
   type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D
@@ -34,6 +35,7 @@ export class StepAnimationsListing extends EventTarget {
   private skeleton_scale: number = 1.0
 
   private _added_event_listeners: boolean = false
+  private is_loading_default_animations: boolean = false
 
   // enable status for mirroring animations
   public mirror_animations_enabled: boolean = false
@@ -101,6 +103,7 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_player.clear_animation()
   }
 
+
   public mixer (): AnimationMixer {
     return this.animation_mixer
   }
@@ -125,6 +128,11 @@ export class StepAnimationsListing extends EventTarget {
     // Set the animations file path on the loader
     this.animation_loader.set_animations_file_path(this.animations_file_path)
 
+    this.is_loading_default_animations = true
+    if (this.ui.dom_import_animations_button != null) {
+      this.ui.dom_import_animations_button.disabled = true
+    }
+
     // Reset the animation clips loaded
     this.animation_clips_loaded = []
     // Create an animation mixer to do the playback. Play the first by default
@@ -138,11 +146,19 @@ export class StepAnimationsListing extends EventTarget {
       })
       .catch((error: Error) => {
         console.error('Failed to load animations:', error)
+        this.is_loading_default_animations = false
+        if (this.ui.dom_import_animations_button != null) {
+          this.ui.dom_import_animations_button.disabled = false
+        }
         // You could emit an error event here or show a user-friendly message
       })
   }
 
   private onAllAnimationsLoaded (): void {
+    this.is_loading_default_animations = false
+    if (this.ui.dom_import_animations_button != null) {
+      this.ui.dom_import_animations_button.disabled = false
+    }
     // sort all animation names alphabetically
     this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
       if (a.display_animation_clip.name < b.display_animation_clip.name) { return -1 }
@@ -211,6 +227,71 @@ export class StepAnimationsListing extends EventTarget {
     if (this.ui.dom_animations_listing_count != null) {
       this.ui.dom_animations_listing_count.innerHTML = animation_length_string + ' animations'
     }
+  }
+
+  private get_target_bone_names (): Set<string> {
+    const bone_names = new Set<string>()
+    this.skinned_meshes_to_animate.forEach((skinned_mesh: SkinnedMesh) => {
+      skinned_mesh.skeleton.bones.forEach((bone) => {
+        bone_names.add(bone.name.toLowerCase())
+      })
+    })
+    return bone_names
+  }
+
+  private extract_bone_name_from_track (track_name: string): string | null {
+    const bones_match = track_name.match(/\.bones\[([^\]]+)\]\.(?:quaternion|position|scale)$/)
+    if (bones_match !== null) {
+      return bones_match[1].toLowerCase()
+    }
+
+    const simple_match = track_name.match(/^([^.]+)\.(?:quaternion|position|scale)$/)
+    if (simple_match !== null) {
+      return simple_match[1].toLowerCase()
+    }
+
+    return null
+  }
+
+  private get_animation_bone_names (animation_clips: AnimationClip[]): Set<string> {
+    const bone_names = new Set<string>()
+    animation_clips.forEach((clip) => {
+      clip.tracks.forEach((track) => {
+        const bone_name = this.extract_bone_name_from_track(track.name)
+        if (bone_name !== null) {
+          bone_names.add(bone_name)
+        }
+      })
+    })
+    return bone_names
+  }
+
+  private validate_animation_bones_match (animation_clips: AnimationClip[]): boolean {
+    if (this.skinned_meshes_to_animate.length === 0) {
+      new ModalDialog('No skinned meshes available to validate animations.', 'Error').show()
+      return false
+    }
+
+    const target_bone_names = this.get_target_bone_names()
+    const animation_bone_names = this.get_animation_bone_names(animation_clips)
+
+    if (animation_bone_names.size === 0) {
+      new ModalDialog('Imported animations do not contain recognizable bone tracks.', 'Error').show()
+      return false
+    }
+
+    const missing_bones = Array.from(animation_bone_names).filter(bone => !target_bone_names.has(bone))
+    if (missing_bones.length > 0) {
+      const preview = missing_bones.slice(0, 5).join(', ')
+      const suffix = missing_bones.length > 5 ? '...' : ''
+      new ModalDialog(
+        `Imported animations reference bones not in the current skeleton: ${preview}${suffix}`,
+        'Error'
+      ).show()
+      return false
+    }
+
+    return true
   }
 
   /**
@@ -351,6 +432,46 @@ export class StepAnimationsListing extends EventTarget {
       this.play_animation(this.current_playing_index)
     })
 
+    this.ui.dom_import_animations_button?.addEventListener('click', () => {
+      if (this.ui.dom_import_animations_button?.disabled === true || this.is_loading_default_animations) {
+        return
+      }
+      this.ui.dom_import_animations_input?.click()
+    })
+
+    this.ui.dom_import_animations_input?.addEventListener('change', async (event) => {
+      if (this.ui.dom_import_animations_button?.disabled === true || this.is_loading_default_animations) {
+        return
+      }
+      const input = event.target as HTMLInputElement
+      const files = input.files
+      if (files === null || files.length === 0) {
+        return
+      }
+
+      const import_button = this.ui.dom_import_animations_button
+      const previous_disabled_state: boolean | undefined = import_button?.disabled
+      if (import_button != null) {
+        import_button.disabled = true
+      }
+
+      try {
+        for (const file of Array.from(files)) {
+          const file_name = file.name.toLowerCase()
+          if (!file_name.endsWith('.glb')) {
+            new ModalDialog('Unsupported file type. Please select a GLB file.', 'Error').show()
+            continue
+          }
+          await this.import_animation_glb(file)
+        }
+      } finally {
+        input.value = ''
+        if (import_button != null && previous_disabled_state !== undefined) {
+          import_button.disabled = previous_disabled_state
+        }
+      }
+    })
+
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
   }
@@ -381,5 +502,31 @@ export class StepAnimationsListing extends EventTarget {
       return []
     }
     return this.animation_search.get_selected_animation_indices()
+  }
+
+  private async import_animation_glb (file: File): Promise<void> {
+    try {
+      const new_animation_clips = await this.animation_loader.load_animations_from_file(file, this.skeleton_scale)
+      if (new_animation_clips.length === 0) {
+        new ModalDialog('No animations were found in that GLB file.', 'Error').show()
+        return
+      }
+
+      if (!this.validate_animation_bones_match(new_animation_clips.map(clip => clip.display_animation_clip))) {
+        return
+      }
+
+      this.animation_clips_loaded.push(...new_animation_clips)
+
+      this.onAllAnimationsLoaded()
+    } catch (error) {
+      console.error('Failed to import animations:', error)
+      const error_message = error instanceof Error ? error.message : String(error)
+      if (error_message.includes('No animations found in the GLB file.')) {
+        new ModalDialog('No animations were found in that GLB file.', 'Error').show()
+        return
+      }
+      new ModalDialog('Failed to import animations from the GLB file.', 'Error').show()
+    }
   }
 }
