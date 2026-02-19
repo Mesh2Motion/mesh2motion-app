@@ -7,7 +7,7 @@ import {
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
-import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
+import { AnimationLoader, type AnimationLoadProgress, NoAnimationsError, IncompatibleSkeletonError, LoadError } from './AnimationLoader.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
@@ -229,69 +229,6 @@ export class StepAnimationsListing extends EventTarget {
     }
   }
 
-  private get_target_bone_names (): Set<string> {
-    const bone_names = new Set<string>()
-    this.skinned_meshes_to_animate.forEach((skinned_mesh: SkinnedMesh) => {
-      skinned_mesh.skeleton.bones.forEach((bone) => {
-        bone_names.add(bone.name.toLowerCase())
-      })
-    })
-    return bone_names
-  }
-
-  private extract_bone_name_from_track (track_name: string): string | null {
-    const bones_match = track_name.match(/\.bones\[([^\]]+)\]\.(?:quaternion|position|scale)$/)
-    if (bones_match !== null) {
-      return bones_match[1].toLowerCase()
-    }
-
-    const simple_match = track_name.match(/^([^.]+)\.(?:quaternion|position|scale)$/)
-    if (simple_match !== null) {
-      return simple_match[1].toLowerCase()
-    }
-
-    return null
-  }
-
-  private get_animation_bone_names (animation_clips: AnimationClip[]): Set<string> {
-    const bone_names = new Set<string>()
-    animation_clips.forEach((clip) => {
-      clip.tracks.forEach((track) => {
-        const bone_name = this.extract_bone_name_from_track(track.name)
-        if (bone_name !== null) {
-          bone_names.add(bone_name)
-        }
-      })
-    })
-    return bone_names
-  }
-
-  private validate_animation_bones_match (animation_clips: AnimationClip[]): boolean {
-    if (this.skinned_meshes_to_animate.length === 0) {
-      new ModalDialog('No skinned meshes available to validate animations.', 'Error').show()
-      return false
-    }
-
-    const target_bone_names = this.get_target_bone_names()
-    const animation_bone_names = this.get_animation_bone_names(animation_clips)
-
-    if (animation_bone_names.size === 0) {
-      new ModalDialog('Import error', 'Imported animations do not contain recognizable bone tracks.').show()
-      return false
-    }
-
-    const missing_bones = Array.from(animation_bone_names).filter(bone => !target_bone_names.has(bone))
-    if (missing_bones.length > 0) {
-      new ModalDialog(
-        'import error',
-        'no animations found in that glb file'
-      ).show()
-      return false
-    }
-
-    return true
-  }
-
   /**
    * Rebuilds all of the warped animations by applying the specified warps.
    */
@@ -502,29 +439,52 @@ export class StepAnimationsListing extends EventTarget {
     return this.animation_search.get_selected_animation_indices()
   }
 
-  private async import_animation_glb (file: File): Promise<void> {
+  private async import_animation_glb (file: File): Promise<{ success: boolean, clipCount: number }> {
     try {
-      const new_animation_clips = await this.animation_loader.load_animations_from_file(file, this.skeleton_scale)
-      if (new_animation_clips.length === 0) {
-        new ModalDialog('No animations were found in that GLB file.', 'Error').show()
-        return
-      }
-
-      if (!this.validate_animation_bones_match(new_animation_clips.map(clip => clip.display_animation_clip))) {
-        return
-      }
+      const new_animation_clips = await this.animation_loader.load_animations_from_file(
+        file,
+        this.skinned_meshes_to_animate,
+        this.skeleton_scale
+      )
 
       this.animation_clips_loaded.push(...new_animation_clips)
-
       this.onAllAnimationsLoaded()
+
+      // Show success message only for user imports (not default animations)
+      if (!this.is_loading_default_animations) {
+        const animation_count = new_animation_clips.length
+        const animation_word = animation_count === 1 ? 'animation' : 'animations'
+        new ModalDialog(
+          'success',
+          `${animation_count} ${animation_word} imported successfully`
+        ).show()
+      }
+
+      return { success: true, clipCount: new_animation_clips.length }
     } catch (error) {
       console.error('Failed to import animations:', error)
-      const error_message = error instanceof Error ? error.message : String(error)
-      if (error_message.includes('No animations found in the GLB file.')) {
-        new ModalDialog('No animations were found in that GLB file.', 'Error').show()
-        return
+
+      if (error instanceof NoAnimationsError) {
+        new ModalDialog('import error', 'no animations found in that glb file').show()
+        return { success: false, clipCount: 0 }
       }
-      new ModalDialog('Failed to import animations from the GLB file.', 'Error').show()
+
+      if (error instanceof IncompatibleSkeletonError) {
+        const errorMessage = error.message === 'bone count mismatch' 
+          ? 'bone count mismatch' 
+          : 'bone names don\'t match'
+        new ModalDialog('import error', errorMessage).show()
+        return { success: false, clipCount: 0 }
+      }
+
+      if (error instanceof LoadError) {
+        new ModalDialog('import error', 'failed to load the animation file').show()
+        return { success: false, clipCount: 0 }
+      }
+
+      // Unknown error
+      new ModalDialog('import error', 'failed to import animations from the glb file').show()
+      return { success: false, clipCount: 0 }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { type AnimationClip } from 'three'
+import { type AnimationClip, type SkinnedMesh } from 'three'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
@@ -14,6 +14,28 @@ export interface AnimationLoadProgress {
   currentFileTotal: number
   overallBytesLoaded: number
   overallBytesTotal: number
+}
+
+// Custom error types for better error handling
+export class NoAnimationsError extends Error {
+  constructor (message: string = 'No animations found in the file.') {
+    super(message)
+    this.name = 'NoAnimationsError'
+  }
+}
+
+export class IncompatibleSkeletonError extends Error {
+  constructor (message: string = 'Animation skeleton is incompatible with target skeleton.') {
+    super(message)
+    this.name = 'IncompatibleSkeletonError'
+  }
+}
+
+export class LoadError extends Error {
+  constructor (message: string = 'Failed to load animation file.') {
+    super(message)
+    this.name = 'LoadError'
+  }
 }
 
 export class AnimationLoader extends EventTarget {
@@ -125,10 +147,90 @@ export class AnimationLoader extends EventTarget {
   }
 
   /**
-   * Loads animations from a local GLB file.
+   * Extracts bone name from animation track name
+   */
+  private extract_bone_name_from_track (track_name: string): string | null {
+    const bones_match = track_name.match(/\.bones\[([^\]]+)\]\.(?:quaternion|position|scale)$/)
+    if (bones_match !== null) {
+      return bones_match[1].toLowerCase()
+    }
+
+    const simple_match = track_name.match(/^([^.]+)\.(?:quaternion|position|scale)$/)
+    if (simple_match !== null) {
+      return simple_match[1].toLowerCase()
+    }
+
+    return null
+  }
+
+  /**
+   * Gets all bone names referenced in animation clips
+   */
+  private get_animation_bone_names (animation_clips: AnimationClip[]): Set<string> {
+    const bone_names = new Set<string>()
+    animation_clips.forEach((clip) => {
+      clip.tracks.forEach((track) => {
+        const bone_name = this.extract_bone_name_from_track(track.name)
+        if (bone_name !== null) {
+          bone_names.add(bone_name)
+        }
+      })
+    })
+    return bone_names
+  }
+
+  /**
+   * Validates that animation bones are compatible with target skeleton
+   * @throws {IncompatibleSkeletonError} If bones don't match
+   * @throws {NoAnimationsError} If no recognizable bone tracks found
+   */
+  public validate_animation_bones_match (
+    animation_clips: AnimationClip[],
+    skinned_meshes: SkinnedMesh[]
+  ): void {
+    if (skinned_meshes.length === 0) {
+      throw new Error('No skinned meshes available to validate animations.')
+    }
+
+    // Get target bone names from skeleton
+    const target_bone_names = new Set<string>()
+    skinned_meshes.forEach((skinned_mesh) => {
+      skinned_mesh.skeleton.bones.forEach((bone) => {
+        target_bone_names.add(bone.name.toLowerCase())
+      })
+    })
+
+    const animation_bone_names = this.get_animation_bone_names(animation_clips)
+
+    if (animation_bone_names.size === 0) {
+      throw new NoAnimationsError('Imported animations do not contain recognizable bone tracks.')
+    }
+
+    // Check bone count mismatch
+    if (animation_bone_names.size !== target_bone_names.size) {
+      throw new IncompatibleSkeletonError('bone count mismatch')
+    }
+
+    // Check bone name mismatch (animation has bones not in target skeleton)
+    const missing_bones = Array.from(animation_bone_names).filter(bone => !target_bone_names.has(bone))
+    if (missing_bones.length > 0) {
+      throw new IncompatibleSkeletonError('bone names don\'t match')
+    }
+  }
+
+  /**
+   * Loads animations from a local GLB file and validates against target skeleton.
+   * @param file The GLB file to load
+   * @param skinned_meshes Target skinned meshes to validate against
+   * @param skeleton_scale Scale factor to apply to position keyframes
+   * @returns Promise that resolves with the loaded animation clips
+   * @throws {NoAnimationsError} If no animations found in file
+   * @throws {IncompatibleSkeletonError} If animation bones don't match target skeleton
+   * @throws {LoadError} If file cannot be loaded
    */
   public async load_animations_from_file (
     file: File,
+    skinned_meshes: SkinnedMesh[],
     skeleton_scale: number = 1.0
   ): Promise<TransformedAnimationClipPair[]> {
     const file_url = URL.createObjectURL(file)
@@ -152,9 +254,11 @@ export class AnimationLoader extends EventTarget {
               this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
               this.completed_files = 1
               this.emit_enhanced_progress(file.name, file_total, file_total)
-              resolve([])
-              return
+              throw new NoAnimationsError('No animations found in the GLB file.')
             }
+
+            // Validate bones match target skeleton
+            this.validate_animation_bones_match(animations, skinned_meshes)
 
             this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
             this.completed_files = 1
@@ -164,7 +268,11 @@ export class AnimationLoader extends EventTarget {
             resolve(processed_clips)
           } catch (error) {
             const error_message = error instanceof Error ? error.message : String(error)
-            reject(new Error(`Failed to process animations from ${file.name}: ${error_message}`))
+            if (error instanceof NoAnimationsError || error instanceof IncompatibleSkeletonError) {
+              reject(error)
+            } else {
+              reject(new LoadError(`Failed to process animations from ${file.name}: ${error_message}`))
+            }
           }
         },
         (progress_event) => {
@@ -177,7 +285,7 @@ export class AnimationLoader extends EventTarget {
         (error) => {
           URL.revokeObjectURL(file_url)
           const error_message = error instanceof Error ? error.message : String(error)
-          reject(new Error(`Failed to load animation file ${file.name}: ${error_message}`))
+          reject(new LoadError(`Failed to load animation file ${file.name}: ${error_message}`))
         }
       )
     })
