@@ -171,6 +171,57 @@ export class AnimationUtility {
     this.apply_hips_position_mirroring(animation_clips)
   }
 
+  static apply_rest_pose_rotation_corrections (animation_clips: AnimationClip[], corrections: Map<string, Quaternion>): void {
+    if (corrections.size === 0) {
+      return
+    }
+
+    const units_in_quaternions = 4
+
+    animation_clips.forEach((animation_clip: AnimationClip) => {
+      animation_clip.tracks.forEach((track: KeyframeTrack) => {
+        if (!track.name.includes('.quaternion')) {
+          return
+        }
+
+        let bone_name: string | null = null
+        const simple_match = track.name.match(/^([^.]+)\.quaternion$/)
+        if (simple_match !== null) {
+          bone_name = simple_match[1]
+        } else {
+          const bones_match = track.name.match(/\.bones\[([^\]]+)\]\.quaternion$/)
+          if (bones_match !== null) {
+            bone_name = bones_match[1]
+          }
+        }
+
+        if (bone_name === null) {
+          return
+        }
+
+        const correction = corrections.get(bone_name)
+        if (correction === undefined) {
+          return
+        }
+
+        const values = track.values
+        for (let i = 0; i < values.length; i += units_in_quaternions) {
+          const quat = new Quaternion(
+            values[i],
+            values[i + 1],
+            values[i + 2],
+            values[i + 3]
+          )
+          quat.multiply(correction)
+          values[i] = quat.x
+          values[i + 1] = quat.y
+          values[i + 2] = quat.z
+          values[i + 3] = quat.w
+        }
+      })
+    })
+  }
+
   /**
    * Mirrors quaternion values by inverting X and W components for proper reflection.
    * This creates the mathematical mirror of the rotation.
