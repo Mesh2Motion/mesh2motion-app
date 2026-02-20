@@ -1,12 +1,13 @@
 import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
+import { ModalDialog } from '../../ModalDialog.ts'
 
 import {
   type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
-import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
+import { AnimationLoader, type AnimationLoadProgress, NoAnimationsError, IncompatibleSkeletonError, LoadError } from './AnimationLoader.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
@@ -34,6 +35,7 @@ export class StepAnimationsListing extends EventTarget {
   private skeleton_scale: number = 1.0
 
   private _added_event_listeners: boolean = false
+  private is_loading_default_animations: boolean = false
 
   // enable status for mirroring animations
   public mirror_animations_enabled: boolean = false
@@ -101,6 +103,7 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_player.clear_animation()
   }
 
+
   public mixer (): AnimationMixer {
     return this.animation_mixer
   }
@@ -125,6 +128,11 @@ export class StepAnimationsListing extends EventTarget {
     // Set the animations file path on the loader
     this.animation_loader.set_animations_file_path(this.animations_file_path)
 
+    this.is_loading_default_animations = true
+    if (this.ui.dom_import_animations_button != null) {
+      this.ui.dom_import_animations_button.disabled = true
+    }
+
     // Reset the animation clips loaded
     this.animation_clips_loaded = []
     // Create an animation mixer to do the playback. Play the first by default
@@ -138,11 +146,19 @@ export class StepAnimationsListing extends EventTarget {
       })
       .catch((error: Error) => {
         console.error('Failed to load animations:', error)
+        this.is_loading_default_animations = false
+        if (this.ui.dom_import_animations_button != null) {
+          this.ui.dom_import_animations_button.disabled = false
+        }
         // You could emit an error event here or show a user-friendly message
       })
   }
 
   private onAllAnimationsLoaded (): void {
+    this.is_loading_default_animations = false
+    if (this.ui.dom_import_animations_button != null) {
+      this.ui.dom_import_animations_button.disabled = false
+    }
     // sort all animation names alphabetically
     this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
       if (a.display_animation_clip.name < b.display_animation_clip.name) { return -1 }
@@ -351,6 +367,46 @@ export class StepAnimationsListing extends EventTarget {
       this.play_animation(this.current_playing_index)
     })
 
+    this.ui.dom_import_animations_button?.addEventListener('click', () => {
+      if (this.ui.dom_import_animations_button?.disabled === true || this.is_loading_default_animations) {
+        return
+      }
+      this.ui.dom_import_animations_input?.click()
+    })
+
+    this.ui.dom_import_animations_input?.addEventListener('change', async (event) => {
+      if (this.ui.dom_import_animations_button?.disabled === true || this.is_loading_default_animations) {
+        return
+      }
+      const input = event.target as HTMLInputElement
+      const files = input.files
+      if (files === null || files.length === 0) {
+        return
+      }
+
+      const import_button = this.ui.dom_import_animations_button
+      const previous_disabled_state: boolean | undefined = import_button?.disabled
+      if (import_button != null) {
+        import_button.disabled = true
+      }
+
+      try {
+        for (const file of Array.from(files)) {
+          const file_name = file.name.toLowerCase()
+          if (!file_name.endsWith('.glb')) {
+            new ModalDialog('Unsupported file type. Please select a GLB file.', 'Error').show()
+            continue
+          }
+          await this.import_animation_glb(file)
+        }
+      } finally {
+        input.value = ''
+        if (import_button != null && previous_disabled_state !== undefined) {
+          import_button.disabled = previous_disabled_state
+        }
+      }
+    })
+
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
   }
@@ -381,5 +437,54 @@ export class StepAnimationsListing extends EventTarget {
       return []
     }
     return this.animation_search.get_selected_animation_indices()
+  }
+
+  private async import_animation_glb (file: File): Promise<{ success: boolean, clipCount: number }> {
+    try {
+      const new_animation_clips = await this.animation_loader.load_animations_from_file(
+        file,
+        this.skinned_meshes_to_animate,
+        this.skeleton_scale
+      )
+
+      this.animation_clips_loaded.push(...new_animation_clips)
+      this.onAllAnimationsLoaded()
+
+      // Show success message only for user imports (not default animations)
+      if (!this.is_loading_default_animations) {
+        const animation_count = new_animation_clips.length
+        const animation_word = animation_count === 1 ? 'animation' : 'animations'
+        new ModalDialog(
+          'success',
+          `${animation_count} ${animation_word} imported successfully`
+        ).show()
+      }
+
+      return { success: true, clipCount: new_animation_clips.length }
+    } catch (error) {
+      console.error('Failed to import animations:', error)
+
+      if (error instanceof NoAnimationsError) {
+        new ModalDialog('import error', 'no animations found in that glb file').show()
+        return { success: false, clipCount: 0 }
+      }
+
+      if (error instanceof IncompatibleSkeletonError) {
+        const error_message = error.message === 'bone_count_mismatch'
+          ? 'bone count mismatch'
+          : 'bone names don\'t match'
+        new ModalDialog('import error', error_message).show()
+        return { success: false, clipCount: 0 }
+      }
+
+      if (error instanceof LoadError) {
+        new ModalDialog('import error', 'failed to load the animation file').show()
+        return { success: false, clipCount: 0 }
+      }
+
+      // Unknown error
+      new ModalDialog('import error', 'failed to import animations from the glb file').show()
+      return { success: false, clipCount: 0 }
+    }
   }
 }

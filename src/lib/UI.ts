@@ -78,6 +78,7 @@ export class UI {
   dom_total_time: HTMLElement | null = null
 
   dom_import_animations_button: HTMLButtonElement | null = null
+  dom_import_animations_input: HTMLInputElement | null = null
   dom_extend_arm_range_input: HTMLInputElement | null = null
   dom_extend_arm_numeric_input: HTMLInputElement | null = null
   dom_a_pose_correction_options: HTMLElement | null = null
@@ -166,7 +167,8 @@ export class UI {
     // UI Controls for working with animation list/selection and export
     this.dom_animation_clip_list = document.querySelector('#animations-items')
     this.dom_export_button = document.querySelector('#export-button')
-    this.dom_import_animations_button = document.querySelector('#mirror-animations-checkbox')
+    this.dom_import_animations_button = document.querySelector('#import-animations-button')
+    this.dom_import_animations_input = document.querySelector('#import-animations-input')
     this.dom_mirror_animations_checkbox = document.querySelector('#mirror-animations-checkbox')
     this.dom_reset_a_pose_button = document.querySelector('#reset-a-pose-button')
 
