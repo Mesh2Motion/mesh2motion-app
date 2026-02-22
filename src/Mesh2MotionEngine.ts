@@ -32,6 +32,7 @@ import { TransformControlType } from './lib/enums/TransformControlType.ts'
 import { TransformSpace } from './lib/enums/TransformSpace.ts'
 import { ThemeManager } from './lib/ThemeManager.ts'
 import { ModalDialog } from './lib/ModalDialog.ts'
+import { SnapToVolumeHandler } from './lib/SnapToVolumeHandler.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -41,6 +42,7 @@ export class Mesh2MotionEngine {
   public readonly transform_controls: TransformControls = new TransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
+  private snap_to_volume_handler: SnapToVolumeHandler | undefined = undefined
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
 
@@ -89,6 +91,19 @@ export class Mesh2MotionEngine {
     this.file_export_step = new StepExportToFile()
 
     this.setup_environment()
+    
+    // Initialize snap-to-volume handler
+    // Note: this needs to be done after setup_environment creates controls
+    this.snap_to_volume_handler = new SnapToVolumeHandler(
+      this.camera,
+      this.edit_skeleton_step,
+      this.load_model_step,
+      this.controls,
+      this.skeleton_helper,
+      this.mesh_preview_display_type,
+      this.regenerate_skeleton_helper.bind(this),
+      this.regenerate_weight_painted_preview_mesh.bind(this)
+    )
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
     this.animate() // start the render loop which will continue rendering the scene
@@ -443,6 +458,12 @@ export class Mesh2MotionEngine {
         this.transform_controls_type = TransformControlType.Rotation
         this.transform_controls.setMode('rotate')
         break
+      case 'snap-to-volume':
+        this.transform_controls_type = TransformControlType.SnapToVolume
+        // For snap-to-volume, we don't show transform controls
+        // User will click on mesh to snap bone to volume center
+        this.transform_controls.detach()
+        break
       default:
         console.warn(`Unknown transform mode selected: ${radio_button_selected}`)
         break
@@ -468,6 +489,12 @@ export class Mesh2MotionEngine {
 
     // when we are done with skinned mesh, we shouldn't be editing transforms
     if (!this.transform_controls.enabled) {
+      return
+    }
+
+    // Handle snap-to-volume mode differently - start dragging
+    if (this.transform_controls_type === TransformControlType.SnapToVolume) {
+      this.snap_to_volume_handler?.handle_mouse_down(mouse_event)
       return
     }
 
@@ -503,6 +530,27 @@ export class Mesh2MotionEngine {
     } else {
       this.edit_skeleton_step.set_currently_selected_bone(null)
     }
+  }
+
+  /**
+   * Check if currently dragging in snap-to-volume mode
+   */
+  public is_snap_to_volume_dragging (): boolean {
+    return this.snap_to_volume_handler?.is_snap_to_volume_dragging() ?? false
+  }
+
+  /**
+   * Handle mouse move while dragging in snap-to-volume mode
+   */
+  public handle_snap_to_volume_dragging (mouse_event: MouseEvent): void {
+    this.snap_to_volume_handler?.handle_dragging(mouse_event)
+  }
+
+  /**
+   * Handle mouse up in snap-to-volume mode
+   */
+  public handle_snap_to_volume_mouse_up (): void {
+    this.snap_to_volume_handler?.handle_mouse_up()
   }
 
   public remove_skinned_meshes_from_scene (): void {
