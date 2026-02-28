@@ -6,6 +6,7 @@ import type { ThemeManager } from '../lib/ThemeManager.ts'
 import { type TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
 import { StepExportRetargetedAnimations } from './steps/StepExportRetargetedAnimations.ts'
+import { UI } from '../lib/UI.ts'
 
 /**
  * RetargetAnimationListing - Handles animation listing and playback specifically for retargeting workflow
@@ -18,6 +19,7 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly step_export_retargeted_animations: StepExportRetargetedAnimations = new StepExportRetargetedAnimations()
   private animation_clips_loaded: TransformedAnimationClipPair[] = []
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
+  private readonly ui: UI = UI.getInstance()
 
   private _added_event_listeners: boolean = false
 
@@ -39,6 +41,19 @@ export class RetargetAnimationListing extends EventTarget {
     if (!this._added_event_listeners) {
       this.add_event_listeners()
       this._added_event_listeners = true
+    }
+
+    this.show_bone_toggle_button(true)
+  }
+
+  public end (): void {
+    this.show_bone_toggle_button(false) // cannot toggle bone display in configuration area
+    this.stop_preview() // stop any playing animations in the listing
+  }
+
+  private show_bone_toggle_button (show: boolean): void {
+    if (this.ui.dom_show_skeleton_container != null) {
+      this.ui.dom_show_skeleton_container.style.display = show ? 'inline-flex' : 'none'
     }
   }
 

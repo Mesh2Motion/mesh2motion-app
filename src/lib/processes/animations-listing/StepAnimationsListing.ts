@@ -100,6 +100,12 @@ export class StepAnimationsListing extends EventTarget {
       this.ui.dom_skinned_mesh_animation_tools.style.display = 'flex'
     }
 
+    // bone display toggle only works in animation preview since
+    // everything is setup by now
+    if (this.ui.dom_show_skeleton_container != null) {
+      this.ui.dom_show_skeleton_container.style.display = 'inline-flex'
+    }
+
     this.reset_step_data()
     this.custom_animation_importer.set_enabled(!this.is_loading_default_animations)
 

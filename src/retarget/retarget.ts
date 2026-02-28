@@ -8,6 +8,7 @@ import { RetargetAnimationListing } from './RetargetAnimationListing.ts'
 import { AnimationRetargetService } from './AnimationRetargetService'
 import { type SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
+import { UI } from '../lib/UI.ts'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -19,6 +20,7 @@ class RetargetModule {
 
   private back_to_bone_map_button: HTMLButtonElement | null = null
   private continue_to_listing_button: HTMLButtonElement | null = null
+  private readonly ui: UI = UI.getInstance()
 
   constructor () {
     // Set up camera position similar to marketing bootstrap
@@ -72,11 +74,11 @@ class RetargetModule {
 
       // stop the animation listing step
       if (this.animation_listing_step !== null) {
-        this.animation_listing_step.stop_preview()
+        this.animation_listing_step.end() // any clean up needed to reset animation listing state
       }
 
       // start the live preview again and hide the animation player
-      this.start_live_preview()
+      this.attempt_start_live_preview()
       this.mesh2motion_engine.show_animation_player(false)
     }
 
@@ -115,7 +117,7 @@ class RetargetModule {
       // hide the skeleton helper since we are on that step
       this.step_load_source_skeleton.show_skeleton_helper(false)
 
-      this.start_live_preview()
+      this.attempt_start_live_preview()
 
       this.update_continue_button_state()
     })
@@ -204,12 +206,11 @@ class RetargetModule {
     }
   }
 
-  private start_live_preview (): void {
-    // Start preview when both skeletons are loaded
+  private attempt_start_live_preview (): void {
+    // Only start preview when both skeletons are loaded
     if (this.step_bone_mapping.has_both_skeletons()) {
-      console.log('Both skeletons loaded, starting animation preview...')
-
       this.retarget_animation_preview.start_preview().catch((error) => {
+        // maybe useful if errors happen in the future for debugging
         console.error('Failed to start preview:', error)
       })
     }

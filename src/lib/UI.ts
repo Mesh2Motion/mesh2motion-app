@@ -8,6 +8,10 @@ export class UI {
   dom_load_model_button: HTMLButtonElement | null = null
   dom_load_model_debug_checkbox: HTMLInputElement | null = null
 
+  // toggle for showing/hiding skeleton in the 3D view
+  dom_show_skeleton_container: HTMLElement | null = null
+  dom_show_skeleton_checkbox: HTMLInputElement | null = null
+
   // load skeleton UI
   dom_rotate_model_x_button: HTMLButtonElement | null = null
   dom_rotate_model_y_button: HTMLButtonElement | null = null
@@ -48,7 +52,6 @@ export class UI {
 
   dom_skinned_mesh_tools: HTMLElement | null = null
   dom_skinned_mesh_animation_tools: HTMLElement | null = null
-  dom_show_skeleton_checkbox: HTMLInputElement | null = null
   dom_back_to_edit_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_model_button: HTMLButtonElement | null = null
@@ -105,6 +108,10 @@ export class UI {
     this.dom_current_step_index = document.querySelector('#current-step-index')
     this.dom_current_step_element = document.querySelector('#current-step-label')
 
+    // skeleton toggle on UI viewport
+    this.dom_show_skeleton_container = document.querySelector('#skeleton-toggle')
+    this.dom_show_skeleton_checkbox = document.querySelector('#show-skeleton-checkbox')
+
     // UI controls for loading the model
     this.dom_load_model_tools = document.querySelector('#load-model-tools')
     this.dom_upload_model_button = document.querySelector('#model-upload')
@@ -157,7 +164,7 @@ export class UI {
     // UI controls for working with skinned mesh
     this.dom_skinned_mesh_tools = document.querySelector('#skinned-step-tools')
     this.dom_skinned_mesh_animation_tools = document.querySelector('#skinned-step-animation-export-options')
-    this.dom_show_skeleton_checkbox = document.querySelector('#show-skeleton-checkbox')
+
     this.dom_back_to_edit_skeleton_button = document.querySelector('#action_back_to_edit_skeleton')
     this.dom_back_to_load_skeleton_button = document.querySelector('#action_back_to_load_skeleton')
     this.dom_back_to_load_model_button = document.querySelector('#action_back_to_load_model')
@@ -215,6 +222,9 @@ export class UI {
     }
     if (this.dom_skinned_mesh_animation_tools != null) {
       this.dom_skinned_mesh_animation_tools.style.display = 'none'
+    }
+    if (this.dom_show_skeleton_container != null) {
+      this.dom_show_skeleton_container.style.display = 'none'
     }
   }
 }
