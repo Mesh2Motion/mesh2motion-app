@@ -1,5 +1,5 @@
 import {
-  AnimationClip, Euler, type Object3D, Quaternion, QuaternionKeyframeTrack, Vector3,
+  AnimationClip, type Object3D, QuaternionKeyframeTrack,
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
   Skeleton,
   type Bone
@@ -107,12 +107,12 @@ export class AnimationRetargetService {
    * @returns A new animation clip retargeted for the target skeleton
    */
   public retarget_animation_clip (source_clip: AnimationClip): AnimationClip {
-    const new_tracks: any[] = [] // store new retargeted tracks
+    const new_tracks: Array<QuaternionKeyframeTrack | VectorKeyframeTrack> = [] // store new retargeted tracks
 
     // if there are no bone mappings, return the source clip as there is nothing to retarget
     if (this.bone_mappings.size === 0) {
-      console.warn('No bone mappings available for retargeting. Returning source clip as-is.')
-      return source_clip
+      console.warn('No bone mappings available for retargeting. Returning source clip clone.')
+      return source_clip.clone()
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,6 +127,8 @@ export class AnimationRetargetService {
     // Besides the above special case, the standard retargeting will just be bone mapping applied
     // Maybe in the future we can do other more advanced things.
 
+    const reverse_mappings = this.reverse_bone_mapping(this.bone_mappings)
+
     // Process each track in the source animation
     source_clip.tracks.forEach((track) => {
       // Parse the track name to get the bone name and property
@@ -137,7 +139,7 @@ export class AnimationRetargetService {
       }
 
       // Check if this bone is mapped to any target bones
-      const target_bone_names = this.reverse_bone_mapping(this.bone_mappings).get(track_parts.bone_name)
+      const target_bone_names = reverse_mappings.get(track_parts.bone_name)
       if (target_bone_names === undefined || target_bone_names.length === 0) {
         return // Skip unmapped bones
       }
@@ -146,12 +148,14 @@ export class AnimationRetargetService {
       // a bone with the mapping
       target_bone_names.forEach((target_bone_name) => {
         const new_track_name = RetargetUtils.create_track_name(target_bone_name, track_parts.property)
+        const times_copy = Float32Array.from(track.times as ArrayLike<number>)
+        const values_copy = Float32Array.from(track.values as ArrayLike<number>)
 
         if (track_parts.property === 'quaternion') {
-          const new_track = new QuaternionKeyframeTrack(new_track_name, track.times.slice(), track.values.slice())
+          const new_track = new QuaternionKeyframeTrack(new_track_name, times_copy, values_copy)
           new_tracks.push(new_track)
         } else if (track_parts.property === 'position' || track_parts.property === 'scale') {
-          const new_track = new VectorKeyframeTrack(new_track_name, track.times.slice(), track.values.slice())
+          const new_track = new VectorKeyframeTrack(new_track_name, times_copy, values_copy)
           new_tracks.push(new_track)
         } else {
           console.warn('This track contains unsupported property for retargeting:', track_parts.property)
@@ -176,13 +180,19 @@ export class AnimationRetargetService {
     const source_skeleton: Skeleton | null = this.create_skeleton_from_source(this.source_armature)
     if (source_skeleton === null) {
       console.error('Failed to extract source skeleton from source armature for Human Retargeter.')
-      return source_clip
+      return source_clip.clone()
     }
+
+    if (this.target_skinned_meshes.length === 0) {
+      console.error('No target skinned meshes available for Human Retargeter.')
+      return source_clip.clone()
+    }
+
+    const detached_target_skeleton: Skeleton = this.clone_skeleton(this.target_skinned_meshes[0].skeleton)
 
     // create a custom "Rig" for the source and the target skeletons
     const source_rig: Rig = new Rig(source_skeleton)
-    const target_rig: Rig = new Rig(this.target_skinned_meshes[0].skeleton)
-
+    const target_rig: Rig = new Rig(detached_target_skeleton)
 
     // if it is a known bone mapping, we can grab the preset config
     // if not, we will need to manually build the config from the bone mappings
@@ -244,13 +254,78 @@ export class AnimationRetargetService {
 
     if (root_bone === undefined) return null
 
-    const bones = this.collect_bones(root_bone)
+    const detached_armature = armature.clone(true)
+    const bones = this.collect_bones(detached_armature)
 
     if (bones.length === 0) return null
 
     const skeleton = new Skeleton(bones)
     skeleton.calculateInverses()
+    skeleton.pose()
     return skeleton
+  }
+
+  private clone_skeleton (source_skeleton: Skeleton): Skeleton {
+    const original_to_clone = new Map<Bone, Bone>()
+
+    const root_bones = source_skeleton.bones.filter((bone) =>
+      bone.parent === null || bone.parent.type !== 'Bone'
+    )
+
+    const detached_parent_cache = new Map<Object3D, Object3D>()
+
+    const ensure_detached_parent = (source_parent: Object3D): Object3D => {
+      const cached_parent = detached_parent_cache.get(source_parent)
+      if (cached_parent !== undefined) {
+        return cached_parent
+      }
+
+      const detached_parent = new Group()
+      source_parent.updateWorldMatrix(true, false)
+      source_parent.matrixWorld.decompose(detached_parent.position, detached_parent.quaternion, detached_parent.scale)
+      detached_parent.updateMatrixWorld(true)
+
+      detached_parent_cache.set(source_parent, detached_parent)
+      return detached_parent
+    }
+
+    root_bones.forEach((root_bone) => {
+      const cloned_root = root_bone.clone(true)
+
+      if (root_bone.parent !== null && root_bone.parent.type !== 'Bone') {
+        const detached_parent = ensure_detached_parent(root_bone.parent)
+        detached_parent.add(cloned_root)
+      }
+
+      const stack: Array<{ original: Bone, cloned: Bone }> = [{ original: root_bone, cloned: cloned_root }]
+
+      while (stack.length > 0) {
+        const pair = stack.pop()
+        if (pair === undefined) continue
+
+        original_to_clone.set(pair.original, pair.cloned)
+
+        const original_children = pair.original.children.filter(child => child.type === 'Bone') as Bone[]
+        const cloned_children = pair.cloned.children.filter(child => child.type === 'Bone') as Bone[]
+
+        for (let i = 0; i < original_children.length; i++) {
+          stack.push({
+            original: original_children[i],
+            cloned: cloned_children[i]
+          })
+        }
+      }
+    })
+
+    const cloned_bones = source_skeleton.bones
+      .map((bone) => original_to_clone.get(bone))
+      .filter((bone): bone is Bone => bone !== undefined)
+
+    const cloned_bone_inverses = source_skeleton.boneInverses.map((inverse) => inverse.clone())
+    const cloned_skeleton = new Skeleton(cloned_bones, cloned_bone_inverses)
+    cloned_skeleton.pose()
+
+    return cloned_skeleton
   }
 
   // Recursively collect all bones. part of extract_skeleton_from_group()
