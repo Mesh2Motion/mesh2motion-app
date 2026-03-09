@@ -13,7 +13,8 @@ export async function add_preview_skeleton (
   root: Scene,
   skeleton_file_path: SkeletonType,
   hand_skeleton_type: HandSkeletonType,
-  skeleton_scale: number = 1.0
+  skeleton_scale: number = 1.0,
+  skeleton_offset_z: number = 0.0
 ): Promise<Object3D<Object3DEventMap>> {
   let preview_skeleton_group = root.getObjectByName(skeleton_group_name) as Group | undefined
 
@@ -23,8 +24,9 @@ export async function add_preview_skeleton (
     const previous_file_path = preview_skeleton_group.userData.skeleton_file_path
     const previous_hand_type = preview_skeleton_group.userData.hand_skeleton_type
     if (previous_file_path === skeleton_file_path && previous_hand_type === hand_skeleton_type) {
-      // Only update scale
+      // Only update scale and offset
       preview_skeleton_group.scale.set(skeleton_scale, skeleton_scale, skeleton_scale)
+      preview_skeleton_group.position.set(0, 0, skeleton_offset_z)
       // Return the first child (should be loaded_scene)
       return preview_skeleton_group.children[0]
     } else {
@@ -51,6 +53,7 @@ export async function add_preview_skeleton (
   skeleton_helper.name = 'preview_skeleton'
   preview_skeleton_group.add(skeleton_helper)
   preview_skeleton_group.scale.set(skeleton_scale, skeleton_scale, skeleton_scale)
+  preview_skeleton_group.position.set(0, 0, skeleton_offset_z)
   root.add(preview_skeleton_group)
   return loaded_scene
 }

@@ -20,6 +20,7 @@ export class StepLoadSkeleton extends EventTarget {
   // this is useful since position keyframes will need to be scaled
   // to prevent large offsets
   private skeleton_scale_percentage: number = 1.0
+  private skeleton_offset_z: number = 0.0
 
   // this was invented since this value is stored on a DOM element
   // this helps the marketing page set the type and doesn't rely on a DOM value
@@ -148,8 +149,9 @@ export class StepLoadSkeleton extends EventTarget {
           this.ui.dom_skeleton_drop_type?.options.remove(0)
         }
 
-        // show the scale skeleton options in case they are hidden
+        // show the scale and offset skeleton options in case they are hidden
         this.ui.dom_scale_skeleton_controls!.style.display = 'flex'
+        this.ui.dom_skeleton_offset_controls!.style.display = 'flex'
 
         // load the preview skeleton
         // need to get the file name for the correct skeleton
@@ -195,6 +197,17 @@ export class StepLoadSkeleton extends EventTarget {
     this.ui.dom_reset_skeleton_scale_button?.addEventListener('click', () => {
       this.update_skeleton_scale_to_value(1.0)
     })
+
+    // skeleton offset controls
+    this.ui.dom_skeleton_offset_input?.addEventListener('input', (event) => {
+      const new_value: number = Number((event.target as HTMLInputElement).value)
+      this.update_skeleton_offset_to_value(new_value)
+    })
+
+    // reset the skeleton offset button
+    this.ui.dom_reset_skeleton_offset_button?.addEventListener('click', () => {
+      this.update_skeleton_offset_to_value(0.0)
+    })
   }
 
   private update_skeleton_scale_to_value (new_value: number): void {
@@ -206,6 +219,23 @@ export class StepLoadSkeleton extends EventTarget {
     }
     // re-add the preview skeleton with the new scale
     add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage)
+      .catch((err) => {
+        console.error('error loading preview skeleton: ', err)
+      })
+  }
+
+  private update_skeleton_offset_to_value (new_value: number): void {
+    this.skeleton_offset_z = new_value
+
+    if (this.ui.dom_skeleton_offset_input !== null) {
+      this.ui.dom_skeleton_offset_input.value = String(new_value)
+    }
+
+    if (this.ui.dom_skeleton_offset_display !== null) {
+      this.ui.dom_skeleton_offset_display.textContent = new_value.toFixed(2)
+    }
+
+    add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage, this.skeleton_offset_z)
       .catch((err) => {
         console.error('error loading preview skeleton: ', err)
       })
@@ -243,8 +273,8 @@ export class StepLoadSkeleton extends EventTarget {
         helper.modify_hand_skeleton(this.loaded_armature, this.hand_skeleton_type())
       }
 
-      // reset the armature to 0,0,0 in case it is off for some reason
-      this.loaded_armature.position.set(0, 0, 0)
+      // reset the armature position and apply Z offset from the slider
+      this.loaded_armature.position.set(0, 0, this.skeleton_offset_z)
       this.loaded_armature.updateWorldMatrix(true, true)
 
       // scale the armature to what we picked using the scale slider/preview
