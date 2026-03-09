@@ -73,9 +73,17 @@ export class StepLoadSkeleton extends EventTarget {
     // so just use that and load the preview right when we enter this step
     if (!this.has_select_skeleton_ui_option()) {
       add_preview_skeleton(this._main_scene, this.skeleton_file_path(),
-        this.hand_skeleton_type(), this.skeleton_scale_percentage).catch((err) => {
+        this.hand_skeleton_type(), this.skeleton_scale_percentage, this.skeleton_offset_z).catch((err) => {
         console.error('error loading preview skeleton: ', err)
       })
+
+      // restore the offset slider and display to the stored value
+      if (this.ui.dom_skeleton_offset_input !== null) {
+        this.ui.dom_skeleton_offset_input.value = this.skeleton_offset_z.toFixed(2)
+      }
+      if (this.ui.dom_skeleton_offset_display !== null) {
+        this.ui.dom_skeleton_offset_display.textContent = this.skeleton_offset_z.toFixed(2)
+      }
     }
 
     // Initialize hand skeleton hand options visibility
@@ -150,13 +158,22 @@ export class StepLoadSkeleton extends EventTarget {
         }
 
         // show the scale and offset skeleton options in case they are hidden
-        this.ui.dom_scale_skeleton_controls!.style.display = 'flex'
-        this.ui.dom_skeleton_offset_controls!.style.display = 'flex'
+        if (this.ui.dom_scale_skeleton_controls !== null) {
+          this.ui.dom_scale_skeleton_controls.style.display = 'flex'
+        }
+        if (this.ui.dom_skeleton_offset_controls !== null) {
+          this.ui.dom_skeleton_offset_controls.style.display = 'flex'
+        }
+
+        // force the slider to render at the correct position after becoming visible
+        if (this.ui.dom_skeleton_offset_input !== null) {
+          this.ui.dom_skeleton_offset_input.value = this.skeleton_offset_z.toFixed(2)
+        }
 
         // load the preview skeleton
         // need to get the file name for the correct skeleton
         // we pass the skeleton scale in the case where we set a skeleton, change scale, then change the skeleton
-        add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale()).then(() => {
+        add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale(), this.skeleton_offset_z).then(() => {
           // enable the ability to progress to next step
           this.allow_proceeding_to_next_step(true)
         }).catch((err) => {
@@ -181,7 +198,7 @@ export class StepLoadSkeleton extends EventTarget {
     this.ui.dom_hand_skeleton_selection?.addEventListener('change', () => {
       // rebuild the preview skeleton with the new hand skeleton type
       // make sure we keep existing scale if we made a change to that
-      add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale()).catch((err) => {
+      add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale(), this.skeleton_offset_z).catch((err) => {
         console.error('error loading preview skeleton: ', err)
       })
     })
@@ -217,8 +234,8 @@ export class StepLoadSkeleton extends EventTarget {
     if (this.ui.dom_scale_skeleton_percentage_display !== null) {
       this.ui.dom_scale_skeleton_percentage_display.textContent = display_value
     }
-    // re-add the preview skeleton with the new scale
-    add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage)
+    // re-add the preview skeleton with the new scale, preserving the existing Z offset
+    add_preview_skeleton(this._main_scene, this.skeleton_file_path(), this.hand_skeleton_type(), this.skeleton_scale_percentage, this.skeleton_offset_z)
       .catch((err) => {
         console.error('error loading preview skeleton: ', err)
       })
@@ -228,7 +245,7 @@ export class StepLoadSkeleton extends EventTarget {
     this.skeleton_offset_z = new_value
 
     if (this.ui.dom_skeleton_offset_input !== null) {
-      this.ui.dom_skeleton_offset_input.value = String(new_value)
+      this.ui.dom_skeleton_offset_input.value = new_value.toFixed(2)
     }
 
     if (this.ui.dom_skeleton_offset_display !== null) {
@@ -294,26 +311,39 @@ export class StepLoadSkeleton extends EventTarget {
     btn.disabled = !allow // disable when not allowed
   }
 
-  // returns a skeleton object that has been baked (applied) for scale 
+  // returns a skeleton object that has been baked (applied) for scale
   public armature (): Object3D<Object3DEventMap> {
     return this.bake_scale_for_armature(this.loaded_armature)
   }
 
   // this does not mutate armature that goes in
-  // update all positions for bones and resets scale to 1
+  // bakes scale into bone positions and bakes root position offset into the first bone
+  // this ensures the Z offset and scale carry through the weight skinning pipeline
+  // which only uses children[0] and ignores the root armature's transform
   private bake_scale_for_armature (armature: Object3D): Object3D {
     const scale = armature.scale.x // assumes uniform scale
-    if (scale === 1) return armature.clone() // no changes. just return existing skeleton
+    const position_offset = armature.position.clone()
+    const has_offset = position_offset.lengthSq() !== 0
 
     const cloned_armature: Object3D = armature.clone()
-    cloned_armature.traverse((obj) => {
-      if (obj instanceof Object3D && obj !== cloned_armature) {
-        obj.position.multiplyScalar(scale)
-      }
-    })
-    cloned_armature.scale.set(1, 1, 1)
-    cloned_armature.updateMatrixWorld(true)
 
+    // bake scale into all child bone positions
+    if (scale !== 1) {
+      cloned_armature.traverse((obj) => {
+        if (obj instanceof Object3D && obj !== cloned_armature) {
+          obj.position.multiplyScalar(scale)
+        }
+      })
+      cloned_armature.scale.set(1, 1, 1)
+    }
+
+    // bake root position offset into first bone so it carries through the skinning pipeline
+    if (has_offset && cloned_armature.children.length > 0) {
+      cloned_armature.children[0].position.add(position_offset)
+      cloned_armature.position.set(0, 0, 0)
+    }
+
+    cloned_armature.updateMatrixWorld(true)
     return cloned_armature
   }
 
