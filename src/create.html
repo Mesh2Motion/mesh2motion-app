@@ -1,440 +1,779 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <title style="display: none">Create - Mesh2Motion</title>
-    <link rel="icon" type="image/png" href="./images/favicon.png"/>
+    <link rel="icon" type="image/png" href="./images/favicon.png" />
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body style="margin: 0">
     <script type="module" src="./CustomModelUploadBootstrap.ts"></script>
     <link href="./styles.css" rel="stylesheet" crossorigin="anonymous" />
-    <link rel="stylesheet" href="./radio-button-group.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="./animation-player.css" crossorigin="anonymous" />
+    <link
+      rel="stylesheet"
+      href="./radio-button-group.css"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="./animation-player.css"
+      crossorigin="anonymous"
+    />
     <link rel="stylesheet" href="./dialog.css" crossorigin="anonymous" />
 
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
 
     <nav>
-        <div style="display: inline-flex; align-items: center;">
-            <a href="https://mesh2motion.org"><img src="./images/mesh2motion.svg" width="200" /></a>
-            <a href="/">Explore</a>
-            <span class="active-nav-item">Use Your Model</span>
-            <a href="/retarget/index.html">Use Your Rigged Model</a>
-        </div>
+      <div style="display: inline-flex; align-items: center">
+        <a href="https://mesh2motion.org"
+          ><img src="./images/mesh2motion.svg" width="200"
+        /></a>
+        <a href="/">Explore</a>
+        <span class="active-nav-item">Use Your Model</span>
+        <a href="/retarget/index.html">Use Your Rigged Model</a>
+      </div>
 
-        <div style="display: inline-flex; align-items: center;">
-             <a href="https://support.mesh2motion.org" target="_blank"> 💗 Support</a>
-            <a href="https://github.com/scottpetrovic/mesh2motion-app" target="_blank">
-                <img src="../images/github-white-icon.png" width="24" height="24" alt="GitHub" />
-            </a>
-            <a href="#" id="attribution-link">Contributors</a>
+      <div style="display: inline-flex; align-items: center">
+        <a href="https://support.mesh2motion.org" target="_blank">
+          💗 Support</a
+        >
+        <a
+          href="https://github.com/scottpetrovic/mesh2motion-app"
+          target="_blank"
+        >
+          <img
+            src="../images/github-white-icon.png"
+            width="24"
+            height="24"
+            alt="GitHub"
+          />
+        </a>
+        <a href="#" id="attribution-link">Contributors</a>
 
-            <!-- Theme Toggle -->
-            <button id="theme-toggle">
-                <!-- icon will fill in here-->
-                <span class="theme-icon"></span>
-            </button>
-        </div>
+        <!-- Theme Toggle -->
+        <button id="theme-toggle">
+          <!-- icon will fill in here-->
+          <span class="theme-icon"></span>
+        </button>
+      </div>
     </nav>
-
-
-
 
     <!-- Top toolbar with mouse controls -->
     <div id="header-ui">
-        <div>
-            <img class="nav-icon" src="/images/mouse-left.svg" style="vertical-align: middle;"/> Rotate
-        </div>
+      <div>
+        <img
+          class="nav-icon"
+          src="/images/mouse-left.svg"
+          style="vertical-align: middle"
+        />
+        Rotate
+      </div>
 
-        <div>
-            <img class="nav-icon" src="/images/mouse-right.svg"  style="vertical-align: middle;"/> Pan
-        </div>
-        <div>
-            <img class="nav-icon" src="/images/mouse-middle.svg" style="vertical-align: middle;"/> Zoom
-        </div>
+      <div>
+        <img
+          class="nav-icon"
+          src="/images/mouse-right.svg"
+          style="vertical-align: middle"
+        />
+        Pan
+      </div>
+      <div>
+        <img
+          class="nav-icon"
+          src="/images/mouse-middle.svg"
+          style="vertical-align: middle"
+        />
+        Zoom
+      </div>
     </div>
 
     <!-- Theme Toggle -->
     <div id="theme-toggle-container">
-        <button id="theme-toggle">
-            <!-- icon will fill in here-->
-            <span class="theme-icon"></span>
-        </button>
+      <button id="theme-toggle">
+        <!-- icon will fill in here-->
+        <span class="theme-icon"></span>
+      </button>
     </div>
 
     <div id="tool-panel">
-        <!-- create a radio button group. There are two options. Move Skeleton, Rotate Mesh -->
-        <div id="tool-selection-group">
-           
-                <div style="margin-bottom: 1rem; padding: 0;">
-                    <span id="current-step-index"></span>
-                    <span id="current-step-label"></span>
-                </div>
+      <!-- create a radio button group. There are two options. Move Skeleton, Rotate Mesh -->
+      <div id="tool-selection-group">
+        <div style="margin-bottom: 1rem; padding: 0">
+          <span id="current-step-index"></span>
+          <span id="current-step-label"></span>
+        </div>
 
-                <div id="load-model-tools">
+        <div id="load-model-tools">
+          <!-- <p class="step-instructions">Supports GLB, GLTF, FBX</p> -->
 
-                    <!-- <p class="step-instructions">Supports GLB, GLTF, FBX</p> -->
+          <label
+            for="model-upload"
+            class="button"
+            data-tippy-content="GLB and FBX preferred. ZIP is for GLTF+BIN and textures separately. DAE+textures is also supported in ZIP format."
+          >
+            <span class="button-icon-group">
+              <span class="material-symbols-outlined">upload</span>
+              <span>Upload</span>
+              <span class="material-symbols-outlined">help</span>
+            </span>
+          </label>
+          <input
+            id="model-upload"
+            type="file"
+            name="file-upload"
+            accept=".glb, .zip, .fbx"
+          />
 
-                    <label for="model-upload" class="button" data-tippy-content="GLB and FBX preferred. ZIP is for GLTF+BIN and textures separately. DAE+textures is also supported in ZIP format." >
-                        <span class="button-icon-group">
-                            <span class="material-symbols-outlined" >upload</span>
-                            <span>Upload</span>
-                            <span class="material-symbols-outlined" >help</span>
-                        </span>
-                    </label>
-                    <input id="model-upload" type="file" name="file-upload" accept=".glb, .zip, .fbx" />
+          <div style="text-align: center; font-size: 1.5rem">or</div>
 
-                    
+          <div class="alternate-background-section">
+            <p style="margin: 0">Reference model</p>
+            <select id="model-selection">
+              <option value="models/model-human.glb">Human</option>
+              <option value="models/model-fox.glb">Fox</option>
+              <option value="models/model-bird.glb">Bird</option>
+              <option value="models/model-dragon.glb">Dragon</option>
+              <option value="models/model-kaiju.glb">Kaiju</option>
+            </select>
+            <button id="load-model-button">Load</button>
+          </div>
 
+          <div class="styled-checkbox">
+            <input
+              type="checkbox"
+              id="load-model-debug-checkbox"
+              name="load-model-debug-checkbox"
+            />
+            <label for="load-model-debug-checkbox">Debug</label>
 
-                    <div style="text-align: center; font-size: 1.5rem">or</div>
-                    
-                    <div class="alternate-background-section">
-                        <p style="margin: 0">Reference model</p>
-                        <select id="model-selection">
-                            <option value="models/model-human.glb">Human</option>
-                            <option value="models/model-fox.glb">Fox</option>
-                            <option value="models/model-bird.glb">Bird</option>
-                            <option value="models/model-dragon.glb">Dragon</option>
-                            <option value="models/model-kaiju.glb">Kaiju</option>
-                        </select>
-                        <button id="load-model-button">Load</button>
-                    </div>
+            <span
+              class="material-symbols-outlined"
+              data-tippy-content="Replaces all materials with a 'normal' shader for debugging"
+              >help</span
+            >
+          </div>
+        </div>
 
-                    
-                       
-                    <div class="styled-checkbox">
+        <div id="load-skeleton-tools">
+          <span>
+            <span style="max-width: 220px"
+              >Rotate Model to face front <br />
+              (blue origin line)</span
+            >
+            <div style="display: flex; flex-direction: row">
+              <button class="secondary-button" id="rotate-model-x-button">
+                X
+              </button>
+              <button class="secondary-button" id="rotate-model-y-button">
+                Y
+              </button>
+              <button class="secondary-button" id="rotate-model-z-button">
+                Z
+              </button>
+            </div>
+          </span>
 
-                        <input type="checkbox" id="load-model-debug-checkbox" name="load-model-debug-checkbox">
-                        <label for="load-model-debug-checkbox">Debug</label>
+          <hr />
 
-                        <span class="material-symbols-outlined" data-tippy-content="Replaces all materials with a 'normal' shader for debugging">help</span>
+          <span style="max-width: 220px">
+            <span>If model is below the ground floor</span>
+            <div style="display: flex; flex-direction: row">
+              <button class="secondary-button" id="move-model-to-floor-button">
+                Move
+              </button>
+            </div>
+          </span>
 
-                    </div>
+          <hr />
 
-                </div>
+          <div style="display: flex; flex-direction: column; gap: 1rem">
+            <span>Skeleton template</span>
+            <select id="skeleton-selection">
+              <option value="select-skeleton">Select a skeleton</option>
+              <option value="human">Human</option>
+              <option value="quadraped">4 Leg Creature</option>
+              <option value="bird">Bird</option>
+              <option value="dragon">Dragon</option>
+              <option value="kaiju">Kaiju</option>
+            </select>
+          </div>
 
-                <div id="load-skeleton-tools">
-
-                    <span>
-                        <span style="max-width: 220px">Rotate Model to face front <br/> (blue origin line)</span>
-                        <div style="display: flex; flex-direction: row">
-                            <button class="secondary-button" id="rotate-model-x-button">X</button>
-                            <button class="secondary-button" id="rotate-model-y-button">Y</button>
-                            <button class="secondary-button" id="rotate-model-z-button">Z</button>
-                        </div>
-                    </span>
-
-                        <hr />
-
-                        <span style="max-width: 220px">
-                            <span>If model is below the ground floor</span>
-                            <div style="display: flex; flex-direction: row">
-                                <button class="secondary-button" id="move-model-to-floor-button">Move</button>
-                            </div>
-                        </span>
-
-                        <hr />
-
-
-                        <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            <span>Skeleton template</span>
-                            <select id="skeleton-selection">
-                                <option value="select-skeleton">Select a skeleton</option>
-                                <option value="human">Human</option>
-                                <option value="quadraped">4 Leg Creature</option>
-                                <option value="bird">Bird</option>
-                                <option value="dragon">Dragon</option>
-                                <option value="kaiju">Kaiju</option>
-                            </select>
-                        </div>
-
-
-                        <!-- Hand skeleton options for human skeleton -->
-                        <div id="hand-skeleton-options" class="alternate-background-section"  >
-
-                            <span style="display: flex; gap: 1rem;">
-                                <span>Hand Options</span>
-                                <span class="material-symbols-outlined" data-tippy-content="Variations on which finger bones you want to keep. Single Hand Bone removes all fingers and keeps only the hand bone.">help</span>
-                            </span>
-
-                            <select id="hand-skeleton-selection">
-                                <option value="all-fingers">All Fingers</option>
-                                <option value="thumb-and-index">Thumb + Main Finger</option>
-                                <option value="simplified-hand">All Fingers - Simplified</option>
-                                <option value="single-bone">Single Hand Bone</option>
-                            </select>
-                        </div>
-
-
-                        <!-- scale skeleton to get it close to the model size -->
-                         <div id="scale-skeleton-controls" style="display: none; flex-direction: column;">
-                            <div style="
-                                display: flex;
-                                flex-direction: row;
-                                align-items: center;
-                                justify-content: center;
-                                gap: 1rem;
-                            ">
-
-                                <label style="display:inline-flex">Scale skeleton</label>
-                                <span class="material-symbols-outlined" data-tippy-content="Adjust the overall scale of the skeleton">help</span>
-
-                                <button class="secondary-button" id="reset-skeleton-scale-button">
-                                    <img src="images/icons/reset.svg" alt="Reset Skeleton Scale" width="20" height="20" />
-                                </button>
-
-                            </div>
-                            <div style="display: flex; flex-direction: row; gap: 1rem; justify-content: flex-start; align-items: center;">
-                                <span id="scale-skeleton-percentage-display">100%</span>
-                                <input id="scale-skeleton-input" style="flex-grow: 1;" type="range" min=".10" max="2.00" value="1.0" step="0.01" />
-                            </div>
-                        </div>
-
-
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="no-style-button" id="action_back_to_load_model" >&#x2039; Back</button>
-                            <button id="load-skeleton-button">Edit Skeleton &nbsp;&#x203a;</button>
-                        </div>
-
-
-                </div>
-
-
-            <span id="skeleton-step-actions">
-
-                <!-- undo/redo system-->
-                <fieldset style="position: fixed; right: 272px; top: 52px;">
-                    <div style="display: flex; gap: 2px;">
-                        <button id="undo-button" class="secondary-button" title="Undo (Ctrl+Z)" disabled>
-                            <img src="images/icons/undo.png" alt="Undo" width="16" height="16" />
-                        </button>
-                        <button id="redo-button" class="secondary-button" title="Redo (Ctrl+Y)" disabled>
-                            <img src="images/icons/redo.png" alt="Redo" width="16" height="16" />
-                        </button>
-                    </div>
-                </fieldset>
-
-                <!-- <p class="step-instructions">Move bones into position.</p> -->
-
-                 <p id="bone-selection-section">
-                    <span>Selected Bone: <span id="edit-selected-bone-label">None</span></span>
-                </p>
-
-                <!-- controls to change transfrom mode between transform and rotation -->
-                 <div style="display: flex; flex-direction: row;">
-
-                   <!-- View mode between textured mesh and weight painted mesh preview -->
-                    <fieldset>
-                        <span>Preview</span>
-                        <div id="mesh-preview-group" class="toggle">
-                        <input id="preview-painted" type="radio" name="mesh-preview-type" value="weight-painted" checked="checked" />
-                            <label for="preview-painted">
-                                <img src="images/icons/display-weight-painted.svg" alt="Weights" width="20" height="20" title="Weight painted mesh" />
-                            </label>
-                            <input id="preview-textured" type="radio" name="mesh-preview-type" value="textured"  />
-                            <label for="preview-textured">
-                            <img src="images/icons/display-textured.svg" alt="Textured" width="20" height="20" title="Textured Mesh" />
-                            </label>
-    
-                        </div>
-                    </fieldset>
-
-                    <fieldset>
-                        <span>Transform</span>
-                        <div id="transform-control-type-group" class="toggle">
-                            <input type="radio" name="transform-control-type" value="translate" id="transform-translate" checked="checked" />
-                            <label for="transform-translate">
-                                <img src="images/icons/tool-move.svg" alt="Translate" width="20" height="20" title="Translation" />
-                            </label>
-                            <input type="radio" name="transform-control-type" value="rotation" id="transform-rotate" />
-                            <label for="transform-rotate">
-                                <img src="images/icons/tool-rotate.svg" alt="Rotate" width="20" height="20" title="Rotation" />
-                            </label>
-                        </div>
-                    </fieldset>
-
-                    <fieldset>
-                        <span>Space</span>
-                        <div id="transform-space-group" class="toggle">
-                            <input type="radio" name="transform-space" value="global" id="transform-global" checked="checked" />
-                            <label for="transform-global">
-                                <img src="images/icons/tool-global.svg" alt="Global" width="20" height="20" title="Global" />
-                            </label>
-                            <input type="radio" name="transform-space" value="local" id="transform-local" />
-                            <label for="transform-local">
-                                <img src="images/icons/tool-local.svg" alt="Local" width="20" height="20" title="Local" />
-                            </label>
-                        </div>
-                    </fieldset>
-                 </div>
-
-
- 
-
-                <div class="styled-checkbox">
-                    <input type="checkbox" id="mirror-skeleton" name="mirror-skeleton" value="mirror" checked>
-                    <label for="mirror-skeleton">Mirror Left/Right Joints</label>
-                </div>
-
-                <div class="styled-checkbox">
-                    <input type="checkbox" id="independent-bone-movement" name="independent-bone-movement" value="independent">
-                    <label for="independent-bone-movement">Move Bone Independently</label>
-                </div>
-
-                <hr />
-
-                    <!-- Preview plane controls -->
-                <div id="use-head-weight-correction-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
-                    <div class="styled-checkbox">
-                        <input type="checkbox" id="preview-plane-checkbox" />
-                        <label for="preview-plane-checkbox">Use Head Weight Correction</label>
-                        <span class="material-symbols-outlined" data-tippy-content="If you are having issues with the arms distorting your head (e.g. chibi characters), use a divider to help define the head area.">help</span>
-                    </div>
-                    
-                    <div id="preview-plane-setting-container" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <label for="preview-plane-height-input">Height:</label>
-                        <input type="range" id="preview-plane-height-input" min="0.20" max="2.00" step="0.01" value="0.50" />
-                        <span id="preview-plane-height-label" style="width: 2rem;">0.50</span>
-                    </div>
-
-                     <hr />
-
-                </div>
-
-                <!-- back to load skeleton -->
-                 <div class="display: flex; gap: 0.5rem;">
-                     <button class="no-style-button" id="action_back_to_load_skeleton" >&#x2039; Back</button>
-                     <button id="action_bind_pose" >Bind pose</button>
-                 </div>
-
+          <!-- Hand skeleton options for human skeleton -->
+          <div id="hand-skeleton-options" class="alternate-background-section">
+            <span style="display: flex; gap: 1rem">
+              <span>Hand Options</span>
+              <span
+                class="material-symbols-outlined"
+                data-tippy-content="Variations on which finger bones you want to keep. Single Hand Bone removes all fingers and keeps only the hand bone."
+                >help</span
+              >
             </span>
 
-            <!-- <span id="skinned-step-tools">
+            <select id="hand-skeleton-selection">
+              <option value="all-fingers">All Fingers</option>
+              <option value="thumb-and-index">Thumb + Main Finger</option>
+              <option value="simplified-hand">All Fingers - Simplified</option>
+              <option value="single-bone">Single Hand Bone</option>
+            </select>
+          </div>
+
+          <!-- scale skeleton to get it close to the model size -->
+          <div
+            id="scale-skeleton-controls"
+            style="display: none; flex-direction: column"
+          >
+            <div
+              style="
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+              "
+            >
+              <label style="display: inline-flex">Scale skeleton</label>
+              <span
+                class="material-symbols-outlined"
+                data-tippy-content="Adjust the overall scale of the skeleton"
+                >help</span
+              >
+
+              <button class="secondary-button" id="reset-skeleton-scale-button">
+                <img
+                  src="images/icons/reset.svg"
+                  alt="Reset Skeleton Scale"
+                  width="20"
+                  height="20"
+                />
+              </button>
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: row;
+                gap: 1rem;
+                justify-content: flex-start;
+                align-items: center;
+              "
+            >
+              <span id="scale-skeleton-percentage-display">100%</span>
+              <input
+                id="scale-skeleton-input"
+                style="flex-grow: 1"
+                type="range"
+                min=".10"
+                max="2.00"
+                value="1.0"
+                step="0.01"
+              />
+            </div>
+          </div>
+          <!-- displace skeleton to get it close to the model position in the Z axis (forward / backward depth) -->
+          <div
+            id="skeleton-offset-controls"
+            style="display: none; flex-direction: column"
+          >
+            <div
+              style="
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+              "
+            >
+              <label style="display: inline-flex">Offset skeleton</label>
+              <span
+                class="material-symbols-outlined"
+                data-tippy-content="Adjust the depth of the skeleton (Z axis)"
+                >help</span
+              >
+
+              <button class="secondary-button" id="reset-skeleton-offset-button">
+                <img
+                  src="images/icons/reset.svg"
+                  alt="Reset Skeleton Offset"
+                  width="20"
+                  height="20"
+                />
+              </button>
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: row;
+                gap: 1rem;
+                justify-content: flex-start;
+                align-items: center;
+              "
+            >
+              <span id="skeleton-offset-display">0.00</span>
+              <input
+                id="skeleton-offset-input"
+                style="flex-grow: 1"
+                type="range"
+                min="-1.00"
+                max="1.00"
+                value="0.0"
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem">
+            <button class="no-style-button" id="action_back_to_load_model">
+              &#x2039; Back
+            </button>
+            <button id="load-skeleton-button">
+              Edit Skeleton &nbsp;&#x203a;
+            </button>
+          </div>
+        </div>
+
+        <span id="skeleton-step-actions">
+          <!-- undo/redo system-->
+          <fieldset style="position: fixed; right: 272px; top: 52px">
+            <div style="display: flex; gap: 2px">
+              <button
+                id="undo-button"
+                class="secondary-button"
+                title="Undo (Ctrl+Z)"
+                disabled
+              >
+                <img
+                  src="images/icons/undo.png"
+                  alt="Undo"
+                  width="16"
+                  height="16"
+                />
+              </button>
+              <button
+                id="redo-button"
+                class="secondary-button"
+                title="Redo (Ctrl+Y)"
+                disabled
+              >
+                <img
+                  src="images/icons/redo.png"
+                  alt="Redo"
+                  width="16"
+                  height="16"
+                />
+              </button>
+            </div>
+          </fieldset>
+
+          <!-- <p class="step-instructions">Move bones into position.</p> -->
+
+          <p id="bone-selection-section">
+            <span
+              >Selected Bone:
+              <span id="edit-selected-bone-label">None</span></span
+            >
+          </p>
+
+          <!-- controls to change transfrom mode between transform and rotation -->
+          <div style="display: flex; flex-direction: row">
+            <!-- View mode between textured mesh and weight painted mesh preview -->
+            <fieldset>
+              <span>Preview</span>
+              <div id="mesh-preview-group" class="toggle">
+                <input
+                  id="preview-painted"
+                  type="radio"
+                  name="mesh-preview-type"
+                  value="weight-painted"
+                  checked="checked"
+                />
+                <label for="preview-painted">
+                  <img
+                    src="images/icons/display-weight-painted.svg"
+                    alt="Weights"
+                    width="20"
+                    height="20"
+                    title="Weight painted mesh"
+                  />
+                </label>
+                <input
+                  id="preview-textured"
+                  type="radio"
+                  name="mesh-preview-type"
+                  value="textured"
+                />
+                <label for="preview-textured">
+                  <img
+                    src="images/icons/display-textured.svg"
+                    alt="Textured"
+                    width="20"
+                    height="20"
+                    title="Textured Mesh"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <span>Transform</span>
+              <div id="transform-control-type-group" class="toggle">
+                <input
+                  type="radio"
+                  name="transform-control-type"
+                  value="translate"
+                  id="transform-translate"
+                  checked="checked"
+                />
+                <label for="transform-translate">
+                  <img
+                    src="images/icons/tool-move.svg"
+                    alt="Translate"
+                    width="20"
+                    height="20"
+                    title="Translation"
+                  />
+                </label>
+                <input
+                  type="radio"
+                  name="transform-control-type"
+                  value="rotation"
+                  id="transform-rotate"
+                />
+                <label for="transform-rotate">
+                  <img
+                    src="images/icons/tool-rotate.svg"
+                    alt="Rotate"
+                    width="20"
+                    height="20"
+                    title="Rotation"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <span>Space</span>
+              <div id="transform-space-group" class="toggle">
+                <input
+                  type="radio"
+                  name="transform-space"
+                  value="global"
+                  id="transform-global"
+                  checked="checked"
+                />
+                <label for="transform-global">
+                  <img
+                    src="images/icons/tool-global.svg"
+                    alt="Global"
+                    width="20"
+                    height="20"
+                    title="Global"
+                  />
+                </label>
+                <input
+                  type="radio"
+                  name="transform-space"
+                  value="local"
+                  id="transform-local"
+                />
+                <label for="transform-local">
+                  <img
+                    src="images/icons/tool-local.svg"
+                    alt="Local"
+                    width="20"
+                    height="20"
+                    title="Local"
+                  />
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="styled-checkbox">
+            <input
+              type="checkbox"
+              id="mirror-skeleton"
+              name="mirror-skeleton"
+              value="mirror"
+              checked
+            />
+            <label for="mirror-skeleton">Mirror Left/Right Joints</label>
+          </div>
+
+          <div class="styled-checkbox">
+            <input
+              type="checkbox"
+              id="independent-bone-movement"
+              name="independent-bone-movement"
+              value="independent"
+            />
+            <label for="independent-bone-movement"
+              >Move Bone Independently</label
+            >
+          </div>
+
+          <hr />
+
+          <!-- Preview plane controls -->
+          <div
+            id="use-head-weight-correction-container"
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 0.5rem;
+              margin-bottom: 1rem;
+            "
+          >
+            <div class="styled-checkbox">
+              <input type="checkbox" id="preview-plane-checkbox" />
+              <label for="preview-plane-checkbox"
+                >Use Head Weight Correction</label
+              >
+              <span
+                class="material-symbols-outlined"
+                data-tippy-content="If you are having issues with the arms distorting your head (e.g. chibi characters), use a divider to help define the head area."
+                >help</span
+              >
+            </div>
+
+            <div
+              id="preview-plane-setting-container"
+              style="display: flex; align-items: center; gap: 0.5rem"
+            >
+              <label for="preview-plane-height-input">Height:</label>
+              <input
+                type="range"
+                id="preview-plane-height-input"
+                min="0.20"
+                max="2.00"
+                step="0.01"
+                value="0.50"
+              />
+              <span id="preview-plane-height-label" style="width: 2rem"
+                >0.50</span
+              >
+            </div>
+
+            <hr />
+          </div>
+
+          <!-- back to load skeleton -->
+          <div class="display: flex; gap: 0.5rem;">
+            <button class="no-style-button" id="action_back_to_load_skeleton">
+              &#x2039; Back
+            </button>
+            <button id="action_bind_pose">Bind pose</button>
+          </div>
+        </span>
+
+        <!-- <span id="skinned-step-tools">
                 <p class="step-instructions">Select animations you want to export by checking them by animation</p>
             </span> -->
 
-            <span id="skinned-step-animation-export-options">
+        <span id="skinned-step-animation-export-options">
+          <div id="animations-listing">
+            <!-- Filter textbox for animations -->
+            <div id="animation-listing-count">0</div>
+            <input
+              type="text"
+              id="animation-filter"
+              placeholder="Filter animations..."
+            />
 
-                <div id="animations-listing">
-    
-                    <!-- Filter textbox for animations -->     
-                    <div id="animation-listing-count">0</div>
-                    <input type="text" id="animation-filter" placeholder="Filter animations...">
-       
-                    <!-- loading progress when animations start getting larger. -->
-                    <div id="animation-progress-loader-container" style="display: none">
-                        <div id="loading-status-text">Loading animation data</div>
-                        <div id="loading-progress-bar"></div>
-                        <div id="current-file-progress-bar"></div>
-                    </div>
-       
-        
-                    <!-- javascript will populate this item with animations
+            <!-- loading progress when animations start getting larger. -->
+            <div id="animation-progress-loader-container" style="display: none">
+              <div id="loading-status-text">Loading animation data</div>
+              <div id="loading-progress-bar"></div>
+              <div id="current-file-progress-bar"></div>
+            </div>
+
+            <!-- javascript will populate this item with animations
                          that we get from the animations file(s)  -->
-                    <div id="animations-items"> </div> 
+            <div id="animations-items"></div>
 
+            <!-- slider to control arm extension (hide this feature until the base functionality is more stable) -->
+            <div id="a-pose-correction-options">
+              <div
+                style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 1rem;
+                  justify-content: center;
+                "
+              >
+                <label style="display: inline-flex"
+                  >A-Pose Correction - Open Arms</label
+                >
+                <span
+                  class="material-symbols-outlined"
+                  data-tippy-content="If your model uses an A-Pose, this will help expand/contract arms for all animations"
+                  >help</span
+                >
 
-                    <!-- slider to control arm extension (hide this feature until the base functionality is more stable) -->
-                    <div id="a-pose-correction-options">
-                        <div style="
-                            display: flex;
-                            flex-direction: row;
-                            align-items: center;
-                            gap: 1rem;
-                            justify-content: center;
-                        ">
-                            <label style="display:inline-flex">A-Pose Correction - Open Arms</label>
-                            <span class="material-symbols-outlined" data-tippy-content="If your model uses an A-Pose, this will help expand/contract arms for all animations">help</span>
+                <button class="secondary-button" id="reset-a-pose-button">
+                  <img
+                    src="images/icons/reset.svg"
+                    alt="Reset A-Pose"
+                    width="20"
+                    height="20"
+                  />
+                </button>
+              </div>
 
-                            <button class="secondary-button" id="reset-a-pose-button">
-                                <img src="images/icons/reset.svg" alt="Reset A-Pose" width="20" height="20" />
-                            </button>
-                        </div>
+              <div
+                style="
+                  display: flex;
+                  flex-direction: row;
+                  gap: 1rem;
+                  justify-content: flex-start;
+                  align-items: center;
+                "
+              >
+                <input
+                  type="number"
+                  id="extend-arm-numeric-input"
+                  name="arm-extend-input"
+                  value="0"
+                  min="-70"
+                  max="100"
+                  step="1"
+                />
+                <span class="suffix-unit">%</span>
+                <input
+                  id="extend-arm-range-input"
+                  style="flex-grow: 1"
+                  type="range"
+                  min="-70"
+                  max="100"
+                  value="0"
+                />
+              </div>
 
-                        <div style="display: flex; flex-direction: row; gap: 1rem; justify-content: flex-start; align-items: center;">
-                            <input type="number" id="extend-arm-numeric-input" name="arm-extend-input" value="0" min="-70" max="100" step="1">
-                            <span class="suffix-unit">%</span>
-                            <input id="extend-arm-range-input" style="flex-grow: 1;" type="range" min="-70" max="100" value="0" />
-                        </div>
-                        
-                        <hr />
-                        
-                    </div>
-      
+              <hr />
+            </div>
 
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="no-style-button" id="action_back_to_edit_skeleton" >&#x2039; Back</button>
+            <div style="display: flex; gap: 0.5rem">
+              <button class="no-style-button" id="action_back_to_edit_skeleton">
+                &#x2039; Back
+              </button>
 
-                        <!-- testing the mirroring options -->
-                        <div class="styled-checkbox icon-toggle">
-                            <input type="checkbox" id="mirror-animations-checkbox" name="mirror-animations" value="true" style="display:none;">
-                            <label for="mirror-animations-checkbox" data-tippy-content="Mirror animations"  tabindex="0">
-                                <img class="action-icon" src="images/icons/mirror.svg" alt="Mirror animations" />
-                            </label>
-                        </div>
+              <!-- testing the mirroring options -->
+              <div class="styled-checkbox icon-toggle">
+                <input
+                  type="checkbox"
+                  id="mirror-animations-checkbox"
+                  name="mirror-animations"
+                  value="true"
+                  style="display: none"
+                />
+                <label
+                  for="mirror-animations-checkbox"
+                  data-tippy-content="Mirror animations"
+                  tabindex="0"
+                >
+                  <img
+                    class="action-icon"
+                    src="images/icons/mirror.svg"
+                    alt="Mirror animations"
+                  />
+                </label>
+              </div>
 
-                        <button class="secondary-button" id="import-animations-button" data-tippy-content="Import GLB animations. Only Mesh2Motion rigs are supported at this time." aria-label="Import GLB animations. Only Mesh2Motion rigs are supported at this time.">
-                            <span class="material-symbols-outlined">upload</span>
-                        </button>
-                        <input id="import-animations-input" type="file" accept=".glb" multiple style="display:none" />
+              <button
+                class="secondary-button"
+                id="import-animations-button"
+                data-tippy-content="Import GLB animations. Only Mesh2Motion rigs are supported at this time."
+                aria-label="Import GLB animations. Only Mesh2Motion rigs are supported at this time."
+              >
+                <span class="material-symbols-outlined">upload</span>
+              </button>
+              <input
+                id="import-animations-input"
+                type="file"
+                accept=".glb"
+                multiple
+                style="display: none"
+              />
 
-                        <button id="export-button" data-tippy-content="Exporting will combine all animations into a single GLB file.">
-                            <span class="button-icon-group">
-                                <span class="material-symbols-outlined">save_alt</span>
-                                <span>Download <span id="animation-selection-count">0</span></span>
-                            </span>
-                        </button>
-                        <a id="download-hidden-link" href="#" style="display:none"></a>
-
-                    </div>
-
-
-       
-                </div>
-        
-               
-            </span>
-
-
-        </div>
-
-    </div> <!-- end tool-panel-->
+              <button
+                id="export-button"
+                data-tippy-content="Exporting will combine all animations into a single GLB file."
+              >
+                <span class="button-icon-group">
+                  <span class="material-symbols-outlined">save_alt</span>
+                  <span
+                    >Download
+                    <span id="animation-selection-count">0</span></span
+                  >
+                </span>
+              </button>
+              <a id="download-hidden-link" href="#" style="display: none"></a>
+            </div>
+          </div>
+        </span>
+      </div>
+    </div>
+    <!-- end tool-panel-->
 
     <!-- Free-floating Animation Player -->
     <div id="animation-player">
-        <div id="current-animation-container">
-            <span id="current-animation-name">No animation selected</span>
-        </div>
-        <div id="play-controls">
-            <button id="play-pause-button" class="animation-control-button" disabled>
-                <span class="material-symbols-outlined">play_arrow</span>
-            </button>
-            <span>
-                <span id="current-time">0f</span> / 
-                <span id="total-time">0f</span>
-            </span>
-            <input type="range" id="animation-scrubber" min="0" max="100" value="0" disabled>
+      <div id="current-animation-container">
+        <span id="current-animation-name">No animation selected</span>
+      </div>
+      <div id="play-controls">
+        <button
+          id="play-pause-button"
+          class="animation-control-button"
+          disabled
+        >
+          <span class="material-symbols-outlined">play_arrow</span>
+        </button>
+        <span>
+          <span id="current-time">0f</span> /
+          <span id="total-time">0f</span>
+        </span>
+        <input
+          type="range"
+          id="animation-scrubber"
+          min="0"
+          max="100"
+          value="0"
+          disabled
+        />
 
-            <!-- checkbox option to show skeleton -->
-            <div id="skeleton-toggle" class="styled-checkbox icon-toggle" >
-                <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display:none;">
-                <label for="show-skeleton-checkbox" data-tippy-content="Show skeleton"  tabindex="0" style="border-radius: 0">
-                    <img src="../images/icons/bone-display.svg" class="action-icon" alt="Show skeleton" style="user-select: none;" />
-                </label>
-            </div>
+        <!-- checkbox option to show skeleton -->
+        <div id="skeleton-toggle" class="styled-checkbox icon-toggle">
+          <input
+            type="checkbox"
+            id="show-skeleton-checkbox"
+            name="show-skeleton"
+            value="show"
+            style="display: none"
+          />
+          <label
+            for="show-skeleton-checkbox"
+            data-tippy-content="Show skeleton"
+            tabindex="0"
+            style="border-radius: 0"
+          >
+            <img
+              src="../images/icons/bone-display.svg"
+              class="action-icon"
+              alt="Show skeleton"
+              style="user-select: none"
+            />
+          </label>
         </div>
-
+      </div>
     </div>
-
 
     <!-- 3d view controls shown on bottom right. This helps with click events -->
     <div id="view-control-hitbox"></div>
 
     <!-- build version information-->
     <span id="build-version"></span>
-
-</body>
+  </body>
 </html>

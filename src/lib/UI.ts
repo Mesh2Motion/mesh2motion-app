@@ -33,11 +33,17 @@ export class UI {
   dom_scale_skeleton_input_box: HTMLElement | null = null
   dom_move_to_origin_button: HTMLButtonElement | null = null
 
-  // scale skeleton contols
+  // scale skeleton controls
   dom_scale_skeleton_input: HTMLInputElement | null = null
   dom_scale_skeleton_percentage_display: HTMLElement | null = null
   dom_scale_skeleton_controls: HTMLElement | null = null
   dom_reset_skeleton_scale_button: HTMLButtonElement | null = null
+
+  // skeleton offset controls
+  dom_skeleton_offset_input: HTMLInputElement | null = null
+  dom_skeleton_offset_display: HTMLElement | null = null
+  dom_skeleton_offset_controls: HTMLElement | null = null
+  dom_reset_skeleton_offset_button: HTMLButtonElement | null = null
 
   // edit skeleton UI step controls
   dom_selected_bone_label: HTMLElement | null = null
@@ -136,6 +142,7 @@ export class UI {
     this.dom_independent_bone_movement_checkbox = document.querySelector('#independent-bone-movement')
     this.dom_scale_skeleton_button = document.querySelector('#scale-skeleton-button')
     this.dom_reset_skeleton_scale_button = document.querySelector('#reset-skeleton-scale-button')
+    this.dom_reset_skeleton_offset_button = document.querySelector('#reset-skeleton-offset-button')
 
     this.dom_undo_button = document.querySelector('#undo-button')
     this.dom_redo_button = document.querySelector('#redo-button')
@@ -162,6 +169,11 @@ export class UI {
     this.dom_scale_skeleton_input = document.querySelector('#scale-skeleton-input')
     this.dom_scale_skeleton_percentage_display = document.querySelector('#scale-skeleton-percentage-display')
     this.dom_scale_skeleton_controls = document.querySelector('#scale-skeleton-controls')
+
+    // offsetting the skeleton option
+    this.dom_skeleton_offset_input = document.querySelector('#skeleton-offset-input')
+    this.dom_skeleton_offset_display = document.querySelector('#skeleton-offset-display')
+    this.dom_skeleton_offset_controls = document.querySelector('#skeleton-offset-controls')
 
     // UI controls for working with skinned mesh
     this.dom_skinned_mesh_tools = document.querySelector('#skinned-step-tools')
