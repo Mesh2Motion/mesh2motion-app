@@ -24,7 +24,7 @@ h1 {
 }
 
 #source-bones-list, #target-bones-list {
-    max-height: calc(100vh - 450px);
+    height: calc(100vh - 490px); /* Hard-code the height to keep the UI consistent when filtering the lists */
     overflow-y: auto;
     background-color: var(--bg-alternate);
     border-radius: 0.25rem;
@@ -139,14 +139,6 @@ h1 {
 
 
 /* Bone tree view */
-
-.bone-tree-modal .modal-dialog-content {
-    width: min(900px, 92vw);
-}
-
-.bone-tree-modal .modal-dialog-body {
-    max-height: 70vh;
-}
 
 .bone-tree-dialog-summary {
     display: flex;

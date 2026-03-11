@@ -60,7 +60,7 @@
                             justify-content: center;
                         ">
 
-                        <span data-tippy-content="This feature is still being developed. The only stable workflow is to use a Mesh2Motion rig that you 'skin' in another application like Blender. Other rig types currently have issues exporting." >
+                        <span data-tippy-content="This feature is still being developed. The main stable workflow is to use a Mesh2Motion rig that you 'skin' in another application like Blender. Mixamo skeletons supported as long as there is only 1 skeleton in the file." >
                             <span class="button-icon-group">
                                 <span>Experimental</span>
                                 <span class="material-symbols-outlined" >help</span>
@@ -80,7 +80,7 @@
                             <span>Mesh2Motion Skeleton</span>
                         </h2>
                         <div class="bone-map-content">
-                            <div id="skeleton-selection-container" >
+                            <div id="skeleton-selection-container" style="margin-bottom: 1.0rem;">
                                 <select id="skeleton-type-select" class="button">
                                     <option value="human" selected>Human</option>
                                     <option value="quadraped">Quadruped (Fox)</option>
@@ -90,9 +90,10 @@
                                 </select>
                             </div>
                             
-                            <p>Source Bones <span id="source-bone-count">(0)</span></p>
-
-                            <input type="text" id="source-bones-filter" placeholder="Filter source bones..." >
+                            <div style="display: flex; gap: 1.0rem; margin-bottom: 1rem;">
+                                <input type="text" id="source-bones-filter" placeholder="Source bones filter" style="flex-grow: 1;">
+                                <span><span id="source-bone-count">0</span> bones</span>
+                            </div>
   
                             <div id="source-bones-list">
                                 <p style="color: var(--text-secondary);">No source skeleton loaded</p>
@@ -110,25 +111,26 @@
                         <p class="bone-map-heading">
                             <span>Your 3D Rig Model</span>
                             <span id="auto-bone-map-match">✨Mixamo</span>
+                            <span id="view-bone-tree-button" data-tippy-content="View bone hierarchy for for debugging purposes" style="display: none;">👓</span>
                         </p>
                         <div class="bone-map-content">
-                            <div style="display: flex; gap: 0.5rem;">
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                                 <!-- there are some issues going on with scaling the skeleton for FBX and other formats so we will start simple for now with just GLB files -->
                                 <input type="file" id="upload-file" accept=".glb, .fbx, .zip" style="display: none;" />
                                 <label for="upload-file" class="button" id="load-model-button">Upload Rig</label>
 
-                                <button id="auto-map-button" class="secondary-button" style="display: none;">Auto-Map Bones</button>
+                                <button id="auto-map-button" class="secondary-button" style="display: none;">Auto-Map</button>
                                 <button id="clear-mappings-button" class="secondary-button" style="display: none;">Clear Mappings</button>
                             </div>
                             
-                            <span id="target-bones-list-container">
-                                <p>
-                                    Target Bones <span id="target-bone-count">(0)</span>
-                                   <span id="view-bone-tree-button" style="display: none;">👓</span>
-                                </p>
+                            <span id="target-bones-list-container"  >
 
-                                <input type="text" id="target-bones-filter" placeholder="Filter target bones..." >
+                                <div style="display: flex; gap: 1.0rem;"  >
+                                    <input type="text" id="target-bones-filter" placeholder="Target bones filter" style="flex-grow: 1">
+                                    <span><span id="target-bone-count">0</span> bones</span> 
+                                </div>
 
+                                
                                 <div id="target-bones-list">
                                     <p style="color: var(--text-secondary);">No target skeleton loaded</p>
                                 </div>

@@ -211,7 +211,7 @@ input[type="text"] {
     border-radius: 4px;
     margin-bottom: 0.5rem;
     background-color: var(--bg-primary);
-    border: 1px solid var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
     color: var(--text-primary);
 }
 input[type="text"]::placeholder {

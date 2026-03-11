@@ -128,7 +128,7 @@ export class StepLoadTargetModel extends EventTarget {
               const scale_factor = target_height / largest_dimension
               console.log('scaling model down because of ', largest_dimension)
               new ModalDialog('Large Rig Warning',
-                `The model you imported is large (${largest_dimension.toFixed(1)} meters). Mesh2Motion expects 1 unit = 1 meter. Your model will be scaled down. This will affect the retargeted animation results. This warning will go away whenever the developer can figure out how to correctly handle issues with.`).show()
+                `The model you imported is large (${largest_dimension.toFixed(1)} meters). Mesh2Motion expects 1 unit = 1 meter. Your model will be scaled down. Mixamo rigs will work as long as they only have one skeleton in the model file.`).show()
               retargetable_meshes.scale.set(scale_factor, scale_factor, scale_factor) // common case with 3d creation tools that use 1 cm = 1 unit
             }
 

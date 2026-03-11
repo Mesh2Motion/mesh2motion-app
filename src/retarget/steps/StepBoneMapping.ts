@@ -178,7 +178,7 @@ export class StepBoneMapping extends EventTarget {
 
     // Update bone count display
     if (this.source_bone_count !== null) {
-      this.source_bone_count.textContent = `(${source_bone_names.length})`
+      this.source_bone_count.textContent = `${source_bone_names.length}`
     }
 
     if (source_bone_names.length === 0) {
@@ -222,7 +222,7 @@ export class StepBoneMapping extends EventTarget {
 
     // Update bone count display
     if (this.target_bone_count !== null) {
-      this.target_bone_count.textContent = `(${target_bone_names.length})`
+      this.target_bone_count.textContent = `${target_bone_names.length}`
     }
 
     if (target_bone_names.length === 0) {
