@@ -36,6 +36,14 @@ export class AnimationRetargetService {
     return this.bone_mappings
   }
 
+  public clear_bone_mappings (): void {
+    this.bone_mappings.clear()
+  }
+
+  public reset_target_mapping_type (): void {
+    this.set_target_mapping_type(TargetBoneMappingType.Custom)
+  }
+
   public set_source_armature (armature: Group): void {
     this.source_armature = armature
   }

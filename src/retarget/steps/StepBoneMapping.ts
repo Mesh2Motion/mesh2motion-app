@@ -288,6 +288,9 @@ export class StepBoneMapping extends EventTarget {
       const target_bone_name = target.dataset.targetBoneName
 
       if (source_bone_name !== '' && target_bone_name !== undefined) {
+        // Manual drag/drop means we are using custom mappings, not an auto-map preset.
+        AnimationRetargetService.getInstance().set_target_mapping_type(TargetBoneMappingType.Custom)
+
         // Update the mapping
         // this.bone_mapping.set(target_bone_name, source_bone_name)
         AnimationRetargetService.getInstance().get_bone_mappings().set(target_bone_name, source_bone_name)
@@ -347,7 +350,8 @@ export class StepBoneMapping extends EventTarget {
   // Clear a specific mapping
   public clear_bone_mapping (target_bone_name: string): void {
     // this.bone_mapping.delete(target_bone_name)
-    AnimationRetargetService.getInstance().get_bone_mappings().delete(target_bone_name)
+    const retarget_service = AnimationRetargetService.getInstance()
+    retarget_service.get_bone_mappings().delete(target_bone_name)
 
     this.update_target_bones_list()
     this.update_clear_button_visibility()
@@ -358,7 +362,9 @@ export class StepBoneMapping extends EventTarget {
   // Clear all mappings
   public clear_all_bone_mappings (): void {
     // this.bone_mapping.clear()
-    AnimationRetargetService.getInstance().set_bone_mappings(new Map<string, string>())
+    const retarget_service = AnimationRetargetService.getInstance()
+    retarget_service.clear_bone_mappings()
+    retarget_service.reset_target_mapping_type()
 
     this.update_target_bones_list()
     this.update_clear_button_visibility()
