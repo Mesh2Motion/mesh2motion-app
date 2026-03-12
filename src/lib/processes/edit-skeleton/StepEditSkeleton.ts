@@ -136,6 +136,14 @@ export class StepEditSkeleton extends EventTarget {
       this.show_debug = false
     }
 
+    let mirror_mode_enabled: boolean = this.mirror_mode_enabled
+
+    if (this.ui.dom_mirror_skeleton_checkbox !== null) {
+      mirror_mode_enabled = this.ui.dom_mirror_skeleton_checkbox.checked
+    }
+
+    this.set_mirror_mode_enabled(mirror_mode_enabled)
+
     this.update_bind_button_text()
 
     // Don't add event listeners again if we are navigating back to this step
@@ -202,10 +210,30 @@ export class StepEditSkeleton extends EventTarget {
 
   public set_mirror_mode_enabled (value: boolean): void {
     this.mirror_mode_enabled = value
+    this.dispatchEvent(new CustomEvent('mirrorModeChanged', {
+      detail: { enabled: value }
+    }))
   }
 
   public is_mirror_mode_enabled (): boolean {
     return this.mirror_mode_enabled
+  }
+
+  public is_bone_selectable (bone: Bone | null): boolean {
+    if (bone === null) {
+      return false
+    }
+
+    if (!this.mirror_mode_enabled) {
+      return true
+    }
+
+    return !this.is_right_side_bone(bone)
+  }
+
+  private is_right_side_bone (bone: Bone): boolean {
+    const normalized_bone_name = bone.name.toLowerCase()
+    return /(^right_|^r_|_right$|_r$|\.right$|\.r$|-right$|-r$)/.test(normalized_bone_name)
   }
 
   /**
@@ -269,19 +297,37 @@ export class StepEditSkeleton extends EventTarget {
 
     if (this.ui.dom_mirror_skeleton_checkbox !== null) {
       this.ui.dom_mirror_skeleton_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
         // mirror skeleton movements along the X axis
-        this.set_mirror_mode_enabled(event.target.checked)
+        this.set_mirror_mode_enabled(target.checked)
       })
     }
 
     if (this.ui.dom_independent_bone_movement_checkbox !== null) {
       this.ui.dom_independent_bone_movement_checkbox.addEventListener('change', (event) => {
-        this.independent_bone_movement.set_enabled(event.target.checked)
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.independent_bone_movement.set_enabled(target.checked)
       })
     }
 
     this.ui.dom_enable_skin_debugging?.addEventListener('change', (event) => {
-      this.show_debug = event.target.checked
+      const target = event.target as HTMLInputElement | null
+
+      if (target === null) {
+        return
+      }
+
+      this.show_debug = target.checked
       this.update_bind_button_text()
     })
 
@@ -470,6 +516,11 @@ export class StepEditSkeleton extends EventTarget {
     // only do selection if we are close
     // the orbit controls also have panning with alt-click, so we don't want to interfere with that
     if (closest_distance === null || closest_distance > hover_distance) {
+      this.update_bone_hover_point_position(null)
+      return
+    }
+
+    if (!this.is_bone_selectable(closest_bone)) {
       this.update_bone_hover_point_position(null)
       return
     }

@@ -24,7 +24,7 @@ export class UI {
   dom_skeleton_drop_type: HTMLSelectElement | null = null
   dom_hand_skeleton_options: HTMLElement | null = null
   dom_hand_skeleton_selection: HTMLSelectElement | null = null
-  dom_mirror_skeleton_checkbox: HTMLElement | null = null
+  dom_mirror_skeleton_checkbox: HTMLInputElement | null = null
   dom_independent_bone_movement_checkbox: HTMLInputElement | null = null
   dom_scale_skeleton_button: HTMLButtonElement | null = null
   dom_undo_button: HTMLButtonElement | null = null

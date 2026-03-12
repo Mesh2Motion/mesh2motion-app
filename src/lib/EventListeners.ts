@@ -26,12 +26,17 @@ export class EventListeners {
       // Update skeleton helper if it exists
       if (this.bootstrap.skeleton_helper !== undefined) {
         this.bootstrap.regenerate_skeleton_helper(this.bootstrap.edit_skeleton_step.skeleton(), 'Skeleton Helper')
+        this.bootstrap.sync_skeleton_helper_joint_visibility()
       }
 
       // Refresh weight painting if in weight painted mode
       if (this.bootstrap.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
         this.bootstrap.regenerate_weight_painted_preview_mesh()
       }
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('mirrorModeChanged', () => {
+      this.bootstrap.sync_skeleton_helper_joint_visibility()
     })
 
     // attribution link clicking brings up contributors dialog

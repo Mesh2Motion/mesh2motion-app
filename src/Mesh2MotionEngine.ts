@@ -246,6 +246,19 @@ export class Mesh2MotionEngine {
     this.scene.add(this.skeleton_helper)
   }
 
+  public sync_skeleton_helper_joint_visibility (): void {
+    if (!(this.skeleton_helper instanceof CustomSkeletonHelper)) {
+      return
+    }
+
+    const is_edit_skeleton_step = this.process_step === ProcessStep.EditSkeleton
+
+    this.skeleton_helper.setJointsVisible(is_edit_skeleton_step)
+    this.skeleton_helper.setHideRightSideJoints(
+      is_edit_skeleton_step && this.edit_skeleton_step.is_mirror_mode_enabled()
+    )
+  }
+
   public update_a_pose_options_visibility (): void {
     if (this.ui.dom_a_pose_correction_options != null) {
       if (this.load_skeleton_step.skeleton_type() === SkeletonType.Human) {
@@ -372,7 +385,7 @@ export class Mesh2MotionEngine {
       this.transform_controls.enabled = true
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
 
-      this.skeleton_helper?.setJointsVisible(true)
+      this.sync_skeleton_helper_joint_visibility()
 
       this.mesh_preview_display_type = ModelPreviewDisplay.WeightPainted
       this.changed_model_preview_display(this.mesh_preview_display_type) // show weight painted mesh by default
@@ -393,7 +406,7 @@ export class Mesh2MotionEngine {
 
       // update reference of skeleton helper to use the final skinned mesh
       this.regenerate_skeleton_helper(this.weight_skin_step.skeleton())
-      this.skeleton_helper?.setJointsVisible(false) // no need to show joints during
+      this.sync_skeleton_helper_joint_visibility()
 
       // hide skeleton by default in animations listing step
       if (this.ui.dom_show_skeleton_checkbox !== null) {
@@ -507,6 +520,10 @@ export class Mesh2MotionEngine {
 
     // don't allow to select root bone for now
     if (closest_bone?.name === 'root') {
+      return
+    }
+
+    if (!this.edit_skeleton_step.is_bone_selectable(closest_bone)) {
       return
     }
 

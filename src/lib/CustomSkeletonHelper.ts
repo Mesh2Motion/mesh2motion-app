@@ -3,7 +3,7 @@
 // and ideas from
 // https://discourse.threejs.org/t/extend-skeletonhelper-to-accommodate-fat-lines-perhaps-with-linesegments2/59436/2
 
-import { Color, Matrix4, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, TextureLoader, LineSegments, LineBasicMaterial } from 'three'
+import { Color, Matrix4, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, TextureLoader, LineSegments, LineBasicMaterial, type Bone } from 'three'
 
 const _vector = /*@__PURE__*/ new Vector3()
 const _boneMatrix = /*@__PURE__*/ new Matrix4()
@@ -12,6 +12,7 @@ const _matrixWorldInv = /*@__PURE__*/ new Matrix4()
 class CustomSkeletonHelper extends LineSegments {
   private readonly joint_points: Points
   private readonly jointTexture = new TextureLoader().load('/images/skeleton-joint-point.png')
+  private hide_right_side_joints: boolean = false
 
   constructor (object: any, options = {}) {
     const bones = getBoneList(object)
@@ -87,7 +88,12 @@ class CustomSkeletonHelper extends LineSegments {
       const bone = bones[i]
       _boneMatrix.multiplyMatrices(_matrixWorldInv, bone.matrixWorld)
       _vector.setFromMatrixPosition(_boneMatrix)
-      pointPositions.setXYZ(i, _vector.x, _vector.y, _vector.z) // Update point position
+
+      if (this.hide_right_side_joints && is_right_side_bone(bone)) {
+        pointPositions.setXYZ(i, Number.NaN, Number.NaN, Number.NaN)
+      } else {
+        pointPositions.setXYZ(i, _vector.x, _vector.y, _vector.z) // Update point position
+      }
 
       if (bone.parent && bone.parent.isBone) {
         _boneMatrix.multiplyMatrices(_matrixWorldInv, bone.parent.matrixWorld)
@@ -130,6 +136,10 @@ class CustomSkeletonHelper extends LineSegments {
   public setJointsVisible (visible: boolean): void {
     this.joint_points.visible = visible
   }
+
+  public setHideRightSideJoints (value: boolean): void {
+    this.hide_right_side_joints = value
+  }
 }
 
 function getBoneList (object: any): any[] {
@@ -144,6 +154,12 @@ function getBoneList (object: any): any[] {
   }
 
   return boneList
+}
+
+function is_right_side_bone (bone: Bone): boolean {
+  const normalized_bone_name = bone.name.toLowerCase()
+
+  return /(^right_|^r_|_right$|_r$|\.right$|\.r$|-right$|-r$)/.test(normalized_bone_name)
 }
 
 export { CustomSkeletonHelper }
