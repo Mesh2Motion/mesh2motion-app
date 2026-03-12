@@ -127,14 +127,20 @@ export class MeshDragBonePlacement {
     }
 
     const intersection_segment = this.get_edit_mesh_intersection_segment(mouse_event)
-    if (intersection_segment === null) {
+    let target_world_position: Vector3 | null = null
+
+    if (intersection_segment !== null) {
+      const [first_intersection, last_intersection] = intersection_segment
+      target_world_position = first_intersection.clone().add(last_intersection).multiplyScalar(0.5)
+    } else {
+      target_world_position = this.get_point_on_viewport_plane_from_mouse(selected_bone, mouse_event)
+    }
+
+    if (target_world_position === null) {
       return
     }
 
-    const [first_intersection, last_intersection] = intersection_segment
-    const midpoint_world = first_intersection.clone().add(last_intersection).multiplyScalar(0.5)
-
-    const midpoint_local = midpoint_world.clone()
+    const midpoint_local = target_world_position.clone()
     selected_bone.parent.worldToLocal(midpoint_local)
     selected_bone.position.copy(midpoint_local)
     selected_bone.updateWorldMatrix(true, true)
@@ -202,5 +208,21 @@ export class MeshDragBonePlacement {
 
     const last_intersection = reverse_intersections[0].point.clone()
     return [first_intersection, last_intersection]
+  }
+
+  private get_point_on_viewport_plane_from_mouse (selected_bone: THREE.Bone, mouse_event: MouseEvent): Vector3 | null {
+    const bone_world_position = Utility.world_position_from_object(selected_bone)
+
+    const mouse_raycaster = new THREE.Raycaster()
+    mouse_raycaster.setFromCamera(Utility.normalized_mouse_position(mouse_event), this.camera)
+
+    const viewport_normal = this.camera.getWorldDirection(new THREE.Vector3()).normalize()
+    const viewport_plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      viewport_normal,
+      bone_world_position
+    )
+
+    const intersection_point = mouse_raycaster.ray.intersectPlane(viewport_plane, new THREE.Vector3())
+    return intersection_point === null ? null : intersection_point.clone()
   }
 }
