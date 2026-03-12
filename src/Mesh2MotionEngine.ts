@@ -237,7 +237,7 @@ export class Mesh2MotionEngine {
     }
 
     if (this.use_custom_skeleton_helper) {
-      this.skeleton_helper = new CustomSkeletonHelper(new_skeleton.bones[0], { linewidth: 4, color: 0x4e7d58 })
+      this.skeleton_helper = new CustomSkeletonHelper(new_skeleton.bones[0], { linewidth: 4, color: 0x4e7d58 }) // line segment color
     } else {
       this.skeleton_helper = new THREE.SkeletonHelper(new_skeleton.bones[0])
     }

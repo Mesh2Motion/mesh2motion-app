@@ -20,6 +20,7 @@ class CustomSkeletonHelper extends LineSegments {
     const vertices = []
     const colors = []
     const color = new Color(options.color || 0x0000ff) // Default color blue
+    const joint_color = new Color(options.jointColor || 0x0000ff) // Default joint color blue
 
     for (let i = 0; i < bones.length; i++) {
       const bone = bones[i]
@@ -31,7 +32,7 @@ class CustomSkeletonHelper extends LineSegments {
         colors.push(color.r, color.g, color.b)
       }
     }
-    
+
     geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
     geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
 
@@ -56,12 +57,13 @@ class CustomSkeletonHelper extends LineSegments {
     // Add points for joints
     const pointsGeometry = new BufferGeometry()
     const pointsMaterial = new PointsMaterial({
-      size: 14, // Size of the joint circles on skeleton
-      color: options.jointColor || 0xffffff,
+      size: 25, // Size of the joint circles on skeleton
+      color: joint_color,
       depthTest: false,
       sizeAttenuation: false, // Disable size attenuation to keep size constant in screen space
       map: this.jointTexture,
-      transparent: true // Enable transparency for the circular texture
+      transparent: true, // Enable transparency for the circular texture
+      opacity: 0.3
     })
 
     const pointPositions = new Float32BufferAttribute(bones.length * 3, 3)

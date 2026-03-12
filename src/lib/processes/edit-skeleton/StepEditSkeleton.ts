@@ -501,10 +501,11 @@ export class StepEditSkeleton extends EventTarget {
 
       const material = new PointsMaterial({
         color: 0x69a1d0, // Blue color
-        size: 20, // Size of the point in pixels
+        size: 30, // Size of the point in pixels
         sizeAttenuation: false, // Disable size attenuation
         depthTest: false, // always render on top
         map: this.joint_texture, // Use a circular texture
+        opacity: 0.7,
         transparent: true // Enable transparency for the circular texture
       })
 
