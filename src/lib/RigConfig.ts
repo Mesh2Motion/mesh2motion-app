@@ -1,7 +1,7 @@
 import { SkeletonType } from './enums/SkeletonType'
 
 export interface RigConfigEntry {
-  // String key used as the HTML select option value, e.g. 'human', 'quadraped'
+  // String key used as the HTML select option value, e.g. 'human', 'fox'
   key: string
   // The SkeletonType enum member for this rig
   skeleton_type: SkeletonType
@@ -41,8 +41,8 @@ export class RigConfig {
       has_a_pose_correction: true
     },
     {
-      key: 'quadraped',
-      skeleton_type: SkeletonType.Quadraped,
+      key: 'fox',
+      skeleton_type: SkeletonType.Fox,
       model_file: 'models/model-fox.glb',
       rig_display_name: 'Fox',
       animation_files: ['fox-animations.glb'],
@@ -131,17 +131,22 @@ export class RigConfig {
     }
   }
 
-  /**
+  /** Video Preview HTML generation for Rig selection
    * Populate a <select> with one <option> per animation file across all rigs.
    * base_path is prepended to each filename, e.g. '../animations/'.
    * A placeholder option is always inserted first.
    */
   static populate_animation_file_select (select: HTMLSelectElement, base_path: string): void {
+    // configure the select
     select.innerHTML = ''
     const placeholder = document.createElement('option')
     placeholder.value = ''
+
+    // create first default option as placeholder/instructions
     placeholder.textContent = 'Pick a 3d animation to generate previews'
     select.appendChild(placeholder)
+
+    // create all available animation options from GLB files in rig config
     for (const rig of this.all) {
       for (const file of rig.animation_files) {
         const option = document.createElement('option')
