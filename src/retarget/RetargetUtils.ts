@@ -1,7 +1,5 @@
 import { type Scene, Group, Skeleton, type SkinnedMesh, type Bone, type Object3D } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
-import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { RigConfig } from '../lib/RigConfig.ts'
 
 export interface TrackNameParts {
   bone_name: string
@@ -113,15 +111,6 @@ export class RetargetUtils {
     })
 
     return all_bones_match
-  }
-
-  /**
-   * Get the animation file path based on skeleton type
-   */
-  static get_animation_file_path (skeleton_type: SkeletonType): string | null {
-    const config = RigConfig.by_skeleton_type(skeleton_type)
-    if (config === undefined || config.animation_files.length === 0) return null
-    return `/animations/${config.animation_files[0]}`
   }
 
   /**

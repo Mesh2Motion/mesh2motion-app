@@ -109,6 +109,20 @@ export class RigConfig {
   }
 
   /**
+   * Get all configured animation file paths for a skeleton type.
+   * @param skeleton_type The skeleton type to retrieve animation files for
+   * @param base_path Optional base path to prepend (default: '/animations/')
+   * @returns Array of animation file paths, empty array if no files configured
+   */
+  static get_animation_file_paths (skeleton_type: SkeletonType, base_path: string = '/animations/'): string[] {
+    const config = this.by_skeleton_type(skeleton_type)
+    if (config === undefined || config.animation_files.length === 0) return []
+
+    const normalized_base_path = base_path.endsWith('/') ? base_path : `${base_path}/`
+    return config.animation_files.map(animation_file => `${normalized_base_path}${animation_file}`)
+  }
+
+  /**
    * Populate a <select> with one <option> per rig using model display names.
    * Existing options are replaced.
    */

@@ -4,6 +4,7 @@ import { AnimationUtility } from '../lib/processes/animations-listing/AnimationU
 import type { StepBoneMapping } from './steps/StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
+import { RigConfig } from '../lib/RigConfig.ts'
 
 /**
  * RetargetAnimationPreview - Provides live preview of bone retargeting by automatically
@@ -92,12 +93,14 @@ export class RetargetAnimationPreview extends EventTarget {
   private async load_first_animation (): Promise<void> {
     // get location of animation file to load that has preview animations
     const source_skeleton_type = AnimationRetargetService.getInstance().get_skeleton_type()
-    const animation_file_path = RetargetUtils.get_animation_file_path(source_skeleton_type)
+    const animation_file_paths = RigConfig.get_animation_file_paths(source_skeleton_type)
 
-    if (animation_file_path === null) {
+    if (animation_file_paths.length === 0) {
       console.log('No animation file found for skeleton type:', source_skeleton_type)
       return
     }
+
+    const animation_file_path = animation_file_paths[0]
 
     // if we are coming back to this step and already loaded a default animation, skip reloading
     // and just do the playing

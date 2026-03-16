@@ -1,7 +1,7 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { type AnimationClip } from 'three'
 import { AnimationUtility } from './AnimationUtility.ts'
-import { SkeletonType } from '../../enums/SkeletonType.ts'
+import { type SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
 import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { LoadError, NoAnimationsError } from './AnimationImportErrors.ts'
@@ -49,7 +49,7 @@ export class AnimationLoader extends EventTarget {
     skeleton_type: SkeletonType,
     skeleton_scale: number = 1.0
   ): Promise<TransformedAnimationClipPair[]> {
-    const file_paths = this.get_animation_file_paths(skeleton_type)
+    const file_paths = RigConfig.get_animation_file_paths(skeleton_type, this.animations_file_path)
 
     if (file_paths.length === 0) {
       throw new Error(`No animation files found for skeleton type: ${skeleton_type}`)
@@ -216,19 +216,6 @@ export class AnimationLoader extends EventTarget {
         }
       )
     })
-  }
-
-  /**
-   * Gets the file paths for animations based on skeleton type
-   */
-  private get_animation_file_paths (skeleton_type: SkeletonType): string[] {
-    const base_path = this.animations_file_path
-    const config = RigConfig.by_skeleton_type(skeleton_type)
-    if (config === undefined) {
-      console.error('Unknown skeleton type for loading animations:', skeleton_type)
-      return []
-    }
-    return config.animation_files.map(f => `${base_path}${f}`)
   }
 
   /**
