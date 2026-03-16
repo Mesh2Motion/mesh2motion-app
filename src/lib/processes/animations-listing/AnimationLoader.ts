@@ -2,6 +2,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { type AnimationClip } from 'three'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
+import { RigConfig } from '../../RigConfig.ts'
 import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { LoadError, NoAnimationsError } from './AnimationImportErrors.ts'
 
@@ -222,25 +223,12 @@ export class AnimationLoader extends EventTarget {
    */
   private get_animation_file_paths (skeleton_type: SkeletonType): string[] {
     const base_path = this.animations_file_path
-
-    switch (skeleton_type) {
-      case SkeletonType.Human:
-        return [
-          `${base_path}human-base-animations.glb`,
-          `${base_path}human-addon-animations.glb`
-        ]
-      case SkeletonType.Quadraped:
-        return [`${base_path}quad-creature-animations.glb`]
-      case SkeletonType.Bird:
-        return [`${base_path}bird-animations.glb`]
-      case SkeletonType.Dragon:
-        return [`${base_path}dragon-animations.glb`]
-      case SkeletonType.Kaiju:
-        return [`${base_path}kaiju-animations.glb`]
-      default:
-        console.error('Unknown skeleton type for loading animations:', skeleton_type)
-        return []
+    const config = RigConfig.by_skeleton_type(skeleton_type)
+    if (config === undefined) {
+      console.error('Unknown skeleton type for loading animations:', skeleton_type)
+      return []
     }
+    return config.animation_files.map(f => `${base_path}${f}`)
   }
 
   /**

@@ -1,5 +1,6 @@
 import { type ThemeManager } from '../../ThemeManager'
 import { SkeletonType } from '../../enums/SkeletonType'
+import { RigConfig } from '../../RigConfig'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 
@@ -154,27 +155,9 @@ export class AnimationSearch extends EventTarget {
 
       // build out where the video previews will be stored
       // each skeleton type has its own folder
-      let preview_folder: string = ''
-      switch (this.skeleton_type) {
-        case SkeletonType.Human:
-          preview_folder = 'human'
-          break
-        case SkeletonType.Quadraped:
-          preview_folder = 'four-legged'
-          break
-        case SkeletonType.Bird:
-          preview_folder = 'bird'
-          break
-        case SkeletonType.Dragon:
-          preview_folder = 'dragon'
-          break
-        case SkeletonType.Kaiju:
-          preview_folder = 'kaiju'
-          break
-        default:
-          preview_folder = 'error'
-          console.error('Unknown skeleton type for animation previews. Update AnimationSearch.ts switch statement.')
-          break
+      const preview_folder: string = RigConfig.by_skeleton_type(this.skeleton_type)?.animation_preview_folder ?? 'error'
+      if (preview_folder === 'error') {
+        console.error('Unknown skeleton type for animation previews. Add the rig to RigConfig.ts.')
       }
 
       const anim_name: string = animation_clip.name

@@ -2,6 +2,7 @@ import { UI } from '../../UI.ts'
 import { ModelZipLoader } from './ModelZipLoader.ts'
 import { CustomFBXLoader, type FBXResults } from './CustomFBXLoader.ts'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { RigConfig } from '../../RigConfig.ts'
 
 import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
@@ -158,6 +159,12 @@ export class StepLoadModel extends EventTarget {
   }
 
   public add_event_listeners (): void {
+    // Populate the model reference dropdown from the central rig config
+    const model_select = document.querySelector<HTMLSelectElement>('#model-selection')
+    if (model_select !== null) {
+      RigConfig.populate_model_select(model_select)
+    }
+
     if (this.ui.dom_upload_model_button !== null) {
       // handle file upload
       this.ui.dom_upload_model_button.addEventListener('change', (event: Event) => {

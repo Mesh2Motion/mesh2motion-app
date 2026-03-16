@@ -1,6 +1,7 @@
 import { Group, Object3D, Scene, SkeletonHelper } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
+import { RigConfig } from '../../lib/RigConfig.ts'
 import type GLTFResult from '../../lib/processes/load-skeleton/interfaces/GLTFResult.ts'
 import { ModalDialog } from '../../lib/ModalDialog.ts'
 
@@ -24,6 +25,11 @@ export class StepLoadSourceSkeleton extends EventTarget {
   public begin (): void {
     // Get DOM references
     this.skeleton_type_select = document.getElementById('skeleton-type-select') as HTMLSelectElement
+
+    // Populate the skeleton dropdown from the central rig config (no placeholder needed)
+    if (this.skeleton_type_select !== null) {
+      RigConfig.populate_skeleton_select(this.skeleton_type_select, false)
+    }
 
     if (!this._added_event_listeners) {
       this.add_event_listeners()
@@ -74,20 +80,7 @@ export class StepLoadSourceSkeleton extends EventTarget {
   }
 
   private get_skeleton_type_enum (selection: string): SkeletonType {
-    switch (selection) {
-      case 'human':
-        return SkeletonType.Human
-      case 'quadraped':
-        return SkeletonType.Quadraped
-      case 'bird':
-        return SkeletonType.Bird
-      case 'dragon':
-        return SkeletonType.Dragon
-      case 'kaiju':
-        return SkeletonType.Kaiju
-      default:
-        return SkeletonType.None
-    }
+    return RigConfig.by_key(selection)?.skeleton_type ?? SkeletonType.None
   }
 
   private async load_skeleton_from_path (file_path: string): Promise<void> {
