@@ -444,6 +444,10 @@ export class Mesh2MotionEngine {
     }
     else if (this.process_step === ProcessStep.AnimationsListing) {
       this.process_step = ProcessStep.AnimationsListing
+      this.animations_listing_step.set_rest_pose_rotation_corrections(
+        this.load_skeleton_step.armature(),
+        this.weight_skin_step.skeleton()
+      )
       this.animations_listing_step.begin(this.load_skeleton_step.skeleton_type(), this.load_skeleton_step.skeleton_scale())
 
       // update reference of skeleton helper to use the final skinned mesh

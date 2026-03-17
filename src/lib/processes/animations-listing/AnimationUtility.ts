@@ -1,6 +1,7 @@
 import { AnimationClip, Quaternion, Vector3, type KeyframeTrack, type QuaternionKeyframeTrack } from 'three'
 import type { TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class AnimationUtility {
   // when we scaled the skeleton itself near the beginning, we kept track of that
   // this scaling will affect position keyframes since they expect the original skeleton scale
@@ -143,7 +144,7 @@ export class AnimationUtility {
           }
         }
       }
- 
+
       // Perform the swaps with quaternion mirroring
       track_swaps.forEach(({ leftIndex, rightIndex, clipDetails }) => {
         const left_track = tracks[leftIndex]

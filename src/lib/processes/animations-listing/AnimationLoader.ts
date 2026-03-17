@@ -243,7 +243,8 @@ export class AnimationLoader extends EventTarget {
       metadata: {
         ...this.create_default_metadata(),
         ...metadata_override
-      }
+      },
+      rotation_correction_data: []
     }))
   }
 

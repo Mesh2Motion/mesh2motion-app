@@ -2,10 +2,11 @@ import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
 
 import {
-  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D
+  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Skeleton
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
+import { BoneRotationCorrection } from './BoneRotationCorrection.ts'
 import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
 
@@ -13,7 +14,7 @@ import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
 import { AnimationSearch } from './AnimationSearch.ts'
-import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
+import { type AnimationClipMetadata, type BoneRotationCorrectionData, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -55,6 +56,7 @@ export class StepAnimationsListing extends EventTarget {
   private warp_arm_amount: number = 0.0
 
   private has_added_event_listeners: boolean = false
+  private rest_pose_rotation_corrections: BoneRotationCorrectionData[] = []
 
   constructor (theme_manager: ThemeManager) {
     super()
@@ -188,6 +190,23 @@ export class StepAnimationsListing extends EventTarget {
       })
   }
 
+  public set_rest_pose_rotation_corrections (
+    reference_rest_armature: Object3D,
+    target_binding_skeleton: Skeleton | undefined
+  ): void {
+    if (target_binding_skeleton === undefined) {
+      this.rest_pose_rotation_corrections = []
+      return
+    }
+
+    const rotation_corrections = BoneRotationCorrection.calculate(
+      reference_rest_armature,
+      target_binding_skeleton
+    )
+
+    this.rest_pose_rotation_corrections = BoneRotationCorrection.clone_data(rotation_corrections)
+  }
+
   private onAllAnimationsLoaded (): void {
     this.is_loading_default_animations = false
     this.custom_animation_importer.set_enabled(true)
@@ -269,6 +288,11 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_clips_loaded.forEach((warped_clip: TransformedAnimationClipPair) => {
       warped_clip.display_animation_clip = AnimationUtility.deep_clone_animation_clip(warped_clip.original_animation_clip)
     })
+
+    BoneRotationCorrection.apply(
+      this.animation_clips_loaded,
+      this.rest_pose_rotation_corrections
+    )
 
     if (this.mirror_animations_enabled) {
       AnimationUtility.apply_animation_mirroring(this.animation_clips_loaded)
