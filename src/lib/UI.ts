@@ -16,14 +16,8 @@ export class UI {
   dom_rotate_model_x_button: HTMLButtonElement | null = null
   dom_rotate_model_y_button: HTMLButtonElement | null = null
   dom_rotate_model_z_button: HTMLButtonElement | null = null
-  dom_model_position_mode_select: HTMLSelectElement | null = null
-  dom_apply_model_position_button: HTMLButtonElement | null = null
-  dom_confirm_gizmo_position_button: HTMLButtonElement | null = null
   dom_reset_model_position_button: HTMLButtonElement | null = null
-  dom_model_gizmo_inputs: HTMLElement | null = null
-  dom_model_gizmo_x: HTMLInputElement | null = null
-  dom_model_gizmo_y: HTMLInputElement | null = null
-  dom_model_gizmo_z: HTMLInputElement | null = null
+  dom_auto_align_model_button: HTMLButtonElement | null = null
 
   dom_load_skeleton_tools: HTMLElement | null = null
   dom_load_skeleton_button: HTMLButtonElement | null = null
@@ -45,13 +39,6 @@ export class UI {
   dom_scale_skeleton_percentage_display: HTMLElement | null = null
   dom_scale_skeleton_controls: HTMLElement | null = null
   dom_reset_skeleton_scale_button: HTMLButtonElement | null = null
-
-  // skeleton gizmo controls (edit skeleton sidebar)
-  dom_skeleton_gizmo_button: HTMLInputElement | null = null
-  dom_skeleton_gizmo_inputs: HTMLElement | null = null
-  dom_skeleton_gizmo_x: HTMLInputElement | null = null
-  dom_skeleton_gizmo_y: HTMLInputElement | null = null
-  dom_skeleton_gizmo_z: HTMLInputElement | null = null
 
   // edit skeleton UI step controls
   dom_selected_bone_label: HTMLElement | null = null
@@ -137,14 +124,8 @@ export class UI {
     this.dom_rotate_model_x_button = document.querySelector('#rotate-model-x-button')
     this.dom_rotate_model_y_button = document.querySelector('#rotate-model-y-button')
     this.dom_rotate_model_z_button = document.querySelector('#rotate-model-z-button')
-    this.dom_model_position_mode_select = document.querySelector('#model-position-mode-select')
-    this.dom_apply_model_position_button = document.querySelector('#apply-model-position-button')
-    this.dom_confirm_gizmo_position_button = document.querySelector('#confirm-gizmo-position-button')
     this.dom_reset_model_position_button = document.querySelector('#reset-model-position-button')
-    this.dom_model_gizmo_inputs = document.querySelector('#model-gizmo-inputs')
-    this.dom_model_gizmo_x = document.querySelector('#model-gizmo-x')
-    this.dom_model_gizmo_y = document.querySelector('#model-gizmo-y')
-    this.dom_model_gizmo_z = document.querySelector('#model-gizmo-z')
+    this.dom_auto_align_model_button = document.querySelector('#auto-align-model-button')
 
     // UI controls for loading/working with skeleton
     this.dom_load_skeleton_tools = document.querySelector('#load-skeleton-tools')
@@ -157,11 +138,6 @@ export class UI {
     this.dom_independent_bone_movement_checkbox = document.querySelector('#independent-bone-movement')
     this.dom_scale_skeleton_button = document.querySelector('#scale-skeleton-button')
     this.dom_reset_skeleton_scale_button = document.querySelector('#reset-skeleton-scale-button')
-    this.dom_skeleton_gizmo_button = document.querySelector('#skeleton-gizmo-button')
-    this.dom_skeleton_gizmo_inputs = document.querySelector('#skeleton-gizmo-inputs')
-    this.dom_skeleton_gizmo_x = document.querySelector('#skeleton-gizmo-x')
-    this.dom_skeleton_gizmo_y = document.querySelector('#skeleton-gizmo-y')
-    this.dom_skeleton_gizmo_z = document.querySelector('#skeleton-gizmo-z')
 
     this.dom_undo_button = document.querySelector('#undo-button')
     this.dom_redo_button = document.querySelector('#redo-button')

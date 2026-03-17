@@ -43,7 +43,6 @@ export class Mesh2MotionEngine {
   public is_transform_controls_dragging: boolean = false
   public readonly transform_controls_hover_distance: number = 0.02 // distance to hover over bones to select them
   public is_model_gizmo_active: boolean = false
-  public is_skeleton_gizmo_active: boolean = false
 
   public view_helper: CustomViewHelper | undefined // mini 3d view to help orient orthographic views
 
@@ -250,23 +249,7 @@ export class Mesh2MotionEngine {
   }
 
   public handle_transform_controls_moving (): void {
-    if (this.is_model_gizmo_active) {
-      const pos = this.load_model_step.model_meshes().position
-      if (this.ui.dom_model_gizmo_x !== null) this.ui.dom_model_gizmo_x.value = pos.x.toFixed(3)
-      if (this.ui.dom_model_gizmo_y !== null) this.ui.dom_model_gizmo_y.value = pos.y.toFixed(3)
-      if (this.ui.dom_model_gizmo_z !== null) this.ui.dom_model_gizmo_z.value = pos.z.toFixed(3)
-      return
-    }
-    if (this.is_skeleton_gizmo_active) {
-      const attached = this.transform_controls.object
-      if (attached !== undefined && attached !== null) {
-        const pos = attached.position
-        if (this.ui.dom_skeleton_gizmo_x !== null) this.ui.dom_skeleton_gizmo_x.value = pos.x.toFixed(3)
-        if (this.ui.dom_skeleton_gizmo_y !== null) this.ui.dom_skeleton_gizmo_y.value = pos.y.toFixed(3)
-        if (this.ui.dom_skeleton_gizmo_z !== null) this.ui.dom_skeleton_gizmo_z.value = pos.z.toFixed(3)
-      }
-      return
-    }
+    if (this.is_model_gizmo_active) { return }
 
     const selected_bone: Bone = this.transform_controls.object as Bone
 
@@ -287,64 +270,21 @@ export class Mesh2MotionEngine {
 
   public enable_model_gizmo (): void {
     this.is_model_gizmo_active = true
-    const pos = this.load_model_step.model_meshes().position
-    if (this.ui.dom_model_gizmo_x !== null) this.ui.dom_model_gizmo_x.value = pos.x.toFixed(3)
-    if (this.ui.dom_model_gizmo_y !== null) this.ui.dom_model_gizmo_y.value = pos.y.toFixed(3)
-    if (this.ui.dom_model_gizmo_z !== null) this.ui.dom_model_gizmo_z.value = pos.z.toFixed(3)
-    if (this.ui.dom_model_gizmo_inputs !== null) this.ui.dom_model_gizmo_inputs.style.display = 'flex'
     this.transform_controls.attach(this.load_model_step.model_meshes())
     this.transform_controls.setMode('translate')
     this.transform_controls.enabled = true
   }
 
-  public disable_model_gizmo (): void {
-    this.is_model_gizmo_active = false
-    this.load_model_step.model_meshes().position.set(0, 0, 0)
-    if (this.ui.dom_model_gizmo_inputs !== null) this.ui.dom_model_gizmo_inputs.style.display = 'none'
-    this.transform_controls.detach()
-    this.transform_controls.enabled = false
-  }
-
-  public confirm_model_gizmo_position (): void {
+  private bake_and_disable_model_gizmo (): void {
     const mesh_data = this.load_model_step.model_meshes()
     const pos = mesh_data.position
     if (pos.x !== 0 || pos.y !== 0 || pos.z !== 0) {
       ModelCleanupUtility.translate_model_vertices(mesh_data, pos.x, pos.y, pos.z)
       mesh_data.position.set(0, 0, 0)
     }
-    this.disable_model_gizmo()
-  }
-
-  // --- Skeleton position gizmo (edit skeleton sidebar, step 3) ---
-
-  public enable_skeleton_gizmo (): void {
-    const armature = this.edit_skeleton_step.armature()
-    // Add to scene so TransformControls can compute world matrices
-    this.scene.add(armature)
-    this.is_skeleton_gizmo_active = true
-    const pos = armature.position
-    if (this.ui.dom_skeleton_gizmo_x !== null) this.ui.dom_skeleton_gizmo_x.value = pos.x.toFixed(3)
-    if (this.ui.dom_skeleton_gizmo_y !== null) this.ui.dom_skeleton_gizmo_y.value = pos.y.toFixed(3)
-    if (this.ui.dom_skeleton_gizmo_z !== null) this.ui.dom_skeleton_gizmo_z.value = pos.z.toFixed(3)
-    if (this.ui.dom_skeleton_gizmo_inputs !== null) this.ui.dom_skeleton_gizmo_inputs.style.display = 'flex'
-    this.transform_controls.attach(armature)
-    this.transform_controls.setMode('translate')
-  }
-
-  public disable_skeleton_gizmo (): void {
-    const armature = this.edit_skeleton_step.armature()
-    const pos = armature.position
-    this.load_skeleton_step.store_skeleton_gizmo_position(pos.x, pos.y, pos.z)
-    this.scene.remove(armature)
-    this.is_skeleton_gizmo_active = false
-    if (this.ui.dom_skeleton_gizmo_button !== null) this.ui.dom_skeleton_gizmo_button.checked = false
-    if (this.ui.dom_skeleton_gizmo_inputs !== null) this.ui.dom_skeleton_gizmo_inputs.style.display = 'none'
+    this.is_model_gizmo_active = false
     this.transform_controls.detach()
-    // re-attach to previously selected bone if any
-    const selected_bone = this.edit_skeleton_step.get_currently_selected_bone()
-    if (selected_bone !== null) {
-      this.transform_controls.attach(selected_bone)
-    }
+    this.transform_controls.enabled = false
   }
 
   private show_skin_failure_message (bone_names_with_errors: string[], error_point_positions: Vector3[]): void {
@@ -406,6 +346,15 @@ export class Mesh2MotionEngine {
       this.show_animation_player(false)
     }
 
+    // bake model gizmo position into vertices before transitioning away from step 2
+    if (this.is_model_gizmo_active) {
+      this.bake_and_disable_model_gizmo()
+    }
+
+    // when we change steps, we are re-creating the skeleton and helper
+    // so the current transform control reference will be lost/give an error
+    this.transform_controls.detach()
+
     /**********
      * MAIN PROCESS FLOW LOGIC
      * I am doing else if here since the bindpose step changes the step at the end
@@ -430,9 +379,8 @@ export class Mesh2MotionEngine {
       // initializing all the load skeleton step stuff
       this.scene.add(this.load_model_step.model_meshes())
 
-      // we generate a preview skeleton on this step, and we don't want
-      // the user to start trying to edit the skeleton at this point
-      this.transform_controls.enabled = false
+      // enable model position gizmo so user can freely position the model
+      this.enable_model_gizmo()
 
       // finish initialization and add origin markers
       // this needs to happen at the end since it is expecting the mesh data
@@ -484,18 +432,6 @@ export class Mesh2MotionEngine {
         this.skeleton_helper.hide() // hide skeleton helper in animations listing step
       }
     }
-
-    // clean up any active step-2 gizmos before transitioning
-    if (this.is_model_gizmo_active) {
-      this.disable_model_gizmo()
-    }
-    if (this.is_skeleton_gizmo_active) {
-      this.disable_skeleton_gizmo()
-    }
-
-    // when we change steps, we are re-creating the skeleeton and helper
-    // so the current transform control reference will be lost/give an error
-    this.transform_controls.detach()
 
     return this.process_step
   } // end process_step_changed()
@@ -565,9 +501,6 @@ export class Mesh2MotionEngine {
     const is_primary_button_click = mouse_event.button === 0
 
     if (is_primary_button_click === false) { return }
-
-    // while skeleton gizmo is active, clicks move the armature not bones
-    if (this.is_skeleton_gizmo_active) { return }
 
     if (this.edit_skeleton_step.skeleton()?.bones === undefined) { return }
 

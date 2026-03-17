@@ -122,91 +122,16 @@ export class EventListeners {
       this.bootstrap.load_model_step.rotate_model_geometry('z', 90)
     })
 
-    // Model position mode dropdown
-    this.bootstrap.ui.dom_model_position_mode_select?.addEventListener('change', () => {
-      const mode = this.bootstrap.ui.dom_model_position_mode_select?.value
-      const applyBtn = this.bootstrap.ui.dom_apply_model_position_button
-      const confirmBtn = this.bootstrap.ui.dom_confirm_gizmo_position_button
-
-      if (mode === 'gizmo-move') {
-        if (applyBtn !== null) applyBtn.style.display = 'none'
-        if (confirmBtn !== null) confirmBtn.style.display = 'block'
-        this.bootstrap.enable_model_gizmo()
-      } else {
-        if (applyBtn !== null) applyBtn.style.display = 'block'
-        if (confirmBtn !== null) confirmBtn.style.display = 'none'
-        if (this.bootstrap.is_model_gizmo_active) {
-          this.bootstrap.disable_model_gizmo()
-        }
-      }
-    })
-
-    // Model position apply button (auto-align to floor)
-    this.bootstrap.ui.dom_apply_model_position_button?.addEventListener('click', () => {
-      const mesh_data = this.bootstrap.load_model_step.model_meshes()
-      ModelCleanupUtility.move_model_to_floor(mesh_data)
-    })
-
     // Reset model position to import state
     this.bootstrap.ui.dom_reset_model_position_button?.addEventListener('click', () => {
-      if (this.bootstrap.is_model_gizmo_active) {
-        this.bootstrap.disable_model_gizmo()
-        const select = this.bootstrap.ui.dom_model_position_mode_select
-        if (select !== null) select.value = 'auto-align'
-        const applyBtn = this.bootstrap.ui.dom_apply_model_position_button
-        const confirmBtn = this.bootstrap.ui.dom_confirm_gizmo_position_button
-        if (applyBtn !== null) applyBtn.style.display = 'block'
-        if (confirmBtn !== null) confirmBtn.style.display = 'none'
-      }
       this.bootstrap.load_model_step.reset_model_position()
     })
 
-    // Model position confirm button (bake gizmo position into vertices)
-    this.bootstrap.ui.dom_confirm_gizmo_position_button?.addEventListener('click', () => {
-      this.bootstrap.confirm_model_gizmo_position()
-      const select = this.bootstrap.ui.dom_model_position_mode_select
-      if (select !== null) select.value = 'auto-align'
-      const applyBtn = this.bootstrap.ui.dom_apply_model_position_button
-      const confirmBtn = this.bootstrap.ui.dom_confirm_gizmo_position_button
-      if (applyBtn !== null) applyBtn.style.display = 'block'
-      if (confirmBtn !== null) confirmBtn.style.display = 'none'
+    // Auto-align model to floor
+    this.bootstrap.ui.dom_auto_align_model_button?.addEventListener('click', () => {
+      const mesh_data = this.bootstrap.load_model_step.model_meshes()
+      ModelCleanupUtility.move_model_to_floor(mesh_data)
     })
-
-    // Skeleton gizmo checkbox
-    this.bootstrap.ui.dom_skeleton_gizmo_button?.addEventListener('change', () => {
-      const checkbox = this.bootstrap.ui.dom_skeleton_gizmo_button
-      if (checkbox?.checked === true) {
-        this.bootstrap.enable_skeleton_gizmo()
-      } else {
-        this.bootstrap.disable_skeleton_gizmo()
-      }
-    })
-
-    // Model gizmo X/Y/Z fine-tune inputs
-    const sync_model_gizmo_inputs = (): void => {
-      const mesh = this.bootstrap.load_model_step.model_meshes()
-      mesh.position.set(
-        Number(this.bootstrap.ui.dom_model_gizmo_x?.value ?? 0),
-        Number(this.bootstrap.ui.dom_model_gizmo_y?.value ?? 0),
-        Number(this.bootstrap.ui.dom_model_gizmo_z?.value ?? 0)
-      )
-    }
-    this.bootstrap.ui.dom_model_gizmo_x?.addEventListener('input', sync_model_gizmo_inputs)
-    this.bootstrap.ui.dom_model_gizmo_y?.addEventListener('input', sync_model_gizmo_inputs)
-    this.bootstrap.ui.dom_model_gizmo_z?.addEventListener('input', sync_model_gizmo_inputs)
-
-    // Skeleton gizmo X/Y/Z fine-tune inputs
-    const sync_skeleton_gizmo_inputs = (): void => {
-      if (!this.bootstrap.is_skeleton_gizmo_active) return
-      this.bootstrap.edit_skeleton_step.armature().position.set(
-        Number(this.bootstrap.ui.dom_skeleton_gizmo_x?.value ?? 0),
-        Number(this.bootstrap.ui.dom_skeleton_gizmo_y?.value ?? 0),
-        Number(this.bootstrap.ui.dom_skeleton_gizmo_z?.value ?? 0)
-      )
-    }
-    this.bootstrap.ui.dom_skeleton_gizmo_x?.addEventListener('input', sync_skeleton_gizmo_inputs)
-    this.bootstrap.ui.dom_skeleton_gizmo_y?.addEventListener('input', sync_skeleton_gizmo_inputs)
-    this.bootstrap.ui.dom_skeleton_gizmo_z?.addEventListener('input', sync_skeleton_gizmo_inputs)
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {
       if (this.bootstrap.skeleton_helper !== undefined) {

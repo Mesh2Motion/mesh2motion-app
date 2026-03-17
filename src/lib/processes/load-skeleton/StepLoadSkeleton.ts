@@ -217,12 +217,6 @@ export class StepLoadSkeleton extends EventTarget {
       })
   }
 
-  public store_skeleton_gizmo_position (x: number, y: number, z: number): void {
-    this.skeleton_offset_x = x
-    this.skeleton_offset_y = y
-    this.skeleton_offset_z = z
-  }
-
   public load_skeleton_file (file_path: string): void {
     // load skeleton from GLB file
     this.loader.load(file_path, (gltf: GLTFResult) => {

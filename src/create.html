@@ -180,35 +180,14 @@
           <hr />
 
           <span style="max-width: 220px">
-            <div style="display: flex; align-items: center; justify-content: space-between">
-              <span>Position model</span>
-              <button class="secondary-button" id="reset-model-position-button" style="padding: 0.1rem 0.4rem; font-size: 0.75rem">Reset</button>
-            </div>
+            <span>Position model</span>
             <div style="display: flex; flex-direction: column; gap: 0.5rem">
-              <select id="model-position-mode-select">
-                <option value="auto-align">Auto-align to floor</option>
-                <option value="gizmo-move">3D gizmo move</option>
-              </select>
-              <button class="secondary-button" id="apply-model-position-button">
-                Apply
+              <button class="secondary-button" id="reset-model-position-button">
+                Reset position
               </button>
-              <button class="secondary-button" id="confirm-gizmo-position-button" style="display: none">
-                Confirm position
+              <button class="secondary-button" id="auto-align-model-button">
+                Auto-align to floor
               </button>
-              <div id="model-gizmo-inputs" style="display: none; flex-direction: column; gap: 0.25rem">
-                <div style="display: flex; gap: 0.5rem; align-items: center">
-                  <label style="width: 1rem">X</label>
-                  <input id="model-gizmo-x" type="number" step="0.01" value="0" style="flex-grow: 1" />
-                </div>
-                <div style="display: flex; gap: 0.5rem; align-items: center">
-                  <label style="width: 1rem">Y</label>
-                  <input id="model-gizmo-y" type="number" step="0.01" value="0" style="flex-grow: 1" />
-                </div>
-                <div style="display: flex; gap: 0.5rem; align-items: center">
-                  <label style="width: 1rem">Z</label>
-                  <input id="model-gizmo-z" type="number" step="0.01" value="0" style="flex-grow: 1" />
-                </div>
-              </div>
             </div>
           </span>
 
@@ -528,28 +507,6 @@
             </div>
 
             <hr />
-          </div>
-
-          <!-- Move skeleton (3D gizmo) -->
-          <div id="skeleton-position-section" style="display: flex; flex-direction: column; gap: 0.5rem">
-            <div class="styled-checkbox">
-              <input type="checkbox" id="skeleton-gizmo-button" />
-              <label for="skeleton-gizmo-button">Enable skeleton position gizmo</label>
-            </div>
-            <div id="skeleton-gizmo-inputs" style="display: none; flex-direction: column; gap: 0.25rem">
-              <div style="display: flex; gap: 0.5rem; align-items: center">
-                <label style="width: 1rem">X</label>
-                <input id="skeleton-gizmo-x" type="number" step="0.01" value="0" style="flex-grow: 1" />
-              </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center">
-                <label style="width: 1rem">Y</label>
-                <input id="skeleton-gizmo-y" type="number" step="0.01" value="0" style="flex-grow: 1" />
-              </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center">
-                <label style="width: 1rem">Z</label>
-                <input id="skeleton-gizmo-z" type="number" step="0.01" value="0" style="flex-grow: 1" />
-              </div>
-            </div>
           </div>
 
           <hr />
