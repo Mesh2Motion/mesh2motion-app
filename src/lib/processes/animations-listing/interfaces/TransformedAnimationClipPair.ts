@@ -36,7 +36,7 @@ export interface TransformedAnimationClipPair {
 
   /**
    * Per-bone rotation delta data used to align animation tracks from
-   * The goal is to fix things like A-Pose vs T-Pose mismatches
+    * The goal is to fix things like arm-extension/rest-pose mismatches
    * but it also goes further with corrections to more bones if needed.
    * the reference rest pose to the edited bind pose.
    */

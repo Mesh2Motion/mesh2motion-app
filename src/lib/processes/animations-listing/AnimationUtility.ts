@@ -71,10 +71,29 @@ export class AnimationUtility {
         }
 
         const quaterion_track: QuaternionKeyframeTrack = track
+        const track_name_lower: string = quaterion_track.name.toLowerCase()
+        const bone_name: string = track_name_lower.replace(/\.quaternion$/i, '')
 
-        // if the track is an upper arm bone, then modify that
-        const is_right_arm_track_match: boolean = quaterion_track.name.includes('upperarm_l')
-        const is_left_arm_track_match: boolean = quaterion_track.name.includes('upperarm_r')
+        // Only apply this warp to upper arm bones. Avoid broad matching that can
+        // accidentally include non-arm chains in some rigs.
+        const is_leg_like_track: boolean =
+          bone_name.includes('upperleg') ||
+          bone_name.includes('lowerleg') ||
+          bone_name.includes('thigh') ||
+          bone_name.includes('calf') ||
+          bone_name.includes('shin') ||
+          bone_name.includes('foot') ||
+          bone_name.includes('toe')
+
+        if (is_leg_like_track) {
+          return
+        }
+
+        const is_right_arm_track_match: boolean =
+          bone_name.includes('upperarm_r') || bone_name.includes('rightarm')
+
+        const is_left_arm_track_match: boolean =
+          bone_name.includes('upperarm_l') || bone_name.includes('leftarm')
 
         if (is_right_arm_track_match || is_left_arm_track_match) {
           const new_track_values: Float32Array = quaterion_track.values.slice() // clone array

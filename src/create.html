@@ -339,36 +339,7 @@
                     <!-- javascript will populate this item with animations
                          that we get from the animations file(s)  -->
                     <div id="animations-items"> </div> 
-
-
-                    <!-- slider to control arm extension (hide this feature until the base functionality is more stable) -->
-                    <div id="a-pose-correction-options">
-                        <div style="
-                            display: flex;
-                            flex-direction: row;
-                            align-items: center;
-                            gap: 1rem;
-                            justify-content: center;
-                        ">
-                            <label style="display:inline-flex">A-Pose Correction - Open Arms</label>
-                            <span class="material-symbols-outlined" data-tippy-content="If your model uses an A-Pose, this will help expand/contract arms for all animations">help</span>
-
-                            <button class="secondary-button" id="reset-a-pose-button">
-                                <img src="images/icons/reset.svg" alt="Reset A-Pose" width="20" height="20" />
-                            </button>
-                        </div>
-
-                        <div style="display: flex; flex-direction: row; gap: 1rem; justify-content: flex-start; align-items: center;">
-                            <input type="number" id="extend-arm-numeric-input" name="arm-extend-input" value="0" min="-70" max="100" step="1">
-                            <span class="suffix-unit">%</span>
-                            <input id="extend-arm-range-input" style="flex-grow: 1;" type="range" min="-70" max="100" value="0" />
-                        </div>
-                        
-                        <hr />
-                        
-                    </div>
-      
-
+                    
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="no-style-button" id="action_back_to_edit_skeleton" >&#x2039; Back</button>
 

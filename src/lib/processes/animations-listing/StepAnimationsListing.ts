@@ -50,11 +50,6 @@ export class StepAnimationsListing extends EventTarget {
     this.animations_file_path = path
   }
 
-  /**
-   * The amount to raise the arms.
-   */
-  private warp_arm_amount: number = 0.0
-
   private has_added_event_listeners: boolean = false
   private rest_pose_rotation_corrections: BoneRotationCorrectionData[] = []
 
@@ -289,6 +284,8 @@ export class StepAnimationsListing extends EventTarget {
       warped_clip.display_animation_clip = AnimationUtility.deep_clone_animation_clip(warped_clip.original_animation_clip)
     })
 
+    // Normalize clips to the edited bind/rest basis first, then apply
+    // manual arm extension, and mirror the final result last.
     BoneRotationCorrection.apply(
       this.animation_clips_loaded,
       this.rest_pose_rotation_corrections
@@ -297,9 +294,6 @@ export class StepAnimationsListing extends EventTarget {
     if (this.mirror_animations_enabled) {
       AnimationUtility.apply_animation_mirroring(this.animation_clips_loaded)
     }
-
-    /// Apply the arm extension warp:
-    AnimationUtility.apply_arm_extension_warp(this.animation_clips_loaded, this.warp_arm_amount)
   }
 
   /**
@@ -385,35 +379,6 @@ export class StepAnimationsListing extends EventTarget {
       })
     }
 
-    // reset A-Pose arm extension button
-    this.ui.dom_reset_a_pose_button?.addEventListener('click', (event) => {
-      const extend_arm_value: number = 0 // reset to zero
-      if (this.ui.dom_extend_arm_numeric_input !== null) {
-        this.ui.dom_extend_arm_numeric_input.value = extend_arm_value.toString()
-      }
-      if (this.ui.dom_extend_arm_range_input !== null) {
-        this.ui.dom_extend_arm_range_input.value = extend_arm_value.toString()
-      }
-      this.update_a_pose_value(extend_arm_value)
-    })
-
-    // A-Pose arm extension event listener
-    this.ui.dom_extend_arm_numeric_input?.addEventListener('input', (event) => {
-      const extend_arm_value: number = Utility.parse_input_number(this.ui.dom_extend_arm_numeric_input?.value)
-      if (this.ui.dom_extend_arm_range_input !== null) {
-        this.ui.dom_extend_arm_range_input.value = extend_arm_value.toString()
-      }
-      this.update_a_pose_value(extend_arm_value)
-    })
-
-    this.ui.dom_extend_arm_range_input?.addEventListener('input', (event) => {
-      const extend_arm_value: number = Utility.parse_input_number(this.ui.dom_extend_arm_range_input?.value)
-      if (this.ui.dom_extend_arm_numeric_input !== null) {
-        this.ui.dom_extend_arm_numeric_input.value = extend_arm_value.toString()
-      }
-      this.update_a_pose_value(extend_arm_value)
-    })
-
     // check for changes to mirror animations checkbox
     this.ui.dom_mirror_animations_checkbox?.addEventListener('change', (event) => {
       const is_checked: boolean = this.ui.dom_mirror_animations_checkbox?.checked ?? false
@@ -425,13 +390,6 @@ export class StepAnimationsListing extends EventTarget {
 
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
-  }
-
-  // three different things might update this value: numeric input, range input, or reset button
-  private update_a_pose_value (new_value: number): void {
-    this.warp_arm_amount = new_value
-    this.rebuild_warped_animations()
-    this.play_animation(this.current_playing_index)
   }
 
   public build_animation_clip_ui (animation_clips_to_load: TransformedAnimationClipPair[], theme_manager: ThemeManager): void {

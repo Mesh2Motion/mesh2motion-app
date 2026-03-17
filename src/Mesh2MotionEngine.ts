@@ -270,17 +270,6 @@ export class Mesh2MotionEngine {
     )
   }
 
-  public update_a_pose_options_visibility (): void {
-    if (this.ui.dom_a_pose_correction_options != null) {
-      const config = RigConfig.by_skeleton_type(this.load_skeleton_step.skeleton_type())
-      if (config?.has_a_pose_correction === true) {
-        this.ui.dom_a_pose_correction_options.style.display = 'block'
-      } else {
-        this.ui.dom_a_pose_correction_options.style.display = 'none'
-      }
-    }
-  }
-
   public handle_transform_controls_moving (): void {
     const selected_bone: Bone = this.transform_controls.object as Bone
 
@@ -458,9 +447,6 @@ export class Mesh2MotionEngine {
       if (this.ui.dom_show_skeleton_checkbox !== null) {
         this.ui.dom_show_skeleton_checkbox.checked = false
       }
-
-      // Show/hide A-Pose correction options based on skeleton type
-      this.update_a_pose_options_visibility()
 
       this.animations_listing_step.load_and_apply_default_animation_to_skinned_mesh(this.weight_skin_step.final_skinned_meshes())
 
