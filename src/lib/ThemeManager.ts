@@ -17,12 +17,6 @@ export class ThemeManager extends EventTarget {
     this.theme_icon = this.theme_toggle_button?.querySelector('.theme-icon') ?? null
     this.theme_label = this.theme_toggle_button?.querySelector('.theme-label') ?? null
 
-    if (this.theme_toggle_button !== null && this.theme_label === null) {
-      this.theme_label = document.createElement('span')
-      this.theme_label.className = 'theme-label'
-      this.theme_toggle_button.appendChild(this.theme_label)
-    }
-
     // Load saved theme preference
     this.load_theme_preference()
 
