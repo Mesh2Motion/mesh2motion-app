@@ -105,7 +105,7 @@ export class EventListeners {
     // we can know about the "mouseup" event with this
     this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
       this.bootstrap.is_transform_controls_dragging = event.value
-      this.bootstrap.controls.enabled = !event.value
+      this.bootstrap.enable_orbit_controls(!event.value)
 
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {

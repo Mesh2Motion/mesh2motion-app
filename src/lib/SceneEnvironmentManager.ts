@@ -72,12 +72,16 @@ export class SceneEnvironmentManager {
     this.regenerate_floor_grid()
   }
 
-  public get_controls (): OrbitControls | undefined {
-    return this.controls
-  }
-
   public get_view_helper (): CustomViewHelper | undefined {
     return this.view_helper
+  }
+
+  public enable_orbit_controls (enabled: boolean): void {
+    if (this.controls === undefined) {
+      return
+    }
+
+    this.controls.enabled = enabled
   }
 
   public set_camera_position (position: Vector3): void {

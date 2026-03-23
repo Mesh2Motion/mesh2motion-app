@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import type { CustomViewHelper } from './lib/CustomViewHelper.ts'
 
@@ -40,7 +39,6 @@ import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
   public readonly renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  public controls: OrbitControls | undefined = undefined
 
   public readonly transform_controls: TransformControls = new TransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
@@ -160,9 +158,12 @@ export class Mesh2MotionEngine {
     this.scene_environment.set_fog_enabled(enabled)
   }
 
+  public enable_orbit_controls (enabled: boolean): void {
+    this.scene_environment.enable_orbit_controls(enabled)
+  }
+
   private setup_environment (): void {
     this.scene_environment.setup_environment()
-    this.controls = this.scene_environment.get_controls()
     this.view_helper = this.scene_environment.get_view_helper()
   } // end setup_environment()
 
