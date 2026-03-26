@@ -1,5 +1,5 @@
 import { UI } from '../../UI.ts'
-import SolverDistanceChildTargeting from '../../solvers/SolverDistanceChildTargeting.ts'
+import SkinningAlgorithm from '../../solvers/SkinningAlgorithm.ts'
 
 import { Generators } from '../../Generators.ts'
 
@@ -11,7 +11,7 @@ import { type SkeletonType } from '../../enums/SkeletonType.ts'
 export class StepWeightSkin extends EventTarget {
   private readonly ui: UI = UI.getInstance()
   private skinning_armature: Object3D | undefined
-  private bone_skinning_formula: SolverDistanceChildTargeting | undefined
+  private bone_skinning_formula: SkinningAlgorithm | undefined
   private binding_skeleton: Skeleton | undefined
   private skinned_meshes: SkinnedMesh[] = []
 
@@ -37,12 +37,12 @@ export class StepWeightSkin extends EventTarget {
 
   public begin (): void { }
 
-  public create_bone_formula_object (editable_armature: Object3D, skeleton_type: SkeletonType): SolverDistanceChildTargeting | null {
+  public create_bone_formula_object (editable_armature: Object3D, skeleton_type: SkeletonType): SkinningAlgorithm | null {
     this.skinning_armature = editable_armature.clone()
     this.skinning_armature.name = 'Armature for skinning'
 
     // we only use one skinning formula for now
-    this.bone_skinning_formula = new SolverDistanceChildTargeting(this.skinning_armature.children[0], skeleton_type)
+    this.bone_skinning_formula = new SkinningAlgorithm(this.skinning_armature.children[0], skeleton_type)
 
     return this.bone_skinning_formula ?? null
   }
@@ -168,8 +168,8 @@ export class StepWeightSkin extends EventTarget {
    * @param height The preview plane height threshold
    */
   public set_head_weight_correction_settings (enabled: boolean, height: number): void {
-    // Only apply to the SolverDistanceChildTargeting solver
-    if (this.bone_skinning_formula instanceof SolverDistanceChildTargeting) {
+    // Only apply to the SkinningAlgorithm solver
+    if (this.bone_skinning_formula instanceof SkinningAlgorithm) {
       this.bone_skinning_formula.set_head_weight_correction_enabled(enabled)
       this.bone_skinning_formula.set_preview_plane_height(height)
     }
