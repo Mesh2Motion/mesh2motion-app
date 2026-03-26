@@ -1,7 +1,7 @@
 import {
   type Bone,
   BufferGeometry,
-  Object3D
+  type Object3D
 } from 'three'
 
 import { Utility } from '../Utilities.js'
@@ -23,9 +23,7 @@ import { WeightNormalizer } from './WeightNormalizer.js'
 export default class SkinningAlgorithm {
   private bones_master_data: Bone[] = []
   private geometry: BufferGeometry = new BufferGeometry()
-  private show_debug: boolean = false
   private skeleton_type: SkeletonType | null = null
-  private debugging_scene_object: Object3D = new Object3D()
 
   // Head weight correction properties
   private use_head_weight_correction: boolean = false
@@ -38,14 +36,6 @@ export default class SkinningAlgorithm {
 
   public set_geometry (geom: BufferGeometry): void {
     this.geometry = geom
-  }
-
-  public set_show_debug (debug_value: boolean): void {
-    this.show_debug = debug_value
-  }
-
-  public set_debugging_scene_object (scene_object: Object3D): void {
-    this.debugging_scene_object = scene_object
   }
 
   public set_head_weight_correction_enabled (enabled: boolean): void {
