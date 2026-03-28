@@ -85,6 +85,17 @@ export class RigConfig {
       has_hand_options: false,
       has_head_weight_correction: false,
       has_arm_extension: false
+    } satisfies RigConfigEntry,
+    {
+      skeleton_type: SkeletonType.Snake,
+      model_file: 'models/model-snake.glb',
+      rig_file: 'rigs/rig-snake.glb',
+      rig_display_name: 'Snake',
+      animation_files: ['../animations/snake-animations.glb'],
+      animation_preview_folder: 'snake',
+      has_hand_options: false,
+      has_head_weight_correction: false,
+      has_arm_extension: false
     } satisfies RigConfigEntry
   ]
 

@@ -30,7 +30,7 @@ export class ModelCleanupUtility {
 
     const largest_dimension = Math.max(height, width, depth)
 
-    if (largest_dimension > 0.5 && largest_dimension < 8) {
+    if (largest_dimension > 0.5 && largest_dimension < 20) {
       console.log('Model a reasonable size, so no scaling applied: ', bounding_box, ' units is bounding box')
       return
     } else {
