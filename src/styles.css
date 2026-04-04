@@ -37,9 +37,9 @@
   --nav-background: #d9e5ee;
   --nav-active-item-bg: #b9d2d6;
 
-  --bg-primary: #ecf0f1;
-  --bg-alternate: #bac9d2;
-  --bg-tertiary: #8b9bac;
+  --bg-primary: #d5dde9;
+  --bg-alternate: #c5dff0;
+  --bg-tertiary: #a7c7e9;
 
   --button-primary-bg:  #73b6e2f8;
   --button-alternate-bg: rgb(176, 216, 240);
@@ -224,7 +224,7 @@ button.secondary-button {
     background: linear-gradient(0deg, var(--bg-alternate) 0%, var(--bg-tertiary) 100%);
     box-shadow: 2px 2px 3px var(--button-shadow-color);
     border-radius: 3px;
-    border: 1px solid grey;
+    border: 0;
     cursor: pointer;
     transition: all 0.1s ease;
 }
@@ -236,7 +236,6 @@ button.secondary-button.play
 {
     padding: 0;
     display: inline-flex;
-    /* background: var(--bg-primary); */
     flex-grow: 1;
     align-items: center;
     border: none;
@@ -265,7 +264,7 @@ button, .button {
     background: var(--button-primary-bg);
     background: linear-gradient(180deg, var(--button-primary-bg) 0%, var(--button-alternate-bg) 100%);
     box-shadow: 3px 3px 2px var(--button-shadow-color);
-    padding: 0.3rem 0.8rem;
+    padding: 0.5rem 1.0rem;
     margin-right: 0.5rem;
     border: 1px solid var(--button-shadow-color);
     border-radius: 0.25rem;
