@@ -1,3 +1,5 @@
+import { SkinnedMesh, type Group } from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RigConfig, type RigConfigEntry } from '../../RigConfig'
 import { type SkeletonType } from '../../enums/SkeletonType'
 
@@ -6,12 +8,13 @@ import { type SkeletonType } from '../../enums/SkeletonType'
  * When a rig type is selected that has model_variations in its RigConfig,
  * the dropdown is populated and shown. Otherwise it is hidden.
  *
- * Dispatches 'variation-changed' with the new model file path when the user
- * picks a different variation.
+ * Loads the selected variation GLB and dispatches 'variation-changed'
+ * with the extracted SkinnedMesh[] so consumers can swap the model directly.
  */
 export class ModelVariationSwitcher extends EventTarget {
   private readonly dom_switcher: HTMLElement | null = document.querySelector('#model-variation-switcher')
   private readonly dom_select: HTMLSelectElement | null = document.querySelector('#model-variation-selection')
+  private readonly loader: GLTFLoader = new GLTFLoader()
   private current_rig: RigConfigEntry | undefined
   private added_event_listeners = false
 
@@ -48,6 +51,28 @@ export class ModelVariationSwitcher extends EventTarget {
     switcher.style.display = '' // use default display style by removing inline style
   }
 
+  private load_variation_model (model_file: string): void {
+    this.loader.load(
+      '../' + model_file,
+      (gltf) => {
+        const skinned_meshes: SkinnedMesh[] = []
+        gltf.scene.traverse((child) => {
+          if (child instanceof SkinnedMesh) {
+            skinned_meshes.push(child)
+          }
+        })
+
+        this.dispatchEvent(new CustomEvent('variation-changed', {
+          detail: { model_file, skinned_meshes, model_root: gltf.scene }
+        }))
+      },
+      undefined,
+      (error) => {
+        console.error('Failed to load model variation:', model_file, error)
+      }
+    )
+  }
+
   private add_event_listeners (): void {
     if (this.added_event_listeners) return
     this.added_event_listeners = true
@@ -56,8 +81,7 @@ export class ModelVariationSwitcher extends EventTarget {
     if (select === null) return
 
     select.addEventListener('change', () => {
-      const model_file = select.value
-      this.dispatchEvent(new CustomEvent('variation-changed', { detail: { model_file } }))
+      this.load_variation_model(select.value)
     })
   }
 }

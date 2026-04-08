@@ -2,7 +2,7 @@ import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
 
 import {
-  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D
+  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Scene, type Group
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
@@ -25,6 +25,7 @@ export class StepAnimationsListing extends EventTarget {
 
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private skinned_meshes_to_animate: SkinnedMesh[] = []
+  private variation_model_root: Group | null = null
   private current_playing_index: number = 0
   private skeleton_type: SkeletonType = SkeletonType.Human
 
@@ -158,6 +159,32 @@ export class StepAnimationsListing extends EventTarget {
 
   public is_animation_custom (index: number): boolean {
     return this.get_animation_metadata(index)?.source_type === 'custom-import'
+  }
+
+  /**
+   * Removes the current skinned meshes from the scene, adds the new ones,
+   * and replays the current animation on them.
+   */
+  public swap_skinned_meshes (scene: Scene, new_skinned_meshes: SkinnedMesh[], model_root: Group): void {
+    // remove previous variation model root if one was added
+    if (this.variation_model_root !== null) {
+      Utility.remove_object_with_children(this.variation_model_root)
+    } else {
+      // remove the original skinned meshes that were added individually
+      for (const mesh of this.skinned_meshes_to_animate) {
+        Utility.remove_object_with_children(mesh)
+      }
+    }
+
+    // add the full model group (bones + meshes) so world matrices update
+    this.variation_model_root = model_root
+    scene.add(model_root)
+
+    this.skinned_meshes_to_animate = new_skinned_meshes
+
+    // replay current animation on the new meshes
+    this.play_animation(this.current_playing_index)
+    this.animation_player.play()
   }
 
   public load_and_apply_default_animation_to_skinned_mesh (final_skinned_meshes: SkinnedMesh[]): void {

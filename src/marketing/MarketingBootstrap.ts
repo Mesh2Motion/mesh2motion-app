@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { Vector3, type SkinnedMesh, type Group } from 'three'
 import { ProcessStep } from '../lib/enums/ProcessStep'
 import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
@@ -63,9 +63,13 @@ export class MarketingBootstrap {
   }
 
   public add_event_listeners (): void {
-    // when the user picks a different model variation, reload the model
+    // when the user picks a different model variation, swap the skinned mesh in the scene
     this.model_variation_switcher.addEventListener('variation-changed', ((event: CustomEvent) => {
-      console.log('TODO: model variation change to. load and swap out target rig reference', event)
+      const skinned_meshes = event.detail.skinned_meshes as SkinnedMesh[]
+      const model_root = event.detail.model_root as Group
+      this.mesh2motion_engine.animations_listing_step.swap_skinned_meshes(
+        this.mesh2motion_engine.scene, skinned_meshes, model_root
+      )
     }) as EventListener)
 
     // event after the DOM is fully loaded for HTML elements
