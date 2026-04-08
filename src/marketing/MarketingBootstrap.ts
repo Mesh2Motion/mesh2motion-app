@@ -2,11 +2,13 @@ import { Vector3 } from 'three'
 import { ProcessStep } from '../lib/enums/ProcessStep'
 import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
+import { ModelVariationSwitcher } from '../lib/processes/animations-listing/ModelVariationSwitcher'
 import { RigConfig } from '../lib/RigConfig'
 
 export class MarketingBootstrap {
   private mesh2motion_engine: Mesh2MotionEngine
   private skeleton_type: SkeletonType = SkeletonType.None
+  private model_variation_switcher: ModelVariationSwitcher = new ModelVariationSwitcher()
 
   constructor () {
     this.mesh2motion_engine = new Mesh2MotionEngine()
@@ -46,6 +48,7 @@ export class MarketingBootstrap {
         this.mesh2motion_engine.load_model_step.load_model_file('../' + rig.model_file, 'glb')
         this.skeleton_type = rig.skeleton_type
         this.change_active_skeleton(model_button)
+        this.model_variation_switcher.update_for_rig(rig.skeleton_type)
       })
 
       model_section.appendChild(model_button)
@@ -60,6 +63,11 @@ export class MarketingBootstrap {
   }
 
   public add_event_listeners (): void {
+    // when the user picks a different model variation, reload the model
+    this.model_variation_switcher.addEventListener('variation-changed', ((event: CustomEvent) => {
+      console.log('TODO: model variation change to. load and swap out target rig reference', event)
+    }) as EventListener)
+
     // event after the DOM is fully loaded for HTML elements
     document.addEventListener('DOMContentLoaded', () => {
       this.setup_model_buttons() // automatically trigger the human once we begin for the default

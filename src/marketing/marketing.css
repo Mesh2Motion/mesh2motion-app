@@ -36,7 +36,7 @@ button.active-button {
 }
 
 #animations-items {
-    max-height: calc(100vh - 14rem);
+    max-height: calc(100vh - 17rem);
 }
 
 #animation-listing-count {
