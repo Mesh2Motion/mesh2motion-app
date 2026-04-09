@@ -226,10 +226,12 @@ button.secondary-button {
     border-radius: 3px;
     border: 0;
     cursor: pointer;
-    transition: all 0.1s ease;
+    transition: transform 0.2s ease;
+    transform: scale(1.00);
 }
 button.secondary-button:hover {
-    background: var(--bg-primary);
+    transform: scale(1.05);
+    background: var(--bg-alternate);
 }
 
 button.secondary-button.play

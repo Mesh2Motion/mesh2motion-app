@@ -64,14 +64,15 @@ export class ModelVariationSwitcher extends EventTarget {
     const variations = this.current_rig?.model_variations
     if (variations === undefined || variations.length === 0) return
 
-    grid.innerHTML = ''
+    grid.innerHTML = '' // reset whatever was there before
 
+    // create tiles for each variation item
     for (const variation of variations) {
       const card = document.createElement('div')
       card.className = 'variation-card'
 
       const img = document.createElement('img')
-      img.src = '../' + variation.preview_image
+      img.src =  '../' + variation.preview_image
       img.alt = variation.display_name
       img.className = 'variation-preview-image'
       card.appendChild(img)

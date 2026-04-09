@@ -20,6 +20,13 @@
   border-radius: 5px;
   text-align: center;
   max-width: 80%;
+  animation: modal-dialog-bounce-in 0.3s ease-out;
+}
+
+@keyframes modal-dialog-bounce-in {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1.0); }
 }
 
 .modal-dialog-body {
@@ -81,42 +88,53 @@
 /* ── Model Variation Dialog ── */
 
 .variation-dialog {
-  max-width: 600px;
+  width: 60vw;
+  animation: variation-dialog-bounce-in 0.3s ease-out;
+  box-shadow: 0 0 7rem #08161e9e;
+}
+
+@keyframes variation-dialog-bounce-in {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1.0); }
 }
 
 .variation-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-  padding: 1rem 0;
+  gap: 0rem;
+  padding: 0;
+  max-height: 40vh;
+  overflow: auto;
+  background: var(--bg-alternate);
 }
 
 .variation-card {
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  padding: 0.75rem;
+  padding: 0.25rem;
   cursor: pointer;
   text-align: center;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: box-shadow 0.25s, transform 0.25s;
   background: var(--bg-alternate);
+  transform: scale(0.95);
 }
 
 .variation-card:hover {
-  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--button-alternate-bg);
+  transform: scale(1.00);
 }
 
 .variation-card.selected {
-  border-color: var(--accent-color, #4a9eff);
-  box-shadow: 0 0 0 2px var(--accent-color, #4a9eff);
+  box-shadow: 0 0 0 2px var(--button-primary-bg);
 }
 
 .variation-preview-image {
   width: 100%;
-  aspect-ratio: 1;
   object-fit: contain;
   border-radius: 4px;
   background: var(--bg-primary);
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
 .variation-name {

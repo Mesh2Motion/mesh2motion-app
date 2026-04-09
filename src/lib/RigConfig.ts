@@ -47,19 +47,19 @@ export class RigConfig {
           model_file: 'models-variation/human-base.glb',
           display_name: 'Mannequin',
           attribution: 'Model by Quaternius, CC0-licensed',
-          preview_image: 'images/variations/human-mannequin.png'
+          preview_image: 'models-variation/fox-base.png'
         } satisfies ModelVariation,
         {
           model_file: 'models-variation/human-zombie.glb',
           display_name: 'Zombie',
           attribution: 'Model by Kenney.nl, CC0-licensed',
-          preview_image: 'images/variations/human-zombie.png'
+          preview_image: 'models-variation/fox-base.png'
         } satisfies ModelVariation,
           {
           model_file: 'models-variation/human-sophia.glb',
           display_name: 'Sophia',
           attribution: 'Art by Tysan Tan, CC-SA 4.0',
-          preview_image: 'images/variations/human-sophia.png'
+          preview_image: 'models-variation/fox-base.png'
         } satisfies ModelVariation
       ]
     } satisfies RigConfigEntry,
@@ -85,7 +85,7 @@ export class RigConfig {
           model_file: 'models-variation/fox-horse.glb',
           display_name: 'Horse',
           attribution: 'None',
-          preview_image: 'images/variations/fox-horse.png'
+          preview_image: 'images/variations/fox-base.png'
         } satisfies ModelVariation
       ]
     } satisfies RigConfigEntry,

@@ -131,19 +131,7 @@
                 <button id="model-variation-button" class="secondary-button">Change Model</button>
             </div>
 
-            <!-- model variation confirmation dialog (hidden by default) -->
-            <div id="variation-dialog-overlay" class="modal-dialog-overlay" style="display: none">
-                <div class="modal-dialog-content variation-dialog">
-                    <h2>Choose Model Variation</h2>
-                    <div id="variation-grid" class="variation-grid">
-                        <!-- cards populated dynamically from RigConfig -->
-                    </div>
-                    <div class="variation-dialog-buttons">
-                        <button id="variation-cancel-button" class="secondary-button">Cancel</button>
-                        <button id="variation-confirm-button" disabled>Confirm</button>
-                    </div>
-                </div>
-            </div>
+    
 
             <span id="skinned-step-animation-export-options">
 
@@ -240,6 +228,22 @@
 
     <!-- build version information-->
     <span id="build-version"></span>
+
+
+
+            <!-- model variation confirmation dialog (hidden by default) -->
+            <div id="variation-dialog-overlay" class="modal-dialog-overlay" style="display: none">
+                <div class="modal-dialog-content variation-dialog">
+                    <h2>Choose Model</h2>
+                    <div id="variation-grid" class="variation-grid">
+                        <!-- cards populated dynamically from RigConfig -->
+                    </div>
+                    <div class="variation-dialog-buttons">
+                        <button id="variation-cancel-button" class="secondary-button">Cancel</button>
+                        <button id="variation-confirm-button" disabled>Confirm</button>
+                    </div>
+                </div>
+            </div>
 
 </body>
 </html>
