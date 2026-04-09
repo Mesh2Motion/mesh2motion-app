@@ -1,4 +1,4 @@
-import { SkinnedMesh, type Group } from 'three'
+import { Skeleton, SkinnedMesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RigConfig, type RigConfigEntry } from '../../RigConfig'
 import { type SkeletonType } from '../../enums/SkeletonType'
@@ -17,6 +17,15 @@ export class ModelVariationSwitcher extends EventTarget {
   private readonly loader: GLTFLoader = new GLTFLoader()
   private current_rig: RigConfigEntry | undefined
   private added_event_listeners = false
+  private _is_variation_active: boolean = false
+
+  public get is_variation_active (): boolean {
+    return this._is_variation_active
+  }
+
+  public set is_variation_active (value: boolean) {
+    this._is_variation_active = value
+  }
 
   /**
    * Call this whenever the active rig type changes.
@@ -62,8 +71,10 @@ export class ModelVariationSwitcher extends EventTarget {
           }
         })
 
+        this.normalize_skinned_meshes(skinned_meshes)
+
         this.dispatchEvent(new CustomEvent('variation-changed', {
-          detail: { model_file, skinned_meshes, model_root: gltf.scene }
+          detail: { model_file, skinned_meshes }
         }))
       },
       undefined,
@@ -71,6 +82,25 @@ export class ModelVariationSwitcher extends EventTarget {
         console.error('Failed to load model variation:', model_file, error)
       }
     )
+  }
+
+  /**
+   * Re-parents each skeleton's root bone to be a child of its skinned mesh.
+   * This matches the structure created by StepWeightSkin in the normal pipeline,
+   * so the export path can treat both cases identically.
+   */
+  private normalize_skinned_meshes (skinned_meshes: SkinnedMesh[]): void {
+    const processed_skeletons = new Set<Skeleton>()
+
+    for (const mesh of skinned_meshes) {
+      if (processed_skeletons.has(mesh.skeleton)) continue
+      processed_skeletons.add(mesh.skeleton)
+
+      const root_bone = mesh.skeleton.bones[0]
+      if (root_bone !== undefined) {
+        mesh.add(root_bone)
+      }
+    }
   }
 
   private add_event_listeners (): void {

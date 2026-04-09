@@ -198,7 +198,7 @@ export class EventListeners {
       const animations_to_export: number[] = this.bootstrap.animations_listing_step.get_animation_indices_to_export()
 
       this.bootstrap.file_export_step.set_animation_clips_to_export(all_clips, animations_to_export)
-      this.bootstrap.file_export_step.export(this.bootstrap.weight_skin_step.final_skinned_meshes(), 'exported-model')
+      this.bootstrap.file_export_step.export(this.bootstrap.animations_listing_step.active_skinned_meshes(), 'exported-model')
     })
 
     // going back to edit skeleton step after skinning

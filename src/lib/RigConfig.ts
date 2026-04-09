@@ -51,6 +51,11 @@ export class RigConfig {
           model_file: 'models-variation/human-zombie.glb',
           display_name: 'Zombie',
           attribution: 'Model by Kenney.nl, CC0-licensed'
+        } satisfies ModelVariation,
+          {
+          model_file: 'models-variation/human-sophia.glb',
+          display_name: 'Sophia',
+          attribution: 'Art by Tysan Tan, CC-SA 4.0'
         } satisfies ModelVariation
       ]
     } satisfies RigConfigEntry,

@@ -1,4 +1,4 @@
-import { Vector3, type SkinnedMesh, type Group } from 'three'
+import { Vector3, type SkinnedMesh } from 'three'
 import { ProcessStep } from '../lib/enums/ProcessStep'
 import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
@@ -12,6 +12,7 @@ export class MarketingBootstrap {
 
   constructor () {
     this.mesh2motion_engine = new Mesh2MotionEngine()
+    this.mesh2motion_engine.animations_listing_step.set_model_variation_switcher(this.model_variation_switcher)
     this.add_event_listeners()
 
     // default: X:0 (centered), Y:1.7 (eye-level), Z:5 (front view)
@@ -68,9 +69,8 @@ export class MarketingBootstrap {
     // when the user picks a different model variation, swap the skinned mesh in the scene
     this.model_variation_switcher.addEventListener('variation-changed', ((event: CustomEvent) => {
       const skinned_meshes = event.detail.skinned_meshes as SkinnedMesh[]
-      const model_root = event.detail.model_root as Group
       this.mesh2motion_engine.animations_listing_step.swap_skinned_meshes(
-        this.mesh2motion_engine.scene, skinned_meshes, model_root
+        this.mesh2motion_engine.scene, skinned_meshes
       )
 
       this.rebuild_skeleton_helper(skinned_meshes)

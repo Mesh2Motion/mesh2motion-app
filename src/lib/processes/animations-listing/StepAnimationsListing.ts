@@ -2,12 +2,13 @@ import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
 
 import {
-  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Scene, type Group
+  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Scene
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
 import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
+import { type ModelVariationSwitcher } from './ModelVariationSwitcher.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
@@ -25,7 +26,7 @@ export class StepAnimationsListing extends EventTarget {
 
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private skinned_meshes_to_animate: SkinnedMesh[] = []
-  private variation_model_root: Group | null = null // stored auto-rig model that comes from GLB
+  private model_variation_switcher: ModelVariationSwitcher | null = null
   private current_playing_index: number = 0
   private skeleton_type: SkeletonType = SkeletonType.Human
 
@@ -162,23 +163,39 @@ export class StepAnimationsListing extends EventTarget {
   }
 
   /**
+   * Returns the skinned meshes currently used for animation playback.
+   * This is used during the download/export process to retrieved final skinned mesh
+   */
+  public active_skinned_meshes (): SkinnedMesh[] {
+    return this.skinned_meshes_to_animate
+  }
+
+  public set_model_variation_switcher (switcher: ModelVariationSwitcher): void {
+    this.model_variation_switcher = switcher
+  }
+
+  /**
    * Removes the current skinned meshes from the scene, adds the new ones,
    * and replays the current animation on them.
    */
-  public swap_skinned_meshes (scene: Scene, new_skinned_meshes: SkinnedMesh[], model_root: Group): void {
-    const had_variation_model = this.variation_model_root !== null
+  public swap_skinned_meshes (scene: Scene, new_skinned_meshes: SkinnedMesh[]): void {
+    const is_variation_active = this.model_variation_switcher?.is_variation_active ?? false
     this.clear_variation_model_from_scene()
 
-    if (!had_variation_model) {
+    if (!is_variation_active) {
       // remove the original skinned meshes that were added individually
       for (const mesh of this.skinned_meshes_to_animate) {
         Utility.remove_object_with_children(mesh)
       }
     }
 
-    // add the full model group (bones + meshes) so world matrices update
-    this.variation_model_root = model_root
-    scene.add(model_root)
+    // add individual skinned meshes to scene (bones are children of the mesh after normalization)
+    if (this.model_variation_switcher !== null) {
+      this.model_variation_switcher.is_variation_active = true
+    }
+    for (const mesh of new_skinned_meshes) {
+      scene.add(mesh)
+    }
 
     this.skinned_meshes_to_animate = new_skinned_meshes
 
@@ -192,9 +209,14 @@ export class StepAnimationsListing extends EventTarget {
    * This should be called before doing a full model load flow.
    */
   public clear_variation_model_from_scene (): void {
-    if (this.variation_model_root !== null) {
-      Utility.remove_object_with_children(this.variation_model_root)
-      this.variation_model_root = null
+    const is_variation_active = this.model_variation_switcher?.is_variation_active ?? false
+    if (is_variation_active) {
+      for (const mesh of this.skinned_meshes_to_animate) {
+        Utility.remove_object_with_children(mesh)
+      }
+      if (this.model_variation_switcher !== null) {
+        this.model_variation_switcher.is_variation_active = false
+      }
     }
   }
 
