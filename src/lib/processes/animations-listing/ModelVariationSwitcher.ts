@@ -15,16 +15,17 @@ import { type SkeletonType } from '../../enums/SkeletonType'
  */
 export class ModelVariationSwitcher extends EventTarget {
   private readonly dom_switcher: HTMLElement | null = document.querySelector('#model-variation-switcher')
-  private readonly dom_button: HTMLButtonElement | null = document.querySelector('#model-variation-button')
+  private readonly dom_change_model_button: HTMLButtonElement | null = document.querySelector('#model-variation-button')
   private readonly dom_dialog_overlay: HTMLElement | null = document.querySelector('#variation-dialog-overlay')
   private readonly dom_grid: HTMLElement | null = document.querySelector('#variation-grid')
-  private readonly dom_confirm_button: HTMLButtonElement | null = document.querySelector('#variation-confirm-button')
-  private readonly dom_cancel_button: HTMLButtonElement | null = document.querySelector('#variation-cancel-button')
+  private readonly dom_dialog_confirm_button: HTMLButtonElement | null = document.querySelector('#variation-confirm-button')
+  private readonly dom_dialog_cancel_button: HTMLButtonElement | null = document.querySelector('#variation-cancel-button')
   private readonly loader: GLTFLoader = new GLTFLoader()
   private current_rig: RigConfigEntry | undefined
   private added_event_listeners = false
   private _is_variation_active: boolean = false
-  private selected_variation: ModelVariation | null = null
+  private confirmed_variation: ModelVariation | null = null // model we currently have loaded
+  private pending_variation: ModelVariation | null = null // active selection (will be reset if user cancels out of dialog)
 
   public get is_variation_active (): boolean {
     return this._is_variation_active
@@ -42,6 +43,11 @@ export class ModelVariationSwitcher extends EventTarget {
     this.current_rig = RigConfig.by_skeleton_type(skeleton_type)
     this.update_button_visibility()
     this.add_event_listeners()
+
+    // select the first variation by default if variation selection doesn't exist
+    const variations = this.current_rig?.model_variations
+    this.confirmed_variation = (variations !== undefined && variations.length > 0) ? variations[0] : null
+    this.pending_variation = this.confirmed_variation
   }
 
   private update_button_visibility (): void {
@@ -89,11 +95,16 @@ export class ModelVariationSwitcher extends EventTarget {
         card.appendChild(attribution_el)
       }
 
+      // add class for default selection
+      if (this.pending_variation !== null && variation.model_file === this.pending_variation.model_file) {
+        card.classList.add('selected')
+      }
+
       card.addEventListener('click', () => {
         grid.querySelectorAll('.variation-card').forEach(c => c.classList.remove('selected'))
         card.classList.add('selected')
-        this.selected_variation = variation
-        if (this.dom_confirm_button !== null) this.dom_confirm_button.disabled = false
+        this.pending_variation = variation
+        if (this.dom_dialog_confirm_button !== null) this.dom_dialog_confirm_button.disabled = false
       })
 
       grid.appendChild(card)
@@ -103,10 +114,11 @@ export class ModelVariationSwitcher extends EventTarget {
   private show_dialog (): void {
     if (this.dom_dialog_overlay === null) return
 
-    this.selected_variation = null
-    if (this.dom_confirm_button !== null) {
-      this.dom_confirm_button.disabled = true
-    } 
+    this.pending_variation = this.confirmed_variation
+
+    if (this.dom_dialog_confirm_button !== null) {
+      this.dom_dialog_confirm_button.disabled = this.pending_variation === null
+    }
 
     this.populate_grid()
     this.dom_dialog_overlay.style.display = '' // reset to default styling
@@ -166,22 +178,24 @@ export class ModelVariationSwitcher extends EventTarget {
     if (this.added_event_listeners) return
     this.added_event_listeners = true
 
-    this.dom_button?.addEventListener('click', () => {
+    this.dom_change_model_button?.addEventListener('click', () => {
       this.show_dialog()
     })
 
-    this.dom_cancel_button?.addEventListener('click', () => {
+    this.dom_dialog_cancel_button?.addEventListener('click', () => {
       this.hide_dialog()
     })
 
-    this.dom_confirm_button?.addEventListener('click', () => {
-      if (this.selected_variation !== null) {
-        this.hide_dialog()
-        this.load_variation_model(this.selected_variation.model_file)
-      }
+    // accept changes
+    this.dom_dialog_confirm_button?.addEventListener('click', () => {
+      if (this.pending_variation === null) return // this shouldn't happen, but leave for a safe guard
+
+      this.confirmed_variation = this.pending_variation
+      this.hide_dialog()
+      this.load_variation_model(this.confirmed_variation.model_file)
     })
 
-    // close on overlay click
+    // clicking on the overlay screen bg should also close/cancel the dialog
     this.dom_dialog_overlay?.addEventListener('click', (e) => {
       if (e.target === this.dom_dialog_overlay) this.hide_dialog()
     })
