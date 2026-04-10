@@ -182,7 +182,7 @@ export class AnimationPlayer {
     }
 
     const target = event.target as HTMLInputElement
-    const frame_number = parseInt(target.value)
+    const frame_number = parseFloat(target.value)
 
     // Convert frame to time (assuming 30 FPS)
     const fps = 30
@@ -195,7 +195,7 @@ export class AnimationPlayer {
 
     // Update current frame display
     if (this.ui.dom_current_time !== null) {
-      this.ui.dom_current_time.textContent = `${frame_number}`
+      this.ui.dom_current_time.textContent = `${Math.round(frame_number)}`
     }
   }
 
@@ -209,7 +209,7 @@ export class AnimationPlayer {
 
     // Convert current time to frame number (assuming 30 FPS)
     const fps = 30
-    const current_frame = Math.floor(first_action.time * fps)
+    const current_frame = first_action.time * fps
 
     // Update scrubber position based on frame number
     if (this.ui.dom_animation_scrubber !== null) {
@@ -218,7 +218,7 @@ export class AnimationPlayer {
 
     // Update current frame display
     if (this.ui.dom_current_time !== null) {
-      this.ui.dom_current_time.textContent = `${current_frame}`
+      this.ui.dom_current_time.textContent = `${Math.round(current_frame)}`
     }
 
     // Check if animation has finished and loop it
