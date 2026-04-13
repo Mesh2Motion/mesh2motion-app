@@ -21,6 +21,8 @@ export interface ModelVariation {
   display_name: string // Display name shown in the model dropdown, e.g. 'Human (A-Pose)'
   attribution: string // Free-form attribution text to be shown in the UI when this model variation is selected, e.g. 'Model by Artist Name'
   preview_image: string // Preview image path relative to the static root, shown in the variation selection dialog
+  license: string // License string for this model variation, e.g. 'CC0', 'CC-SA 4.0'
+
 }
 
 /**
@@ -46,20 +48,30 @@ export class RigConfig {
         {
           model_file: 'models-variation/human-base.glb',
           display_name: 'Mannequin',
-          attribution: 'Model by Quaternius, CC0-licensed',
+          attribution: 'Quaternius',
+          license: 'CC0',
           preview_image: 'models-variation/profiles/mannequin.png'
         } satisfies ModelVariation,
         {
           model_file: 'models-variation/human-zombie.glb',
           display_name: 'Zombie',
-          attribution: 'Model by Kenney.nl, CC0-licensed',
+          attribution: 'Kenney.nl',
+          license: 'CC0',
           preview_image: 'models-variation/profiles/zombie.png'
         } satisfies ModelVariation,
-          {
+        {
           model_file: 'models-variation/human-sophia.glb',
           display_name: 'Sophia',
-          attribution: 'Art by Tysan Tan, CC-SA 4.0',
+          attribution: 'Tysan Tan',
+          license: 'CC-SA 4.0',
           preview_image: 'models-variation/profiles/sophia.png'
+        } satisfies ModelVariation,
+        {
+          model_file: 'models-variation/human-jay.glb',
+          display_name: 'Jay',
+          attribution: 'Blender Studio',
+          license: 'CC0',
+          preview_image: 'models-variation/profiles/jay.png'
         } satisfies ModelVariation
       ]
     } satisfies RigConfigEntry,
@@ -79,18 +91,21 @@ export class RigConfig {
           model_file: 'models-variation/fox-base.glb',
           display_name: 'Fox',
           attribution: 'None',
+          license: 'CC0',
           preview_image: 'models-variation/profiles/fox.png'
         } satisfies ModelVariation,
         {
           model_file: 'models-variation/fox-horse.glb',
           display_name: 'Horse',
           attribution: 'None',
+          license: 'CC0',
           preview_image: 'models-variation/profiles/horse.png'
         } satisfies ModelVariation,
         {
           model_file: 'models-variation/fox-cat.glb',
-          display_name: 'Cat (Carrot)',
-          attribution: 'David Revoy CC-BY',
+          display_name: 'Carrot',
+          attribution: 'David Revoy',
+          license: 'CC-BY',
           preview_image: 'models-variation/profiles/cat.png'
         } satisfies ModelVariation
       ]
