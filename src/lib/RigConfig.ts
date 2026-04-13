@@ -107,6 +107,13 @@ export class RigConfig {
           attribution: 'David Revoy',
           license: 'CC-BY',
           preview_image: 'models-variation/profiles/cat.png'
+        } satisfies ModelVariation,
+        {
+          model_file: 'models-variation/fox-panda.glb',
+          display_name: 'Panda',
+          attribution: '',
+          license: 'CC0',
+          preview_image: 'models-variation/profiles/panda.png'
         } satisfies ModelVariation
       ]
     } satisfies RigConfigEntry,
