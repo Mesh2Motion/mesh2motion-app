@@ -57,7 +57,7 @@ export class RigConfig {
           display_name: 'Female Mannequin',
           attribution: 'Quaternius',
           license: 'CC0',
-          preview_image: 'models-variation/profiles/mannequin.png'
+          preview_image: 'models-variation/profiles/mannequin-female.png'
         } satisfies ModelVariation,
         {
           model_file: 'models-variation/human-zombie.glb',

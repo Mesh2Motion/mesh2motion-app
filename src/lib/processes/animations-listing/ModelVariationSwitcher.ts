@@ -6,7 +6,7 @@ import { type SkeletonType } from '../../enums/SkeletonType'
 import { VariationLicenseCatalog } from '../../VariationLicenseInfo'
 
 /**
- * Manages the model variation selection on the Explore page.
+ * Manages the model variation selection on the "Explore" page.
  * When a rig type is selected that has model_variations in its RigConfig,
  * a button is shown that opens a confirmation dialog with image previews
  * and attribution for each variation. Otherwise the button is hidden.
@@ -16,18 +16,28 @@ import { VariationLicenseCatalog } from '../../VariationLicenseInfo'
  * with the extracted SkinnedMesh[] so consumers can swap the model directly.
  */
 export class ModelVariationSwitcher extends EventTarget {
-  private readonly dom_switcher: HTMLElement | null = document.querySelector('#model-variation-switcher')
-  private readonly dom_change_model_button: HTMLButtonElement | null = document.querySelector('#model-variation-button')
+
+  // Dialog related DOM elements for switching the model with a popup dialog
   private readonly dom_dialog_overlay: HTMLElement | null = document.querySelector('#variation-dialog-overlay')
   private readonly dom_grid: HTMLElement | null = document.querySelector('#variation-grid')
   private readonly dom_dialog_confirm_button: HTMLButtonElement | null = document.querySelector('#variation-confirm-button')
   private readonly dom_dialog_cancel_button: HTMLButtonElement | null = document.querySelector('#variation-cancel-button')
+
   private readonly loader: GLTFLoader = new GLTFLoader()
   private current_rig: RigConfigEntry | undefined
   private added_event_listeners = false
   private _is_variation_active: boolean = false
   private confirmed_variation: ModelVariation | null = null // model we currently have loaded
   private pending_variation: ModelVariation | null = null // active selection (will be reset if user cancels out of dialog)
+
+
+  // UI elements on the explore page that show the currently selected variation's info. Used to populate current value.
+  private readonly dom_switcher: HTMLElement | null = document.querySelector('#model-variation-switcher')
+  private readonly dom_change_model_button: HTMLButtonElement | null = document.querySelector('#model-variation-button')
+  private readonly dom_info_image: HTMLImageElement | null = document.querySelector('#model-variation-info-image')
+  private readonly dom_info_name: HTMLElement | null = document.querySelector('#model-variation-info-name')
+  private readonly dom_info_license: HTMLElement | null = document.querySelector('#model-variation-info-license')
+  private readonly dom_info_attribution: HTMLElement | null = document.querySelector('#model-variation-info-attribution')
 
   public get is_variation_active (): boolean {
     return this._is_variation_active
@@ -50,6 +60,50 @@ export class ModelVariationSwitcher extends EventTarget {
     const variations = this.current_rig?.model_variations
     this.confirmed_variation = (variations !== undefined && variations.length > 0) ? variations[0] : null
     this.pending_variation = this.confirmed_variation
+    this.update_active_model_info()
+  }
+
+  /** 
+   * Updates the info section on the explore page to reflect the currently active variation.
+   * If no variation is active, hides the info section.
+  */
+  private update_active_model_info (): void {
+
+    // nothing selected for rig, or user cancelled out of dialog -> hide info section
+    if (this.confirmed_variation === null) {
+      if (this.dom_info_image !== null) this.dom_info_image.style.display = 'none'
+      if (this.dom_info_name !== null) this.dom_info_name.textContent = ''
+      if (this.dom_info_license !== null) this.dom_info_license.textContent = ''
+      return
+    }
+
+    // update image properties
+    if (this.dom_info_image !== null) {
+      this.dom_info_image.src = '../' + this.confirmed_variation.preview_image
+      this.dom_info_image.alt = this.confirmed_variation.display_name
+      this.dom_info_image.style.display = ''
+    }
+
+    // Update rig name
+    if (this.dom_info_name !== null) {
+      this.dom_info_name.textContent = this.confirmed_variation.display_name
+    }
+
+    // update license info
+    if (this.dom_info_license !== null) {
+      this.dom_info_license.textContent = this.confirmed_variation.license
+    }
+
+    // update attribution
+    if (this.dom_info_attribution !== null) {
+      if (this.confirmed_variation.attribution !== 'None') {
+        this.dom_info_attribution.textContent = this.confirmed_variation.attribution
+        this.dom_info_attribution.style.display = ''
+      } else {
+        this.dom_info_attribution.textContent = ''
+        this.dom_info_attribution.style.display = 'none'
+      }
+    }
   }
 
   private update_button_visibility (): void {
@@ -192,7 +246,7 @@ export class ModelVariationSwitcher extends EventTarget {
     if (this.added_event_listeners) return
     this.added_event_listeners = true
 
-    this.dom_change_model_button?.addEventListener('click', () => {
+    this.dom_switcher?.addEventListener('click', () => {
       this.show_dialog()
     })
 
@@ -206,6 +260,7 @@ export class ModelVariationSwitcher extends EventTarget {
 
       this.confirmed_variation = this.pending_variation
       this.hide_dialog()
+      this.update_active_model_info()
       this.load_variation_model(this.confirmed_variation.model_file)
     })
 

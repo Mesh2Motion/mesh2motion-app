@@ -40,5 +40,59 @@ button.active-button {
 }
 
 #animation-listing-count {
-    top: 1.87rem;
+    top: 5.8rem;
+    right: 2.5rem;
+}
+
+
+/* model switcher styles on the explore page */ 
+#model-variation-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: background 0.15s;
+}
+
+#model-variation-switcher:hover {
+  background: color-mix(in srgb, var(--text-alternate) 12%, var(--bg-primary));
+}
+
+#model-variation-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#model-variation-info-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg-primary);
+  filter: none !important;
+}
+
+#model-variation-info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+#model-variation-info-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+#model-variation-info-license {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  width: fit-content;
+}
+
+#model-variation-info-attribution {
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
