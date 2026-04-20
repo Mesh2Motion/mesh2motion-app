@@ -79,7 +79,11 @@ export class ModelVariationSwitcher extends EventTarget {
     if (this.confirmed_variation === null) {
       if (this.dom_info_image !== null) this.dom_info_image.style.display = 'none'
       if (this.dom_info_name !== null) this.dom_info_name.textContent = ''
-      if (this.dom_info_license !== null) this.dom_info_license.textContent = ''
+      if (this.dom_info_license !== null) {
+        this.dom_info_license.textContent = ''
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this.dom_info_license as any)._tippy?.destroy()
+      }
       return
     }
 
@@ -98,6 +102,8 @@ export class ModelVariationSwitcher extends EventTarget {
     // update license info
     if (this.dom_info_license !== null) {
       this.dom_info_license.textContent = this.confirmed_variation.license
+      const license_description = VariationLicenseCatalog.get_license_info(this.confirmed_variation.license).description
+      tippy(this.dom_info_license, { content: license_description, theme: 'mesh2motion' })
     }
 
     // update attribution

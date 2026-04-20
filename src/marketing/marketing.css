@@ -36,11 +36,11 @@ button.active-button {
 }
 
 #animations-items {
-    max-height: calc(100vh - 17rem);
+    max-height: calc(100vh - 19rem);
 }
 
 #animation-listing-count {
-    top: 5.8rem;
+    top: 5.9rem;
     right: 2.5rem;
 }
 
@@ -54,6 +54,7 @@ button.active-button {
   border-radius: 8px;
   box-sizing: border-box;
   transition: background 0.15s;
+  padding: 0;
 }
 
 #model-variation-switcher:hover {
@@ -82,8 +83,7 @@ button.active-button {
 }
 
 #model-variation-info-name {
-  font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
 }
 
 #model-variation-info-license {
@@ -94,4 +94,5 @@ button.active-button {
 
 #model-variation-info-attribution {
   opacity: 0.7;
+  font-size: 90%;
 }
