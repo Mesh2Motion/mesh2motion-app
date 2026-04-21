@@ -185,10 +185,15 @@ export class Generators {
   }
 
   static create_default_lights (light_strength: number): Array<DirectionalLight | AmbientLight> {
-    const shadow_map_size: number = 1024
+    const shadow_map_size: number = 2048
     const light_1 = new DirectionalLight(0x777777, light_strength)
     light_1.castShadow = true
     light_1.shadow.mapSize = new Vector2(shadow_map_size, shadow_map_size) // decreases moire effect on mesh
+
+    // helps with z-fighting shadows on the mesh, but can cause moire patterns if too high. 
+    // This is a bit of trial and error to find a good balance. The moire patterns are less noticeable with 
+    // the increased shadow map size, so I was able to use a slightly higher bias to help with the z-fighting.
+    light_1.shadow.bias = -0.0001 
 
     light_1.position.set(-2, 2, 2)
     const light_2 = new AmbientLight(0xffffff, 1.2)
