@@ -229,6 +229,18 @@ export class RigConfig {
       has_head_weight_correction: false,
       has_arm_extension: false,
       position_tracking_bone_name: 'head', // snake doesn't have hips, so we track position from the head instead
+    } satisfies RigConfigEntry,
+    {
+      skeleton_type: SkeletonType.Fish,
+      model_file: 'models/model-shark.glb',
+      rig_file: 'rigs/rig-shark.glb',
+      rig_display_name: 'Fish',
+      animation_files: ['../animations/shark-animations.glb'],
+      animation_preview_folder: 'fish',
+      has_hand_options: false,
+      has_head_weight_correction: false,
+      has_arm_extension: false,
+      position_tracking_bone_name: 'pelvis',
     } satisfies RigConfigEntry
   ]
 
