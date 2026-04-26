@@ -34,6 +34,9 @@ fieldset {
               color .25s ease-out, 
               background-color .15s ease-out,
               box-shadow .15s ease-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 /* border radius for first and last elements */
@@ -58,4 +61,10 @@ fieldset {
   color: #FFF;
   border-color: var(--radio-button-group-bg);
   z-index: 1;
+}
+
+/* checkbox icon for selected state */
+.toggle input:checked + label::before {
+  content: "✓";
+  font-weight: bold;
 }

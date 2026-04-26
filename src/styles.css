@@ -480,7 +480,7 @@ option {
 
 
 #animations-items{
-    max-height: 27rem;
+    max-height: calc(100vh - 27rem);
     display: inline-flex;
     overflow: auto;;
     flex-direction: row;
