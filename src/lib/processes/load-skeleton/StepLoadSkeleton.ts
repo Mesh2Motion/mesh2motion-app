@@ -51,10 +51,6 @@ export class StepLoadSkeleton extends EventTarget {
   }
 
   public begin (): void {
-    if (this.ui.dom_current_step_index !== null) {
-      this.ui.dom_current_step_index.innerHTML = '2'
-    }
-
     if (this.ui.dom_current_step_element !== null) {
       this.ui.dom_current_step_element.innerHTML = 'Load Skeleton'
     }

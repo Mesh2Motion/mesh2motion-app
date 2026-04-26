@@ -424,17 +424,6 @@ option {
     border-radius: 0;
 }
 
-/* Hide the current step for now */
-#current-step-index {
-    display: none;
-    font-size: 15px;
-    background: var(--current-step-indicator);
-    padding: 0.5rem 1rem;
-    border-radius: 1rem;
-    color: var(--text-primary);    
-    text-align: center;
-}
-
 #current-step-label {
     font-size: 20px;
 }

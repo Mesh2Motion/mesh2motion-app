@@ -121,9 +121,6 @@ export class StepEditSkeleton extends EventTarget {
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elemnents for editing mesh
-    if (this.ui.dom_current_step_index != null) {
-      this.ui.dom_current_step_index.innerHTML = '3'
-    }
 
     if (this.ui.dom_current_step_element != null) {
       this.ui.dom_current_step_element.innerHTML = 'Position Joints'

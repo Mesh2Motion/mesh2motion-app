@@ -1,7 +1,6 @@
 export class UI {
   private static instance: UI
 
-  dom_current_step_index: HTMLElement | null = null
   dom_current_step_element: HTMLElement | null = null
   dom_load_model_tools: HTMLElement | null = null
   dom_upload_model_button: HTMLButtonElement | null = null
@@ -120,7 +119,6 @@ export class UI {
 
   private initialize_dom_elements (): void {
     // grab all UI Elements from page that we need to interact with
-    this.dom_current_step_index = document.querySelector('#current-step-index')
     this.dom_current_step_element = document.querySelector('#current-step-label')
 
     // skeleton toggle on UI viewport

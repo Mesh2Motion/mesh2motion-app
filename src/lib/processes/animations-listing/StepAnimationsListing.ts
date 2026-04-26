@@ -86,10 +86,6 @@ export class StepAnimationsListing extends EventTarget {
   public begin (skeleton_type: SkeletonType, skeleton_scale: number): void {
     this.skeleton_scale = skeleton_scale
 
-    if (this.ui.dom_current_step_index != null) {
-      this.ui.dom_current_step_index.innerHTML = '4'
-    }
-
     if (this.ui.dom_current_step_element != null) {
       this.ui.dom_current_step_element.innerHTML = 'Test animations'
     }
@@ -129,7 +125,29 @@ export class StepAnimationsListing extends EventTarget {
     this.skinned_meshes_to_animate = []
     this.animation_mixer = new AnimationMixer(new Object3D())
     this.current_playing_index = 0
+    this.animation_search = null
+    this.reset_ui_elements()
     this.animation_player.clear_animation()
+  }
+
+  // If we change skeleton types, we need to reset some of the state 
+  // in the case we selected animations. This clears the UI state associated with that.
+  private reset_ui_elements (): void {
+    if (this.ui.dom_animation_clip_list !== null) {
+      this.ui.dom_animation_clip_list.innerHTML = ''
+    }
+
+    if (this.ui.dom_animation_count !== null) {
+      this.ui.dom_animation_count.innerHTML = '0'
+    }
+
+    if (this.ui.dom_animations_listing_count !== null) {
+      this.ui.dom_animations_listing_count.innerHTML = '0 animations'
+    }
+
+    if (this.ui.dom_export_button !== null) {
+      this.ui.dom_export_button.disabled = true
+    }
   }
 
   public mixer (): AnimationMixer {
