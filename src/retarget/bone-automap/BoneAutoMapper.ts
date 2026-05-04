@@ -1,6 +1,7 @@
 import { Bone, Group, Object3D, Scene, SkinnedMesh } from 'three'
 import { BoneCategoryMapper } from './BoneCategoryMapper'
 import { MixamoMapper } from './MixamoMapper'
+import { RigifyMapper } from './RigifyMapper'
 import { TargetBoneMappingType } from '../steps/StepBoneMapping'
 import { AnimationRetargetService } from '../AnimationRetargetService'
 
@@ -84,6 +85,12 @@ export class BoneAutoMapper {
     if (retarget_service.get_target_mapping_type() === TargetBoneMappingType.Mixamo) {
       console.log('Target skeleton appears to be a Mixamo rig, performing direct name mapping...')
       mappings = MixamoMapper.map_mixamo_bones(source_bones_meta, target_bones_meta)
+      return mappings
+    }
+
+    if (retarget_service.get_target_mapping_type() === TargetBoneMappingType.Rigify) {
+      console.log('Target skeleton appears to be a Rigify rig, performing direct name mapping...')
+      mappings = RigifyMapper.map_rigify_bones(source_bones_meta, target_bones_meta)
       return mappings
     }
 
@@ -213,23 +220,24 @@ export class BoneAutoMapper {
   private static normalize_bone_name (bone_name: string): string {
     let name = bone_name.toLowerCase()
 
-    // Remove spaces and underscores
-    name = name.replace(/\s+/g, '')
-    name = name.replace(/_/g, '')
-
     // Remove common prefixes
     name = name.replace(/^def-/g, '') // Blender DEF prefix
-    name = name.replace(/^mixamorig/g, '') // Mixamo prefix
+    name = name.replace(/^org-/g, '') // Rigify ORG prefix
+    name = name.replace(/^mixamorig:?/g, '') // Mixamo prefix (with optional colon)
 
-    // Remove common suffixes
-    name = name.replace(/\.\d+$/g, '') // Blender numeric suffixes (e.g., ".001")
+    // Remove spaces, underscores, dots, hyphens, colons
+    name = name.replace(/[\s_.\-:]/g, '')
 
     // Remove L/R identifiers (we use side detection instead)
     name = name.replace(/l$/g, '')
     name = name.replace(/r$/g, '')
 
-    // Remove number identifiers (we use order detection instead)
+    // Remove trailing numbers (segment indices like ".001" or "01")
     name = name.replace(/\d+$/g, '')
+
+    // Strip another trailing l/r in case digits sat between letter and number (e.g. "thumb01l")
+    name = name.replace(/l$/g, '')
+    name = name.replace(/r$/g, '')
 
     return name
   }
