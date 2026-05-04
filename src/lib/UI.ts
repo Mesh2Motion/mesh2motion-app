@@ -27,6 +27,9 @@ export class UI {
   dom_mirror_skeleton_checkbox: HTMLInputElement | null = null
   dom_independent_bone_movement_checkbox: HTMLInputElement | null = null
   dom_mesh_drag_placement_checkbox: HTMLInputElement | null = null
+  dom_mesh_drag_snap_strength_input: HTMLInputElement | null = null
+  dom_mesh_drag_snap_strength_label: HTMLElement | null = null
+  dom_mesh_drag_snap_strength_container: HTMLElement | null = null
   dom_scale_skeleton_button: HTMLButtonElement | null = null
   dom_undo_button: HTMLButtonElement | null = null
   dom_redo_button: HTMLButtonElement | null = null
@@ -42,6 +45,7 @@ export class UI {
 
   // edit skeleton UI step controls
   dom_selected_bone_label: HTMLElement | null = null
+  dom_bone_chain_visibility_container: HTMLElement | null = null
   dom_transform_manual_options: HTMLElement | null = null
   dom_transform_type_radio_group: HTMLElement | null = null
   dom_transform_space_radio_group: HTMLElement | null = null
@@ -148,6 +152,9 @@ export class UI {
     this.dom_mirror_skeleton_checkbox = document.querySelector('#mirror-skeleton')
     this.dom_independent_bone_movement_checkbox = document.querySelector('#independent-bone-movement')
     this.dom_mesh_drag_placement_checkbox = document.querySelector('#mesh-drag-placement')
+    this.dom_mesh_drag_snap_strength_input = document.querySelector('#mesh-drag-snap-strength-input')
+    this.dom_mesh_drag_snap_strength_label = document.querySelector('#mesh-drag-snap-strength-label')
+    this.dom_mesh_drag_snap_strength_container = document.querySelector('#mesh-drag-snap-strength-container')
     this.dom_scale_skeleton_button = document.querySelector('#scale-skeleton-button')
     this.dom_reset_skeleton_scale_button = document.querySelector('#reset-skeleton-scale-button')
 
@@ -155,6 +162,7 @@ export class UI {
     this.dom_redo_button = document.querySelector('#redo-button')
 
     this.dom_selected_bone_label = document.querySelector('#edit-selected-bone-label')
+    this.dom_bone_chain_visibility_container = document.querySelector('#bone-chain-visibility-container')
     this.dom_transform_manual_options = document.querySelector('#transform-manual-options')
 
     this.dom_transform_type_radio_group = document.querySelector('#transform-control-type-group')

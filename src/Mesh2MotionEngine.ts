@@ -214,6 +214,9 @@ export class Mesh2MotionEngine {
     this.skeleton_helper.setHideRightSideJoints(
       is_edit_skeleton_step && this.edit_skeleton_step.is_mirror_mode_enabled()
     )
+    this.skeleton_helper.setHiddenChainRoots(
+      is_edit_skeleton_step ? this.edit_skeleton_step.hidden_bone_chain_root_names() : []
+    )
   }
 
   public update_a_pose_options_visibility (): void {
