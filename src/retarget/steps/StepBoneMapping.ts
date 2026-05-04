@@ -1,12 +1,14 @@
 import { type Scene, type SkinnedMesh } from 'three'
 import { BoneAutoMapper } from '../bone-automap/BoneAutoMapper.ts'
 import { MixamoMapper } from '../bone-automap/MixamoMapper.ts'
+import { RigifyMapper } from '../bone-automap/RigifyMapper.ts'
 import { AnimationRetargetService } from '../AnimationRetargetService.ts'
 import { Mesh2MotionMapper } from '../bone-automap/Mesh2MotionMapper.ts'
 
 // when we are auto-mapping, keep track of what rig type we matched target against
 export enum TargetBoneMappingType {
   Mixamo = 'mixamo',
+  Rigify = 'rigify',
   Mesh2Motion = 'mesh2motion',
   Custom = 'custom', // trying to figure out bone mappings with bone name analysis
   None = 'none'
@@ -364,6 +366,9 @@ export class StepBoneMapping extends EventTarget {
     if (mapping_type === TargetBoneMappingType.Mixamo) {
       this.auto_bone_map_match_display.style.display = 'inline'
       this.auto_bone_map_match_display.textContent = '✨ Mixamo'
+    } else if (mapping_type === TargetBoneMappingType.Rigify) {
+      this.auto_bone_map_match_display.style.display = 'inline'
+      this.auto_bone_map_match_display.textContent = '✨ Rigify'
     } else if (mapping_type === TargetBoneMappingType.Mesh2Motion) {
       this.auto_bone_map_match_display.style.display = 'inline'
       this.auto_bone_map_match_display.textContent = '✨ Mesh2Motion'
@@ -421,8 +426,11 @@ export class StepBoneMapping extends EventTarget {
     const retarget_service: AnimationRetargetService = AnimationRetargetService.getInstance()
 
     // see if target bones follow a known template
-    if (MixamoMapper.is_target_valid_skeleton(this.get_target_bone_names())) {
+    const target_bone_names = this.get_target_bone_names()
+    if (MixamoMapper.is_target_valid_skeleton(target_bone_names)) {
       retarget_service.set_target_mapping_type(TargetBoneMappingType.Mixamo)
+    } else if (RigifyMapper.is_target_valid_skeleton(target_bone_names)) {
+      retarget_service.set_target_mapping_type(TargetBoneMappingType.Rigify)
     } else if (Mesh2MotionMapper.is_source_bones_same_as_target(
       this.get_source_bone_names(),
       this.get_target_bone_names()
