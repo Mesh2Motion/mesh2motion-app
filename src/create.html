@@ -259,10 +259,22 @@
             <span>Selected Bone: <span id="edit-selected-bone-label">None</span></span>
           </p>
 
+          <div id="bone-chain-visibility-container" style="display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.75rem;"></div>
+
           <div style="display: flex; flex-direction: column;">
             <div class="styled-checkbox">
               <input type="checkbox" id="mesh-drag-placement" name="mesh-drag-placement" value="mesh-drag-placement" checked>
               <label for="mesh-drag-placement">Position by mesh volume</label>
+            </div>
+            <div id="mesh-drag-snap-strength-container" style="display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0 0.25rem 1.75rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label for="mesh-drag-snap-strength-input">Vertex Snap</label>
+                <span class="material-symbols-outlined" data-tippy-content="Bias dragged joints toward the nearest mesh vertex. 0 disables snapping and 20 strongly snaps to nearby vertices.">help</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="range" id="mesh-drag-snap-strength-input" min="0" max="20" step="1" value="10" style="flex-grow: 1;" />
+                <span id="mesh-drag-snap-strength-label" style="width: 2rem; text-align: right;">10</span>
+              </div>
             </div>
             <div id="transform-manual-options" style="display: flex; flex-direction: row;">
               <fieldset>

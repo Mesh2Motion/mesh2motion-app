@@ -17,6 +17,7 @@ export class EventListeners {
 
     this.bootstrap.load_skeleton_step.addEventListener('skeletonLoaded', () => {
       this.bootstrap.edit_skeleton_step.load_original_armature_from_model(this.bootstrap.load_skeleton_step.armature())
+      this.bootstrap.mesh_drag_bone_placement.snap_primary_centerline_bones_to_mesh_center()
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
     })
 
@@ -41,6 +42,16 @@ export class EventListeners {
 
     this.bootstrap.edit_skeleton_step.addEventListener('boneEditModeChanged', () => {
       this.bootstrap.update_edit_bone_interaction_mode()
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('chainVisibilityChanged', () => {
+      this.bootstrap.sync_skeleton_helper_joint_visibility()
+
+      if (this.bootstrap.transform_controls.object !== undefined &&
+        this.bootstrap.transform_controls.object !== null &&
+        !this.bootstrap.edit_skeleton_step.is_bone_selectable(this.bootstrap.transform_controls.object as Bone)) {
+        this.bootstrap.transform_controls.detach()
+      }
     })
 
     // attribution link clicking brings up contributors dialog
