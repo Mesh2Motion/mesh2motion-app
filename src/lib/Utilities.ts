@@ -181,16 +181,48 @@ export class Utility {
   private static grouped_chain_anchor_bone_from_bone (bone: Bone): Bone | null {
     const normalized_bone_name = bone.name.toLowerCase()
 
+    if (Utility.is_front_leg_chain_bone_name(normalized_bone_name)) {
+      const front_leg_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_front_leg_anchor_bone_name(candidate_name))
+
+      if (front_leg_anchor !== null) {
+        return front_leg_anchor
+      }
+    }
+
+    if (Utility.is_back_leg_chain_bone_name(normalized_bone_name)) {
+      const back_leg_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_back_leg_anchor_bone_name(candidate_name))
+
+      if (back_leg_anchor !== null) {
+        return back_leg_anchor
+      }
+    }
+
+    if (Utility.is_spine_chain_bone_name(normalized_bone_name)) {
+      const spine_anchor = Utility.find_rootmost_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_spine_anchor_bone_name(candidate_name))
+
+      if (spine_anchor !== null) {
+        return spine_anchor
+      }
+    }
+
+    if (Utility.is_head_chain_bone_name(normalized_bone_name)) {
+      const head_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_head_anchor_bone_name(candidate_name))
+
+      if (head_anchor !== null) {
+        return head_anchor
+      }
+    }
+
     if (Utility.is_hand_chain_bone_name(normalized_bone_name)) {
       return Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) => Utility.is_hand_anchor_bone_name(candidate_name))
     }
 
     if (Utility.is_foot_chain_bone_name(normalized_bone_name)) {
       return Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) => Utility.is_foot_anchor_bone_name(candidate_name))
-    }
-
-    if (Utility.is_head_accessory_bone_name(normalized_bone_name)) {
-      return Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) => candidate_name.includes('head'))
     }
 
     return null
@@ -213,6 +245,24 @@ export class Utility {
     return null
   }
 
+  private static find_rootmost_bone_ancestor_including_self (
+    bone: Bone,
+    matcher: (normalized_bone_name: string) => boolean
+  ): Bone | null {
+    let current_bone: Bone | null = bone
+    let rootmost_match: Bone | null = null
+
+    while (current_bone !== null) {
+      if (matcher(current_bone.name.toLowerCase())) {
+        rootmost_match = current_bone
+      }
+
+      current_bone = current_bone.parent instanceof Bone ? current_bone.parent : null
+    }
+
+    return rootmost_match
+  }
+
   private static is_hand_chain_bone_name (normalized_bone_name: string): boolean {
     return /(hand|thumb|index|middle|ring|pinky|finger)/.test(normalized_bone_name)
   }
@@ -229,8 +279,36 @@ export class Utility {
     return normalized_bone_name.includes('foot') && !/(toe|ball)/.test(normalized_bone_name)
   }
 
-  private static is_head_accessory_bone_name (normalized_bone_name: string): boolean {
+  private static is_head_chain_bone_name (normalized_bone_name: string): boolean {
     return /(head|ear|eye|jaw|chin|mouth|teeth|tongue|horn|antler|nose|brow|lash)/.test(normalized_bone_name)
+  }
+
+  private static is_head_anchor_bone_name (normalized_bone_name: string): boolean {
+    return normalized_bone_name.includes('head') && !/(tip|end|nub)/.test(normalized_bone_name)
+  }
+
+  private static is_spine_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(spine|chest|upperchest|torso|ribcage)/.test(normalized_bone_name)
+  }
+
+  private static is_spine_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(spine|torso)/.test(normalized_bone_name)
+  }
+
+  private static is_front_leg_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(front|fore)[-_ ]?leg/.test(normalized_bone_name)
+  }
+
+  private static is_front_leg_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(front|fore)[-_ ]?leg/.test(normalized_bone_name) && /(shoulder|scapula)/.test(normalized_bone_name)
+  }
+
+  private static is_back_leg_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(back|rear|hind)[-_ ]?leg/.test(normalized_bone_name)
+  }
+
+  private static is_back_leg_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(back|rear|hind)[-_ ]?leg/.test(normalized_bone_name) && /(pelvis|hip)/.test(normalized_bone_name)
   }
 
   static format_bone_chain_label (bone_name: string): string {

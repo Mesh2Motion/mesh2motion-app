@@ -201,6 +201,88 @@ export class MeshDragBonePlacement {
     })
   }
 
+  public spread_spine_chain_for_fox (): void {
+    const skeleton_to_adjust = this.edit_skeleton_step.skeleton()
+    if (skeleton_to_adjust === undefined) {
+      return
+    }
+
+    const pelvis_bone = this.find_bone_by_name_match(skeleton_to_adjust, /(pelvis|hips)/)
+    const head_bone = this.find_bone_by_name_match(skeleton_to_adjust, /head/)
+    const spine_bones = this.find_spine_chain_bones(skeleton_to_adjust)
+
+    const mesh_bounds = this.get_mesh_bounds()
+    if (mesh_bounds === null) {
+      return
+    }
+
+    if (pelvis_bone === null || head_bone === null || spine_bones.length === 0) {
+      return
+    }
+
+    const pelvis_world = Utility.world_position_from_object(pelvis_bone)
+    const head_world = Utility.world_position_from_object(head_bone)
+
+    const bounds_size = mesh_bounds.getSize(new Vector3())
+    const bounds_center = mesh_bounds.getCenter(new Vector3())
+    const use_x_axis = bounds_size.x >= bounds_size.z
+    let axis_dir = use_x_axis ? new Vector3(1, 0, 0) : new Vector3(0, 0, 1)
+
+    const head_hint = new Vector3(head_world.x, 0, head_world.z)
+    const pelvis_hint = new Vector3(pelvis_world.x, 0, pelvis_world.z)
+    const hint_axis = head_hint.clone().sub(pelvis_hint)
+
+    if (hint_axis.lengthSq() > 0.0001) {
+      axis_dir = hint_axis.normalize()
+    } else {
+      const center_hint = new Vector3(bounds_center.x, 0, bounds_center.z)
+      if (head_hint.sub(center_hint).dot(axis_dir) < 0) {
+        axis_dir.multiplyScalar(-1)
+      }
+    }
+
+    const axis_length = Math.max(use_x_axis ? bounds_size.x : bounds_size.z, 0.1)
+    const half_length = axis_length * 0.45
+    const tail_position = bounds_center.clone().add(axis_dir.clone().multiplyScalar(-half_length))
+    const head_position = bounds_center.clone().add(axis_dir.clone().multiplyScalar(half_length))
+
+    tail_position.y = pelvis_world.y
+    head_position.y = head_world.y
+
+    const spine_axis = head_position.clone().sub(tail_position)
+    if (spine_axis.lengthSq() < 0.0001) {
+      return
+    }
+
+    const spine_direction = spine_axis.clone().normalize()
+    spine_bones.sort((bone_a, bone_b) => {
+      const bone_a_pos = Utility.world_position_from_object(bone_a)
+      const bone_b_pos = Utility.world_position_from_object(bone_b)
+      const bone_a_depth = bone_a_pos.clone().sub(tail_position).dot(spine_direction)
+      const bone_b_depth = bone_b_pos.clone().sub(tail_position).dot(spine_direction)
+
+      if (bone_a_depth === bone_b_depth) {
+        return bone_a.name.localeCompare(bone_b.name)
+      }
+
+      return bone_a_depth - bone_b_depth
+    })
+
+    spine_bones.forEach((bone, index) => {
+      if (!(bone.parent instanceof Bone)) {
+        return
+      }
+
+      const lerp_factor = (index + 1) / (spine_bones.length + 1)
+      const target_world_position = tail_position.clone().lerp(head_position, lerp_factor)
+      target_world_position.y = pelvis_world.y + (head_world.y - pelvis_world.y) * lerp_factor
+      const target_local_position = target_world_position.clone()
+      bone.parent.worldToLocal(target_local_position)
+      bone.position.copy(target_local_position)
+      bone.updateWorldMatrix(true, true)
+    })
+  }
+
   private move_selected_bone_to_mesh_midpoint (mouse_event: MouseEvent): void {
     const selected_bone = this.edit_skeleton_step.get_currently_selected_bone()
 
@@ -261,10 +343,8 @@ export class MeshDragBonePlacement {
     return mesh_targets.filter((target) => target.children.length > 0)
   }
 
-  private get_mesh_centerline_target_at_world_position (
-    target_world_position: Vector3,
-    mesh_targets: Object3D[] = this.get_centerline_mesh_targets()
-  ): Vector3 | null {
+  private get_mesh_bounds (): THREE.Box3 | null {
+    const mesh_targets = this.get_centerline_mesh_targets()
     if (mesh_targets.length === 0) {
       return null
     }
@@ -275,6 +355,22 @@ export class MeshDragBonePlacement {
     })
 
     if (scene_bounds.isEmpty()) {
+      return null
+    }
+
+    return scene_bounds
+  }
+
+  private get_mesh_centerline_target_at_world_position (
+    target_world_position: Vector3,
+    mesh_targets: Object3D[] = this.get_centerline_mesh_targets()
+  ): Vector3 | null {
+    if (mesh_targets.length === 0) {
+      return null
+    }
+
+    const scene_bounds = this.get_mesh_bounds()
+    if (scene_bounds === null) {
       return null
     }
 
@@ -323,6 +419,15 @@ export class MeshDragBonePlacement {
     }
 
     return apply_mesh_centerline_target(target_world_position, snapped_x, snapped_z)
+  }
+
+  private find_spine_chain_bones (skeleton: Skeleton): Bone[] {
+    return skeleton.bones.filter((bone) => /spine/.test(bone.name.toLowerCase()))
+  }
+
+  private find_bone_by_name_match (skeleton: Skeleton, matcher: RegExp): Bone | null {
+    const bone_match = skeleton.bones.find((bone) => matcher.test(bone.name.toLowerCase()))
+    return bone_match ?? null
   }
 
   private get_opposing_surface_midpoint (

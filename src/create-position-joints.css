@@ -1,0 +1,160 @@
+body.create-page #position-joints-topbar {
+  display: none;
+  position: fixed;
+  top: var(--navigation-height);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-alternate) 100%);
+  border-bottom: 1px solid var(--bg-tertiary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+body.create-page.edit-skeleton-topbar #position-joints-topbar {
+  display: block;
+}
+
+body.create-page.edit-skeleton-topbar #tool-panel {
+  display: none;
+}
+
+body.create-page .position-joints-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem 0.8rem;
+  box-sizing: border-box;
+}
+
+body.create-page .position-joints-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+body.create-page .position-joints-row--selected {
+  justify-content: center;
+}
+
+body.create-page .position-joints-row--chains {
+  justify-content: center;
+}
+
+body.create-page .position-joints-row--actions {
+  justify-content: center;
+  gap: 1rem;
+}
+
+body.create-page .position-joints-row--controls {
+  justify-content: center;
+  gap: 10px;
+}
+
+body.create-page .position-joints-controls-left,
+body.create-page .position-joints-controls-center,
+body.create-page .position-joints-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body.create-page .position-joints-controls-center {
+  justify-content: center;
+}
+
+body.create-page .position-joints-controls-right {
+  justify-content: center;
+}
+
+body.create-page .position-joints-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.create-page .position-joints-section-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-alternate);
+}
+
+body.create-page .position-joints-label {
+  font-size: 0.85rem;
+  color: var(--text-alternate);
+}
+
+body.create-page .position-joints-undo {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+body.create-page .position-joints-chain-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.create-page .position-joints-chain-fieldset {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+body.create-page .position-joints-chain-list .styled-checkbox {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
+body.create-page .position-joints-chain-list label {
+  white-space: nowrap;
+}
+
+body.create-page .position-joints-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+body.create-page .position-joints-snap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+body.create-page .position-joints-snap input[type="range"] {
+  width: 140px;
+}
+
+body.create-page .position-joints-snap-value {
+  width: 2.5rem;
+  text-align: right;
+}
+
+body.create-page .position-joints-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+body.create-page #bone-selection-section {
+  background: transparent;
+  padding: 0;
+}

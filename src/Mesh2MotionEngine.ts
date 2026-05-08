@@ -346,6 +346,7 @@ export class Mesh2MotionEngine {
 
     // update the current process step variable
     this.update_current_process_step(process_step)
+    this.update_position_joints_topbar_state(process_step)
 
     // clean up things related to steps in since we can navigate back and forth
     this.edit_skeleton_step.cleanup_on_exit_step()
@@ -453,6 +454,20 @@ export class Mesh2MotionEngine {
 
     return this.process_step
   } // end process_step_changed()
+
+  private update_position_joints_topbar_state (process_step: ProcessStep): void {
+    const body = document.body
+    if (!body.classList.contains('create-page')) {
+      return
+    }
+
+    if (process_step === ProcessStep.EditSkeleton) {
+      body.classList.add('edit-skeleton-topbar')
+      return
+    }
+
+    body.classList.remove('edit-skeleton-topbar')
+  }
 
 
   private animate (): void {

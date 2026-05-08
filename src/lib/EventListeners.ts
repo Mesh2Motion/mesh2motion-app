@@ -5,6 +5,7 @@ import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
 import { type Bone } from 'three'
+import { SkeletonType } from './enums/SkeletonType'
 
 export class EventListeners {
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
@@ -18,6 +19,10 @@ export class EventListeners {
     this.bootstrap.load_skeleton_step.addEventListener('skeletonLoaded', () => {
       this.bootstrap.edit_skeleton_step.load_original_armature_from_model(this.bootstrap.load_skeleton_step.armature())
       this.bootstrap.mesh_drag_bone_placement.snap_primary_centerline_bones_to_mesh_center()
+
+      if (this.bootstrap.load_skeleton_step.skeleton_type() === SkeletonType.Fox) {
+        this.bootstrap.mesh_drag_bone_placement.spread_spine_chain_for_fox()
+      }
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
     })
 

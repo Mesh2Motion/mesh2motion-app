@@ -605,7 +605,7 @@ export class StepEditSkeleton extends EventTarget {
     }).join('')
 
     this.ui.dom_bone_chain_visibility_container.style.display = 'flex'
-    this.ui.dom_bone_chain_visibility_container.innerHTML = `<fieldset style="display: flex; flex-direction: column; gap: 0.35rem;"><span>Visible Chains</span>${checkbox_markup}</fieldset>`
+    this.ui.dom_bone_chain_visibility_container.innerHTML = `<fieldset class="position-joints-chain-fieldset">${checkbox_markup}</fieldset>`
   }
 
   private set_bone_chain_visibility (chain_root_name: string, is_visible: boolean): void {
