@@ -48,7 +48,7 @@ export class SceneEnvironmentManager {
 
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-    this.controls.target.set(0, 0.9, 0)
+    this.controls.target.set(0, 1.2, 0)
 
     // Set zoom limits to prevent excessive zooming in or out
     this.controls.minDistance = 0.5 // Minimum zoom (closest to model)
@@ -89,6 +89,10 @@ export class SceneEnvironmentManager {
   public set_camera_position (position: Vector3): void {
     this.camera.position.copy(position)
     this.controls?.update()
+  }
+
+  public get_orbit_target (): Vector3 | null {
+    return this.controls?.target ?? null
   }
 
   public set_zoom_limits (min_distance: number, max_distance: number): void {

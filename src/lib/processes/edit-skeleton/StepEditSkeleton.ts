@@ -38,9 +38,12 @@ export class StepEditSkeleton extends EventTarget {
 
   // Skeleton created from the armature that Three.js uses
   private threejs_skeleton: Skeleton = new Skeleton()
+  private skeleton_type: SkeletonType | null = null
   private mirror_mode_enabled: boolean = true
   private mesh_drag_placement_enabled: boolean = true
+  private mesh_drag_centerline_snap_enabled: boolean = true
   private mesh_drag_snap_strength: number = 10
+  private orbit_rotation_disabled: boolean = false
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
   private readonly bone_chain_visibility = new Map<string, boolean>()
@@ -120,6 +123,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
+    this.skeleton_type = skeleton_type
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elemnents for editing mesh
@@ -153,6 +157,14 @@ export class StepEditSkeleton extends EventTarget {
 
     if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
       this.set_mesh_drag_placement_enabled(this.ui.dom_mesh_drag_placement_checkbox.checked)
+    }
+
+    if (this.ui.dom_mesh_drag_centerline_snap_checkbox !== null) {
+      this.set_mesh_drag_centerline_snap_enabled(this.ui.dom_mesh_drag_centerline_snap_checkbox.checked)
+    }
+
+    if (this.ui.dom_disable_orbit_rotation_checkbox !== null) {
+      this.set_orbit_rotation_disabled(this.ui.dom_disable_orbit_rotation_checkbox.checked)
     }
 
     if (this.ui.dom_mesh_drag_snap_strength_input !== null) {
@@ -245,8 +257,20 @@ export class StepEditSkeleton extends EventTarget {
     }))
   }
 
+  public set_mesh_drag_centerline_snap_enabled (value: boolean): void {
+    this.mesh_drag_centerline_snap_enabled = value
+  }
+
+  public is_mesh_drag_centerline_snap_enabled (): boolean {
+    return this.mesh_drag_centerline_snap_enabled
+  }
+
   public is_mesh_drag_placement_enabled (): boolean {
     return this.mesh_drag_placement_enabled
+  }
+
+  public get_skeleton_type (): SkeletonType | null {
+    return this.skeleton_type
   }
 
   public set_mesh_drag_snap_strength (value: number): void {
@@ -264,6 +288,17 @@ export class StepEditSkeleton extends EventTarget {
 
   public get_mesh_drag_snap_strength (): number {
     return this.mesh_drag_snap_strength
+  }
+
+  public set_orbit_rotation_disabled (value: boolean): void {
+    this.orbit_rotation_disabled = value
+    this.dispatchEvent(new CustomEvent('orbit-rotation-changed', {
+      detail: { disabled: value }
+    }))
+  }
+
+  public is_orbit_rotation_disabled (): boolean {
+    return this.orbit_rotation_disabled
   }
 
   public hidden_bone_chain_root_names (): string[] {
@@ -396,6 +431,30 @@ export class StepEditSkeleton extends EventTarget {
         }
 
         this.set_mesh_drag_placement_enabled(target.checked)
+      })
+    }
+
+    if (this.ui.dom_mesh_drag_centerline_snap_checkbox !== null) {
+      this.ui.dom_mesh_drag_centerline_snap_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.set_mesh_drag_centerline_snap_enabled(target.checked)
+      })
+    }
+
+    if (this.ui.dom_disable_orbit_rotation_checkbox !== null) {
+      this.ui.dom_disable_orbit_rotation_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.set_orbit_rotation_disabled(target.checked)
       })
     }
 
@@ -566,7 +625,12 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public armature (): Object3D {
-    return this.edited_armature
+    const skeleton_root = this.threejs_skeleton.bones[0]
+    const cloned_root = skeleton_root.clone(true)
+    const armature = new Object3D()
+    armature.add(cloned_root)
+    armature.updateMatrixWorld(true)
+    return armature
   }
 
   public skeleton (): Skeleton {

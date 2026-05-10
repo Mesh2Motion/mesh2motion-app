@@ -254,6 +254,7 @@ export class Mesh2MotionEngine {
     this.is_model_gizmo_active = true
     this.transform_controls.attach(this.load_model_step.model_meshes())
     this.transform_controls.setMode('translate')
+    this.transform_controls.size = 1
     this.transform_controls.enabled = true
   }
 
@@ -293,6 +294,11 @@ export class Mesh2MotionEngine {
   public update_edit_bone_interaction_mode (): void {
     this.mesh_drag_bone_placement.sync_interaction_mode(this.process_step, this.transform_controls)
     this.is_transform_controls_dragging = false
+  }
+
+  public update_orbit_controls_state (allow_orbit: boolean): void {
+    const orbit_disabled = this.edit_skeleton_step.is_orbit_rotation_disabled()
+    this.enable_orbit_controls(allow_orbit && !orbit_disabled)
   }
 
   public get is_mesh_drag_mode_dragging (): boolean {
@@ -407,6 +413,8 @@ export class Mesh2MotionEngine {
       this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
       this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
+      this.update_transform_controls_size()
+      this.update_orbit_controls_state(true)
 
       this.sync_skeleton_helper_joint_visibility()
 
@@ -486,6 +494,10 @@ export class Mesh2MotionEngine {
     this.renderer.render(this.scene, this.camera)
 
     // view helper
+    const orbit_target = this.scene_environment.get_orbit_target()
+    if (orbit_target !== null) {
+      this.view_helper.center.copy(orbit_target)
+    }
     this.view_helper.render(this.renderer) // updates current viewport
     if (this.view_helper.animating) {
       this.view_helper.update(delta_time) // updates animation when clicking on axis
@@ -512,15 +524,21 @@ export class Mesh2MotionEngine {
       case 'translate':
         this.transform_controls_type = TransformControlType.Translation
         this.transform_controls.setMode('translate')
+        this.update_transform_controls_size()
         break
       case 'rotation':
         this.transform_controls_type = TransformControlType.Rotation
         this.transform_controls.setMode('rotate')
+        this.update_transform_controls_size()
         break
       default:
         console.warn(`Unknown transform mode selected: ${radio_button_selected}`)
         break
     }
+  }
+
+  private update_transform_controls_size (): void {
+    this.transform_controls.size = 1
   }
 
   public changed_transform_controls_space (radio_button_selected: TransformSpace | undefined): void {

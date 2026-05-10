@@ -27,6 +27,8 @@ export class UI {
   dom_mirror_skeleton_checkbox: HTMLInputElement | null = null
   dom_independent_bone_movement_checkbox: HTMLInputElement | null = null
   dom_mesh_drag_placement_checkbox: HTMLInputElement | null = null
+  dom_mesh_drag_centerline_snap_checkbox: HTMLInputElement | null = null
+  dom_disable_orbit_rotation_checkbox: HTMLInputElement | null = null
   dom_mesh_drag_snap_strength_input: HTMLInputElement | null = null
   dom_mesh_drag_snap_strength_label: HTMLElement | null = null
   dom_mesh_drag_snap_strength_container: HTMLElement | null = null
@@ -152,6 +154,8 @@ export class UI {
     this.dom_mirror_skeleton_checkbox = document.querySelector('#mirror-skeleton')
     this.dom_independent_bone_movement_checkbox = document.querySelector('#independent-bone-movement')
     this.dom_mesh_drag_placement_checkbox = document.querySelector('#mesh-drag-placement')
+    this.dom_mesh_drag_centerline_snap_checkbox = document.querySelector('#mesh-drag-centerline-snap')
+    this.dom_disable_orbit_rotation_checkbox = document.querySelector('#disable-rotation-spinner')
     this.dom_mesh_drag_snap_strength_input = document.querySelector('#mesh-drag-snap-strength-input')
     this.dom_mesh_drag_snap_strength_label = document.querySelector('#mesh-drag-snap-strength-label')
     this.dom_mesh_drag_snap_strength_container = document.querySelector('#mesh-drag-snap-strength-container')

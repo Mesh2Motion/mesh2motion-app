@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { type OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { type TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { ProcessStep } from '../../enums/ProcessStep.ts'
+import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
 import { type StepEditSkeleton } from './StepEditSkeleton.ts'
 import { type StepLoadModel } from '../load-model/StepLoadModel.ts'
@@ -53,6 +54,11 @@ export function apply_mesh_centerline_target (
 export class MeshDragBonePlacement {
   private orbit_controls: OrbitControls | undefined = undefined
   private is_dragging_mode_active: boolean = false
+  private closest_vertex_cache: {
+    object_uuid: string
+    face_key: string
+    closest_vertex_world_position: Vector3 | null
+  } | null = null
 
   constructor (
     private readonly camera: PerspectiveCamera,
@@ -79,16 +85,12 @@ export class MeshDragBonePlacement {
 
     if (using_mesh_drag_mode) {
       transform_controls.detach()
-      if (this.orbit_controls !== undefined) {
-        this.orbit_controls.enabled = true
-      }
+      this.set_orbit_controls_enabled(true)
     }
 
     if (this.is_dragging_mode_active && !using_mesh_drag_mode) {
       this.is_dragging_mode_active = false
-      if (this.orbit_controls !== undefined) {
-        this.orbit_controls.enabled = true
-      }
+      this.set_orbit_controls_enabled(true)
     }
   }
 
@@ -97,6 +99,8 @@ export class MeshDragBonePlacement {
     if (!is_primary_button_click) {
       return
     }
+
+    this.closest_vertex_cache = null
 
     const skeleton_to_test: Skeleton | undefined = this.edit_skeleton_step.skeleton()
     if (skeleton_to_test === undefined) {
@@ -133,9 +137,7 @@ export class MeshDragBonePlacement {
     }
 
     this.is_dragging_mode_active = true
-    if (this.orbit_controls !== undefined) {
-      this.orbit_controls.enabled = false
-    }
+    this.set_orbit_controls_enabled(false)
 
     this.move_selected_bone_to_mesh_midpoint(mouse_event)
   }
@@ -162,21 +164,25 @@ export class MeshDragBonePlacement {
     }
 
     this.is_dragging_mode_active = false
-    if (this.orbit_controls !== undefined) {
-      this.orbit_controls.enabled = true
-    }
+    this.closest_vertex_cache = null
+    this.set_orbit_controls_enabled(true)
 
     return true
   }
 
   public snap_primary_centerline_bones_to_mesh_center (): void {
+    if (!this.edit_skeleton_step.is_mesh_drag_centerline_snap_enabled()) {
+      return
+    }
+
     const skeleton_to_snap = this.edit_skeleton_step.skeleton()
     if (skeleton_to_snap === undefined) {
       return
     }
 
     const mesh_targets = this.get_centerline_mesh_targets()
-    if (mesh_targets.length === 0) {
+    const is_fox = this.edit_skeleton_step.get_skeleton_type() === SkeletonType.Fox
+    if (mesh_targets.length === 0 && !is_fox) {
       return
     }
 
@@ -185,9 +191,8 @@ export class MeshDragBonePlacement {
         return
       }
 
-      const centered_world_position = this.get_mesh_centerline_target_at_world_position(
-        Utility.world_position_from_object(bone),
-        mesh_targets
+      const centered_world_position = this.get_centerline_target_at_world_position(
+        Utility.world_position_from_object(bone)
       )
 
       if (centered_world_position === null) {
@@ -294,8 +299,9 @@ export class MeshDragBonePlacement {
     let target_world_position: Vector3 | null = null
 
     if (intersection_target !== null) {
-      if (is_centerline_mesh_snap_bone_name(selected_bone.name)) {
-        target_world_position = this.get_mesh_centerline_target_at_world_position(intersection_target.midpoint)
+      if (this.edit_skeleton_step.is_mesh_drag_centerline_snap_enabled() &&
+        is_centerline_mesh_snap_bone_name(selected_bone.name)) {
+        target_world_position = this.get_centerline_target_at_world_position(intersection_target.midpoint)
       }
 
       if (target_world_position === null) {
@@ -361,6 +367,17 @@ export class MeshDragBonePlacement {
     return scene_bounds
   }
 
+  private get_centerline_target_at_world_position (target_world_position: Vector3): Vector3 | null {
+    if (this.edit_skeleton_step.get_skeleton_type() === SkeletonType.Fox) {
+      const fox_target = this.get_fox_centerline_target_at_world_position(target_world_position)
+      if (fox_target !== null) {
+        return fox_target
+      }
+    }
+
+    return this.get_mesh_centerline_target_at_world_position(target_world_position)
+  }
+
   private get_mesh_centerline_target_at_world_position (
     target_world_position: Vector3,
     mesh_targets: Object3D[] = this.get_centerline_mesh_targets()
@@ -419,6 +436,16 @@ export class MeshDragBonePlacement {
     }
 
     return apply_mesh_centerline_target(target_world_position, snapped_x, snapped_z)
+  }
+
+  private get_fox_centerline_target_at_world_position (target_world_position: Vector3): Vector3 | null {
+    const mesh_bounds = this.get_mesh_bounds()
+    if (mesh_bounds === null) {
+      return null
+    }
+
+    const center_x = mesh_bounds.getCenter(new Vector3()).x
+    return new Vector3(center_x, target_world_position.y, target_world_position.z)
   }
 
   private find_spine_chain_bones (skeleton: Skeleton): Bone[] {
@@ -531,6 +558,13 @@ export class MeshDragBonePlacement {
       return null
     }
 
+    const face_key = `${face.a}-${face.b}-${face.c}`
+    if (this.closest_vertex_cache !== null &&
+      this.closest_vertex_cache.object_uuid === object.uuid &&
+      this.closest_vertex_cache.face_key === face_key) {
+      return this.closest_vertex_cache.closest_vertex_world_position?.clone() ?? null
+    }
+
     const vertex_indices = [face.a, face.b, face.c]
     let closest_vertex_world_position: Vector3 | null = null
     let closest_vertex_distance = Number.POSITIVE_INFINITY
@@ -543,6 +577,12 @@ export class MeshDragBonePlacement {
         closest_vertex_distance = vertex_distance
         closest_vertex_world_position = vertex_world_position
       }
+    }
+
+    this.closest_vertex_cache = {
+      object_uuid: object.uuid,
+      face_key,
+      closest_vertex_world_position: closest_vertex_world_position?.clone() ?? null
     }
 
     return closest_vertex_world_position
@@ -572,6 +612,15 @@ export class MeshDragBonePlacement {
 
     const intersection_point = mouse_raycaster.ray.intersectPlane(viewport_plane, new THREE.Vector3())
     return intersection_point === null ? null : intersection_point.clone()
+  }
+
+  private set_orbit_controls_enabled (enabled: boolean): void {
+    if (this.orbit_controls === undefined) {
+      return
+    }
+
+    const orbit_allowed = !this.edit_skeleton_step.is_orbit_rotation_disabled()
+    this.orbit_controls.enabled = enabled && orbit_allowed
   }
 }
 
