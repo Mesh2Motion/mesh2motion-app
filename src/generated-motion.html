@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Generated Motion Lab</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #111318;
+        color: #f7f1e8;
+        font: 14px system-ui, sans-serif;
+      }
+
+      #toolbar {
+        position: fixed;
+        z-index: 2;
+        top: 70px;
+        left: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        max-width: min(720px, calc(100vw - 32px));
+        padding: 10px;
+        background: rgba(17, 19, 24, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        backdrop-filter: blur(12px);
+      }
+
+      nav {
+        position: fixed;
+        z-index: 3;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background: rgba(17, 19, 24, 0.94);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        box-sizing: border-box;
+      }
+
+      nav div {
+        display: inline-flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      nav a,
+      nav span {
+        color: #f7f1e8;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      nav .active-nav-item {
+        color: #ffd166;
+      }
+
+      #procedural-controls {
+        position: fixed;
+        z-index: 2;
+        left: 16px;
+        bottom: 16px;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(84px, 1fr));
+        gap: 8px;
+        width: min(620px, calc(100vw - 32px));
+        padding: 10px;
+        background: rgba(17, 19, 24, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        backdrop-filter: blur(12px);
+      }
+
+      #skeleton-adjust-panel {
+        position: fixed;
+        z-index: 2;
+        right: 16px;
+        top: 70px;
+        display: grid;
+        gap: 8px;
+        width: min(300px, calc(100vw - 32px));
+        padding: 10px;
+        background: rgba(17, 19, 24, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        backdrop-filter: blur(12px);
+      }
+
+      #skeleton-adjust-panel[hidden] {
+        display: none;
+      }
+
+      #skeleton-adjust-panel h2 {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      #skeleton-adjust-panel label {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 8px;
+        padding: 0;
+        font-size: 12px;
+      }
+
+      #skeleton-adjust-panel input {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 5px 6px;
+        background: #242936;
+        color: inherit;
+      }
+
+      #procedural-controls label {
+        display: grid;
+        gap: 4px;
+        padding: 0;
+        font-size: 11px;
+      }
+
+      #procedural-controls input {
+        width: 100%;
+      }
+
+      button {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #242936;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .file-button {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #242936;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      select {
+        max-width: 180px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #242936;
+        color: inherit;
+      }
+
+      button.active {
+        background: #d29a4a;
+        color: #17120b;
+      }
+
+      label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding-left: 4px;
+        white-space: nowrap;
+      }
+
+      #status {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 2;
+        padding: 8px 10px;
+        background: rgba(17, 19, 24, 0.76);
+        border-radius: 8px;
+      }
+
+      #bone-tooltip {
+        position: fixed;
+        z-index: 3;
+        display: none;
+        pointer-events: none;
+        padding: 6px 8px;
+        background: rgba(12, 14, 18, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      #map-panel,
+      #chain-panel {
+        position: fixed;
+        z-index: 2;
+        right: 16px;
+        width: min(420px, calc(100vw - 32px));
+        overflow: auto;
+        padding: 10px;
+        background: rgba(17, 19, 24, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        backdrop-filter: blur(12px);
+      }
+
+      #map-panel {
+        top: 86px;
+        max-height: calc(100vh - 310px);
+        display: none;
+      }
+
+      #chain-panel {
+        bottom: 16px;
+        max-height: 210px;
+        display: none;
+      }
+
+      #map-panel h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      #chain-panel h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      #chain-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .chain-item {
+        padding: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 12px;
+      }
+
+      .chain-item strong {
+        display: block;
+        color: #ffd166;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 5px 4px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 12px;
+        text-align: left;
+      }
+
+      td select {
+        width: 100%;
+        max-width: none;
+        padding: 4px 6px;
+        font-size: 12px;
+      }
+
+      .legacy-option {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div>
+        <a href="/"><img src="/images/mesh2motion.svg" width="180" alt="Mesh2Motion"></a>
+        <a href="/">Explore</a>
+        <a href="/create.html">Use Your Model</a>
+        <a href="/retarget/index.html">Use Your Rigged Model</a>
+        <span class="active-nav-item">Generated Motion Lab</span>
+      </div>
+      <div>
+        <a href="/reference-images.html">References</a>
+      </div>
+    </nav>
+    <div id="toolbar">
+      <label class="file-button" for="custom-model-input">Open GLB</label>
+      <input id="custom-model-input" type="file" accept=".glb,.gltf" hidden>
+      <select id="animal-kingdom-select">
+        <option value="">Tank animals</option>
+        <option value="/tank-animals/animal_kingdom_v1__barn_owl-riganything.glb" data-label="Barn owl" data-source="bird">Barn owl</option>
+        <option value="/tank-animals/animal_kingdom_v1__crocodile-riganything.glb" data-label="Crocodile" data-source="snake">Crocodile</option>
+        <option value="/tank-animals/animal_kingdom_v1__deer_doe-riganything.glb" data-label="Deer doe" data-source="deer">Deer doe</option>
+        <option value="/tank-animals/animal_kingdom_v1__elephant_bull-riganything.glb" data-label="Elephant bull" data-source="wolf">Elephant bull</option>
+        <option value="/tank-animals/animal_kingdom_v1__elephant_matriarch-riganything.glb" data-label="Elephant matriarch" data-source="wolf">Elephant matriarch</option>
+        <option value="/tank-animals/animal_kingdom_v1__giant_tortoise-riganything.glb" data-label="Giant tortoise" data-source="wolf">Giant tortoise</option>
+        <option value="/tank-animals/animal_kingdom_v1__giraffe-riganything.glb" data-label="Giraffe" data-source="deer">Giraffe</option>
+        <option value="/tank-animals/animal_kingdom_v1__golden_eagle-riganything.glb" data-label="Golden eagle" data-source="bird">Golden eagle</option>
+        <option value="/tank-animals/animal_kingdom_v1__gorilla-riganything.glb" data-label="Gorilla" data-source="wolf">Gorilla</option>
+        <option value="/tank-animals/animal_kingdom_v1__gray_wolf-riganything.glb" data-label="Gray wolf" data-source="wolf">Gray wolf</option>
+        <option value="/tank-animals/animal_kingdom_v1__great_horned_owl-riganything.glb" data-label="Great horned owl" data-source="bird">Great horned owl</option>
+        <option value="/tank-animals/animal_kingdom_v1__grizzly_bear-riganything.glb" data-label="Grizzly bear" data-source="wolf">Grizzly bear</option>
+        <option value="/tank-animals/animal_kingdom_v1__hare-riganything.glb" data-label="Hare" data-source="wolf">Hare</option>
+        <option value="/tank-animals/animal_kingdom_v1__lion-riganything.glb" data-label="Lion" data-source="wolf">Lion</option>
+        <option value="/tank-animals/animal_kingdom_v1__lynx-riganything.glb" data-label="Lynx" data-source="wolf">Lynx</option>
+        <option value="/tank-animals/animal_kingdom_v1__okapi-riganything.glb" data-label="Okapi" data-source="deer">Okapi</option>
+        <option value="/tank-animals/animal_kingdom_v1__osprey-riganything.glb" data-label="Osprey" data-source="bird">Osprey</option>
+        <option value="/tank-animals/animal_kingdom_v1__peregrine_falcon-riganything.glb" data-label="Peregrine falcon" data-source="bird">Peregrine falcon</option>
+        <option value="/tank-animals/animal_kingdom_v1__raccoon-riganything.glb" data-label="Raccoon" data-source="wolf">Raccoon</option>
+        <option value="/tank-animals/animal_kingdom_v1__raven-riganything.glb" data-label="Raven" data-source="bird">Raven</option>
+        <option value="/tank-animals/animal_kingdom_v1__red_deer_stag-riganything.glb" data-label="Red deer stag" data-source="stag">Red deer stag</option>
+        <option value="/tank-animals/animal_kingdom_v1__red_fox-riganything.glb" data-label="Red fox" data-source="foxq">Red fox</option>
+        <option value="/tank-animals/animal_kingdom_v1__red_tailed_hawk-riganything.glb" data-label="Red-tailed hawk" data-source="bird">Red-tailed hawk</option>
+        <option value="/tank-animals/animal_kingdom_v1__snowy_owl-riganything.glb" data-label="Snowy owl" data-source="bird">Snowy owl</option>
+        <option value="/tank-animals/animal_kingdom_v1__turkey_vulture-riganything.glb" data-label="Turkey vulture" data-source="bird">Turkey vulture</option>
+        <option value="/tank-animals/animal_kingdom_v1__wild_boar-riganything.glb" data-label="Wild boar" data-source="wolf">Wild boar</option>
+        <option value="/tank-animals/animal_kingdom_v1__zebra-riganything.glb" data-label="Zebra" data-source="horseq">Zebra</option>
+        <option value="/tank-animals/fish_pack_v1__anglerfish-riganything.glb" data-label="Anglerfish" data-source="shark">Anglerfish</option>
+        <option value="/tank-animals/fish_pack_v1__koi_carp-riganything.glb" data-label="Koi carp" data-source="shark">Koi carp</option>
+        <option value="/tank-animals/fish_pack_v1__lionfish-riganything.glb" data-label="Lionfish" data-source="shark">Lionfish</option>
+        <option value="/tank-animals/fish_pack_v1__swordfish-riganything.glb" data-label="Swordfish" data-source="shark">Swordfish</option>
+      </select>
+      <button id="octopus-rig" type="button">Octopus</button>
+      <button id="kangaroo-rig" type="button">Kangaroo</button>
+      <button id="elephant-rig" type="button">Elephant</button>
+      <button id="samoyed-rig" type="button">Samoyed</button>
+      <label><input id="skeleton" type="checkbox" checked> skeleton</label>
+      <select id="animation-select"></select>
+      <button id="play-animation" type="button">Play</button>
+      <button id="procedural-walk" type="button">Procedural walk</button>
+      <button id="procedural-trot" type="button">Trot</button>
+      <button id="procedural-canter" type="button">Canter</button>
+      <button id="procedural-gallop" type="button">Gallop</button>
+      <button id="procedural-hop" type="button">Hop</button>
+      <button id="procedural-idle" type="button">Procedural idle</button>
+      <button id="head-turn" type="button">Head turn</button>
+      <button id="octopus-squirt" type="button">Squirt away</button>
+      <button id="stop-animation" type="button">Stop</button>
+      <button id="save-motion" type="button">Save motion</button>
+      <button id="swap-front-back" type="button">Swap front/back</button>
+      <button id="reset-map" type="button">Reset map</button>
+    </div>
+    <div id="procedural-controls">
+      <label>Speed <input id="proc-speed" type="range" min="0.1" max="2" step="0.05" value="0.9"></label>
+      <label>Stride <input id="proc-stride" type="range" min="0" max="1.2" step="0.02" value="0.48"></label>
+      <label>Knee <input id="proc-knee" type="range" min="0" max="1.2" step="0.02" value="0.36"></label>
+      <label>Lift <input id="proc-lift" type="range" min="0" max="0.8" step="0.02" value="0.25"></label>
+      <label>Bob <input id="proc-bob" type="range" min="0" max="0.08" step="0.002" value="0.008"></label>
+      <label>Target
+        <select id="motion-focus">
+          <option value="all">All</option>
+          <option value="body">Body</option>
+          <option value="head">Head</option>
+          <option value="tail">Tail</option>
+          <option value="legs">Legs</option>
+          <option value="tentacles">Tentacles</option>
+          <option value="tips">Tips</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+      <label>Jiggle <input id="motion-jiggle-amount" type="range" min="0" max="1.2" step="0.02" value="0.18"></label>
+      <label>Rate <input id="motion-jiggle-frequency" type="range" min="0.2" max="4" step="0.05" value="1.4"></label>
+      <label>Sway <input id="motion-sway" type="range" min="0" max="1.2" step="0.02" value="0"></label>
+      <label>Twist <input id="motion-twist" type="range" min="0" max="1.2" step="0.02" value="0"></label>
+    </div>
+    <div id="skeleton-adjust-panel" hidden>
+      <h2>Adjust Bone: <span id="selected-bone-label"></span></h2>
+      <label>Rot X <input id="bone-rx" type="number" step="1"></label>
+      <label>Rot Y <input id="bone-ry" type="number" step="1"></label>
+      <label>Rot Z <input id="bone-rz" type="number" step="1"></label>
+      <label>Pos X <input id="bone-px" type="number" step="0.005"></label>
+      <label>Pos Y <input id="bone-py" type="number" step="0.005"></label>
+      <label>Pos Z <input id="bone-pz" type="number" step="0.005"></label>
+      <button id="reset-bone" type="button">Reset selected bone</button>
+    </div>
+    <div id="map-panel">
+      <h2>Generated Bone Map</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Generated</th>
+            <th id="mapping-source-header">Wolf source</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="mapping-table"></tbody>
+      </table>
+    </div>
+    <div id="chain-panel">
+      <h2>Procedural Chains</h2>
+      <div id="chain-list"></div>
+    </div>
+    <div id="status">Loading animal...</div>
+    <div id="bone-tooltip"></div>
+    <script>
+      if (window.location.protocol === 'file:') {
+        document.querySelector('#status').textContent = 'Open this through Vite: http://192.168.1.180:5173/generated-motion.html'
+      }
+    </script>
+    <script type="module" src="/lion-viewer.ts"></script>
+  </body>
+</html>
