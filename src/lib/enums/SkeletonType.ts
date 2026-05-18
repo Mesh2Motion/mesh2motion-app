@@ -8,6 +8,18 @@ export enum SkeletonType {
   Spider = 'spider',
   Snake = 'snake',
   Fish = 'fish',
+  Wolf = 'wolf',
+  Alpaca = 'alpaca',
+  Bull = 'bull',
+  Cow = 'cow',
+  Deer = 'deer',
+  Donkey = 'donkey',
+  FoxQ = 'foxq',
+  HorseQ = 'horseq',
+  HorseWhite = 'horsewhite',
+  Husky = 'husky',
+  ShibaInu = 'shibainu',
+  Stag = 'stag',
   Error = 'error',
   None = 'none'
 }

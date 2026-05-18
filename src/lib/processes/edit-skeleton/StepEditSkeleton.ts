@@ -20,6 +20,7 @@ import {
 } from 'three'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
+import { BoneRules } from '../../BoneRules.ts'
 
 /*
  * StepEditSkeleton
@@ -250,6 +251,10 @@ export class StepEditSkeleton extends EventTarget {
 
   public is_bone_selectable (bone: Bone | null): boolean {
     if (bone === null) {
+      return false
+    }
+
+    if (BoneRules.is_non_deforming_control_bone(bone)) {
       return false
     }
 

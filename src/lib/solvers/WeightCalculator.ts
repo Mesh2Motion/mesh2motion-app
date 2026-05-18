@@ -7,6 +7,7 @@ import {
 import { Utility } from '../Utilities.js'
 import { SkeletonType } from '../enums/SkeletonType.js'
 import { RigConfig } from '../RigConfig.js'
+import { BoneRules } from '../BoneRules.js'
 
 /**
  * Handles the core bone-to-vertex weight calculation logic.
@@ -58,9 +59,9 @@ export class WeightCalculator {
       let closest_bone_index: number = 0
 
       this.bones.forEach((bone, idx) => {
-        // The root bone is only for global transform changes, so we won't assign it to any vertices
-        if (bone.name === 'root') {
-          return // skip the root bone and continue to the next bone
+        // Root/control bones are transform helpers, not deform bones.
+        if (bone.name === 'root' || BoneRules.is_non_deforming_control_bone(bone)) {
+          return
         }
 
         // hip bones should have custom logic for distance. If the distance is too far away we should ignore it
