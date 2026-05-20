@@ -39,11 +39,6 @@ button.active-button {
     max-height: calc(100vh - 19rem);
 }
 
-#animation-listing-count {
-    top: 5.9rem;
-    right: 2.5rem;
-}
-
 
 /* model switcher styles on the explore page */ 
 #model-variation-switcher {

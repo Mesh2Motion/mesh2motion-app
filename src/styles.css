@@ -148,8 +148,8 @@ div, p {
 
 #animation-listing-count {
     position: absolute;
-    right: 3rem;
-    top: 5rem;
+    top: 0.3rem;
+    right: 1rem;
     color: var(--text-alternate)
 }
 

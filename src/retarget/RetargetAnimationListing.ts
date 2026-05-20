@@ -147,7 +147,7 @@ export class RetargetAnimationListing extends EventTarget {
     // Update animation listing count display
     const listing_count_element = document.getElementById('animation-listing-count')
     if (listing_count_element !== null) {
-      listing_count_element.textContent = this.animation_clips_loaded.length.toString()
+      listing_count_element.textContent = this.animation_clips_loaded.length.toString() + 'animations'
     }
 
     // the export button enabled state relies on the animation search being initialized

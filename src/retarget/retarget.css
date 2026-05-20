@@ -118,10 +118,6 @@ h1 {
     max-height: calc(100vh - 14rem);
 }
 
-#animation-listing-count {
-    top: 1.87rem;
-}
-
 #auto-bone-map-match {
     font-size: 0.9rem;
     border: 3px solid var(--bg-tertiary);
