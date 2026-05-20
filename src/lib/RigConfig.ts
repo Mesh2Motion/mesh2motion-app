@@ -236,7 +236,7 @@ export class RigConfig {
       rig_file: 'rigs/rig-shark.glb',
       rig_display_name: 'Fish',
       animation_files: ['../animations/shark-animations.glb'],
-      animation_preview_folder: 'fish',
+      animation_preview_folder: 'shark',
       has_hand_options: false,
       has_head_weight_correction: false,
       has_arm_extension: false,
