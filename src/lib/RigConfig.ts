@@ -1,4 +1,5 @@
 import { SkeletonType } from './enums/SkeletonType'
+import { humanVariations, foxVariations, birdVariations, kaijuVariations, fishVariations } from './ModelVariations'
 
 export interface RigConfigEntry {
   skeleton_type: SkeletonType // The SkeletonType enum member for this rig
@@ -44,50 +45,7 @@ export class RigConfig {
       has_head_weight_correction: true,
       has_arm_extension: true,
       position_tracking_bone_name: 'pelvis',
-      model_variations: [
-        {
-          model_file: 'models-variation/human-base.glb',
-          display_name: 'Mannequin',
-          attribution: 'Quaternius',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/mannequin.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/human-female.glb',
-          display_name: 'Female Mannequin',
-          attribution: 'Quaternius',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/mannequin-female.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/human-zombie.glb',
-          display_name: 'Zombie',
-          attribution: 'Kenney.nl',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/zombie.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/human-sophia.glb',
-          display_name: 'Sophia',
-          attribution: 'Tysan Tan',
-          license: 'CC-SA 4.0',
-          preview_image: 'models-variation/profiles/sophia.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/human-jay.glb',
-          display_name: 'Jay',
-          attribution: 'Blender Studio',
-          license: 'CC-BY',
-          preview_image: 'models-variation/profiles/jay.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/human-sintel.glb',
-          display_name: 'Sintel',
-          attribution: 'Blender Studio',
-          license: 'CC-BY',
-          preview_image: 'models-variation/profiles/sintel.png'
-        } satisfies ModelVariation,
-      ]
+      model_variations: humanVariations
     } satisfies RigConfigEntry,
     {
       skeleton_type: SkeletonType.Fox,
@@ -100,43 +58,7 @@ export class RigConfig {
       has_head_weight_correction: false,
       has_arm_extension: false,
       position_tracking_bone_name: 'hips',
-      model_variations: [
-        {
-          model_file: 'models-variation/fox-base.glb',
-          display_name: 'Fox',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/fox.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/fox-dog.glb',
-          display_name: 'Dog',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/dog.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/fox-horse.glb',
-          display_name: 'Horse',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/horse.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/fox-cat.glb',
-          display_name: 'Carrot',
-          attribution: 'David Revoy',
-          license: 'CC-BY',
-          preview_image: 'models-variation/profiles/cat.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/fox-panda.glb',
-          display_name: 'Panda',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/panda.png'
-        } satisfies ModelVariation
-      ]
+      model_variations: foxVariations
     } satisfies RigConfigEntry,
     {
       skeleton_type: SkeletonType.Bird,
@@ -149,22 +71,7 @@ export class RigConfig {
       has_head_weight_correction: false,
       has_arm_extension: false,
       position_tracking_bone_name: 'hips',
-      model_variations: [
-        {
-          model_file: 'models-variation/bird-base.glb',
-          display_name: 'Seagull',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/seagull.png'
-        } satisfies ModelVariation,
-        {
-          model_file: 'models-variation/bird-eagle.glb',
-          display_name: 'Bald Eagle',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/eagle.png'
-        } satisfies ModelVariation,
-      ]
+      model_variations: birdVariations
     } satisfies RigConfigEntry,
     {
       skeleton_type: SkeletonType.Dragon,
@@ -189,22 +96,7 @@ export class RigConfig {
       has_head_weight_correction: false,
       has_arm_extension: false,
       position_tracking_bone_name: 'hips',
-      model_variations: [
-         {
-          model_file: 'models-variation/kaiju-base.glb',
-          display_name: 'Kaiju',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/kaiju.png'
-        } satisfies ModelVariation,
-         {
-          model_file: 'models-variation/kaiju-trex.glb',
-          display_name: 'T-Rex',
-          attribution: '',
-          license: 'CC0',
-          preview_image: 'models-variation/profiles/t-rex.png'
-        } satisfies ModelVariation,
-      ]
+      model_variations: kaijuVariations
     } satisfies RigConfigEntry,
     {
       skeleton_type: SkeletonType.Spider,
@@ -241,22 +133,7 @@ export class RigConfig {
       has_head_weight_correction: false,
       has_arm_extension: false,
       position_tracking_bone_name: 'pelvis',
-        model_variations: [
-          {
-            model_file: 'models-variation/fish-shark.glb',
-            display_name: 'Shark',
-            attribution: '',
-            license: 'CC0',
-            preview_image: 'models-variation/profiles/shark.png'
-          } satisfies ModelVariation,
-          {
-            model_file: 'models-variation/fish-whale.glb',
-            display_name: 'Whale',
-            attribution: '',
-            license: 'CC0',
-            preview_image: 'models-variation/profiles/whale.png'
-          } satisfies ModelVariation,
-        ]
+      model_variations: fishVariations
     } satisfies RigConfigEntry
   ]
 
