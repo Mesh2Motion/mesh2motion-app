@@ -2,6 +2,7 @@ import { Group, Object3D, Scene, SkeletonHelper } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
 import { RigConfig } from '../../lib/RigConfig.ts'
+import { DOMUtilities } from '../../lib/DOMUtilities.ts'
 import type GLTFResult from '../../lib/processes/load-skeleton/interfaces/GLTFResult.ts'
 import { ModalDialog } from '../../lib/ModalDialog.ts'
 
@@ -28,7 +29,7 @@ export class StepLoadSourceSkeleton extends EventTarget {
 
     // Populate the skeleton dropdown from the central rig config (no placeholder needed)
     if (this.skeleton_type_select !== null) {
-      RigConfig.populate_skeleton_select(this.skeleton_type_select, false)
+      DOMUtilities.populate_skeleton_select(this.skeleton_type_select, false)
     }
 
     if (!this._added_event_listeners) {

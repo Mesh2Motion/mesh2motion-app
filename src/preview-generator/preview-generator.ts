@@ -9,7 +9,7 @@ import JSZip from 'jszip'
 import { Generators } from '../lib/Generators.ts'
 import { ThemeManager } from '../lib/ThemeManager.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
-import { RigConfig } from '../lib/RigConfig.ts'
+import { DOMUtilities } from '../lib/DOMUtilities.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 
 class PreviewGenerator {
@@ -231,7 +231,7 @@ const app = new PreviewGenerator()
 // Populate animation file dropdown from central rig config
 const animation_file_dropdown = document.getElementById('animation-file-dropdown') as HTMLSelectElement | null
 if (animation_file_dropdown !== null) {
-  RigConfig.populate_animation_file_select(animation_file_dropdown)
+  DOMUtilities.populate_animation_file_select(animation_file_dropdown)
 }
 
 // look out for select change

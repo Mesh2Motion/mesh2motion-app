@@ -3,6 +3,7 @@ import { Object3D, type Scene, type Object3DEventMap } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType, type HandSkeletonType } from '../../enums/SkeletonType.js'
 import { RigConfig } from '../../RigConfig.ts'
+import { DOMUtilities } from '../../DOMUtilities.ts'
 import type GLTFResult from './interfaces/GLTFResult.ts'
 import { add_origin_markers, remove_origin_markers } from './OriginMarkerManager'
 import { add_preview_skeleton, remove_preview_skeleton } from './PreviewSkeletonManager.ts'
@@ -122,7 +123,7 @@ export class StepLoadSkeleton extends EventTarget {
   private add_event_listeners (): void {
     // Populate the skeleton template dropdown from the central rig config
     if (this.ui.dom_skeleton_drop_type !== null) {
-      RigConfig.populate_skeleton_select(this.ui.dom_skeleton_drop_type)
+      DOMUtilities.populate_skeleton_select(this.ui.dom_skeleton_drop_type)
     }
 
     // Add event listener for skeleton type changes to show/hide hand options
