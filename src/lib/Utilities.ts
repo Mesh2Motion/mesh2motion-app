@@ -121,6 +121,203 @@ export class Utility {
     return bones
   }
 
+  static child_bones_from_object (object: Object3D): Bone[] {
+    return object.children.filter((child): child is Bone => child instanceof Bone)
+  }
+
+  static is_chain_root_bone (bone: Bone): boolean {
+    const grouped_chain_anchor = Utility.grouped_chain_anchor_bone_from_bone(bone)
+    if (grouped_chain_anchor !== null) {
+      return grouped_chain_anchor === bone
+    }
+
+    if (bone.name === 'root') {
+      return false
+    }
+
+    const parent = bone.parent
+    if (!(parent instanceof Bone)) {
+      return true
+    }
+
+    if (parent.name === 'root') {
+      return true
+    }
+
+    return Utility.child_bones_from_object(parent).length > 1
+  }
+
+  static chain_root_bone_from_bone (bone: Bone): Bone {
+    const grouped_chain_anchor = Utility.grouped_chain_anchor_bone_from_bone(bone)
+    if (grouped_chain_anchor !== null) {
+      return grouped_chain_anchor
+    }
+
+    let current_bone: Bone = bone
+
+    while (current_bone.parent instanceof Bone && !Utility.is_chain_root_bone(current_bone)) {
+      current_bone = current_bone.parent
+    }
+
+    return current_bone
+  }
+
+  static unique_chain_root_bones_from_skeleton (skeleton: Skeleton): Bone[] {
+    const chain_roots: Bone[] = []
+    const seen_names = new Set<string>()
+
+    skeleton.bones.forEach((bone) => {
+      if (!Utility.is_chain_root_bone(bone) || seen_names.has(bone.name)) {
+        return
+      }
+
+      seen_names.add(bone.name)
+      chain_roots.push(bone)
+    })
+
+    return chain_roots
+  }
+
+  private static grouped_chain_anchor_bone_from_bone (bone: Bone): Bone | null {
+    const normalized_bone_name = bone.name.toLowerCase()
+
+    if (Utility.is_front_leg_chain_bone_name(normalized_bone_name)) {
+      const front_leg_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_front_leg_anchor_bone_name(candidate_name))
+
+      if (front_leg_anchor !== null) {
+        return front_leg_anchor
+      }
+    }
+
+    if (Utility.is_back_leg_chain_bone_name(normalized_bone_name)) {
+      const back_leg_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_back_leg_anchor_bone_name(candidate_name))
+
+      if (back_leg_anchor !== null) {
+        return back_leg_anchor
+      }
+    }
+
+    if (Utility.is_spine_chain_bone_name(normalized_bone_name)) {
+      const spine_anchor = Utility.find_rootmost_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_spine_anchor_bone_name(candidate_name))
+
+      if (spine_anchor !== null) {
+        return spine_anchor
+      }
+    }
+
+    if (Utility.is_head_chain_bone_name(normalized_bone_name)) {
+      const head_anchor = Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) =>
+        Utility.is_head_anchor_bone_name(candidate_name))
+
+      if (head_anchor !== null) {
+        return head_anchor
+      }
+    }
+
+    if (Utility.is_hand_chain_bone_name(normalized_bone_name)) {
+      return Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) => Utility.is_hand_anchor_bone_name(candidate_name))
+    }
+
+    if (Utility.is_foot_chain_bone_name(normalized_bone_name)) {
+      return Utility.find_nearest_bone_ancestor_including_self(bone, (candidate_name) => Utility.is_foot_anchor_bone_name(candidate_name))
+    }
+
+    return null
+  }
+
+  private static find_nearest_bone_ancestor_including_self (
+    bone: Bone,
+    matcher: (normalized_bone_name: string) => boolean
+  ): Bone | null {
+    let current_bone: Bone | null = bone
+
+    while (current_bone !== null) {
+      if (matcher(current_bone.name.toLowerCase())) {
+        return current_bone
+      }
+
+      current_bone = current_bone.parent instanceof Bone ? current_bone.parent : null
+    }
+
+    return null
+  }
+
+  private static find_rootmost_bone_ancestor_including_self (
+    bone: Bone,
+    matcher: (normalized_bone_name: string) => boolean
+  ): Bone | null {
+    let current_bone: Bone | null = bone
+    let rootmost_match: Bone | null = null
+
+    while (current_bone !== null) {
+      if (matcher(current_bone.name.toLowerCase())) {
+        rootmost_match = current_bone
+      }
+
+      current_bone = current_bone.parent instanceof Bone ? current_bone.parent : null
+    }
+
+    return rootmost_match
+  }
+
+  private static is_hand_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(hand|thumb|index|middle|ring|pinky|finger)/.test(normalized_bone_name)
+  }
+
+  private static is_hand_anchor_bone_name (normalized_bone_name: string): boolean {
+    return normalized_bone_name.includes('hand') && !/(thumb|index|middle|ring|pinky|finger)/.test(normalized_bone_name)
+  }
+
+  private static is_foot_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(foot|toe|ball)/.test(normalized_bone_name)
+  }
+
+  private static is_foot_anchor_bone_name (normalized_bone_name: string): boolean {
+    return normalized_bone_name.includes('foot') && !/(toe|ball)/.test(normalized_bone_name)
+  }
+
+  private static is_head_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(head|ear|eye|jaw|chin|mouth|teeth|tongue|horn|antler|nose|brow|lash)/.test(normalized_bone_name)
+  }
+
+  private static is_head_anchor_bone_name (normalized_bone_name: string): boolean {
+    return normalized_bone_name.includes('head') && !/(tip|end|nub)/.test(normalized_bone_name)
+  }
+
+  private static is_spine_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(spine|chest|upperchest|torso|ribcage)/.test(normalized_bone_name)
+  }
+
+  private static is_spine_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(spine|torso)/.test(normalized_bone_name)
+  }
+
+  private static is_front_leg_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(front|fore)[-_ ]?leg/.test(normalized_bone_name)
+  }
+
+  private static is_front_leg_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(front|fore)[-_ ]?leg/.test(normalized_bone_name) && /(shoulder|scapula)/.test(normalized_bone_name)
+  }
+
+  private static is_back_leg_chain_bone_name (normalized_bone_name: string): boolean {
+    return /(back|rear|hind)[-_ ]?leg/.test(normalized_bone_name)
+  }
+
+  private static is_back_leg_anchor_bone_name (normalized_bone_name: string): boolean {
+    return /(back|rear|hind)[-_ ]?leg/.test(normalized_bone_name) && /(pelvis|hip)/.test(normalized_bone_name)
+  }
+
+  static format_bone_chain_label (bone_name: string): string {
+    return bone_name
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim()
+  }
+
   static intersection_points_between_positions_and_mesh (positions: BufferAttribute | InterleavedBufferAttribute,
     envelope_mesh: Mesh): IntersectionPointData {
     const vertex_positions_inside_bone_envelope: Vector3[] = []

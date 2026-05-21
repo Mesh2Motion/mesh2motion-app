@@ -105,7 +105,7 @@ export class IndependentBoneMovement {
       ? bone.parent
       : null
 
-    if (parent_bone !== null) {
+    if (parent_bone !== null && this._should_update_parent_rotation_from_child_translation(parent_bone)) {
       // Also snapshot siblings so they can be re-pinned after parent rotates
       parent_bone.children.forEach((sibling) => {
         if (sibling === bone || !this._is_bone(sibling)) { return }
@@ -292,5 +292,13 @@ export class IndependentBoneMovement {
     }
 
     return (value as { isBone?: boolean }).isBone === true
+  }
+
+  private _should_update_parent_rotation_from_child_translation (bone: Bone): boolean {
+    // Branching parents like chest/pelvis/clavicle hubs should preserve their
+    // template orientation when a single child is translated; otherwise the
+    // averaged child-direction solve can twist the torso/shoulder backward.
+    const bone_children = bone.children.filter((child): child is Bone => this._is_bone(child))
+    return bone_children.length <= 1
   }
 }

@@ -38,10 +38,15 @@ export class StepEditSkeleton extends EventTarget {
 
   // Skeleton created from the armature that Three.js uses
   private threejs_skeleton: Skeleton = new Skeleton()
+  private skeleton_type: SkeletonType | null = null
   private mirror_mode_enabled: boolean = true
   private mesh_drag_placement_enabled: boolean = true
+  private mesh_drag_centerline_snap_enabled: boolean = true
+  private mesh_drag_snap_strength: number = 10
+  private orbit_rotation_disabled: boolean = false
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
+  private readonly bone_chain_visibility = new Map<string, boolean>()
 
   private currently_selected_bone: Bone | null = null
 
@@ -117,6 +122,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
+    this.skeleton_type = skeleton_type
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elemnents for editing mesh
@@ -151,6 +157,21 @@ export class StepEditSkeleton extends EventTarget {
     if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
       this.set_mesh_drag_placement_enabled(this.ui.dom_mesh_drag_placement_checkbox.checked)
     }
+
+    if (this.ui.dom_mesh_drag_centerline_snap_checkbox !== null) {
+      this.set_mesh_drag_centerline_snap_enabled(this.ui.dom_mesh_drag_centerline_snap_checkbox.checked)
+    }
+
+    if (this.ui.dom_disable_orbit_rotation_checkbox !== null) {
+      this.set_orbit_rotation_disabled(this.ui.dom_disable_orbit_rotation_checkbox.checked)
+    }
+
+    if (this.ui.dom_mesh_drag_snap_strength_input !== null) {
+      const initial_snap_strength = Number(this.ui.dom_mesh_drag_snap_strength_input.value)
+      this.set_mesh_drag_snap_strength(Number.isFinite(initial_snap_strength) ? initial_snap_strength : 10)
+    }
+
+    this.render_bone_chain_visibility_options()
 
     this.update_bind_button_text()
 
@@ -235,20 +256,72 @@ export class StepEditSkeleton extends EventTarget {
     }))
   }
 
+  public set_mesh_drag_centerline_snap_enabled (value: boolean): void {
+    this.mesh_drag_centerline_snap_enabled = value
+  }
+
+  public is_mesh_drag_centerline_snap_enabled (): boolean {
+    return this.mesh_drag_centerline_snap_enabled
+  }
+
   public is_mesh_drag_placement_enabled (): boolean {
     return this.mesh_drag_placement_enabled
   }
 
-  private update_manual_transform_options_visibility (): void {
-    if (this.ui.dom_transform_manual_options === null) {
-      return
+  public get_skeleton_type (): SkeletonType | null {
+    return this.skeleton_type
+  }
+
+  public set_mesh_drag_snap_strength (value: number): void {
+    const clamped_value = Math.max(0, Math.min(20, Math.round(value)))
+    this.mesh_drag_snap_strength = clamped_value
+
+    if (this.ui.dom_mesh_drag_snap_strength_input !== null) {
+      this.ui.dom_mesh_drag_snap_strength_input.value = clamped_value.toString()
     }
 
-    this.ui.dom_transform_manual_options.style.display = this.mesh_drag_placement_enabled ? 'none' : 'flex'
+    if (this.ui.dom_mesh_drag_snap_strength_label !== null) {
+      this.ui.dom_mesh_drag_snap_strength_label.textContent = clamped_value.toString()
+    }
+  }
+
+  public get_mesh_drag_snap_strength (): number {
+    return this.mesh_drag_snap_strength
+  }
+
+  public set_orbit_rotation_disabled (value: boolean): void {
+    this.orbit_rotation_disabled = value
+    this.dispatchEvent(new CustomEvent('orbit-rotation-changed', {
+      detail: { disabled: value }
+    }))
+  }
+
+  public is_orbit_rotation_disabled (): boolean {
+    return this.orbit_rotation_disabled
+  }
+
+  public hidden_bone_chain_root_names (): string[] {
+    return [...this.bone_chain_visibility.entries()]
+      .filter(([, is_visible]) => !is_visible)
+      .map(([bone_name]) => bone_name)
+  }
+
+  private update_manual_transform_options_visibility (): void {
+    if (this.ui.dom_transform_manual_options !== null) {
+      this.ui.dom_transform_manual_options.style.display = this.mesh_drag_placement_enabled ? 'none' : 'flex'
+    }
+
+    if (this.ui.dom_mesh_drag_snap_strength_container !== null) {
+      this.ui.dom_mesh_drag_snap_strength_container.style.display = this.mesh_drag_placement_enabled ? 'flex' : 'none'
+    }
   }
 
   public is_bone_selectable (bone: Bone | null): boolean {
     if (bone === null) {
+      return false
+    }
+
+    if (!this.is_bone_chain_visible(bone)) {
       return false
     }
 
@@ -359,6 +432,51 @@ export class StepEditSkeleton extends EventTarget {
         this.set_mesh_drag_placement_enabled(target.checked)
       })
     }
+
+    if (this.ui.dom_mesh_drag_centerline_snap_checkbox !== null) {
+      this.ui.dom_mesh_drag_centerline_snap_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.set_mesh_drag_centerline_snap_enabled(target.checked)
+      })
+    }
+
+    if (this.ui.dom_disable_orbit_rotation_checkbox !== null) {
+      this.ui.dom_disable_orbit_rotation_checkbox.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement | null
+
+        if (target === null) {
+          return
+        }
+
+        this.set_orbit_rotation_disabled(target.checked)
+      })
+    }
+
+    this.ui.dom_mesh_drag_snap_strength_input?.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement | null
+
+      if (target === null) {
+        return
+      }
+
+      const snap_strength = Number(target.value)
+      this.set_mesh_drag_snap_strength(Number.isFinite(snap_strength) ? snap_strength : 0)
+    })
+
+    this.ui.dom_bone_chain_visibility_container?.addEventListener('change', (event) => {
+      const target = event.target as HTMLInputElement | null
+
+      if (target === null || target.dataset.chainRootName === undefined) {
+        return
+      }
+
+      this.set_bone_chain_visibility(target.dataset.chainRootName, target.checked)
+    })
 
     this.ui.dom_enable_skin_debugging?.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement | null
@@ -486,6 +604,7 @@ export class StepEditSkeleton extends EventTarget {
     this.edited_armature = armature.clone()
 
     this.create_threejs_skeleton_object()
+    this.initialize_bone_chain_visibility_state()
     this.independent_bone_movement.set_rest_pose(this.threejs_skeleton)
 
     // Initialize the undo/redo system with the skeleton
@@ -505,11 +624,66 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public armature (): Object3D {
-    return this.edited_armature
+    const skeleton_root = this.threejs_skeleton.bones[0]
+    const cloned_root = skeleton_root.clone(true)
+    const armature = new Object3D()
+    armature.add(cloned_root)
+    armature.updateMatrixWorld(true)
+    return armature
   }
 
   public skeleton (): Skeleton {
     return this.threejs_skeleton
+  }
+
+  public is_bone_chain_visible (bone: Bone): boolean {
+    return this.bone_chain_visibility.get(Utility.chain_root_bone_from_bone(bone).name) !== false
+  }
+
+  private initialize_bone_chain_visibility_state (): void {
+    this.bone_chain_visibility.clear()
+
+    Utility.unique_chain_root_bones_from_skeleton(this.threejs_skeleton).forEach((bone) => {
+      this.bone_chain_visibility.set(bone.name, true)
+    })
+  }
+
+  private render_bone_chain_visibility_options (): void {
+    if (this.ui.dom_bone_chain_visibility_container === null) {
+      return
+    }
+
+    const chain_root_bones = Utility.unique_chain_root_bones_from_skeleton(this.threejs_skeleton)
+    if (chain_root_bones.length === 0) {
+      this.ui.dom_bone_chain_visibility_container.style.display = 'none'
+      this.ui.dom_bone_chain_visibility_container.innerHTML = ''
+      return
+    }
+
+    const checkbox_markup = chain_root_bones.map((bone) => {
+      const checkbox_id = `bone-chain-${bone.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+      const checked_attribute = this.bone_chain_visibility.get(bone.name) === false ? '' : ' checked'
+      const label = Utility.format_bone_chain_label(bone.name)
+      return `<div class="styled-checkbox"><input type="checkbox" id="${checkbox_id}" data-chain-root-name="${bone.name}"${checked_attribute}><label for="${checkbox_id}">${label}</label></div>`
+    }).join('')
+
+    this.ui.dom_bone_chain_visibility_container.style.display = 'flex'
+    this.ui.dom_bone_chain_visibility_container.innerHTML = `<fieldset class="position-joints-chain-fieldset">${checkbox_markup}</fieldset>`
+  }
+
+  private set_bone_chain_visibility (chain_root_name: string, is_visible: boolean): void {
+    this.bone_chain_visibility.set(chain_root_name, is_visible)
+
+    const selected_bone = this.get_currently_selected_bone()
+    if (selected_bone !== null && !this.is_bone_chain_visible(selected_bone)) {
+      this.set_currently_selected_bone(null)
+      if (this.ui.dom_selected_bone_label !== null) {
+        this.ui.dom_selected_bone_label.innerHTML = 'None'
+      }
+      this.update_bone_hover_point_position(null)
+    }
+
+    this.dispatchEvent(new CustomEvent('chainVisibilityChanged'))
   }
 
   public apply_mirror_mode (selected_bone: Bone, transform_type: string): void {

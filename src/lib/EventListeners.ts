@@ -5,6 +5,7 @@ import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
 import { type Bone } from 'three'
+import { SkeletonType } from './enums/SkeletonType'
 
 export class EventListeners {
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
@@ -17,6 +18,11 @@ export class EventListeners {
 
     this.bootstrap.load_skeleton_step.addEventListener('skeletonLoaded', () => {
       this.bootstrap.edit_skeleton_step.load_original_armature_from_model(this.bootstrap.load_skeleton_step.armature())
+      this.bootstrap.mesh_drag_bone_placement.snap_primary_centerline_bones_to_mesh_center()
+
+      if (this.bootstrap.load_skeleton_step.skeleton_type() === SkeletonType.Fox) {
+        this.bootstrap.mesh_drag_bone_placement.spread_spine_chain_for_fox()
+      }
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
     })
 
@@ -41,6 +47,20 @@ export class EventListeners {
 
     this.bootstrap.edit_skeleton_step.addEventListener('boneEditModeChanged', () => {
       this.bootstrap.update_edit_bone_interaction_mode()
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('orbit-rotation-changed', () => {
+      this.bootstrap.update_orbit_controls_state(true)
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('chainVisibilityChanged', () => {
+      this.bootstrap.sync_skeleton_helper_joint_visibility()
+
+      if (this.bootstrap.transform_controls.object !== undefined &&
+        this.bootstrap.transform_controls.object !== null &&
+        !this.bootstrap.edit_skeleton_step.is_bone_selectable(this.bootstrap.transform_controls.object as Bone)) {
+        this.bootstrap.transform_controls.detach()
+      }
     })
 
     // attribution link clicking brings up contributors dialog
@@ -105,7 +125,7 @@ export class EventListeners {
     // we can know about the "mouseup" event with this
     this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
       this.bootstrap.is_transform_controls_dragging = event.value
-      this.bootstrap.enable_orbit_controls(!event.value)
+      this.bootstrap.update_orbit_controls_state(!event.value)
 
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {

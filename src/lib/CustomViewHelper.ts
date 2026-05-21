@@ -60,7 +60,7 @@ export class CustomViewHelper extends Object3D {
   private readonly negYAxisHelper: Sprite
   private readonly negZAxisHelper: Sprite
   private readonly point: Vector3 = new Vector3()
-  private readonly dim: number = 128
+  private readonly dim: number = 256
   private readonly turnRate: number = 2 * Math.PI
   private readonly targetPosition: Vector3 = new Vector3()
   private readonly targetQuaternion: Quaternion = new Quaternion()

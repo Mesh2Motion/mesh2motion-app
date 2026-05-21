@@ -678,8 +678,8 @@ input[type="file"] {
    The event listener for the click events latches onto this
 */
 #view-control-hitbox {
-    height: 120px;
-    width: 120px;
+    height: 256px;
+    width: 256px;
     position: absolute;
     bottom: 0px;
     left: 0;

@@ -168,6 +168,10 @@ export class StepWeightSkin extends EventTarget {
       this.bone_skinning_formula!.set_geometry(geometry_data)
       const [final_skin_indices, final_skin_weights]: number[][] = this.calculate_weights()
 
+      if (this.ui.dom_enable_skin_debugging?.checked === true) {
+        this.log_stomach_weight_totals(final_skin_indices, final_skin_weights, geometry_data.name)
+      }
+
       geometry_data.setAttribute('skinIndex', new Uint16BufferAttribute(final_skin_indices, 4))
       geometry_data.setAttribute('skinWeight', new Float32BufferAttribute(final_skin_weights, 4))
 
@@ -187,5 +191,39 @@ export class StepWeightSkin extends EventTarget {
 
     console.log('Final skinned meshes:', this.skinned_meshes)
     console.log('Preview weight painted mesh re-generated:', this.weight_painted_mesh_preview)
+  }
+
+  private log_stomach_weight_totals (skin_indices: number[], skin_weights: number[], mesh_label: string): void {
+    if (this.binding_skeleton === undefined) {
+      return
+    }
+
+    const stomach_bone_entries = this.binding_skeleton.bones
+      .map((bone, index) => ({ bone, index }))
+      .filter(({ bone }) => /stomach|abdomen|belly/.test(bone.name.toLowerCase()))
+
+    if (stomach_bone_entries.length === 0) {
+      return
+    }
+
+    const weight_totals: number[] = new Array(this.binding_skeleton.bones.length).fill(0)
+    for (let i = 0; i < skin_indices.length; i++) {
+      const bone_index = skin_indices[i]
+      const weight_value = skin_weights[i] ?? 0
+      if (bone_index === undefined) {
+        continue
+      }
+      weight_totals[bone_index] = (weight_totals[bone_index] ?? 0) + weight_value
+    }
+
+    stomach_bone_entries.forEach(({ bone, index }) => {
+      const total_weight = weight_totals[index] ?? 0
+      if (total_weight <= 0.0001) {
+        console.warn(`Stomach weight check: ${bone.name} has near-zero weight for ${mesh_label}.`)
+        return
+      }
+
+      console.log(`Stomach weight check: ${bone.name} total weight for ${mesh_label} = ${total_weight.toFixed(4)}`)
+    })
   }
 }

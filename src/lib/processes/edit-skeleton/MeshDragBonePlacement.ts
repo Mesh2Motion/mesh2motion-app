@@ -2,15 +2,63 @@ import * as THREE from 'three'
 import { type OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { type TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { ProcessStep } from '../../enums/ProcessStep.ts'
+import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { Utility } from '../../Utilities.ts'
 import { type StepEditSkeleton } from './StepEditSkeleton.ts'
 import { type StepLoadModel } from '../load-model/StepLoadModel.ts'
 import { type StepWeightSkin } from '../weight-skin/StepWeightSkin.ts'
-import { type PerspectiveCamera, type Vector3, type Object3D, type Skeleton } from 'three'
+import { Bone, type PerspectiveCamera, Vector3, type Object3D, type Skeleton, type Intersection, type BufferAttribute, type Mesh, type SkinnedMesh } from 'three'
+
+export function calculate_vertex_snap_influence (snap_strength: number): number {
+  const clamped_strength = Math.max(0, Math.min(20, snap_strength))
+  return clamped_strength / 20
+}
+
+export function blend_target_with_snap_vertex (
+  target_world_position: Vector3,
+  snap_vertex_world_position: Vector3 | null,
+  snap_strength: number
+): Vector3 {
+  const snap_influence = calculate_vertex_snap_influence(snap_strength)
+  if (snap_influence <= 0 || snap_vertex_world_position === null) {
+    return target_world_position.clone()
+  }
+
+  return target_world_position.clone().lerp(snap_vertex_world_position, snap_influence)
+}
+
+export function is_centerline_mesh_snap_bone_name (bone_name: string): boolean {
+  const normalized_bone_name = bone_name.toLowerCase()
+  const has_side_marker =
+    normalized_bone_name.startsWith('left') ||
+    normalized_bone_name.startsWith('right') ||
+    /^l[_-]/.test(normalized_bone_name) ||
+    /^r[_-]/.test(normalized_bone_name) ||
+    /(^|[^a-z])(left|right)([^a-z]|$)/.test(normalized_bone_name)
+
+  if (has_side_marker) {
+    return false
+  }
+
+  return /(pelvis|hips|spine|chest|torso|abdomen|waist|neck|head)/.test(normalized_bone_name)
+}
+
+export function apply_mesh_centerline_target (
+  target_world_position: Vector3,
+  center_x: number,
+  center_z: number
+): Vector3 {
+  return new Vector3(center_x, target_world_position.y, center_z)
+}
 
 export class MeshDragBonePlacement {
   private orbit_controls: OrbitControls | undefined = undefined
   private is_dragging_mode_active: boolean = false
+  private closest_vertex_cache: {
+    object_uuid: string
+    face_key: string
+    closest_vertex_world_position: Vector3 | null
+  } | null = null
 
   constructor (
     private readonly camera: PerspectiveCamera,
@@ -37,16 +85,12 @@ export class MeshDragBonePlacement {
 
     if (using_mesh_drag_mode) {
       transform_controls.detach()
-      if (this.orbit_controls !== undefined) {
-        this.orbit_controls.enabled = true
-      }
+      this.set_orbit_controls_enabled(true)
     }
 
     if (this.is_dragging_mode_active && !using_mesh_drag_mode) {
       this.is_dragging_mode_active = false
-      if (this.orbit_controls !== undefined) {
-        this.orbit_controls.enabled = true
-      }
+      this.set_orbit_controls_enabled(true)
     }
   }
 
@@ -55,6 +99,8 @@ export class MeshDragBonePlacement {
     if (!is_primary_button_click) {
       return
     }
+
+    this.closest_vertex_cache = null
 
     const skeleton_to_test: Skeleton | undefined = this.edit_skeleton_step.skeleton()
     if (skeleton_to_test === undefined) {
@@ -91,9 +137,7 @@ export class MeshDragBonePlacement {
     }
 
     this.is_dragging_mode_active = true
-    if (this.orbit_controls !== undefined) {
-      this.orbit_controls.enabled = false
-    }
+    this.set_orbit_controls_enabled(false)
 
     this.move_selected_bone_to_mesh_midpoint(mouse_event)
   }
@@ -120,11 +164,128 @@ export class MeshDragBonePlacement {
     }
 
     this.is_dragging_mode_active = false
-    if (this.orbit_controls !== undefined) {
-      this.orbit_controls.enabled = true
-    }
+    this.closest_vertex_cache = null
+    this.set_orbit_controls_enabled(true)
 
     return true
+  }
+
+  public snap_primary_centerline_bones_to_mesh_center (): void {
+    if (!this.edit_skeleton_step.is_mesh_drag_centerline_snap_enabled()) {
+      return
+    }
+
+    const skeleton_to_snap = this.edit_skeleton_step.skeleton()
+    if (skeleton_to_snap === undefined) {
+      return
+    }
+
+    const mesh_targets = this.get_centerline_mesh_targets()
+    const is_fox = this.edit_skeleton_step.get_skeleton_type() === SkeletonType.Fox
+    if (mesh_targets.length === 0 && !is_fox) {
+      return
+    }
+
+    skeleton_to_snap.bones.forEach((bone) => {
+      if (!is_centerline_mesh_snap_bone_name(bone.name) || !(bone.parent instanceof Bone)) {
+        return
+      }
+
+      const centered_world_position = this.get_centerline_target_at_world_position(
+        Utility.world_position_from_object(bone)
+      )
+
+      if (centered_world_position === null) {
+        return
+      }
+
+      const centered_local_position = centered_world_position.clone()
+      bone.parent.worldToLocal(centered_local_position)
+      bone.position.copy(centered_local_position)
+      bone.updateWorldMatrix(true, true)
+    })
+  }
+
+  public spread_spine_chain_for_fox (): void {
+    const skeleton_to_adjust = this.edit_skeleton_step.skeleton()
+    if (skeleton_to_adjust === undefined) {
+      return
+    }
+
+    const pelvis_bone = this.find_bone_by_name_match(skeleton_to_adjust, /(pelvis|hips)/)
+    const head_bone = this.find_bone_by_name_match(skeleton_to_adjust, /head/)
+    const spine_bones = this.find_spine_chain_bones(skeleton_to_adjust)
+
+    const mesh_bounds = this.get_mesh_bounds()
+    if (mesh_bounds === null) {
+      return
+    }
+
+    if (pelvis_bone === null || head_bone === null || spine_bones.length === 0) {
+      return
+    }
+
+    const pelvis_world = Utility.world_position_from_object(pelvis_bone)
+    const head_world = Utility.world_position_from_object(head_bone)
+
+    const bounds_size = mesh_bounds.getSize(new Vector3())
+    const bounds_center = mesh_bounds.getCenter(new Vector3())
+    const use_x_axis = bounds_size.x >= bounds_size.z
+    let axis_dir = use_x_axis ? new Vector3(1, 0, 0) : new Vector3(0, 0, 1)
+
+    const head_hint = new Vector3(head_world.x, 0, head_world.z)
+    const pelvis_hint = new Vector3(pelvis_world.x, 0, pelvis_world.z)
+    const hint_axis = head_hint.clone().sub(pelvis_hint)
+
+    if (hint_axis.lengthSq() > 0.0001) {
+      axis_dir = hint_axis.normalize()
+    } else {
+      const center_hint = new Vector3(bounds_center.x, 0, bounds_center.z)
+      if (head_hint.sub(center_hint).dot(axis_dir) < 0) {
+        axis_dir.multiplyScalar(-1)
+      }
+    }
+
+    const axis_length = Math.max(use_x_axis ? bounds_size.x : bounds_size.z, 0.1)
+    const half_length = axis_length * 0.45
+    const tail_position = bounds_center.clone().add(axis_dir.clone().multiplyScalar(-half_length))
+    const head_position = bounds_center.clone().add(axis_dir.clone().multiplyScalar(half_length))
+
+    tail_position.y = pelvis_world.y
+    head_position.y = head_world.y
+
+    const spine_axis = head_position.clone().sub(tail_position)
+    if (spine_axis.lengthSq() < 0.0001) {
+      return
+    }
+
+    const spine_direction = spine_axis.clone().normalize()
+    spine_bones.sort((bone_a, bone_b) => {
+      const bone_a_pos = Utility.world_position_from_object(bone_a)
+      const bone_b_pos = Utility.world_position_from_object(bone_b)
+      const bone_a_depth = bone_a_pos.clone().sub(tail_position).dot(spine_direction)
+      const bone_b_depth = bone_b_pos.clone().sub(tail_position).dot(spine_direction)
+
+      if (bone_a_depth === bone_b_depth) {
+        return bone_a.name.localeCompare(bone_b.name)
+      }
+
+      return bone_a_depth - bone_b_depth
+    })
+
+    spine_bones.forEach((bone, index) => {
+      if (!(bone.parent instanceof Bone)) {
+        return
+      }
+
+      const lerp_factor = (index + 1) / (spine_bones.length + 1)
+      const target_world_position = tail_position.clone().lerp(head_position, lerp_factor)
+      target_world_position.y = pelvis_world.y + (head_world.y - pelvis_world.y) * lerp_factor
+      const target_local_position = target_world_position.clone()
+      bone.parent.worldToLocal(target_local_position)
+      bone.position.copy(target_local_position)
+      bone.updateWorldMatrix(true, true)
+    })
   }
 
   private move_selected_bone_to_mesh_midpoint (mouse_event: MouseEvent): void {
@@ -134,12 +295,22 @@ export class MeshDragBonePlacement {
       return
     }
 
-    const intersection_segment = this.get_edit_mesh_intersection_segment(mouse_event)
+    const intersection_target = this.get_edit_mesh_intersection_target(mouse_event)
     let target_world_position: Vector3 | null = null
 
-    if (intersection_segment !== null) {
-      const [first_intersection, last_intersection] = intersection_segment
-      target_world_position = first_intersection.clone().add(last_intersection).multiplyScalar(0.5)
+    if (intersection_target !== null) {
+      if (this.edit_skeleton_step.is_mesh_drag_centerline_snap_enabled() &&
+        is_centerline_mesh_snap_bone_name(selected_bone.name)) {
+        target_world_position = this.get_centerline_target_at_world_position(intersection_target.midpoint)
+      }
+
+      if (target_world_position === null) {
+        target_world_position = blend_target_with_snap_vertex(
+          intersection_target.midpoint,
+          intersection_target.closest_vertex_world_position,
+          this.edit_skeleton_step.get_mesh_drag_snap_strength()
+        )
+      }
     } else {
       target_world_position = this.get_point_on_viewport_plane_from_mouse(selected_bone, mouse_event)
     }
@@ -166,7 +337,154 @@ export class MeshDragBonePlacement {
     }
   }
 
-  private get_edit_mesh_intersection_segment (mouse_event: MouseEvent): [Vector3, Vector3] | null {
+  private get_centerline_mesh_targets (): Object3D[] {
+    const mesh_targets: Object3D[] = []
+    mesh_targets.push(this.load_model_step.model_meshes())
+
+    const weight_painted_mesh = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_mesh !== null) {
+      mesh_targets.push(weight_painted_mesh)
+    }
+
+    return mesh_targets.filter((target) => target.children.length > 0)
+  }
+
+  private get_mesh_bounds (): THREE.Box3 | null {
+    const mesh_targets = this.get_centerline_mesh_targets()
+    if (mesh_targets.length === 0) {
+      return null
+    }
+
+    const scene_bounds = new THREE.Box3()
+    mesh_targets.forEach((target) => {
+      scene_bounds.expandByObject(target)
+    })
+
+    if (scene_bounds.isEmpty()) {
+      return null
+    }
+
+    return scene_bounds
+  }
+
+  private get_centerline_target_at_world_position (target_world_position: Vector3): Vector3 | null {
+    if (this.edit_skeleton_step.get_skeleton_type() === SkeletonType.Fox) {
+      const fox_target = this.get_fox_centerline_target_at_world_position(target_world_position)
+      if (fox_target !== null) {
+        return fox_target
+      }
+    }
+
+    return this.get_mesh_centerline_target_at_world_position(target_world_position)
+  }
+
+  private get_mesh_centerline_target_at_world_position (
+    target_world_position: Vector3,
+    mesh_targets: Object3D[] = this.get_centerline_mesh_targets()
+  ): Vector3 | null {
+    if (mesh_targets.length === 0) {
+      return null
+    }
+
+    const scene_bounds = this.get_mesh_bounds()
+    if (scene_bounds === null) {
+      return null
+    }
+
+    const scene_center = scene_bounds.getCenter(new Vector3())
+    const scene_size = scene_bounds.getSize(new Vector3())
+    const ray_margin = Math.max(0.25, scene_size.length() * 0.25)
+    const target_y = target_world_position.y
+
+    let snapped_x = scene_center.x
+    let snapped_z = scene_center.z
+
+    const initial_z_midpoint = this.get_opposing_surface_midpoint(
+      mesh_targets,
+      new Vector3(scene_center.x, target_y, scene_bounds.max.z + ray_margin),
+      new Vector3(0, 0, -1),
+      new Vector3(scene_center.x, target_y, scene_bounds.min.z - ray_margin),
+      new Vector3(0, 0, 1)
+    )
+
+    if (initial_z_midpoint !== null) {
+      snapped_z = initial_z_midpoint.z
+    }
+
+    const x_midpoint = this.get_opposing_surface_midpoint(
+      mesh_targets,
+      new Vector3(scene_bounds.min.x - ray_margin, target_y, snapped_z),
+      new Vector3(1, 0, 0),
+      new Vector3(scene_bounds.max.x + ray_margin, target_y, snapped_z),
+      new Vector3(-1, 0, 0)
+    )
+
+    if (x_midpoint !== null) {
+      snapped_x = x_midpoint.x
+    }
+
+    const refined_z_midpoint = this.get_opposing_surface_midpoint(
+      mesh_targets,
+      new Vector3(snapped_x, target_y, scene_bounds.max.z + ray_margin),
+      new Vector3(0, 0, -1),
+      new Vector3(snapped_x, target_y, scene_bounds.min.z - ray_margin),
+      new Vector3(0, 0, 1)
+    )
+
+    if (refined_z_midpoint !== null) {
+      snapped_z = refined_z_midpoint.z
+    }
+
+    return apply_mesh_centerline_target(target_world_position, snapped_x, snapped_z)
+  }
+
+  private get_fox_centerline_target_at_world_position (target_world_position: Vector3): Vector3 | null {
+    const mesh_bounds = this.get_mesh_bounds()
+    if (mesh_bounds === null) {
+      return null
+    }
+
+    const center_x = mesh_bounds.getCenter(new Vector3()).x
+    return new Vector3(center_x, target_world_position.y, target_world_position.z)
+  }
+
+  private find_spine_chain_bones (skeleton: Skeleton): Bone[] {
+    return skeleton.bones.filter((bone) => /spine/.test(bone.name.toLowerCase()))
+  }
+
+  private find_bone_by_name_match (skeleton: Skeleton, matcher: RegExp): Bone | null {
+    const bone_match = skeleton.bones.find((bone) => matcher.test(bone.name.toLowerCase()))
+    return bone_match ?? null
+  }
+
+  private get_opposing_surface_midpoint (
+    mesh_targets: Object3D[],
+    forward_origin: Vector3,
+    forward_direction: Vector3,
+    reverse_origin: Vector3,
+    reverse_direction: Vector3
+  ): Vector3 | null {
+    const forward_hit = this.get_axis_surface_hit(mesh_targets, forward_origin, forward_direction)
+    const reverse_hit = this.get_axis_surface_hit(mesh_targets, reverse_origin, reverse_direction)
+
+    if (forward_hit !== null && reverse_hit !== null) {
+      return forward_hit.add(reverse_hit).multiplyScalar(0.5)
+    }
+
+    return forward_hit ?? reverse_hit
+  }
+
+  private get_axis_surface_hit (
+    mesh_targets: Object3D[],
+    origin: Vector3,
+    direction: Vector3
+  ): Vector3 | null {
+    const axis_raycaster = new THREE.Raycaster(origin, direction.clone().normalize())
+    const intersections = axis_raycaster.intersectObjects(mesh_targets, true)
+    return intersections.length > 0 ? intersections[0].point.clone() : null
+  }
+
+  private get_edit_mesh_intersection_target (mouse_event: MouseEvent): MeshIntersectionTarget | null {
     const mesh_targets: Object3D[] = []
 
     const imported_model = this.load_model_step.model_meshes()
@@ -191,7 +509,9 @@ export class MeshDragBonePlacement {
       return null
     }
 
-    const first_intersection = forward_intersections[0].point.clone()
+    const first_hit = forward_intersections[0]
+    const first_intersection = first_hit.point.clone()
+    const closest_vertex_world_position = this.get_closest_vertex_world_position_from_hit(first_hit)
 
     const scene_bounds = new THREE.Box3()
     mesh_targets.forEach((target) => {
@@ -211,11 +531,71 @@ export class MeshDragBonePlacement {
 
     const reverse_intersections = reverse_raycaster.intersectObjects(mesh_targets, true)
     if (reverse_intersections.length === 0) {
-      return [first_intersection, first_intersection]
+      return {
+        midpoint: first_intersection,
+        closest_vertex_world_position
+      }
     }
 
     const last_intersection = reverse_intersections[0].point.clone()
-    return [first_intersection, last_intersection]
+    return {
+      midpoint: first_intersection.clone().add(last_intersection).multiplyScalar(0.5),
+      closest_vertex_world_position
+    }
+  }
+
+  private get_closest_vertex_world_position_from_hit (intersection: Intersection<Object3D>): Vector3 | null {
+    const face = intersection.face
+    const object = intersection.object
+    const geometry = 'geometry' in object ? object.geometry : undefined
+
+    if (face === null || geometry === undefined) {
+      return null
+    }
+
+    const position_attribute = geometry.getAttribute('position') as BufferAttribute | undefined
+    if (position_attribute === undefined) {
+      return null
+    }
+
+    const face_key = `${face.a}-${face.b}-${face.c}`
+    if (this.closest_vertex_cache !== null &&
+      this.closest_vertex_cache.object_uuid === object.uuid &&
+      this.closest_vertex_cache.face_key === face_key) {
+      return this.closest_vertex_cache.closest_vertex_world_position?.clone() ?? null
+    }
+
+    const vertex_indices = [face.a, face.b, face.c]
+    let closest_vertex_world_position: Vector3 | null = null
+    let closest_vertex_distance = Number.POSITIVE_INFINITY
+
+    for (const vertex_index of vertex_indices) {
+      const vertex_world_position = this.get_vertex_world_position(object as Mesh | SkinnedMesh, position_attribute, vertex_index)
+      const vertex_distance = vertex_world_position.distanceTo(intersection.point)
+
+      if (vertex_distance < closest_vertex_distance) {
+        closest_vertex_distance = vertex_distance
+        closest_vertex_world_position = vertex_world_position
+      }
+    }
+
+    this.closest_vertex_cache = {
+      object_uuid: object.uuid,
+      face_key,
+      closest_vertex_world_position: closest_vertex_world_position?.clone() ?? null
+    }
+
+    return closest_vertex_world_position
+  }
+
+  private get_vertex_world_position (object: Mesh | SkinnedMesh, positions: BufferAttribute, vertex_index: number): Vector3 {
+    const vertex_world_position = new Vector3().fromBufferAttribute(positions, vertex_index)
+
+    if ('isSkinnedMesh' in object && object.isSkinnedMesh && typeof object.applyBoneTransform === 'function') {
+      object.applyBoneTransform(vertex_index, vertex_world_position)
+    }
+
+    return object.localToWorld(vertex_world_position)
   }
 
   private get_point_on_viewport_plane_from_mouse (selected_bone: THREE.Bone, mouse_event: MouseEvent): Vector3 | null {
@@ -233,4 +613,18 @@ export class MeshDragBonePlacement {
     const intersection_point = mouse_raycaster.ray.intersectPlane(viewport_plane, new THREE.Vector3())
     return intersection_point === null ? null : intersection_point.clone()
   }
+
+  private set_orbit_controls_enabled (enabled: boolean): void {
+    if (this.orbit_controls === undefined) {
+      return
+    }
+
+    const orbit_allowed = !this.edit_skeleton_step.is_orbit_rotation_disabled()
+    this.orbit_controls.enabled = enabled && orbit_allowed
+  }
+}
+
+interface MeshIntersectionTarget {
+  midpoint: Vector3
+  closest_vertex_world_position: Vector3 | null
 }
