@@ -149,7 +149,11 @@ export class SceneEnvironmentManager {
     }
 
     this.controls.autoRotate = this.turntable_speed > 0
-    this.controls.autoRotateSpeed = this.turntable_speed
+
+    // we make negative to flip the rotation direction to match the typical turntable direction (left to right)
+    // the slider goes from 0 to positive values, but OrbitControls with negative autoRotateSpeed 
+    // will rotate in the desired direction
+    this.controls.autoRotateSpeed = -this.turntable_speed
 
     // Keep the turntable effect centered around scene origin.
     if (this.turntable_speed > 0) {
