@@ -38,6 +38,7 @@ import { ModalDialog } from './lib/ModalDialog.ts'
 import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtility.ts'
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
+import { DOMUtilities } from './lib/DOMUtilities.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -81,6 +82,11 @@ export class Mesh2MotionEngine {
   private readonly camera_shake: CameraShake
 
   constructor () {
+    const settings_dropdown_mount = document.querySelector('#settings-dropdown-mount')
+    if (settings_dropdown_mount instanceof HTMLElement) {
+      DOMUtilities.populate_settings_dropdown(settings_dropdown_mount)
+    }
+
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
     this.animate = this.animate.bind(this)

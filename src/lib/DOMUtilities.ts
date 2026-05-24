@@ -1,6 +1,79 @@
 import { RigConfig } from './RigConfig.ts'
 
+interface RangeSettingConfig {
+  min: string
+  max: string
+  value: string
+  step: string
+}
+
+interface SettingsDefaultsConfig {
+  light_intensity: RangeSettingConfig
+  turntable_speed: RangeSettingConfig
+  floor_grid_enabled: boolean
+  solid_background_enabled: boolean
+}
+
 export class DOMUtilities {
+  static readonly settings_defaults: SettingsDefaultsConfig = {
+    light_intensity: {
+      min: '0.1',
+      max: '2.0',
+      value: '1.0',
+      step: '0.01'
+    },
+    turntable_speed: {
+      min: '0',
+      max: '8',
+      value: '0',
+      step: '0.1'
+    },
+    floor_grid_enabled: true,
+    solid_background_enabled: false
+  }
+
+  /**
+   * Render shared nav settings dropdown markup into the provided mount element.
+   */
+  static populate_settings_dropdown (mount: HTMLElement): void {
+    const defaults = DOMUtilities.settings_defaults
+
+    mount.innerHTML = `
+      <div id="settings-dropdown-container" class="nav-dropdown">
+        <button id="settings-toggle" class="nav-icon-button" aria-expanded="false" aria-controls="settings-dropdown-content" aria-haspopup="true" aria-label="Open settings">
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+
+        <div id="settings-dropdown-content" class="nav-dropdown-content" hidden>
+          <button id="theme-toggle" class="settings-dropdown-row">
+            <span class="theme-icon"></span>
+            <span class="theme-label"></span>
+          </button>
+
+          <div class="settings-dropdown-row light-intensity-setting">
+            <label for="light-intensity-input">Light intensity</label>
+            <input type="range" id="light-intensity-input" min="${defaults.light_intensity.min}" max="${defaults.light_intensity.max}" value="${defaults.light_intensity.value}" step="${defaults.light_intensity.step}" />
+          </div>
+
+          <div class="settings-dropdown-row">
+            <label for="turntable-speed-input">Turntable</label>
+            <input type="range" id="turntable-speed-input" min="${defaults.turntable_speed.min}" max="${defaults.turntable_speed.max}" value="${defaults.turntable_speed.value}" step="${defaults.turntable_speed.step}" />
+          </div>
+
+          <div class="settings-dropdown-row">
+            <label for="floor-grid-toggle">Show floor grid</label>
+            <input type="checkbox" id="floor-grid-toggle" ${defaults.floor_grid_enabled ? 'checked' : ''} />
+          </div>
+
+          <div class="settings-dropdown-row">
+            <label for="solid-background-toggle">Solid background</label>
+            <input type="checkbox" id="solid-background-toggle" ${defaults.solid_background_enabled ? 'checked' : ''} />
+          </div>
+        </div>
+      </div>
+    `
+  }
+
   /**
    * Populate a <select> with one <option> per rig using model display names.
    * Existing options are replaced.
