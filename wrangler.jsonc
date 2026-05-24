@@ -3,5 +3,12 @@
     "compatibility_date": "2025-08-24",
     "assets": {
       "directory": "./dist"
-       }
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "m2m-survey-responses",
+        "database_id": "5805df06-efd6-4e30-93f3-40e6e0efd523"
+      }
+    ]
 }
