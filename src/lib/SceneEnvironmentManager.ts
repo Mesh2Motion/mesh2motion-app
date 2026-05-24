@@ -11,8 +11,10 @@ import { type MeshDragBonePlacement } from './processes/edit-skeleton/MeshDragBo
 export class SceneEnvironmentManager {
   private readonly fog_near: number = 20
   private readonly fog_far: number = 80
+  private readonly turntable_origin: Vector3 = new THREE.Vector3(0, 1, 0)
   private light_intensity_multiplier: number = 1.0
   private floor_grid_visible: boolean = true
+  private turntable_speed: number = 0
 
   private controls: OrbitControls | undefined = undefined
   private view_helper: CustomViewHelper | undefined = undefined
@@ -49,6 +51,8 @@ export class SceneEnvironmentManager {
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.target.set(0, 0.9, 0)
+    this.controls.autoRotate = false
+    this.controls.autoRotateSpeed = this.turntable_speed
 
     // Set zoom limits to prevent excessive zooming in or out
     this.controls.minDistance = 0.5 // Minimum zoom (closest to model)
@@ -91,6 +95,14 @@ export class SceneEnvironmentManager {
     this.controls?.update()
   }
 
+  public frame_change (): void {
+    if (this.controls === undefined) {
+      return
+    }
+
+    this.controls.update()
+  }
+
   public set_zoom_limits (min_distance: number, max_distance: number): void {
     if (this.controls !== undefined) {
       this.controls.minDistance = min_distance
@@ -123,6 +135,30 @@ export class SceneEnvironmentManager {
   public set_floor_grid_visible (visible: boolean): void {
     this.floor_grid_visible = visible
     this.regenerate_floor_grid()
+  }
+
+  public set_turntable_speed (speed: number): void {
+    if (!Number.isFinite(speed) || speed < 0) {
+      return
+    }
+
+    this.turntable_speed = speed
+
+    if (this.controls === undefined) {
+      return
+    }
+
+    this.controls.autoRotate = this.turntable_speed > 0
+    this.controls.autoRotateSpeed = this.turntable_speed
+
+    // Keep the turntable effect centered around scene origin.
+    if (this.turntable_speed > 0) {
+      this.controls.target.copy(this.turntable_origin)
+    }
+  }
+
+  public get_turntable_speed (): number {
+    return this.turntable_speed
   }
 
   public regenerate_floor_grid (): void {

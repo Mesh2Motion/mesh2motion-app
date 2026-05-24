@@ -55,6 +55,7 @@ export class SettingsDropdownManager {
     })
 
     this.initialize_light_intensity_setting()
+    this.initialize_turntable_speed_setting()
     this.initialize_floor_grid_setting()
     this.initialize_background_setting()
   }
@@ -108,6 +109,28 @@ export class SettingsDropdownManager {
       }
 
       this.scene_environment?.set_light_intensity_multiplier(slider_value)
+    })
+  }
+
+  private initialize_turntable_speed_setting (): void {
+    if (this.scene_environment === undefined) {
+      return
+    }
+
+    const turntable_speed_input = this.ui.dom_turntable_speed_input
+    if (turntable_speed_input === null) {
+      return
+    }
+
+    turntable_speed_input.value = this.scene_environment.get_turntable_speed().toFixed(1)
+
+    turntable_speed_input.addEventListener('input', () => {
+      const slider_value = Number(turntable_speed_input.value)
+      if (!Number.isFinite(slider_value)) {
+        return
+      }
+
+      this.scene_environment?.set_turntable_speed(slider_value)
     })
   }
 

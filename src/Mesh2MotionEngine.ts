@@ -455,6 +455,8 @@ export class Mesh2MotionEngine {
     requestAnimationFrame(this.animate)
     const delta_time: number = this.clock.getDelta()
 
+    this.scene_environment.frame_change()
+
     // camera shake effect
     this.camera_shake.update(delta_time)
 
