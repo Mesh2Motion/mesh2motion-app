@@ -3,6 +3,7 @@ import { StarRating } from './StarRating'
 export class DownloadSuccessDialog {
   private dialog_element: HTMLDivElement | null = null
   private star_rating: StarRating | null = null
+  private current_rating: number | null = null
   private readonly content_html = `
 
 
@@ -20,7 +21,7 @@ export class DownloadSuccessDialog {
           <h3>Share Your Feedback</h3>
           <div class="star-rating-container"></div>
           <textarea class="download-success-feedback-textarea" placeholder="Add optionalal feedback. (500 character max)" rows="4" maxlength="500"></textarea>
-          <button class="download-success-survey-btn">Submit</button>
+          <button id="survey-submission-button">Submit</button>
         </div>
 
         <div class="download-success-section">
@@ -51,11 +52,52 @@ export class DownloadSuccessDialog {
     const rating_container = this.dialog_element.querySelector('.star-rating-container')
     if (rating_container) {
       this.star_rating = new StarRating((rating) => {
+        this.current_rating = rating
         console.log('User rated:', rating)
       })
       rating_container.innerHTML = this.star_rating.getHTML()
       this.star_rating.attachEventListeners(rating_container as HTMLElement)
     }
+
+    // Survey submission handler
+    const submit_button = this.dialog_element.querySelector('#survey-submission-button')
+    submit_button?.addEventListener('click', async () => {
+      const feedback_textarea = this.dialog_element?.querySelector('.download-success-feedback-textarea') as HTMLTextAreaElement
+      const feedback_text = feedback_textarea?.value?.trim() || ''
+
+      // Worker requires each submitted item to include a non-empty answer.
+      if (this.current_rating === null) {
+        console.error('Survey submission blocked: rating is required before submitting')
+        return
+      }
+
+      // Build payload with required rating and optional feedback.
+      const survey_data: Array<{ question: string, answer: string | number }> = [
+        { question: 'Rating', answer: this.current_rating }
+      ]
+
+      if (feedback_text.length > 0) {
+        survey_data.push({ question: 'Feedback', answer: feedback_text })
+      }
+
+      // Use the Cloudflare Worker endpoint to submit the survey data
+      const WORKER_URL = "https://mesh2motion-app.scottpetrovic.workers.dev"
+
+      try {
+        const res = await fetch(`${WORKER_URL}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ survey: survey_data })
+        })
+        if (!res.ok) {
+          console.error('Survey submission failed:', res.statusText)
+        } else {
+          console.log('Survey submitted successfully')
+        }
+      } catch (error) {
+        console.error('Error submitting survey:', error)
+      }
+    })
 
     // Close button handler
     const close_button = this.dialog_element.querySelector('.download-success-dialog-close')

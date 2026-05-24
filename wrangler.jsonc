@@ -4,6 +4,7 @@
     "assets": {
       "directory": "./dist"
     },
+    "main": "src/survey-worker.js",
     "d1_databases": [
       {
         "binding": "DB",
