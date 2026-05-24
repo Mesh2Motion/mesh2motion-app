@@ -234,13 +234,15 @@
 }
 
 .download-success-dialog-body {
-color: var(--text-primary);
+  color: var(--text-primary);
   font-size: 1rem;
   line-height: 1.5;
-  display: flex;
+  display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
+
+
 
 .download-success-dialog-body > p {
   grid-column: 1 / -1;
@@ -265,7 +267,7 @@ color: var(--text-primary);
 
 .download-success-section p {
   margin: 1rem 0;
-  color: var(--text-alternate);
+  color: var(--text-primary);
   font-size: 1.1rem;
   line-height: 1.4;
 }
@@ -283,7 +285,7 @@ color: var(--text-primary);
   display: flex;
   gap: 0.5rem;
   justify-content: center;
-  margin: 1rem 0;
+  margin: 0;
 }
 
 .star-button {
@@ -312,6 +314,32 @@ font-size: 2rem;
 .star-button:active {
   color: var(--button-primary-bg);
   opacity: 1;
+}
+
+/* ── Download Success Feedback Textarea ── */
+
+.download-success-feedback-textarea {
+    padding: 1rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    font-family: 'Jost', sans-serif;
+    resize: vertical;
+    flex-grow: 1;
+    min-height: 50px;
+    max-height: 50px;
+    resize: none;
+    margin-bottom: 1rem;
+}
+
+.download-success-feedback-textarea::placeholder {
+  color: var(--text-primary);
+  opacity: 1;
+  font-style: italic;
+}
+
+.download-success-feedback-textarea:focus {
+  outline: none;
+  border-color: var(--button-primary-bg);
 }
 
 @media (max-width: 768px) {

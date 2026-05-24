@@ -10,18 +10,17 @@ export class DownloadSuccessDialog {
       <h2>Export Successful</h2>
       <div class="download-success-dialog-body">
         <div class="download-success-section">
-          <h3>How was your experience</h3>
-          <p>Quick question: Are you enjoying Mesh2Motion? We'd love to hear your feedback!
-            It only takes 2 minutes to answer our brief survey.</p>
-          <div class="star-rating-container"></div>
-          <button class="download-success-survey-btn">Take Survey</button>
-        </div>
-
-        <div class="download-success-section">
           <h3>Support the Project</h3>
           <p>If you find Mesh2Motion helpful, consider donating to help us keep improving the tool
             and adding new features.</p>
           <a href="https://support.mesh2motion.org/" class="button">Learn More</a>
+        </div>
+
+        <div class="download-success-section">
+          <h3>Share Your Feedback</h3>
+          <div class="star-rating-container"></div>
+          <textarea class="download-success-feedback-textarea" placeholder="Add optionalal feedback. (500 character max)" rows="4" maxlength="500"></textarea>
+          <button class="download-success-survey-btn">Submit</button>
         </div>
 
         <div class="download-success-section">
@@ -32,6 +31,7 @@ export class DownloadSuccessDialog {
             Join Discord Server
           </a>
         </div>
+
       </div>
       <a href="#" class="download-success-dialog-close">Not today, maybe tomorrow</a>
     </div> 
