@@ -4,7 +4,7 @@ import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
-import { DownloadSuccessDialog } from './DownloadSuccessDialog'
+import { DownloadSuccessDialog } from './components/download-success/DownloadSuccessDialog'
 import { type Bone } from 'three'
 
 export class EventListeners {

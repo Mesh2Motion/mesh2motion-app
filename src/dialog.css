@@ -277,6 +277,43 @@ color: var(--text-primary);
     justify-content: center;
 }
 
+/* ── Star Rating Component ── */
+
+.star-rating {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.star-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  box-shadow: none;
+  opacity: 0.2;
+  margin: 0 0.3rem;
+}
+
+.star-icon {
+font-size: 2rem;
+    color: #fff566;
+    -webkit-text-stroke: 1px #978530;
+}
+
+.star-button:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.star-button.active,
+.star-button:active {
+  color: var(--button-primary-bg);
+  opacity: 1;
+}
+
 @media (max-width: 768px) {
   .download-success-dialog-body {
     grid-template-columns: 1fr;
@@ -288,6 +325,10 @@ color: var(--text-primary);
 
   .download-success-dialog-content {
     max-width: 90%;
+  }
+
+  .star-button {
+    font-size: 1.5rem;
   }
 }
 

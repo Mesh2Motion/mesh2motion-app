@@ -1,5 +1,8 @@
+import { StarRating } from './StarRating'
+
 export class DownloadSuccessDialog {
   private dialog_element: HTMLDivElement | null = null
+  private star_rating: StarRating | null = null
   private readonly content_html = `
 
 
@@ -10,8 +13,8 @@ export class DownloadSuccessDialog {
           <h3>How was your experience</h3>
           <p>Quick question: Are you enjoying Mesh2Motion? We'd love to hear your feedback!
             It only takes 2 minutes to answer our brief survey.</p>
-
-          <button>Take Survey</button>
+          <div class="star-rating-container"></div>
+          <button class="download-success-survey-btn">Take Survey</button>
         </div>
 
         <div class="download-success-section">
@@ -41,9 +44,18 @@ export class DownloadSuccessDialog {
     this.dialog_element = document.createElement('div')
     this.dialog_element.className = 'download-success-dialog-overlay'
 
-    // HTML template for the content
     this.dialog_element.innerHTML = this.content_html
     document.body.appendChild(this.dialog_element)
+
+    // Initialize star rating
+    const rating_container = this.dialog_element.querySelector('.star-rating-container')
+    if (rating_container) {
+      this.star_rating = new StarRating((rating) => {
+        console.log('User rated:', rating)
+      })
+      rating_container.innerHTML = this.star_rating.getHTML()
+      this.star_rating.attachEventListeners(rating_container as HTMLElement)
+    }
 
     // Close button handler
     const close_button = this.dialog_element.querySelector('.download-success-dialog-close')
