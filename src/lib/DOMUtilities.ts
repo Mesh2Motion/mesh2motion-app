@@ -109,7 +109,7 @@ export class DOMUtilities {
             <span id="total-time">0f</span>
           </span>
 
-          <input type="range" id="animation-scrubber" min="0" max="100" value="0" disabled />
+          <input type="range" id="animation-scrubber" min="0" max="100" step="any" value="0" disabled />
 
           <div id="skeleton-toggle" class="styled-checkbox icon-toggle">
             <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display: none" />
