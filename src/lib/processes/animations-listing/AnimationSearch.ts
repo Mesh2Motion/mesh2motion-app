@@ -218,9 +218,17 @@ export class AnimationSearch extends EventTarget {
 
         // element that just came into view and needs to be converted
         // to a video element
+        const src = placeholder.getAttribute('data-src') ?? ''
+
+        // no preview source (e.g. custom imports) -> show a placeholder state
+        // instead of an empty/collapsed box so the tile still reads as a slot.
+        if (src === '') {
+          placeholder.classList.add('anim-preview-missing')
+          return
+        }
+
         const video = document.createElement('video')
         video.className = 'anim-preview'
-        const src = placeholder.getAttribute('data-src') ?? ''
         video.src = src
         video.width = 100
         video.height = 120
@@ -228,6 +236,14 @@ export class AnimationSearch extends EventTarget {
         video.muted = true
         video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
         video.autoplay = true
+
+        // when a preview hasn't been generated yet the .webm 404s. Fall back to
+        // a labelled placeholder rather than leaving a broken/blank video tile.
+        video.addEventListener('error', () => {
+          placeholder.innerHTML = ''
+          placeholder.classList.add('anim-preview-missing')
+        })
+
         placeholder.innerHTML = ''
         placeholder.appendChild(video)
       })

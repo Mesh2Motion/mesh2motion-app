@@ -6,14 +6,15 @@ import { FrontSide } from 'three/src/constants.js'
  */
 export class ModelCleanupUtility {
   public static calculate_bounding_box (scene_object: Scene | Group<Object3DEventMap>): Box3 {
-    let bounding_box: Box3 = new Box3()
+    // Union of every mesh's bounds. The previous implementation kept only the
+    // single child whose one axis was largest, which under-reported the true
+    // extent of multi-mesh models (e.g. the german shepherd loaded oversized
+    // because its real size was never measured and so escaped down-scaling).
+    const bounding_box = new Box3()
 
     scene_object.traverse((child: Object3D) => {
-      const test_bb = new Box3().setFromObject(child)
-      if (test_bb.max.x - test_bb.min.x > bounding_box.max.x - bounding_box.min.x ||
-          test_bb.max.y - test_bb.min.y > bounding_box.max.y - bounding_box.min.y ||
-          test_bb.max.z - test_bb.min.z > bounding_box.max.z - bounding_box.min.z) {
-        bounding_box = test_bb
+      if (child.type === 'Mesh' || child.type === 'SkinnedMesh') {
+        bounding_box.expandByObject(child)
       }
     })
 

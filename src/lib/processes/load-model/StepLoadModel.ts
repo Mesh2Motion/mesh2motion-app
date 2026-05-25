@@ -396,6 +396,11 @@ export class StepLoadModel extends EventTarget {
     // scale everything down to a max height. mutate the clean scene object
     ModelCleanupUtility.scale_model_on_import_if_extreme(clean_scene_with_only_models)
 
+    // Drop the model so its lowest point rests on the floor grid (y=0) instead
+    // of floating or sinking through it. Runs on every load, not just when the
+    // manual "align to floor" button is pressed.
+    ModelCleanupUtility.move_model_to_floor(clean_scene_with_only_models)
+
     // preserved skinned meshes shouldn't be breaking apart mesh data
     // breaking apart skinned meshes converts it to a regular mesh which we don't want.
     this.calculate_geometry_and_materials(clean_scene_with_only_models)
@@ -479,7 +484,9 @@ export class StepLoadModel extends EventTarget {
    */
   public rotate_model_geometry (axis: 'x' | 'y' | 'z', angle: number): void {
     const radians = MathUtils.degToRad(angle)
+    let mesh_count = 0
     this.final_mesh_data.traverse((obj: Object3D) => {
+      console.log('[ROTATE DEBUG]   traverse obj name=', obj.name, 'type=', obj.type, 'isMesh=', (obj as Mesh).isMesh)
       if (obj.type === 'Mesh') {
         const mesh = obj as Mesh
         mesh.geometry.rotateX(axis === 'x' ? radians : 0)
@@ -487,7 +494,9 @@ export class StepLoadModel extends EventTarget {
         mesh.geometry.rotateZ(axis === 'z' ? radians : 0)
         mesh.geometry.computeBoundingBox()
         mesh.geometry.computeBoundingSphere()
+        mesh_count++
       }
     })
+    console.log('[ROTATE DEBUG] rotate_model_geometry axis=', axis, 'angle=', angle, 'meshes rotated=', mesh_count, 'final_mesh_data uuid=', this.final_mesh_data.uuid)
   }
 }
