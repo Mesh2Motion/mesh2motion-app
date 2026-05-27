@@ -50,7 +50,7 @@ export class MeshDragBonePlacement {
     }
   }
 
-  public handle_mouse_down (mouse_event: MouseEvent): void {
+  public handle_mouse_down (mouse_event: MouseEvent | PointerEvent): void {
     const is_primary_button_click = mouse_event.button === 0
     if (!is_primary_button_click) {
       return
@@ -98,7 +98,7 @@ export class MeshDragBonePlacement {
     this.move_selected_bone_to_mesh_midpoint(mouse_event)
   }
 
-  public handle_mouse_move (mouse_event: MouseEvent): void {
+  public handle_mouse_move (mouse_event: MouseEvent | PointerEvent): void {
     if (!this.is_dragging_mode_active) {
       return
     }
@@ -127,7 +127,7 @@ export class MeshDragBonePlacement {
     return true
   }
 
-  private move_selected_bone_to_mesh_midpoint (mouse_event: MouseEvent): void {
+  private move_selected_bone_to_mesh_midpoint (mouse_event: MouseEvent | PointerEvent): void {
     const selected_bone = this.edit_skeleton_step.get_currently_selected_bone()
 
     if (selected_bone?.parent === null || selected_bone === null) {
@@ -166,7 +166,7 @@ export class MeshDragBonePlacement {
     }
   }
 
-  private get_edit_mesh_intersection_segment (mouse_event: MouseEvent): [Vector3, Vector3] | null {
+  private get_edit_mesh_intersection_segment (mouse_event: MouseEvent | PointerEvent): [Vector3, Vector3] | null {
     const mesh_targets: Object3D[] = []
 
     const imported_model = this.load_model_step.model_meshes()
@@ -218,7 +218,7 @@ export class MeshDragBonePlacement {
     return [first_intersection, last_intersection]
   }
 
-  private get_point_on_viewport_plane_from_mouse (selected_bone: THREE.Bone, mouse_event: MouseEvent): Vector3 | null {
+  private get_point_on_viewport_plane_from_mouse (selected_bone: THREE.Bone, mouse_event: MouseEvent | PointerEvent): Vector3 | null {
     const bone_world_position = Utility.world_position_from_object(selected_bone)
 
     const mouse_raycaster = new THREE.Raycaster()

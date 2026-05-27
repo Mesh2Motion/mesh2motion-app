@@ -268,11 +268,11 @@ export class Mesh2MotionEngine {
     this.transform_controls.enabled = false
   }
 
-  public handle_mesh_drag_mode_mouse_down (mouse_event: MouseEvent): void {
+  public handle_mesh_drag_mode_mouse_down (mouse_event: MouseEvent | PointerEvent): void {
     this.mesh_drag_bone_placement.handle_mouse_down(mouse_event)
   }
 
-  public handle_mesh_drag_mode_mouse_move (mouse_event: MouseEvent): void {
+  public handle_mesh_drag_mode_mouse_move (mouse_event: MouseEvent | PointerEvent): void {
     this.mesh_drag_bone_placement.handle_mouse_move(mouse_event)
   }
 
@@ -518,7 +518,7 @@ export class Mesh2MotionEngine {
     }
   }
 
-  public handle_transform_controls_mouse_down (mouse_event: MouseEvent): void {
+  public handle_transform_controls_mouse_down (mouse_event: MouseEvent | PointerEvent): void {
     // primary click is made for rotating around 3d scene
     const is_primary_button_click = mouse_event.button === 0
 

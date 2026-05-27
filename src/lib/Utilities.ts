@@ -147,7 +147,7 @@ export class Utility {
    * @param {*} mouse_event
    * @returns x and y coordinates normalized between -1 and 1
    */
-  static normalized_mouse_position (mouse_event: MouseEvent): Vector2 {
+  static normalized_mouse_position (mouse_event: MouseEvent | PointerEvent): Vector2 {
     const mouse: Vector2 = new Vector2()
     mouse.x = (mouse_event.clientX / window.innerWidth) * 2 - 1
     mouse.y = -(mouse_event.clientY / window.innerHeight) * 2 + 1
@@ -227,7 +227,7 @@ export class Utility {
   }
 
   // Find the closest bone for raycaster using screen-space distance to account for camera zoom
-  static raycast_closest_bone_test (camera: PerspectiveCamera, mouse_event: MouseEvent, skeleton: Skeleton): [Bone | null, number, number] {
+  static raycast_closest_bone_test (camera: PerspectiveCamera, mouse_event: MouseEvent | PointerEvent, skeleton: Skeleton): [Bone | null, number, number] {
     const raycaster: Raycaster = new Raycaster()
     raycaster.setFromCamera(Utility.normalized_mouse_position(mouse_event), camera)
     const mouse_position = Utility.normalized_mouse_position(mouse_event)

@@ -8,6 +8,10 @@ import { DownloadSuccessDialog } from './components/download-success/DownloadSuc
 import { type Bone } from 'three'
 
 export class EventListeners {
+  // Track the pointer that started canvas drag so touch/pencil moves stay consistent
+  // and we can ignore unrelated pointers before releasing capture on pointerup/cancel.
+  private active_canvas_pointer_id: number | null = null
+
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
 
   public addEventListeners (): void {
@@ -64,12 +68,21 @@ export class EventListeners {
       }
     })
 
-    this.bootstrap.renderer.domElement.addEventListener('mousemove', (event: MouseEvent) => {
+    // useful for iPad. Without this, when you touch the canvas and drag, 
+    // it will scroll the webpage instead of dragging the transform controls or the camera.
+    this.bootstrap.renderer.domElement.style.touchAction = 'none'
+
+    this.bootstrap.renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
+      if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
+        return
+      }
+
       if (this.bootstrap.is_transform_controls_dragging) {
         this.bootstrap.handle_transform_controls_moving()
       }
 
       if (this.bootstrap.is_mesh_drag_mode_dragging) {
+        event.preventDefault()
         this.bootstrap.handle_mesh_drag_mode_mouse_move(event)
       }
 
@@ -79,12 +92,15 @@ export class EventListeners {
       }
     })
 
-    this.bootstrap.renderer.domElement.addEventListener('mousedown', (event: MouseEvent) => {
+    this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
       const use_mesh_drag_mode =
         this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_mesh_drag_placement_enabled()
 
       if (use_mesh_drag_mode) {
+        this.active_canvas_pointer_id = event.pointerId
+        this.bootstrap.renderer.domElement.setPointerCapture(event.pointerId)
+        event.preventDefault()
         this.bootstrap.handle_mesh_drag_mode_mouse_down(event)
       } else {
         this.bootstrap.handle_transform_controls_mouse_down(event)
@@ -98,8 +114,34 @@ export class EventListeners {
       }
     }, false)
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('pointerup', (event: PointerEvent) => {
+      if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
+        return
+      }
+
       this.bootstrap.handle_mesh_drag_mode_mouse_up()
+
+      if (this.active_canvas_pointer_id !== null &&
+        this.bootstrap.renderer.domElement.hasPointerCapture(this.active_canvas_pointer_id)) {
+        this.bootstrap.renderer.domElement.releasePointerCapture(this.active_canvas_pointer_id)
+      }
+
+      this.active_canvas_pointer_id = null
+    })
+
+    document.addEventListener('pointercancel', (event: PointerEvent) => {
+      if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
+        return
+      }
+
+      this.bootstrap.handle_mesh_drag_mode_mouse_up()
+
+      if (this.active_canvas_pointer_id !== null &&
+        this.bootstrap.renderer.domElement.hasPointerCapture(this.active_canvas_pointer_id)) {
+        this.bootstrap.renderer.domElement.releasePointerCapture(this.active_canvas_pointer_id)
+      }
+
+      this.active_canvas_pointer_id = null
     })
 
     // custom event listeners for the transform controls.

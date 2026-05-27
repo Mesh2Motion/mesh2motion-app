@@ -17,7 +17,7 @@ import {
   Points,
   Float32BufferAttribute,
   TextureLoader,
-  type Camera
+  type PerspectiveCamera
 } from 'three'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
@@ -575,7 +575,7 @@ export class StepEditSkeleton extends EventTarget {
    * the event listener was originally setup in the EventListener.ts file
    * it is needed for the edit skeleton step, so I added logic here
    */
-  public calculate_bone_hover_effect (event: MouseEvent, camera: Camera, hover_distance: number): void {
+  public calculate_bone_hover_effect (event: MouseEvent | PointerEvent, camera: PerspectiveCamera, hover_distance: number): void {
     // create a raycaster to detect the bone that is being hovered over
     // we will only have a hover effect if the mouse is close enough to the bone
     const [closest_bone, closest_bone_index, closest_distance] =
