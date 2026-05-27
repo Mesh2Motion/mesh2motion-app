@@ -1,5 +1,5 @@
 import { EventDispatcher, type Object3DEventMap, type Group } from 'three'
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader'
+import { FBXLoader } from '../../../lib/io/FBXLoader'
 import { ModalDialog } from '../../ModalDialog'
 
 export interface FBXResults {
