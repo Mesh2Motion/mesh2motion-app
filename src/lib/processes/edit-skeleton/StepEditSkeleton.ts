@@ -179,13 +179,13 @@ export class StepEditSkeleton extends EventTarget {
 
     this.set_mirror_mode_enabled(mirror_mode_enabled)
 
-    // Initialize independent bone movement from checkbox state
+    // Initialize independent bone movement from Yes/No radio state
     if (this.ui.dom_independent_bone_movement_checkbox !== null) {
       this.independent_bone_movement.set_enabled(this.ui.dom_independent_bone_movement_checkbox.checked)
     }
 
-    if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
-      this.set_mesh_drag_placement_enabled(this.ui.dom_mesh_drag_placement_checkbox.checked)
+    if (this.ui.dom_mesh_drag_placement_radio !== null) {
+      this.set_mesh_drag_placement_enabled(this.ui.dom_mesh_drag_placement_radio.checked)
     }
 
     this.update_bind_button_text()
@@ -372,29 +372,20 @@ export class StepEditSkeleton extends EventTarget {
       })
     }
 
-    if (this.ui.dom_independent_bone_movement_checkbox !== null) {
-      this.ui.dom_independent_bone_movement_checkbox.addEventListener('change', (event) => {
-        const target = event.target as HTMLInputElement | null
+    this.ui.dom_independent_bone_movement_group?.addEventListener('change', () => {
+      const independent_movement_enabled = this.ui.dom_independent_bone_movement_checkbox?.checked ? false : true
+      this.independent_bone_movement.set_enabled(independent_movement_enabled)
+    })
 
-        if (target === null) {
-          return
-        }
+    this.ui.dom_mesh_drag_placement_radio?.addEventListener('change', () => {
+      const mesh_volume_selected = this.ui.dom_mesh_drag_placement_radio?.checked ?? true
+      this.set_mesh_drag_placement_enabled(mesh_volume_selected)
+    })
 
-        this.independent_bone_movement.set_enabled(target.checked)
-      })
-    }
-
-    if (this.ui.dom_mesh_drag_placement_checkbox !== null) {
-      this.ui.dom_mesh_drag_placement_checkbox.addEventListener('change', (event) => {
-        const target = event.target as HTMLInputElement | null
-
-        if (target === null) {
-          return
-        }
-
-        this.set_mesh_drag_placement_enabled(target.checked)
-      })
-    }
+    this.ui.dom_mesh_manual_placement_radio?.addEventListener('change', () => {
+      const mesh_volume_selected = this.ui.dom_mesh_drag_placement_radio?.checked ?? true
+      this.set_mesh_drag_placement_enabled(mesh_volume_selected)
+    })
 
     this.ui.dom_enable_skin_debugging?.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement | null

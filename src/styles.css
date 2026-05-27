@@ -639,6 +639,57 @@ input[type="file"] {
     font-size: 1rem; /* Adjust font size for better readability */
 }
 
+.pill-switch-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0.4rem 0;
+}
+
+.pill-switch-label {
+    color: var(--text-alternate);
+    font-size: 0.95rem;
+    padding: 0;
+}
+
+.pill-switch {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid var(--bg-tertiary);
+    background: var(--bg-alternate);
+    padding: 0.2rem;
+    gap: 0.2rem;
+}
+
+.pill-switch input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.pill-switch label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    user-select: none;
+}
+
+.pill-switch label:hover {
+    background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+}
+
+.pill-switch input[type="radio"]:checked + label {
+    background: var(--button-primary-bg);
+}
+
 #bone-selection-section {
     margin: 0;
     background: var(--bg-alternate);
@@ -703,9 +754,6 @@ input[type="file"] {
     font-size: 90%;
 }
 
-
-#current-animation-name {
-}
 
 #build-version {
     position: fixed;

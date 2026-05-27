@@ -203,10 +203,18 @@
           </p>
 
           <div style="display: flex; flex-direction: column;">
-            <div class="styled-checkbox">
-              <input type="checkbox" id="mesh-drag-placement" name="mesh-drag-placement" value="mesh-drag-placement" checked>
-              <label for="mesh-drag-placement">Position by mesh volume</label>
+            
+            <div class="pill-switch-group" aria-label="Positioning mode">
+              <span class="pill-switch-label">Positioning</span>
+              <div class="pill-switch">
+                <input type="radio" id="mesh-drag-placement" name="positioning-mode" value="mesh-volume" checked />
+                <label for="mesh-drag-placement">Mesh volume</label>
+
+                <input type="radio" id="mesh-manual-placement" name="positioning-mode" value="manual" />
+                <label for="mesh-manual-placement">Transform Widget</label>
+              </div>
             </div>
+
             <div id="transform-manual-options" style="display: flex; flex-direction: row;">
               <fieldset>
                 <span>Transform</span>
@@ -237,33 +245,35 @@
             </div>
           </div>
 
-          <hr />
+          <div class="pill-switch-group" aria-label="Move Bone Children">
+            <span class="pill-switch-label">Move Bone Children</span>
+            <div id="independent-bone-movement-group" class="pill-switch">
+              <input type="radio" id="independent-bone-movement" name="independent-bone-movement" value="yes" />
+              <label for="independent-bone-movement">Yes</label>
 
-          <fieldset style="display: flex; flex-direction: row;">
-            <span>Preview</span>
-            <span>
-              <div id="mesh-preview-group" class="toggle">
-                <input id="preview-painted" type="radio" name="mesh-preview-type" value="weight-painted" checked="checked" />
-                <label for="preview-painted">
-                  <img src="images/icons/display-weight-painted.svg" alt="Weights" width="20" height="20" title="Weight painted mesh" />
-                </label>
-                <input id="preview-textured" type="radio" name="mesh-preview-type" value="textured" />
-                <label for="preview-textured">
-                  <img src="images/icons/display-textured.svg" alt="Textured" width="20" height="20" title="Textured Mesh" />
-                </label>
-              </div>
-            </span>
-          </fieldset>
+              <input type="radio" id="independent-bone-movement-no" name="independent-bone-movement" value="no" checked />
+              <label for="independent-bone-movement-no">No</label>
+            </div>
+          </div>
+
+          <div class="pill-switch-group" aria-label="Preview Display">
+            <span class="pill-switch-label">Preview Display</span>
+            <div id="mesh-preview-group" class="pill-switch">
+              <input id="preview-painted" type="radio" name="mesh-preview-type" value="weight-painted" checked="checked" />
+              <label for="preview-painted" title="Weight painted mesh">Weights</label>
+              <input id="preview-textured" type="radio" name="mesh-preview-type" value="textured" />
+              <label for="preview-textured" title="Textured mesh">Textured</label>
+            </div>
+          </div>
+
+
 
           <div class="styled-checkbox">
             <input type="checkbox" id="mirror-skeleton" name="mirror-skeleton" value="mirror" checked>
             <label for="mirror-skeleton">Mirror Left/Right Joints</label>
           </div>
 
-          <div class="styled-checkbox">
-            <input type="checkbox" id="independent-bone-movement" name="independent-bone-movement" value="independent" checked>
-            <label for="independent-bone-movement">Move Bone Independently</label>
-          </div>
+
 
           <!-- Preview plane controls -->
           <div id="use-head-weight-correction-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
