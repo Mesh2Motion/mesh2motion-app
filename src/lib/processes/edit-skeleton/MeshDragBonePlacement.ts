@@ -12,6 +12,10 @@ export class MeshDragBonePlacement {
   private orbit_controls: OrbitControls | undefined = undefined
   private is_dragging_mode_active: boolean = false
 
+  // when a 2D editing view is active, hold this world axis at the joint's current
+  // depth so dragging only moves the joint within the on-screen plane
+  private view_lock_axis: 'x' | 'y' | 'z' | null = null
+
   constructor (
     private readonly camera: PerspectiveCamera,
     private readonly edit_skeleton_step: StepEditSkeleton,
@@ -22,6 +26,11 @@ export class MeshDragBonePlacement {
 
   public set_orbit_controls (controls: OrbitControls): void {
     this.orbit_controls = controls
+  }
+
+  /** Lock placement to a 2D plane by holding the given world axis fixed. null = full 3D. */
+  public set_view_lock_axis (axis: 'x' | 'y' | 'z' | null): void {
+    this.view_lock_axis = axis
   }
 
   public is_dragging (): boolean {
@@ -146,6 +155,19 @@ export class MeshDragBonePlacement {
 
     if (target_world_position === null) {
       return
+    }
+
+    // when editing in a 2D view, keep the locked axis at the joint's current depth
+    // so the placement only moves within the on-screen plane
+    if (this.view_lock_axis !== null) {
+      const current_world = Utility.world_position_from_object(selected_bone)
+      if (this.view_lock_axis === 'x') {
+        target_world_position.x = current_world.x
+      } else if (this.view_lock_axis === 'y') {
+        target_world_position.y = current_world.y
+      } else {
+        target_world_position.z = current_world.z
+      }
     }
 
     const midpoint_local = target_world_position.clone()

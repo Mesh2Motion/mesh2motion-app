@@ -288,6 +288,15 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   /**
+   * Notify listeners that bone positions changed outside the normal drag flow
+   * (e.g. after an auto-fit pass) so the skeleton helper and weight-painted
+   * preview get regenerated.
+   */
+  public notify_skeleton_transformed (): void {
+    this.dispatchEvent(new CustomEvent('skeletonTransformed'))
+  }
+
+  /**
    * Toggle the visibility of the preview plane
    * @param visible Whether the plane should be visible
    */

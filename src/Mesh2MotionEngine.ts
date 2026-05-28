@@ -38,6 +38,7 @@ import { ModalDialog } from './lib/ModalDialog.ts'
 import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtility.ts'
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
+import { SkeletonAutoFit } from './lib/solvers/SkeletonAutoFit.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -178,6 +179,74 @@ export class Mesh2MotionEngine {
     this.scene_environment.enable_orbit_controls(enabled)
   }
 
+  /**
+   * Snap the camera to a face-on / profile / top orthographic-style view and lock
+   * joint editing to that screen plane. 'free' restores full 3D orbiting and
+   * unlocks all axes. Used while positioning joints on bipeds.
+   */
+  public snap_camera_to_view (view: 'front' | 'side' | 'top' | 'free'): void {
+    if (view === 'free') {
+      this.scene_environment.reset_camera_up()
+      this.set_edit_view_lock(null)
+      return
+    }
+
+    this.scene_environment.snap_to_axis_view(view)
+    this.set_edit_view_lock(view)
+  }
+
+  /**
+   * Restrict joint movement to a 2D plane that matches the active view.
+   * front -> lock depth (Z), side -> lock X, top -> lock Y. null shows all axes.
+   * Applies to both the transform gizmo (hides the locked handle) and the
+   * mesh-volume drag placement (holds the locked axis at the joint's depth).
+   */
+  public set_edit_view_lock (view: 'front' | 'side' | 'top' | null): void {
+    let lock_axis: 'x' | 'y' | 'z' | null = null
+    if (view === 'front') { lock_axis = 'z' }
+    else if (view === 'side') { lock_axis = 'x' }
+    else if (view === 'top') { lock_axis = 'y' }
+
+    this.transform_controls.showX = lock_axis !== 'x'
+    this.transform_controls.showY = lock_axis !== 'y'
+    this.transform_controls.showZ = lock_axis !== 'z'
+
+    this.mesh_drag_bone_placement.set_view_lock_axis(lock_axis)
+  }
+
+  /**
+   * One-click best-effort auto-fit: stretch each limb of the editable skeleton so
+   * its tip joint reaches the matching mesh extremity. Records a single undo step
+   * and refreshes the skeleton helper / weight-painted preview. Returns the number
+   * of limb tips that were moved.
+   */
+  public auto_fit_skeleton_to_mesh (): number {
+    if (this.process_step !== ProcessStep.EditSkeleton) {
+      return 0
+    }
+
+    const skeleton = this.edit_skeleton_step.skeleton()
+    if (skeleton?.bones === undefined || skeleton.bones.length === 0) {
+      console.warn('Auto-fit: no editable skeleton available')
+      return 0
+    }
+
+    const geometries = this.load_model_step.models_geometry_list()
+    if (geometries.length === 0) {
+      console.warn('Auto-fit: no mesh geometry available')
+      return 0
+    }
+
+    this.edit_skeleton_step.store_bone_state_for_undo()
+    const moved_count = SkeletonAutoFit.fit(skeleton, geometries)
+
+    if (moved_count > 0) {
+      this.edit_skeleton_step.notify_skeleton_transformed()
+    }
+
+    return moved_count
+  }
+
   private setup_environment (): void {
     this.scene_environment.setup_environment()
     this.view_helper = this.scene_environment.get_view_helper()
@@ -252,10 +321,70 @@ export class Mesh2MotionEngine {
     this.transform_controls.attach(this.load_model_step.model_meshes())
     this.transform_controls.setMode('translate')
     this.transform_controls.enabled = true
+
+    // the model gizmo always starts in move mode; sync the toolbar toggle and
+    // hide the rotation-snap control until the user switches to rotate
+    if (this.ui.dom_model_gizmo_mode_group !== null) {
+      const translate_radio = this.ui.dom_model_gizmo_mode_group
+        .querySelector('input[value="translate"]') as HTMLInputElement | null
+      if (translate_radio !== null) {
+        translate_radio.checked = true
+      }
+    }
+    if (this.ui.dom_model_rotation_snap_container !== null) {
+      this.ui.dom_model_rotation_snap_container.style.display = 'none'
+    }
+  }
+
+  /**
+   * Switch the model-positioning gizmo between move (translate) and Blender-style
+   * rotate. When entering rotate mode we apply the currently selected angle snap.
+   */
+  public set_model_gizmo_mode (mode: 'translate' | 'rotate'): void {
+    if (!this.is_model_gizmo_active) { return }
+
+    this.transform_controls.setMode(mode)
+
+    if (mode === 'rotate') {
+      const snap_select = this.ui.dom_model_rotation_snap_select
+      const snap_value = snap_select?.value ?? 'none'
+      this.set_model_rotation_snap(snap_value === 'none' ? null : Number(snap_value))
+    }
+  }
+
+  /** Set the rotation snap (in degrees) for the model gizmo. null disables snapping. */
+  public set_model_rotation_snap (snap_degrees: number | null): void {
+    const snap_radians = snap_degrees === null ? null : THREE.MathUtils.degToRad(snap_degrees)
+    this.transform_controls.setRotationSnap(snap_radians)
+  }
+
+  /**
+   * Bake the gizmo's current rotation into the model geometry and reset the gizmo
+   * orientation. Called when a rotate drag finishes so the rotation rings snap
+   * back to world-aligned while the model keeps the new orientation.
+   */
+  public commit_model_gizmo_rotation (): void {
+    if (!this.is_model_gizmo_active) { return }
+
+    const mesh_data = this.load_model_step.model_meshes()
+    const rotation = mesh_data.quaternion
+
+    // nothing to bake if the gizmo is already at identity rotation
+    const is_identity = rotation.x === 0 && rotation.y === 0 && rotation.z === 0 && rotation.w === 1
+    if (is_identity) { return }
+
+    this.load_model_step.bake_gizmo_rotation_into_geometry(rotation.clone())
+    mesh_data.quaternion.identity()
+    mesh_data.updateMatrix()
+    mesh_data.updateMatrixWorld(true)
   }
 
   private bake_and_disable_model_gizmo (): void {
     const mesh_data = this.load_model_step.model_meshes()
+
+    // fold any remaining interactive rotation into the geometry first
+    this.commit_model_gizmo_rotation()
+
     const pos = mesh_data.position
     if (pos.x !== 0 || pos.y !== 0 || pos.z !== 0) {
       ModelCleanupUtility.translate_model_vertices(mesh_data, pos.x, pos.y, pos.z)
@@ -364,6 +493,10 @@ export class Mesh2MotionEngine {
     // so the current transform control reference will be lost/give an error
     this.transform_controls.detach()
 
+    // every step starts with an unlocked, free 3D view (resets gizmo axes,
+    // mesh-drag depth lock, and camera up vector from any 2D editing view)
+    this.snap_camera_to_view('free')
+
     /**********
      * MAIN PROCESS FLOW LOGIC
      * I am doing else if here since the bindpose step changes the step at the end
@@ -407,6 +540,15 @@ export class Mesh2MotionEngine {
       this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
       this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
+
+      // reflect the unlocked 3D view in the edit-view toolbar toggle
+      if (this.ui.dom_edit_view_lock_group !== null) {
+        const free_radio = this.ui.dom_edit_view_lock_group
+          .querySelector('input[value="free"]') as HTMLInputElement | null
+        if (free_radio !== null) {
+          free_radio.checked = true
+        }
+      }
 
       this.sync_skeleton_helper_joint_visibility()
 

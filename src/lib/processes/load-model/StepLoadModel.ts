@@ -7,7 +7,7 @@ import { RigConfig } from '../../RigConfig.ts'
 import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
 import { MathUtils } from 'three/src/math/MathUtils.js'
-import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D } from 'three'
+import { BufferGeometry, Group, MeshPhongMaterial, Object3DEventMap, type Material, type Object3D, type Quaternion } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
 import { PlatformUtils } from '../../PlatformUtils.ts'
@@ -252,6 +252,9 @@ export class StepLoadModel extends EventTarget {
       }
     })
     this.final_mesh_data.position.set(0, 0, 0)
+    // also drop any gizmo rotation so "reset" returns to the imported orientation
+    this.final_mesh_data.quaternion.identity()
+    this.final_mesh_data.updateMatrix()
   }
 
   /**
@@ -476,6 +479,25 @@ export class StepLoadModel extends EventTarget {
 
   public models_material_list (): Material[] {
     return this.material_list
+  }
+
+  /**
+   * Bake an interactive rotation (coming from the model-positioning gizmo) directly
+   * into the mesh geometry, rotating around the model's local origin. The mesh
+   * children sit at identity local transforms with geometry in world space, so
+   * applying the quaternion to the geometry reproduces the gizmo rotation exactly
+   * while keeping the gizmo object's own transform clean. This lets the existing
+   * translate / auto-align / reset logic keep operating in geometry space.
+   */
+  public bake_gizmo_rotation_into_geometry (quaternion: Quaternion): void {
+    this.final_mesh_data.traverse((obj: Object3D) => {
+      if (obj.type === 'Mesh') {
+        const mesh = obj as Mesh
+        mesh.geometry.applyQuaternion(quaternion)
+        mesh.geometry.computeBoundingBox()
+        mesh.geometry.computeBoundingSphere()
+      }
+    })
   }
 
   /**

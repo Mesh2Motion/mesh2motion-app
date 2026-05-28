@@ -18,6 +18,11 @@ export class UI {
   dom_reset_model_position_button: HTMLButtonElement | null = null
   dom_auto_align_model_button: HTMLButtonElement | null = null
 
+  // model positioning gizmo: move/rotate toggle + rotation snap (Blender-style)
+  dom_model_gizmo_mode_group: HTMLElement | null = null
+  dom_model_rotation_snap_select: HTMLSelectElement | null = null
+  dom_model_rotation_snap_container: HTMLElement | null = null
+
   dom_load_skeleton_tools: HTMLElement | null = null
   dom_load_skeleton_button: HTMLButtonElement | null = null
   dom_skeleton_edit_tools: HTMLElement | null = null
@@ -45,6 +50,12 @@ export class UI {
   dom_transform_manual_options: HTMLElement | null = null
   dom_transform_type_radio_group: HTMLElement | null = null
   dom_transform_space_radio_group: HTMLElement | null = null
+
+  // 2D editing view lock for joint alignment (front / side / top / free)
+  dom_edit_view_lock_group: HTMLElement | null = null
+
+  // one-click auto-fit of skeleton limb tips to the mesh extremities
+  dom_auto_fit_joints_button: HTMLButtonElement | null = null
 
   // preview plane controls
   dom_use_head_weight_correction_container: HTMLElement | null = null
@@ -138,6 +149,11 @@ export class UI {
     this.dom_reset_model_position_button = document.querySelector('#reset-model-position-button')
     this.dom_auto_align_model_button = document.querySelector('#auto-align-model-button')
 
+    // model positioning gizmo move/rotate toggle and rotation snap
+    this.dom_model_gizmo_mode_group = document.querySelector('#model-gizmo-mode-group')
+    this.dom_model_rotation_snap_select = document.querySelector('#model-rotation-snap-select')
+    this.dom_model_rotation_snap_container = document.querySelector('#model-rotation-snap-container')
+
     // UI controls for loading/working with skeleton
     this.dom_load_skeleton_tools = document.querySelector('#load-skeleton-tools')
     this.dom_load_skeleton_button = document.querySelector('#load-skeleton-button')
@@ -159,6 +175,12 @@ export class UI {
 
     this.dom_transform_type_radio_group = document.querySelector('#transform-control-type-group')
     this.dom_transform_space_radio_group = document.querySelector('#transform-space-group')
+
+    // 2D editing view lock toggle (front / side / top / free)
+    this.dom_edit_view_lock_group = document.querySelector('#edit-view-lock-group')
+
+    // auto-fit skeleton limb tips to the mesh
+    this.dom_auto_fit_joints_button = document.querySelector('#auto-fit-joints-button')
 
     // preview plane controls
     this.dom_use_head_weight_correction_container = document.querySelector('#use-head-weight-correction-container')

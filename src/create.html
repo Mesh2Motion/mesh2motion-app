@@ -167,9 +167,41 @@
         </div>
 
         <div id="load-skeleton-tools">
+          <span style="display: flex; flex-direction: column; gap: 0.5rem">
+            <span style="max-width: 220px">Position / rotate model</span>
+
+            <!-- move vs. interactive rotate gizmo (Blender-style rotate rings) -->
+            <fieldset>
+              <span>Tool</span>
+              <div id="model-gizmo-mode-group" class="toggle">
+                <input type="radio" name="model-gizmo-mode" value="translate" id="model-gizmo-translate" checked="checked" />
+                <label for="model-gizmo-translate">
+                  <img src="images/icons/tool-move.svg" alt="Move" width="20" height="20" title="Move" />
+                </label>
+                <input type="radio" name="model-gizmo-mode" value="rotate" id="model-gizmo-rotate" />
+                <label for="model-gizmo-rotate">
+                  <img src="images/icons/tool-rotate.svg" alt="Rotate" width="20" height="20" title="Rotate" />
+                </label>
+              </div>
+            </fieldset>
+
+            <!-- rotation angle snap, shown only while in rotate mode -->
+            <div id="model-rotation-snap-container" style="display: none; align-items: center; gap: 0.5rem">
+              <label for="model-rotation-snap-select">Snap</label>
+              <select id="model-rotation-snap-select">
+                <option value="none">None</option>
+                <option value="15">15&deg;</option>
+                <option value="45" selected>45&deg;</option>
+                <option value="90">90&deg;</option>
+              </select>
+            </div>
+          </span>
+
+          <hr />
+
           <span>
             <span style="max-width: 220px"
-              >Rotate Model to face front <br />
+              >Rotate to face front <br />
               (blue origin line)</span
             >
             <div style="display: flex; flex-direction: row">
@@ -260,6 +292,14 @@
             <span>Selected Bone: <span id="edit-selected-bone-label">None</span></span>
           </p>
 
+          <!-- one-click best-effort auto-fit: snaps each limb tip to the mesh -->
+          <button id="auto-fit-joints-button" class="secondary-button" style="width: 100%; margin-bottom: 0.5rem;" data-tippy-content="Best-effort: stretches each limb so its end joint reaches the matching tip of the mesh (hands, feet, head, tail). Fine-tune afterward, or undo with Ctrl+Z.">
+            <span class="button-icon-group">
+              <span class="material-symbols-outlined">auto_fix_high</span>
+              <span>Auto-fit joints to mesh</span>
+            </span>
+          </button>
+
           <div style="display: flex; flex-direction: column;">
             <div class="styled-checkbox">
               <input type="checkbox" id="mesh-drag-placement" name="mesh-drag-placement" value="mesh-drag-placement" checked>
@@ -294,6 +334,25 @@
               </fieldset>
             </div>
           </div>
+
+          <!-- 2D editing view: snap camera face-on / side / top and lock joint
+               dragging to that screen plane (great for aligning biped joints) -->
+          <fieldset style="margin-top: 0.5rem">
+            <span style="display: flex; gap: 0.5rem; align-items: center">
+              Editing view
+              <span class="material-symbols-outlined" data-tippy-content="Snap to a face-on (front), profile (side), or top view and lock joint dragging to that 2D plane. 3D unlocks free rotation.">help</span>
+            </span>
+            <div id="edit-view-lock-group" class="toggle">
+              <input type="radio" name="edit-view" value="free" id="edit-view-free" checked="checked" />
+              <label for="edit-view-free">3D</label>
+              <input type="radio" name="edit-view" value="front" id="edit-view-front" />
+              <label for="edit-view-front">Front</label>
+              <input type="radio" name="edit-view" value="side" id="edit-view-side" />
+              <label for="edit-view-side">Side</label>
+              <input type="radio" name="edit-view" value="top" id="edit-view-top" />
+              <label for="edit-view-top">Top</label>
+            </div>
+          </fieldset>
 
           <hr />
 

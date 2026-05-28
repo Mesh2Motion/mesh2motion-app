@@ -107,6 +107,14 @@ export class EventListeners {
       this.bootstrap.is_transform_controls_dragging = event.value
       this.bootstrap.enable_orbit_controls(!event.value)
 
+      // when a model rotate-drag finishes, bake the rotation into the geometry so
+      // the rings reset to world-aligned while the model keeps its new orientation
+      if (!event.value &&
+        this.bootstrap.is_model_gizmo_active &&
+        this.bootstrap.transform_controls.getMode() === 'rotate') {
+        this.bootstrap.commit_model_gizmo_rotation()
+      }
+
       // Store undo state when we start dragging (event.value = true)
       if (event.value && this.bootstrap.process_step === ProcessStep.EditSkeleton) {
         this.bootstrap.edit_skeleton_step.store_bone_state_for_undo()
@@ -169,6 +177,27 @@ export class EventListeners {
     // Reset model position to import state
     this.bootstrap.ui.dom_reset_model_position_button?.addEventListener('click', () => {
       this.bootstrap.load_model_step.reset_model_position()
+    })
+
+    // model positioning gizmo: switch between move and Blender-style rotate
+    this.bootstrap.ui.dom_model_gizmo_mode_group?.addEventListener('change', (event: Event) => {
+      const mode = (event.target as HTMLInputElement | null)?.value
+      if (mode !== 'translate' && mode !== 'rotate') {
+        return
+      }
+
+      this.bootstrap.set_model_gizmo_mode(mode)
+
+      // only show the angle-snap control while in rotate mode
+      if (this.bootstrap.ui.dom_model_rotation_snap_container !== null) {
+        this.bootstrap.ui.dom_model_rotation_snap_container.style.display = mode === 'rotate' ? 'flex' : 'none'
+      }
+    })
+
+    // model rotation angle snap selection
+    this.bootstrap.ui.dom_model_rotation_snap_select?.addEventListener('change', (event: Event) => {
+      const value = (event.target as HTMLSelectElement | null)?.value ?? 'none'
+      this.bootstrap.set_model_rotation_snap(value === 'none' ? null : Number(value))
     })
 
     // Auto-align model to floor
@@ -252,6 +281,29 @@ export class EventListeners {
       }
 
       this.bootstrap.changed_transform_controls_space(Utility.enum_from_value(radio_button_selected, TransformSpace))
+    })
+
+    // auto-fit: stretch each limb so its tip joint reaches the mesh extremity
+    this.bootstrap.ui.dom_auto_fit_joints_button?.addEventListener('click', () => {
+      const moved_count = this.bootstrap.auto_fit_skeleton_to_mesh()
+
+      if (this.bootstrap.ui.dom_selected_bone_label !== null) {
+        this.bootstrap.ui.dom_selected_bone_label.innerHTML = moved_count > 0
+          ? `auto-fit ${moved_count} limb tip${moved_count === 1 ? '' : 's'}`
+          : 'auto-fit found no limbs to fit'
+      }
+    })
+
+    // 2D editing view: snap camera to front/side/top and lock joint dragging to
+    // that plane, or 'free' to return to unlocked 3D editing
+    this.bootstrap.ui.dom_edit_view_lock_group?.addEventListener('change', (event: Event) => {
+      const view = (event.target as HTMLInputElement | null)?.value
+      if (view !== 'front' && view !== 'side' && view !== 'top' && view !== 'free') {
+        console.warn(`Unknown editing view selected: ${String(view)}`)
+        return
+      }
+
+      this.bootstrap.snap_camera_to_view(view)
     })
 
     // changing the 3d model preview while editing the skeleton bones

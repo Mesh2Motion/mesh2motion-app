@@ -91,6 +91,47 @@ export class SceneEnvironmentManager {
     this.controls?.update()
   }
 
+  /**
+   * Snap the camera to look straight down one axis at the current orbit target,
+   * keeping the current zoom distance. Used for face-on / profile / top 2D
+   * editing views. The up vector is adjusted for the top view so the model's
+   * front points down-screen instead of being degenerate.
+   */
+  public snap_to_axis_view (view: 'front' | 'side' | 'top'): void {
+    if (this.controls === undefined) {
+      return
+    }
+
+    const target = this.controls.target
+    const distance = Math.max(this.camera.position.distanceTo(target), 0.001)
+    const direction = new THREE.Vector3()
+
+    switch (view) {
+      case 'front':
+        direction.set(0, 0, 1)
+        this.camera.up.set(0, 1, 0)
+        break
+      case 'side':
+        direction.set(1, 0, 0)
+        this.camera.up.set(0, 1, 0)
+        break
+      case 'top':
+        direction.set(0, 1, 0)
+        this.camera.up.set(0, 0, -1)
+        break
+    }
+
+    this.camera.position.copy(target).addScaledVector(direction, distance)
+    this.camera.lookAt(target)
+    this.controls.update()
+  }
+
+  /** Restore the default Y-up camera orientation after leaving the top view. */
+  public reset_camera_up (): void {
+    this.camera.up.set(0, 1, 0)
+    this.controls?.update()
+  }
+
   public set_zoom_limits (min_distance: number, max_distance: number): void {
     if (this.controls !== undefined) {
       this.controls.minDistance = min_distance
