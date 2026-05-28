@@ -322,7 +322,7 @@ button:disabled {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0;
 }
 
 .download-combo {
@@ -457,7 +457,7 @@ option {
     top: var(--navigation-height);
     right: 0;
     border-left: 1px solid var(--bg-tertiary);
-    padding: 1.0rem;
+    padding: 0.5rem;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;

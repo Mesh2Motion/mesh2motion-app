@@ -14,6 +14,7 @@ export class AnimationSearch extends EventTarget {
   private readonly skeleton_type: SkeletonType
 
   private custom_event: CustomEvent | null = null
+  private show_selected_only: boolean = false
 
   constructor (filter_input_id: string, animation_list_container_id: string, theme_manager: ThemeManager, skeleton_type: SkeletonType) {
     super()
@@ -93,6 +94,12 @@ export class AnimationSearch extends EventTarget {
       const target = event.target as HTMLInputElement
       if (target?.type === 'checkbox') {
         this.save_current_checkbox_states()
+
+        // If in "selected only" mode, re-render to remove unchecked animations immediately
+        if (this.show_selected_only) {
+          const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+          this.render_filtered_animations(filter_text)
+        }
       }
 
       // emit an event to notify other parts of the application that export options have changed
@@ -122,14 +129,24 @@ export class AnimationSearch extends EventTarget {
     return this.filtered_animations_list
   }
 
+  public set_show_selected_only (show_selected: boolean): void {
+    this.show_selected_only = show_selected
+    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+    this.render_filtered_animations(filter_text)
+  }
+
   private render_filtered_animations (filter_text: string): void {
     if (this.animation_list_container === null) {
       return
     }
 
-    // Filter animations based on search text
+    // Filter animations based on search text and selected-only mode
     this.filtered_animations_list = this.all_animations.filter(animation => {
-      return animation.name.toLowerCase().includes(filter_text)
+      const matches_search = animation.name.toLowerCase().includes(filter_text)
+      if (this.show_selected_only) {
+        return matches_search && animation.isChecked === true
+      }
+      return matches_search
     })
 
     // Clear and rebuild the animation list

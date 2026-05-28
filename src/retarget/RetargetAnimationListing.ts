@@ -234,6 +234,16 @@ export class RetargetAnimationListing extends EventTarget {
       // configure the export out step with retargeting info
       this.step_export_retargeted_animations.export('retargeted_animations')
     })
+
+    // event listener for animation view mode tabs (Library vs Selected)
+    const animation_view_radios = document.querySelectorAll('input[name="animation-view-mode"]')
+    animation_view_radios.forEach((radio) => {
+      radio.addEventListener('change', (event) => {
+        const target = event.target as HTMLInputElement
+        const show_selected_only = target.value === 'selected'
+        this.animation_search?.set_show_selected_only(show_selected_only)
+      })
+    })
   }
 
   public get_animation_player (): AnimationPlayer {

@@ -140,16 +140,29 @@
                 </div>
             </span>
 
-            <!-- animation listings area -->             
+            <!-- animation listings area -->
             <span id="skinned-step-animation-export-options">
 
                 <div id="animations-listing">
-    
-                    <!-- Filter textbox for animations -->
-                    <span style="position: relative">
-                        <input type="text" id="animation-filter" placeholder="Filter animations...">
-                        <div id="animation-listing-count">0</div>
-                    </span>
+
+                    <!-- Filter textbox and tab switcher side by side -->
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <!-- Tab switcher for Library vs Selected animations -->
+                        <div class="pill-switch-group" aria-label="Animation view mode" style="margin: 0;">
+                            <div class="pill-switch">
+                                <input type="radio" id="animation-view-library" name="animation-view-mode" value="library" checked />
+                                <label for="animation-view-library">Library</label>
+                                <input type="radio" id="animation-view-selected" name="animation-view-mode" value="selected" />
+                                <label for="animation-view-selected">Selected</label>
+                            </div>
+                        </div>
+
+                        <!-- Filter textbox for animations -->
+                        <span style="position: relative; flex: 1;">
+                            <input type="text" id="animation-filter" placeholder="Filter">
+                            <div id="animation-listing-count">0</div>
+                        </span>
+                    </div>
        
                     <!-- loading progress when animations start getting larger. -->
                     <div id="animation-progress-loader-container" style="display: none">
