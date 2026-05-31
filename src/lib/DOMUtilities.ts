@@ -101,7 +101,7 @@ export class DOMUtilities {
 
         <div id="play-controls">
           <button id="play-pause-button" class="animation-control-button" disabled>
-            <span class="material-symbols-outlined">play_arrow</span>
+             <img src="../images/icons/play.svg" alt="Play" width="14" height="14" />
           </button>
 
           <span>

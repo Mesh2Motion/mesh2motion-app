@@ -357,11 +357,6 @@ button:disabled {
     justify-content: center;
 }
 
-#download-settings-toggle.download-split-toggle .material-symbols-outlined {
-    font-size: 1.35rem;
-    line-height: 1;
-}
-
 .download-settings-panel {
     position: absolute;
     right: 0;

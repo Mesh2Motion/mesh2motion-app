@@ -71,11 +71,6 @@
 
 }
 
-.animation-control-button .material-symbols-outlined {
-    font-size: 22px;
-    font-weight: 400;
-}
-
 #animation-scrubber {
     flex: 1;
     height: 4px;

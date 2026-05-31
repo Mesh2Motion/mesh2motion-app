@@ -170,9 +170,17 @@ export class AnimationPlayer {
       return
     }
 
-    const icon = this.ui.dom_play_pause_button.querySelector('.material-symbols-outlined')
+    // Update the play/pause button icon based on the current state
+    const icon = this.ui.dom_play_pause_button.querySelector('img')
     if (icon !== null) {
-      icon.textContent = this.is_playing || this.was_playing_before_user_scrubbed ? 'pause' : 'play_arrow'
+      // swap the img src based on play/pause state
+      if (this.is_playing || this.was_playing_before_user_scrubbed) {
+        icon.src = '../images/icons/pause.svg'
+        icon.alt = 'Pause'
+      } else {
+        icon.src = '../images/icons/play.svg'
+        icon.alt = 'Play'
+      }
     }
   }
 
