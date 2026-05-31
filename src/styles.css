@@ -82,7 +82,7 @@ nav a, nav span {
     align-items: center;
     text-decoration: none;
     height: var(--navigation-height);
-    padding: 0 1.25rem;
+    padding: 0 1.0rem;
     transition: 0.5s all ease;
     line-height: 100%;
 }
