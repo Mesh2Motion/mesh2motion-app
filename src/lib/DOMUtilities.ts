@@ -57,8 +57,8 @@ export class DOMUtilities {
     mount.innerHTML = `
       <a href="#" id="learn-link">Learn</a>
       <a href="#" id="attribution-link">Contributors</a>
-      <a href="${nav_links.support_href}" target="_blank">💗</a>
-      <a href="${nav_links.github_href}" target="_blank">
+      <a href="${nav_links.support_href}" id="nav-support-mesh2motion" target="_blank">💗</a>
+      <a href="${nav_links.github_href}" id="nav-github" target="_blank">
         <img src="${nav_links.github_icon_src}" width="24" height="24" alt="GitHub" />
       </a>
       <span id="settings-dropdown-mount"></span>

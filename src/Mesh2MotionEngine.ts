@@ -39,6 +39,7 @@ import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtil
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
 import { DOMUtilities } from './lib/DOMUtilities.ts'
+import { PlatformManager } from './lib/PlatformManager.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -83,6 +84,9 @@ export class Mesh2MotionEngine {
 
   constructor () {
     this.initialize_shared_dom_mounts()
+
+    // this will add a platform CSS file if we are running our desktop app
+    new PlatformManager().init();
 
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
