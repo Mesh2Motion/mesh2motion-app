@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { WebMRecorder } from './webm-recorder.ts'
+import { MP4Recorder } from './mp4-recorder.ts'
 import { saveAs } from 'file-saver'
 import JSZip from 'jszip'
 
@@ -21,7 +22,8 @@ class PreviewGenerator {
   private readonly clock_: THREE.Clock
   public readonly theme_manager: ThemeManager
 
-  private readonly recorder: WebMRecorder
+  private readonly recorder: WebMRecorder | MP4Recorder
+  private readonly recording_extension: string
   private readonly zip: JSZip
 
   private environment_container: THREE.Group
@@ -39,7 +41,15 @@ class PreviewGenerator {
     // Setup renderer, scene, camera
     this.renderer_ = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     this.renderer_.shadowMap.enabled = true // Enable shadows
-    this.recorder = new WebMRecorder(this.renderer_, this.preview_width, this.preview_height)
+    if (MP4Recorder.is_mp4_recording_supported()) {
+      this.recorder = new MP4Recorder(this.renderer_, this.preview_width, this.preview_height)
+      this.recording_extension = 'mp4'
+      console.info('Using MP4 preview recorder')
+    } else {
+      this.recorder = new WebMRecorder(this.renderer_, this.preview_width, this.preview_height)
+      this.recording_extension = 'webm'
+      console.info('Using WebM preview recorder (MP4 unsupported by this browser)')
+    }
 
     // Set Filmic tone mapping for less saturated, more cinematic look
     this.renderer_.toneMapping = THREE.ACESFilmicToneMapping // a bit softer of a look
@@ -193,7 +203,7 @@ class PreviewGenerator {
       this.mixer_.addEventListener('finished', handler)
 
       const theme_name: string = this.theme_manager.get_current_theme()
-      this.recorder.start(`${theme_name}_${clip.name}.webm`)
+      this.recorder.start(`${theme_name}_${clip.name}.${this.recording_extension}`)
       action.play()
     })
 

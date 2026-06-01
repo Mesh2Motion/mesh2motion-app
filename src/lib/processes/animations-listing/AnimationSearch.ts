@@ -183,7 +183,7 @@ export class AnimationSearch extends EventTarget {
 
       const preview_data_src_attribute = is_custom_animation
         ? ''
-        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.webm"`
+        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.mp4"`
 
       const custom_animation_badge_html = is_custom_animation
         ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
