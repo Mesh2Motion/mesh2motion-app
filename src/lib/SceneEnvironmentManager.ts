@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { type Scene, type Vector3, Group } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { type TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
+import { type CustomTransformControls } from './components/CustomTransformControls.ts'
 
 import { CustomViewHelper } from './CustomViewHelper.ts'
 import { Generators } from './Generators.ts'
@@ -24,7 +24,7 @@ export class SceneEnvironmentManager {
     private readonly scene: Scene,
     private readonly renderer: THREE.WebGLRenderer,
     private readonly camera: THREE.PerspectiveCamera,
-    private readonly transform_controls: TransformControls,
+    private readonly transform_controls: CustomTransformControls,
     private readonly theme_manager: ThemeManager,
     private readonly mesh_drag_bone_placement: MeshDragBonePlacement
   ) {}
