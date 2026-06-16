@@ -122,12 +122,6 @@ export class MeshDragBonePlacement {
     this.is_dragging_mode_active = false
     if (this.orbit_controls !== undefined) {
       this.orbit_controls.enabled = true
-
-      if (selected_bone !== null) {
-        const bone_world_pos = selected_bone.getWorldPosition(new THREE.Vector3())
-        this.orbit_controls.target.copy(bone_world_pos)
-        this.orbit_controls.update()
-      }
     }
 
     return true

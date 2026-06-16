@@ -566,11 +566,8 @@ export class Mesh2MotionEngine {
     if (closest_bone !== null) {
       this.transform_controls.attach(closest_bone)
       this.edit_skeleton_step.set_currently_selected_bone(closest_bone)
-      const bone_world_pos = closest_bone.getWorldPosition(new THREE.Vector3())
-      this.scene_environment.set_orbit_controls_target(bone_world_pos)
     } else {
       this.edit_skeleton_step.set_currently_selected_bone(null)
-      this.scene_environment.set_orbit_controls_target(null)
     }
   }
 

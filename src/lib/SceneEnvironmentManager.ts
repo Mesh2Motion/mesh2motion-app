@@ -90,20 +90,6 @@ export class SceneEnvironmentManager {
     this.controls.enabled = enabled
   }
 
-  public set_orbit_controls_target (position: Vector3 | null): void {
-    if (this.controls === undefined) {
-      return
-    }
-
-    if (position === null) {
-      this.controls.target.set(0, 0.9, 0)
-    } else {
-      this.controls.target.copy(position)
-    }
-
-    this.controls.update()
-  }
-
   public set_camera_position (position: Vector3): void {
     this.camera.position.copy(position)
     this.controls?.update()
