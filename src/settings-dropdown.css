@@ -14,7 +14,7 @@
     box-shadow: none;
     border-radius: 0;
     padding: 0;
-    align-items: anchor-center;
+    padding-top: 0.25rem;
 }
 #settings-toggle span {
     align-content: center; /* vertical align icon */
