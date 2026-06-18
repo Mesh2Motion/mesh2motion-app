@@ -1,7 +1,31 @@
 /**
- desktop code to go here. This will only be used/seen on the Mesh2Motion offline desktop app
- There was originally more in here, but it moved to the offline.css file so the Desktop app
- would have all links and functionality when online.
-
- TODO: maybe have some different brand logo or some branding with a desktop build
+    Desktop application uses this. We are going to hide some links.
+    Tauri has a had time telling if we are connected to the internet or not,
+    so we will just hide anything that goes out to the internet.
  */
+
+#nav-support-mesh2motion,
+#nav-github,
+#learn-link,
+#m2m-model-github-link
+{
+    display: none;
+}
+
+/* this makes links not clickable */
+a#logo-branding {
+    pointer-events: none;
+    text-decoration: none;
+}
+
+.download-success-section {
+    display: none !important;
+}
+
+.download-success-desktop {
+    display: block !important;
+}
+
+.modal-dialog-body a {
+    display: none;
+}
