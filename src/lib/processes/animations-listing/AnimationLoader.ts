@@ -49,7 +49,8 @@ export class AnimationLoader extends EventTarget {
    */
   public async load_animations (
     skeleton_type: SkeletonType,
-    skeleton_scale: number = 1.0
+    skeleton_scale: number = 1.0,
+    valid_bone_names?: Set<string>
   ): Promise<TransformedAnimationClipPair[]> {
     this.skeleton_type = skeleton_type
     const configured_animation_files = RigConfig.get_animation_file_paths(this.skeleton_type)
@@ -96,7 +97,8 @@ export class AnimationLoader extends EventTarget {
                 {
                   source_type: 'default-library',
                   tags: []
-                }
+                },
+                valid_bone_names
               )
               loaded_clips.push(...processed_clips)
 
@@ -228,13 +230,18 @@ export class AnimationLoader extends EventTarget {
   public process_loaded_animations (
     raw_animations: AnimationClip[],
     skeleton_scale: number,
-    metadata_override: Partial<AnimationClipMetadata> = {}
+    metadata_override: Partial<AnimationClipMetadata> = {},
+    valid_bone_names?: Set<string>
   ): TransformedAnimationClipPair[] {
     // Deep clone the animations to avoid modifying originals
     const cloned_animations = AnimationUtility.deep_clone_animation_clips(raw_animations)
 
     // Clean track data (remove position tracks except for specific cases)
     AnimationUtility.clean_track_data(cloned_animations, this.skeleton_type)
+
+    // Remove tracks for bones that aren't on the rig (e.g. finger bones stripped
+    // out by a simplified hand skeleton type) so they don't get exported.
+    AnimationUtility.strip_tracks_for_missing_bones(cloned_animations, valid_bone_names)
 
     // Apply skeleton scaling to position keyframes
     AnimationUtility.apply_skeleton_scale_to_position_keyframes(cloned_animations, skeleton_scale)

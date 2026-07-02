@@ -252,8 +252,15 @@ export class StepAnimationsListing extends EventTarget {
     // Create an animation mixer to do the playback. Play the first by default
     this.animation_mixer = new AnimationMixer(new Object3D())
 
+    // Build the set of bone names that actually exist on the rig. Some rigs
+    // (e.g. simplified human hands) have bones removed, so we use this to strip
+    // out animation tracks that target bones no longer present on the skeleton.
+    const valid_bone_names = new Set<string>()
+    this.skinned_meshes_to_animate.forEach((mesh) =>
+      mesh.skeleton.bones.forEach((bone) => valid_bone_names.add(bone.name.toLowerCase())))
+
     // Load animations using the new AnimationLoader
-    this.animation_loader.load_animations(this.skeleton_type, this.skeleton_scale)
+    this.animation_loader.load_animations(this.skeleton_type, this.skeleton_scale, valid_bone_names)
       .then((loaded_clips: TransformedAnimationClipPair[]) => {
         this.animation_clips_loaded = loaded_clips
         this.onAllAnimationsLoaded()

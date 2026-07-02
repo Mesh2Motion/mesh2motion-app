@@ -2,6 +2,7 @@ import { AnimationClip, Quaternion, Vector3, type KeyframeTrack, type Quaternion
 import type { TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 import { RigConfig } from '../../RigConfig'
 import { SkeletonType } from '../../enums/SkeletonType'
+import CustomAnimationValidation from './CustomAnimationValidation'
 
 export class AnimationUtility {
   // when we scaled the skeleton itself near the beginning, we kept track of that
@@ -60,6 +61,31 @@ export class AnimationUtility {
       }
 
       animation_clip.tracks = rotation_tracks // update track data
+    })
+  }
+
+  /// Removes animation tracks whose target bone is not present on the rig.
+  /// Some rigs (e.g. human hands with a simplified HandSkeletonType) have bones
+  /// removed from the skeleton, but the source animation clips still contain
+  /// tracks for those bones. This strips them so they don't get exported.
+  /// @param animation_clips - The animation clips to modify.
+  /// @param valid_bone_names - Lowercased set of bone names present on the rig.
+  ///   When undefined or empty this is a no-op (preserves behavior for callers
+  ///   that don't supply a skeleton, such as the retarget flow).
+  static strip_tracks_for_missing_bones (
+    animation_clips: AnimationClip[],
+    valid_bone_names: Set<string> | undefined
+  ): void {
+    if (valid_bone_names === undefined || valid_bone_names.size === 0) {
+      return
+    }
+
+    animation_clips.forEach((animation_clip: AnimationClip) => {
+      animation_clip.tracks = animation_clip.tracks.filter((track: KeyframeTrack) => {
+        const bone_name: string | null = CustomAnimationValidation.extract_bone_name_from_track(track.name)
+        // keep tracks we can't parse (defensive); keep tracks whose bone is on the rig
+        return bone_name === null || valid_bone_names.has(bone_name)
+      })
     })
   }
 
