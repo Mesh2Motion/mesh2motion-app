@@ -94,8 +94,11 @@ export class StepAnimationsListing extends EventTarget {
       this.ui.dom_skinned_mesh_tools.style.display = 'flex'
     }
 
+    // The sidebar holds the Animations / Sprite Sheet tabs now; a plain
+    // block (not flex) is fine because each tab panel handles its own
+    // layout via .sidebar-tab-panel.active { display: flex ... }.
     if (this.ui.dom_skinned_mesh_animation_tools != null) {
-      this.ui.dom_skinned_mesh_animation_tools.style.display = 'flex'
+      this.ui.dom_skinned_mesh_animation_tools.style.display = 'block'
     }
 
     // bone display toggle only works in animation preview since
@@ -148,6 +151,11 @@ export class StepAnimationsListing extends EventTarget {
     if (this.ui.dom_export_button !== null) {
       this.ui.dom_export_button.disabled = true
     }
+  }
+
+  
+  public current_animation_index (): number {
+    return this.current_playing_index
   }
 
   public mixer (): AnimationMixer {
@@ -487,11 +495,10 @@ export class StepAnimationsListing extends EventTarget {
       })
     })
 
-    // event listener for select all / deselect all button
-    const toggle_select_all_button = document.querySelector('#toggle-select-all-animations')
-    toggle_select_all_button?.addEventListener('click', () => {
-      this.animation_search?.toggle_select_all_animations()
-      this.update_download_button_enabled()
+    // -------- "All" checkbox: toggle showing animations without previews --------
+    const show_all_cb = document.getElementById('animation-show-all') as HTMLInputElement | null
+    show_all_cb?.addEventListener('change', () => {
+      this.animation_search?.set_show_all(show_all_cb.checked)
     })
 
     // helps ensure we don't add event listeners multiple times

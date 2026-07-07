@@ -1,0 +1,277 @@
+/* =============================================================
+   Sprite Sheet Settings Panel
+
+   USED TO BE: a 380×612 floating popup anchored to the toggle
+   button. That cramped everything because the settings have
+   outgrown the floating dialog (Sampling / Camera / Canvas &
+   Frame / Directions + always-on live preview + Export).
+
+   NOW: a full sidebar tab. The `.sprite-sheet-settings-panel`
+   lives inline inside `#sidebar-panel-sprite-sheet`. The tab bar
+   above decides which panel (.sidebar-tab-panel.active) is
+   visible. No more absolute positioning.
+   ============================================================= */
+
+/* ----- Sidebar tab bar (Animations / Sprite Sheet) ----- */
+.sidebar-tab-bar {
+  display: flex !important;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px;
+  border-radius: 8px;
+  margin: 8px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar-tab {
+  flex: 1 1 0;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-alternate, #aaa);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+.sidebar-tab:hover {
+  color: var(--text-primary, #fff);
+  background: rgba(255, 255, 255, 0.05);
+}
+.sidebar-tab.active {
+  background: var(--button-primary-bg, rgb(175, 58, 190));
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.sidebar-tab img {
+  filter: brightness(0) invert(1);
+  opacity: 0.85;
+}
+.sidebar-tab.active img {
+  opacity: 1;
+}
+
+/* ----- Tab panels ----- */
+.sidebar-tab-panel {
+  display: none !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sidebar-tab-panel.active {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Sprite sheet settings panel — inline inside sidebar now */
+.sprite-sheet-settings-panel {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 14px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* No max-height / overflow — let the sidebar scroll itself. */
+}
+
+.sprite-sheet-settings-panel hr {
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sprite-sheet-settings-panel .settings-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-alternate, #aaa);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.sprite-sheet-settings-panel .ss-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sprite-sheet-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sprite-sheet-setting-row label {
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--text-primary, #fff);
+}
+
+.sprite-sheet-setting-row input[type="number"] {
+  width: 72px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: var(--bg-primary, #2b4353);
+  color: var(--text-primary, #fff);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Direction grid */
+.sprite-sheet-direction-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.sprite-sheet-direction-grid .direction-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary, #fff);
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.sprite-sheet-direction-grid .direction-checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sprite-sheet-direction-grid .direction-checkbox-label input[type="checkbox"] {
+  accent-color: rgb(175, 58, 190);
+  margin: 0;
+}
+
+/* Button row at bottom — sticky so it stays visible without scrolling */
+.sprite-sheet-actions-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  position: sticky;
+  bottom: 0;
+  /* Solid background to cover settings scrolling underneath. Matches the
+     sidebar's gradient end color so it blends seamlessly. */
+  background: var(--bg-primary, #1a2e38);
+  padding: 8px 0 2px;
+  z-index: 10;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sprite-sheet-actions-row button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: var(--bg-primary, #2b4353);
+  color: var(--text-primary, #fff);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sprite-sheet-actions-row button:hover {
+  background: var(--bg-tertiary, #7a97aa);
+}
+
+.sprite-sheet-actions-row button.primary-action {
+  background: var(--button-primary-bg, rgb(175, 58, 190));
+  border-color: var(--button-primary-bg, rgb(175, 58, 190));
+}
+
+.sprite-sheet-actions-row button.primary-action:hover {
+  background: rgba(175, 58, 190, 0.8);
+}
+
+/* Camera / sync inputs inside the panel */
+.sprite-sheet-settings-panel .ss-sync-input {
+  width: 64px;
+  text-align: right;
+}
+
+.sprite-sheet-settings-panel .ss-sync-btn {
+  background: var(--bg-primary, #2b4353);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary, #fff);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  min-width: 28px;
+}
+.sprite-sheet-settings-panel .ss-sync-btn:hover {
+  background: var(--bg-tertiary, #7a97aa);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.sprite-sheet-settings-panel .ss-sync-btn:active {
+  transform: translateY(1px);
+}
+
+/* Inline toggle label (silhouette checkbox) */
+.sprite-sheet-settings-panel .ss-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary, #fff);
+  user-select: none;
+}
+.sprite-sheet-settings-panel .ss-toggle-label input[type="checkbox"] {
+  accent-color: rgb(175, 58, 190);
+  margin: 0;
+}
+
+/* Always-on live preview canvas (no start/stop button now). */
+.sprite-sheet-settings-panel .ss-preview-row {
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sprite-sheet-settings-panel .ss-preview-canvas {
+  display: block;
+  background: #0d1b22;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 200px;
+  margin: 0 auto;
+  image-rendering: pixelated;
+  /* The global `canvas { position: fixed; inset: 0 }` rule was pulling this
+     preview canvas to (0, 0) of the viewport. Force it to participate in
+     normal document flow inside the sprite sheet panel. */
+  position: static !important;
+  inset: auto !important;
+}
+
+
+/* =============================================================
+   Side-rail layout glue
+   The sidebar is built out of <span> elements (legacy), so the
+   container that wraps the new tab bar + panels can't be a real
+   flex/grid container by default. Force it to be one — this is
+   scoped tightly to not affect anything else.
+   ============================================================= */
+#skinned-step-animation-export-options {
+  display: block;
+  width: 100%;
+}

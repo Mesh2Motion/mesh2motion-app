@@ -6,6 +6,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="./favicon.ico" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./lib/sprite-sheet/sprite-sheet.css" crossorigin="anonymous" />
 </head>
 <body style="margin: 0">
     <!-- Script files-->
@@ -45,7 +46,7 @@
     <div id="tool-panel">
         <!-- create a radio button group. There are two options. Move Skeleton, Rotate Mesh -->
         <div id="tool-selection-group">
-           
+
                 <!-- <div style="margin-bottom: 1rem; padding: 0;">
 
                     <span id="current-step-label"></span>
@@ -90,22 +91,70 @@
                     <div id="model-variation-info-details">
                         <span style="display: flex; flex-direction: row; gap: 0.5rem;">
                             <span id="model-variation-info-name"></span>
-                            
+
                         </span>
                         <span>
-                            <span id="model-variation-info-attribution"></span> 
-                            <span id="model-variation-info-license" class="variation-license-chip"></span> 
+                            <span id="model-variation-info-attribution"></span>
+                            <span id="model-variation-info-license" class="variation-license-chip"></span>
                         </span>
-                                             
+
                     </div>
                 </div>
                 <button id="model-variation-button" class="secondary-button">Change</button>
             </div>
 
-    
+
 
             <span id="skinned-step-animation-export-options">
 
+                <!-- =====================================================
+                     Sidebar tab bar: Animations | Sprite Sheet
+                     Replaces the floating-popup "Sprite Sheet settings"
+                     with an in-sidebar dedicated tab page, so the
+                     ever-growing settings UI (Sampling / Camera /
+                     Frame Size / Directions) no longer overflows a
+                     tiny floating dialog.
+                     ===================================================== -->
+                <div
+                  id="sidebar-tab-bar"
+                  class="sidebar-tab-bar"
+                  role="tablist"
+                  aria-label="Sidebar view"
+                >
+                  <button
+                    type="button"
+                    id="sidebar-tab-animations"
+                    class="sidebar-tab active"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="sidebar-panel-animations"
+                    data-tab-target="animations"
+                  >
+                    <img src="images/icons/list.svg" alt="" width="14" height="14" />
+                    <span>Animations</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="sidebar-tab-sprite-sheet"
+                    class="sidebar-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="sidebar-panel-sprite-sheet"
+                    data-tab-target="sprite-sheet"
+                  >
+                    <img src="images/icons/grid.svg" alt="" width="14" height="14" />
+                    <span>Sprite Sheet</span>
+                  </button>
+                </div>
+
+                <!-- ===== Tab panel: Animations ===== -->
+                <section
+                  id="sidebar-panel-animations"
+                  class="sidebar-tab-panel active"
+                  role="tabpanel"
+                  aria-labelledby="sidebar-tab-animations"
+                  data-tab-panel="animations"
+                >
                 <div id="animations-listing">
 
                     <!-- Filter textbox and tab switcher side by side -->
@@ -123,15 +172,20 @@
                         <!-- Filter textbox for animations -->
                         <span style="position: relative; flex: 1;">
                             <input type="text" id="animation-filter" placeholder="Filter">
+                            <div id="animation-listing-count">0</div>
                         </span>
                     </div>
-                    
-                    <!-- Select all / Deselect all button and animation count -->
-                    <div id="toggle-select-all-container">
-                        <button id="toggle-select-all-animations" class="secondary-button">Select All</button>
-                        <div id="animation-listing-count" style="white-space: nowrap;">0 animations</div>
+
+                    <!-- All checkbox: when unchecked (default) hides animations
+                         without a preview video; when checked shows everything -->
+                    <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+                        <label class="styled-checkbox" style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px;">
+                            <input type="checkbox" id="animation-show-all">
+                            <span>All</span>
+                        </label>
+                        <span style="font-size: 11px; color: var(--text-alternate, #aaa);">Show animations without preview</span>
                     </div>
-                    
+
 
                     <!-- loading progress when animations start getting larger. -->
                     <div id="animation-progress-loader-container" style="display: none">
@@ -139,17 +193,18 @@
                         <div id="loading-progress-bar"></div>
                         <div id="current-file-progress-bar"></div>
                     </div>
-       
-        
+
+
+
                     <!-- javascript will populate this item with animations
                          that we get from the animations file(s)  -->
-                    <div id="animations-items"> </div> 
+                    <div id="animations-items"> </div>
 
-       
-       
+
+
 
                     <div class="download-actions-row">
-                        
+
                         <!-- testing the mirroring options. Hide this for now until we get a better implementation for per animations -->
                         <div style="display: none" class="styled-checkbox icon-toggle">
                             <input type="checkbox" id="mirror-animations-checkbox" name="mirror-animations" value="true" style="display:none;">
@@ -203,13 +258,131 @@
                         <a id="download-hidden-link" href="#" style="display:none"></a>
                     </div>
 
-
-       
                 </div>
-        
-               
-            </span>
+                </section>
 
+                <!-- ===== Tab panel: Sprite Sheet =====
+                     Dedicated sidebar page for everything sprite-sheet
+                     related: live preview, sampling, camera, frame size,
+                     directions, presets, and the big Export button.
+                     Always inline in the sidebar (no more floating popup,
+                     no more cramped 380×612 panel). Tab bar above toggles
+                     which panel is visible. -->
+                <section
+                  id="sidebar-panel-sprite-sheet"
+                  class="sidebar-tab-panel"
+                  role="tabpanel"
+                  aria-labelledby="sidebar-tab-sprite-sheet"
+                  data-tab-panel="sprite-sheet"
+                  hidden
+                >
+                  <div
+                    id="sprite-sheet-settings"
+                    class="sprite-sheet-settings-panel"
+                  >
+                    <!-- Preview: live canvas. Always on — settings changes
+                         (pitch / distance / frame size) are reflected in
+                         the preview automatically. The Camera section's
+                         Apply/Read buttons sync to the MAIN 3D viewport,
+                         which is a separate thing. -->
+                    <div class="ss-section">
+                      <span class="settings-section-label">Preview</span>
+                      <div class="ss-preview-row">
+                        <canvas id="ss-preview-canvas" class="ss-preview-canvas" width="160" height="160"></canvas>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="ss-section">
+                      <span class="settings-section-label">Sampling</span>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-sample-every">Sample every</label>
+                        <input type="number" id="ss-sample-every" min="1" max="60" value="1" />
+                        <span style="font-size:12px;color:var(--text-alternate)">frame(s)</span>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="ss-section">
+                      <span class="settings-section-label">Camera</span>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-pitch-angle">Pitch (°)</label>
+                        <input type="number" id="ss-pitch-angle" min="-80" max="80" step="1" value="60" class="ss-sync-input" />
+                        <button id="ss-pitch-apply" class="ss-sync-btn" data-tippy-content="Apply pitch to main 3D camera" aria-label="Apply pitch to main 3D camera" type="button">⤓</button>
+                        <button id="ss-pitch-read" class="ss-sync-btn" data-tippy-content="Read pitch from main 3D camera" aria-label="Read pitch from main 3D camera" type="button">⤒</button>
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-camera-distance">Distance</label>
+                        <input type="number" id="ss-camera-distance" min="1" max="50" step="0.5" value="10" class="ss-sync-input" />
+                        <button id="ss-distance-apply" class="ss-sync-btn" data-tippy-content="Apply distance to main 3D camera" aria-label="Apply distance to main 3D camera" type="button">⤓</button>
+                        <button id="ss-distance-read" class="ss-sync-btn" data-tippy-content="Read distance from main 3D camera" aria-label="Read distance from main 3D camera" type="button">⤒</button>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="ss-section">
+                      <span class="settings-section-label">Canvas &amp; Frame</span>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-canvas-width">Canvas width (px)</label>
+                        <input type="number" id="ss-canvas-width" min="64" max="4096" step="32" value="1024" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-canvas-height">Canvas height (px)</label>
+                        <input type="number" id="ss-canvas-height" min="64" max="4096" step="32" value="1024" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-frame-width">Frame width (px)</label>
+                        <input type="number" id="ss-frame-width" min="16" max="2048" step="8" value="128" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-frame-height">Frame height (px)</label>
+                        <input type="number" id="ss-frame-height" min="16" max="2048" step="8" value="128" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-padding">Padding (px)</label>
+                        <input type="number" id="ss-padding" min="0" max="128" value="0" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label class="ss-toggle-label" for="ss-silhouette">
+                          <input type="checkbox" id="ss-silhouette" />
+                          <span>Silhouette (black on background)</span>
+                        </label>
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label for="ss-background-color">Background color</label>
+                        <input type="color" id="ss-background-color" value="#00ff00" />
+                      </div>
+                      <div class="sprite-sheet-setting-row">
+                        <label class="ss-toggle-label" for="ss-one-row-per-direction">
+                          <input type="checkbox" id="ss-one-row-per-direction" />
+                          <span>1 row per direction</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="ss-section">
+                      <span class="settings-section-label">Directions</span>
+                      <div id="ss-direction-grid" class="sprite-sheet-direction-grid">
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="sprite-sheet-actions-row">
+                      <button id="ss-select-all" type="button">All</button>
+                      <button id="ss-select-cardinal" type="button">Cardinal</button>
+                      <button id="ss-select-diagonal" type="button">Diagonal</button>
+                      <button id="ss-reset-defaults" type="button">Defaults</button>
+                      <button id="ss-apply-and-export" type="button" class="primary-action">Export</button>
+                    </div>
+                  </div>
+                </section>
+            </span>
 
         </div>
 
@@ -235,11 +408,11 @@
                     <div id="variation-loading-container" class="variation-loading-container" style="display: none">
                         <div class="variation-loading-track">
                             <span id="variation-loading-text" class="variation-loading-text">Loading model…</span>
-                            <div id="variation-loading-bar" class="variation-loading-bar"></div>
+                            <div class="variation-loading-bar"></div>
                         </div>
-                        
+
                     </div>
-                    <div class="variation-dialog-buttons">
+                    <div class="modal-dialog-buttons">
                         <button id="variation-cancel-button" class="secondary-button">Cancel</button>
                         <button id="variation-confirm-button" disabled>Replace Model</button>
                     </div>

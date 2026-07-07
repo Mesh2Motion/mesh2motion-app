@@ -5,6 +5,7 @@ import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
 import { DownloadSuccessDialog } from './components/download-success/DownloadSuccessDialog'
+import { SpriteSheetUI } from './sprite-sheet/SpriteSheetUI.ts'
 import { type Bone } from 'three'
 
 export class EventListeners {
@@ -248,6 +249,40 @@ export class EventListeners {
       )
       new DownloadSuccessDialog().show()
     })
+    // ---- Sprite Sheet Export (setup once at class construction time) ----
+    const sprite_sheet_ui = new SpriteSheetUI(this.bootstrap)
+
+        // The Export button inside the Sprite Sheet panel dispatches a custom
+        // event on its own DOM node. We listen for it on that node directly —
+        // the sidebar tab is the only place the export can be triggered from
+        // now (the main bottom-row button was removed; exporting means the
+        // user wants the full settings UI).
+        this.bootstrap.ui.dom_ss_apply_and_export?.addEventListener('click', () => {
+          sprite_sheet_ui.read_ui_into_settings()
+          sprite_sheet_ui.save_settings()
+          // Re-dispatch on the export button (legacy contract — EventListeners
+          // listens for the same custom event there).
+          const export_button = this.bootstrap.ui.dom_ss_apply_and_export
+          export_button?.dispatchEvent(new CustomEvent('sprite-sheet-start-export', { bubbles: true }))
+        })
+
+        this.bootstrap.ui.dom_ss_apply_and_export?.addEventListener('sprite-sheet-start-export', async () => {
+          const anim_step = this.bootstrap.animations_listing_step
+          const clips = anim_step.animation_clips()
+          const current_idx = anim_step.current_animation_index()
+
+          if (clips.length === 0 || current_idx < 0 || current_idx >= clips.length) {
+            console.warn('SpriteSheet: no animation selected')
+            return
+          }
+
+          const clip = clips[current_idx]
+          const meshes = anim_step.active_skinned_meshes()
+          const mixer = anim_step.mixer()
+          const scene = this.bootstrap.get_scene()
+
+          await sprite_sheet_ui.do_export(meshes, clip, mixer, scene)
+        })
 
     // going back to edit skeleton step after skinning
     // this will do a lot of resetting

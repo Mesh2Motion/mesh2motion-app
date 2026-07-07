@@ -16,6 +16,15 @@ export class AnimationSearch extends EventTarget {
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
 
+  /** When false (default), animations that don't have a preview video are
+   *  hidden from the list. When true, all animations are shown regardless
+   *  of preview availability. Toggled by the "All" checkbox in the panel. */
+  private show_all: boolean = false
+
+  /** Set of animation names that have a preview video available, loaded
+   *  from animpreviews/manifest.json. null = manifest not yet loaded. */
+  private preview_manifest: Record<string, string[]> | null = null
+
   constructor (filter_input_id: string, animation_list_container_id: string, theme_manager: ThemeManager, skeleton_type: SkeletonType) {
     super()
     this.filter_input = document.querySelector(`#${filter_input_id}`)
@@ -23,6 +32,30 @@ export class AnimationSearch extends EventTarget {
     this.theme_manager = theme_manager
     this.skeleton_type = skeleton_type
     this.setup_event_listeners()
+    this.load_preview_manifest()
+  }
+
+  /** Asynchronously load the preview manifest so we know which animations
+   *  have a preview video. If it fails to load we treat all animations as
+   *  having previews (show everything) so the user isn't penalised. */
+  private async load_preview_manifest (): Promise<void> {
+    try {
+      const resp = await fetch('../animpreviews/manifest.json')
+      if (resp.ok) {
+        this.preview_manifest = await resp.json()
+      }
+    } catch {
+      // Network / file not found — fall back to null (show all).
+    }
+    // Re-render in case animations were already initialised before the
+    // manifest finished loading. Dispatch the event so the count label
+    // and any other listeners pick up the updated filtered list.
+    if (this.all_animations.length > 0) {
+      const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+      this.render_filtered_animations(filter_text)
+      this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
+      this.dispatchEvent(this.custom_event)
+    }
   }
 
   public initialize_animations (animations: TransformedAnimationClipPair[]): void {
@@ -135,6 +168,30 @@ export class AnimationSearch extends EventTarget {
     this.render_filtered_animations(filter_text)
   }
 
+  /** Toggle whether animations without a preview video are shown. */
+  public set_show_all (show_all: boolean): void {
+    this.show_all = show_all
+    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+    this.render_filtered_animations(filter_text)
+    // Dispatch event so the count label updates.
+    this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
+    this.dispatchEvent(this.custom_event)
+  }
+
+  /** Check whether an animation has a preview video available, based on
+   *  the loaded manifest. Returns true if the manifest isn't loaded yet
+   *  (fail-open: don't hide things just because the manifest is slow).
+   *  The manifest stores filenames with spaces replaced by underscores,
+   *  so we normalise the animation name the same way before checking. */
+  private has_preview_video (anim_name: string): boolean {
+    if (this.preview_manifest === null) return true
+    const folder = RigConfig.by_skeleton_type(this.skeleton_type)?.animation_preview_folder ?? ''
+    const names = this.preview_manifest[folder]
+    if (names === undefined) return true
+    const file_safe_name = anim_name.replace(/ /g, '_')
+    return names.indexOf(file_safe_name) !== -1
+  }
+
   private render_filtered_animations (filter_text: string): void {
     if (this.animation_list_container === null) {
       return
@@ -145,6 +202,13 @@ export class AnimationSearch extends EventTarget {
       const matches_search = animation.name.toLowerCase().includes(filter_text)
       if (this.show_selected_only) {
         return matches_search && animation.isChecked === true
+      }
+      // When show_all is false (default), hide library animations that
+      // don't have a preview video. Custom-imported animations are always
+      // shown (they're user-added, not from the library).
+      const is_custom = animation.metadata?.source_type === 'custom-import'
+      if (!this.show_all && !is_custom && !this.has_preview_video(animation.name)) {
+        return false
       }
       return matches_search
     })
@@ -181,9 +245,15 @@ export class AnimationSearch extends EventTarget {
       const theme_name: string = this.theme_manager.get_current_theme()
       const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
 
+      // The preview video filename uses underscores where the animation
+      // clip name uses spaces (e.g. clip "Consume Item" -> file
+      // "dark_Consume_Item.mp4"). We normalise by replacing spaces with
+      // underscores so the URL has no spaces (which browsers/servers
+      // mishandle, returning text/html instead of video/mp4).
+      const file_safe_anim_name = anim_name.replace(/ /g, '_')
       const preview_data_src_attribute = is_custom_animation
         ? ''
-        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.mp4"`
+        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${file_safe_anim_name}.mp4"`
 
       const custom_animation_badge_html = is_custom_animation
         ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
@@ -282,43 +352,5 @@ export class AnimationSearch extends EventTarget {
       this.filter_input.value = ''
       this.render_filtered_animations('')
     }
-  }
-
-  public toggle_select_all_animations (): void {
-    // Check if all animations are currently selected
-    const all_selected = this.all_animations.every(animation => animation.isChecked === true)
-
-    // Toggle the state: if all are selected, deselect all; otherwise, select all
-    const new_state = !all_selected
-    this.all_animations.forEach(animation => {
-      animation.isChecked = new_state
-    })
-
-    // Update all checkboxes in the UI
-    this.update_all_checkboxes_in_ui(new_state)
-
-    // Save the checkbox states to ensure they're synced with the UI
-    this.save_current_checkbox_states()
-
-    // If in "selected only" mode, re-render to update the displayed animations
-    if (this.show_selected_only) {
-      const filter_text = this.filter_input?.value.toLowerCase() ?? ''
-      this.render_filtered_animations(filter_text)
-    }
-
-    // Emit event to notify that export options have changed
-    this.custom_event = new CustomEvent('export-options-changed', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
-    this.dispatchEvent(this.custom_event)
-  }
-
-  private update_all_checkboxes_in_ui (checked_state: boolean): void {
-    if (this.animation_list_container === null) {
-      return
-    }
-
-    const checkboxes = this.animation_list_container.querySelectorAll('input[type="checkbox"]')
-    checkboxes.forEach((checkbox) => {
-      (checkbox as HTMLInputElement).checked = checked_state
-    })
   }
 }

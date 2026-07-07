@@ -6,7 +6,8 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
+      <link rel="stylesheet" href="./lib/sprite-sheet/sprite-sheet.css" crossorigin="anonymous" />
+</head>
   <body style="margin: 0">
     <script type="module" src="./CustomModelUploadBootstrap.ts"></script>
     <link href="./styles.css" rel="stylesheet" crossorigin="anonymous" />
@@ -320,13 +321,8 @@
                 <!-- Filter textbox for animations -->
                 <span style="position: relative; flex: 1;">
                     <input type="text" id="animation-filter" placeholder="Filter">
+                    <div id="animation-listing-count">0</div>
                 </span>
-            </div>
-
-            <!-- Select all / Deselect all button and animation count -->
-            <div id="toggle-select-all-container">
-                <button id="toggle-select-all-animations" class="secondary-button">Select All</button>
-                <div id="animation-listing-count" style="white-space: nowrap;">0 animations</div>
             </div>
 
 
@@ -339,7 +335,7 @@
 
             <!-- javascript will populate this item with animations
                          that we get from the animations file(s)  -->
-            <div id="animations-items" class="create-page"></div>
+            <div id="animations-items"></div>
 
             <!-- slider to control arm extension (hide this feature until the base functionality is more stable) -->
             <div id="arm-extension-options">
@@ -511,6 +507,111 @@
                 </div>
               </div>
 
+              
+              <!-- Sprite Sheet Export (popup). Triggered by the in-popup
+                                 Export button (#ss-apply-and-export) below. The main
+                                 Sprite Sheet button was removed — the popup is the
+                                 only entry point. -->
+                            <div class="download-combo">
+                              <div
+                  id="sprite-sheet-settings-popup"
+                  class="download-settings-popup-container"
+                >
+                  <button
+                    id="sprite-sheet-settings-toggle"
+                    class="download-split-toggle"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="sprite-sheet-settings"
+                    data-tippy-content="Sprite sheet settings"
+                    aria-label="Open sprite sheet settings"
+                  >
+                    <img src="images/icons/arrow-dropdown.svg" alt="dropdown" width="16" height="16" />
+                  </button>
+
+                  <div
+                    id="sprite-sheet-settings"
+                    class="sprite-sheet-settings-panel"
+                    role="dialog"
+                    aria-label="Sprite sheet settings"
+                    hidden
+                  >
+                    <span class="settings-section-label">Sampling</span>
+                    <div class="sprite-sheet-setting-row">
+                      <label for="ss-sample-every">Sample every</label>
+                      <input type="number" id="ss-sample-every" min="1" max="60" value="1" />
+                      <span style="font-size:12px;color:var(--text-alternate)">frame(s)</span>
+                    </div>
+
+                    <hr />
+
+                    <span class="settings-section-label">Camera</span>
+                    <div class="sprite-sheet-setting-row">
+                      <label for="ss-pitch-angle">Pitch (°)</label>
+                      <input type="number" id="ss-pitch-angle" min="-80" max="80" step="1" value="60" class="ss-sync-input" />
+                      <button id="ss-pitch-apply" class="ss-sync-btn" data-tippy-content="Apply pitch to scene camera" aria-label="Apply pitch to scene camera" type="button">⤓</button>
+                      <button id="ss-pitch-read" class="ss-sync-btn" data-tippy-content="Read pitch from scene camera" aria-label="Read pitch from scene camera" type="button">⤒</button>
+                    </div>
+                    <div class="sprite-sheet-setting-row">
+                      <label for="ss-camera-distance">Distance</label>
+                      <input type="number" id="ss-camera-distance" min="1" max="50" step="0.5" value="10" class="ss-sync-input" />
+                      <button id="ss-distance-apply" class="ss-sync-btn" data-tippy-content="Apply distance to scene camera" aria-label="Apply distance to scene camera" type="button">⤓</button>
+                      <button id="ss-distance-read" class="ss-sync-btn" data-tippy-content="Read distance from scene camera" aria-label="Read distance from scene camera" type="button">⤒</button>
+                    </div>
+
+                    <hr />
+
+                    <span class="settings-section-label">Canvas &amp; Frame</span>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label for="ss-canvas-width">Canvas width (px)</label>
+                                          <input type="number" id="ss-canvas-width" min="64" max="4096" step="32" value="1024" />
+                                        </div>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label for="ss-canvas-height">Canvas height (px)</label>
+                                          <input type="number" id="ss-canvas-height" min="64" max="4096" step="32" value="1024" />
+                                        </div>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label for="ss-frame-width">Frame width (px)</label>
+                                          <input type="number" id="ss-frame-width" min="16" max="2048" step="8" value="128" />
+                                        </div>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label for="ss-frame-height">Frame height (px)</label>
+                                          <input type="number" id="ss-frame-height" min="16" max="2048" step="8" value="128" />
+                                        </div>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label for="ss-padding">Padding (px)</label>
+                                          <input type="number" id="ss-padding" min="0" max="128" value="2" />
+                                        </div>
+                                        <div class="sprite-sheet-setting-row">
+                                          <label class="ss-toggle-label" for="ss-silhouette">
+                                            <input type="checkbox" id="ss-silhouette" />
+                                            <span>Silhouette (black on green)</span>
+                                          </label>
+                                        </div>
+                                        <div class="sprite-sheet-setting-row ss-preview-row">
+                                          <canvas id="ss-preview-canvas" class="ss-preview-canvas" width="160" height="160"></canvas>
+                                        </div>
+
+                    <hr />
+
+                    <span class="settings-section-label">Directions</span>
+                    <div id="ss-direction-grid" class="sprite-sheet-direction-grid">
+                    </div>
+
+                    <hr />
+
+                    <div class="sprite-sheet-actions-row">
+                      <button id="ss-select-all" type="button">All</button>
+                      <button id="ss-select-cardinal" type="button">Cardinal</button>
+                      <button id="ss-select-diagonal" type="button">Diagonal</button>
+                      <button id="ss-reset-defaults" type="button">Defaults</button>
+                      <button id="ss-apply-and-export" type="button" class="primary-action">Export</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <a id="download-hidden-link" href="#" style="display: none"></a>
             </div>
           </div>
@@ -525,6 +626,6 @@
     <div id="view-control-hitbox"></div>
 
     <!-- build version information-->
-    <span id="build-version"></span>
-  </body>
-</html>
+        <span id="build-version"></span>
+      </body>
+    </html>
