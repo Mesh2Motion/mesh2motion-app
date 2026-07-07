@@ -495,12 +495,6 @@ export class StepAnimationsListing extends EventTarget {
       })
     })
 
-    // -------- "All" checkbox: toggle showing animations without previews --------
-    const show_all_cb = document.getElementById('animation-show-all') as HTMLInputElement | null
-    show_all_cb?.addEventListener('change', () => {
-      this.animation_search?.set_show_all(show_all_cb.checked)
-    })
-
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
   }
