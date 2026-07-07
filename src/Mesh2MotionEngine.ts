@@ -5,6 +5,7 @@ import type { CustomViewHelper } from './lib/CustomViewHelper.ts'
 import tippy from 'tippy.js'
 import './environment.js'
 import 'tippy.js/dist/tippy.css' // optional for styling
+import './lib/sprite-sheet/sprite-sheet.css'
 
 import { Utility } from './lib/Utilities.ts'
 import { Generators } from './lib/Generators.ts'
