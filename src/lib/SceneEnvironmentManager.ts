@@ -95,6 +95,68 @@ export class SceneEnvironmentManager {
     this.controls?.update()
   }
 
+  /**
+   * The point the OrbitControls orbit around (usually the model origin).
+   * Returned as a fresh Vector3 so callers can mutate it safely. Falls back
+   * to the world origin if controls aren't ready yet.
+   */
+  public get_camera_target (): Vector3 {
+    if (this.controls === undefined) {
+      return new THREE.Vector3(0, 0.9, 0)
+    }
+    return this.controls.target.clone()
+  }
+
+  /**
+   * Read the current camera's pitch and distance from the OrbitControls target.
+   * Returns degrees (-90..+90) and world units.
+   */
+  public get_camera_angles (): { pitch_degrees: number, distance: number } | null {
+    if (this.controls === undefined) return null
+    const target = this.controls.target
+    const dx = this.camera.position.x - target.x
+    const dy = this.camera.position.y - target.y
+    const dz = this.camera.position.z - target.z
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    // elevation = atan2(vertical, horizontal) → 0 horizontal, +90 looking from top
+    const horizontal = Math.sqrt(dx * dx + dz * dz)
+    const pitch_rad = Math.atan2(dy, horizontal)
+    const pitch_degrees = (pitch_rad * 180) / Math.PI
+    return { pitch_degrees, distance }
+  }
+
+  /**
+   * Apply a pitch (degrees) + distance to the main camera, keeping its current
+   * horizontal azimuth (orbit angle around target). The camera remains looking
+   * at the OrbitControls target.
+   */
+  public set_camera_angles (pitch_degrees: number, distance: number): void {
+    if (this.controls === undefined) return
+    const target = this.controls.target
+    const dx = this.camera.position.x - target.x
+    const dz = this.camera.position.z - target.z
+    const current_horizontal = Math.sqrt(dx * dx + dz * dz)
+    if (current_horizontal < 1e-6) {
+      // No horizontal component (camera directly above/below target): keep the
+      // existing camera position to avoid snapping to azimuth 0.
+      console.warn('SceneEnvironmentManager.set_camera_angles: camera is on the target vertical axis; azimuth would be ambiguous, skipping apply')
+      return
+    }
+    const azimuth = Math.atan2(dx, dz)
+    const pitch_rad = (pitch_degrees * Math.PI) / 180
+    const horizontal = distance * Math.cos(pitch_rad)
+    const vertical = distance * Math.sin(pitch_rad)
+    this.camera.position.set(
+      target.x + horizontal * Math.sin(azimuth),
+      target.y + vertical,
+      target.z + horizontal * Math.cos(azimuth)
+    )
+    // Honor the configured zoom limits.
+    this.controls.minDistance = Math.min(this.controls.minDistance, distance)
+    this.controls.maxDistance = Math.max(this.controls.maxDistance, distance)
+    this.controls.update()
+  }
+
   public frame_change (): void {
     if (this.controls === undefined) {
       return

@@ -5,6 +5,7 @@ import type { CustomViewHelper } from './lib/CustomViewHelper.ts'
 import tippy from 'tippy.js'
 import './environment.js'
 import 'tippy.js/dist/tippy.css' // optional for styling
+import './lib/sprite-sheet/sprite-sheet.css'
 
 import { Utility } from './lib/Utilities.ts'
 import { Generators } from './lib/Generators.ts'
@@ -144,6 +145,16 @@ export class Mesh2MotionEngine {
     return this.scene
   }
 
+  /**
+   * The main WebGLRenderer is private to the engine. Expose a read-only
+   * view of it so the sprite-sheet preview can spin up a second renderer
+   * that shares the same scene (used as a "mini viewport" of the model
+   * rendered from the sprite sheet's pitch + distance).
+   */
+  public get_camera_target (): Vector3 {
+    return this.scene_environment.get_camera_target()
+  }
+
   /* Add this attribute to an HTML element to give it a tooltip */
   private setup_tooltips (): void {
     tippy('[data-tippy-content]', { theme: 'mesh2motion' })
@@ -162,6 +173,18 @@ export class Mesh2MotionEngine {
 
   public set_camera_position (position: Vector3): void {
     this.scene_environment.set_camera_position(position)
+  }
+
+  /** Read the main scene camera's current pitch (degrees) and distance from
+   *  the OrbitControls target. Returns null if the orbit controls aren't ready. */
+  public get_camera_angles (): { pitch_degrees: number, distance: number } | null {
+    return this.scene_environment.get_camera_angles()
+  }
+
+  /** Apply a pitch (degrees) + distance to the main scene camera, keeping its
+   *  current horizontal azimuth. */
+  public set_camera_angles (pitch_degrees: number, distance: number): void {
+    this.scene_environment.set_camera_angles(pitch_degrees, distance)
   }
 
   /** Trigger a gentle camera shake transition effect. */

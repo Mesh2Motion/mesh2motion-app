@@ -151,6 +151,9 @@ div, p {
 }
 
 #animation-listing-count {
+    position: absolute;
+    top: 0.3rem;
+    right: 1rem;
     color: var(--text-alternate)
 }
 
@@ -320,6 +323,14 @@ button:disabled {
     flex-wrap: wrap;
     align-items: center;
     gap: 0;
+    /* Sticky so the Download/Import buttons stay visible at the bottom
+       of the sidebar without needing to scroll to find them. */
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-primary, #1a2e38);
+    padding: 8px 0 4px;
+    z-index: 10;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .download-combo {
@@ -469,6 +480,13 @@ option {
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
+    /* Fixed sidebar width. Previously the sidebar width was set implicitly
+       by a hardcoded 24rem inside #animations-items, so children were
+       responsible for the parent's size. That left ~29px of dead space in
+       the list and made the sidebar explode if any child grew.
+       Now the sidebar owns its width (matching the previous implicit value)
+       and #animations-items fills it. */
+    width: 430px;
 }
 
 #animations-listing {
@@ -495,19 +513,13 @@ option {
     background: var(--bg-primary);
   }
 
-#toggle-select-all-container {
-    display: flex; 
-    gap: 1rem; 
-    align-items: center; 
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-}
+
 
 
 #animations-items{
-    max-height: calc(100vh - 22rem);
-    display: inline-flex;
-    overflow: auto;;
+    max-height: calc(100vh - 27rem);
+    display: flex;
+    overflow: auto;
     flex-direction: row;
     margin-bottom: 1rem;
     background: var(--bg-alternate);
@@ -515,12 +527,10 @@ option {
     gap: 0.25rem;
     flex-wrap: wrap;
     overflow-x: hidden;
-    width: 24rem; /* creates 3 column of animation items */
-}
-
-#animations-items.create-page {
-    /* create page has a tile at the top so we need this listing grid slightly smaller */
-     max-height: calc(100vh - 30rem);
+    /* Fill the sidebar width. Children flex to size columns automatically;
+       previously hardcoded 24rem left ~29px of dead space on the right. */
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #animations-items div {
@@ -543,9 +553,13 @@ option {
 
     transition: box-shadow 0.2s ease-in-out;
 
-    /* specify dimensions helps grid layout without jumbling elements */
-    width: 103px;
-    height: 160px;
+    /* Three columns per row, each card = (container - 2 gaps) / 3.
+       min-width keeps cards readable if the sidebar ever gets too narrow.
+       flex-grow:0 prevents the last row's lone card from stretching to
+       fill the row (the "orphan card" bug). */
+    flex: 0 1 calc((100% - 0.5rem) / 3);
+    min-width: 80px;
+    min-height: 160px;
 }
 
 .anim-custom-item {
@@ -559,6 +573,19 @@ option {
     cursor: pointer;
     line-height: 110%;
     text-align: left;
+}
+
+/* Preview area fills the card width and keeps the original 100:120 aspect.
+   The video element itself has object-fit: contain so it scales without
+   stretching the character. */
+.anim-preview-placeholder {
+    width: 100%;
+    aspect-ratio: 100 / 120;
+}
+
+.anim-preview {
+    width: 100%;
+    height: 100%;
 }
 
 

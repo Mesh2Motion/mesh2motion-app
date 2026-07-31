@@ -109,6 +109,44 @@ export class UI {
   dom_floor_grid_toggle: HTMLInputElement | null = null
   dom_solid_background_toggle: HTMLInputElement | null = null
 
+  // Sprite sheet: settings panel lives in the sidebar tab now. The
+  // only export trigger is the in-panel "Export" button (#ss-apply-and-export);
+  // dispatch_event routes through that button.
+  dom_sprite_sheet_settings_panel: HTMLElement | null = null
+
+  // Sidebar tab bar (Animations / Sprite Sheet).
+  dom_sidebar_tab_bar: HTMLElement | null = null
+  dom_sidebar_panel_animations: HTMLElement | null = null
+  dom_sidebar_panel_sprite_sheet: HTMLElement | null = null
+
+  // Sprite sheet panel inputs / buttons. The live preview canvas is
+  // always on (no start/stop button); settings changes flow through
+  // preview via the render loop. Camera section keeps its Apply/Read
+  // buttons because those sync to the main 3D viewport, not preview.
+  dom_ss_sample_every: HTMLInputElement | null = null
+  dom_ss_canvas_width: HTMLInputElement | null = null
+  dom_ss_canvas_height: HTMLInputElement | null = null
+  dom_ss_frame_width: HTMLInputElement | null = null
+  dom_ss_frame_height: HTMLInputElement | null = null
+  dom_ss_padding: HTMLInputElement | null = null
+  dom_ss_pitch_angle: HTMLInputElement | null = null
+  dom_ss_camera_distance: HTMLInputElement | null = null
+  dom_ss_pitch_apply: HTMLButtonElement | null = null
+  dom_ss_pitch_read: HTMLButtonElement | null = null
+  dom_ss_distance_apply: HTMLButtonElement | null = null
+  dom_ss_distance_read: HTMLButtonElement | null = null
+  dom_ss_silhouette: HTMLInputElement | null = null
+  dom_ss_background_color: HTMLInputElement | null = null
+  dom_ss_one_row_per_direction: HTMLInputElement | null = null
+  dom_ss_preview_canvas: HTMLCanvasElement | null = null
+  dom_ss_direction_grid: HTMLElement | null = null
+  dom_ss_select_all: HTMLButtonElement | null = null
+  dom_ss_select_cardinal: HTMLButtonElement | null = null
+  dom_ss_select_diagonal: HTMLButtonElement | null = null
+  dom_ss_reset_defaults: HTMLButtonElement | null = null
+  dom_ss_apply_and_export: HTMLButtonElement | null = null
+
+
   private constructor () {
     this.initialize_dom_elements()
   }
@@ -230,6 +268,39 @@ export class UI {
     this.dom_turntable_speed_input = document.querySelector('#turntable-speed-input')
     this.dom_floor_grid_toggle = document.querySelector('#floor-grid-toggle')
     this.dom_solid_background_toggle = document.querySelector('#solid-background-toggle')
+
+    // Sprite sheet settings panel (the in-sidebar tab body).
+    this.dom_sprite_sheet_settings_panel = document.querySelector('#sprite-sheet-settings')
+
+    // Sidebar tab bar (Animations / Sprite Sheet). Switching between
+    // these is driven by SpriteSheetUI via the .sidebar-tab elements.
+    this.dom_sidebar_tab_bar = document.querySelector('#sidebar-tab-bar')
+    this.dom_sidebar_panel_animations = document.querySelector('#sidebar-panel-animations')
+    this.dom_sidebar_panel_sprite_sheet = document.querySelector('#sidebar-panel-sprite-sheet')
+
+    this.dom_ss_sample_every = document.querySelector('#ss-sample-every')
+    this.dom_ss_canvas_width = document.querySelector('#ss-canvas-width')
+    this.dom_ss_canvas_height = document.querySelector('#ss-canvas-height')
+    this.dom_ss_frame_width = document.querySelector('#ss-frame-width')
+    this.dom_ss_frame_height = document.querySelector('#ss-frame-height')
+    this.dom_ss_padding = document.querySelector('#ss-padding')
+    this.dom_ss_pitch_angle = document.querySelector('#ss-pitch-angle')
+    this.dom_ss_camera_distance = document.querySelector('#ss-camera-distance')
+    this.dom_ss_pitch_apply = document.querySelector('#ss-pitch-apply')
+    this.dom_ss_pitch_read = document.querySelector('#ss-pitch-read')
+    this.dom_ss_distance_apply = document.querySelector('#ss-distance-apply')
+    this.dom_ss_distance_read = document.querySelector('#ss-distance-read')
+    this.dom_ss_silhouette = document.querySelector('#ss-silhouette')
+    this.dom_ss_background_color = document.querySelector('#ss-background-color')
+    this.dom_ss_one_row_per_direction = document.querySelector('#ss-one-row-per-direction')
+    this.dom_ss_preview_canvas = document.querySelector('#ss-preview-canvas')
+    this.dom_ss_direction_grid = document.querySelector('#ss-direction-grid')
+    this.dom_ss_select_all = document.querySelector('#ss-select-all')
+    this.dom_ss_select_cardinal = document.querySelector('#ss-select-cardinal')
+    this.dom_ss_select_diagonal = document.querySelector('#ss-select-diagonal')
+    this.dom_ss_reset_defaults = document.querySelector('#ss-reset-defaults')
+    this.dom_ss_apply_and_export = document.querySelector('#ss-apply-and-export')
+
 
     // UI for exporting the animation
     this.dom_export_button_hidden_link = document.querySelector('#download-hidden-link')
