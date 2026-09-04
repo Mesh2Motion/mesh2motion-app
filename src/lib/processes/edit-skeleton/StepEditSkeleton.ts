@@ -450,6 +450,7 @@ export class StepEditSkeleton extends EventTarget {
     if (this.ui.dom_move_to_origin_button !== null) {
       this.ui.dom_move_to_origin_button.addEventListener('click', () => {
         // the base bone itself is not at the origin, but the parent is the armature object
+        this.store_bone_state_for_undo()
         this.threejs_skeleton.bones[0].position.set(0, 0, 0)
         this.threejs_skeleton.bones[0].updateWorldMatrix(true, true) // update on renderer
       })
