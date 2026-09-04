@@ -74,9 +74,34 @@ export class AnimationSearch extends EventTarget {
   }
 
   private setup_theme_change_listener (): void {
-    // rebuild animation previews so we have the correct theme
+    // swap preview sources in place so we have the correct theme
     this.theme_manager.addEventListener('theme-changed', (new_theme) => {
-      this.render_filtered_animations(this.filter_input?.value ?? '')
+      this.update_preview_theme()
+    })
+  }
+
+  private update_preview_theme (): void {
+    if (this.animation_list_container === null) {
+      return
+    }
+
+    const theme_name: string = this.theme_manager.get_current_theme()
+    const retheme = (src: string): string => src.replace(/(light|dark)_([^/]+)$/, `${theme_name}_$2`)
+
+    const placeholders = this.animation_list_container.querySelectorAll('.anim-preview-placeholder')
+    placeholders.forEach((element) => {
+      const placeholder = element as HTMLElement
+      const data_src = placeholder.getAttribute('data-src')
+      if (data_src === null || data_src === '') {
+        return
+      }
+      placeholder.setAttribute('data-src', retheme(data_src))
+
+      const video = placeholder.querySelector('video')
+      if (video !== null) {
+        video.src = retheme(video.src)
+        video.load()
+      }
     })
   }
 
