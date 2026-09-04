@@ -116,6 +116,7 @@ export class RetargetSessionPersistence {
     if (mappings !== null && Object.keys(mappings).length > 0) {
       AnimationRetargetService.getInstance().set_bone_mappings(new Map(Object.entries(mappings)))
       this.bone_mapping_step.update_bone_lists()
+      this.bone_mapping_step.dispatchEvent(new CustomEvent('bone-mappings-changed'))
     }
 
     this.is_restoring = false
