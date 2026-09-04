@@ -1,7 +1,7 @@
 import {
   Vector3, Raycaster, type Bone, Mesh,
   MeshBasicMaterial, DoubleSide,
-  type BufferGeometry
+  type BufferGeometry, type Line3
 } from 'three'
 
 import { Utility } from '../Utilities.js'
@@ -20,7 +20,14 @@ export class WeightCalculator {
 
   private cached_median_child_bone_positions: Vector3[] = []
   private readonly bone_object_to_index = new Map<Bone, number>()
-  private distance_to_bottom_of_position_tracking_bone: number = 0
+  private pelvis_exclusion_bottom_y: number = -Infinity
+  private cached_bone_sides: Array<'left' | 'right' | null> = []
+  private cached_bone_segments: Line3[] = []
+  private readonly segment_point_scratch: Vector3 = new Vector3()
+  private mesh_center_x: number = 0
+  private side_dead_band: number = 0
+  private left_side_sign: number = 0
+  private max_plausible_distance: number = Infinity
 
   // each index will be a bone index. the value will be a list of vertex indices that belong to that bone
   private readonly bones_vertex_segmentation: number[][] = []
@@ -41,6 +48,7 @@ export class WeightCalculator {
    */
   public initialize_caches (): void {
     this.cached_median_child_bone_positions = this.bones.map(b => Utility.bone_midpoint_to_child(b))
+    this.cached_bone_segments = this.bones.map(b => Utility.bone_segment(b))
     this.bones.forEach((b, idx) => this.bone_object_to_index.set(b, idx))
 
     // The root bone is only for global transform changes, and leaf/orientation
@@ -52,7 +60,31 @@ export class WeightCalculator {
       }
     })
 
-    this.distance_to_bottom_of_position_tracking_bone = this.calculate_distance_to_bottom_of_position_tracking_bone()
+    this.pelvis_exclusion_bottom_y = this.calculate_pelvis_exclusion_bottom_y()
+
+    this.cached_bone_sides = this.bones.map(b => Utility.bone_side(b.name))
+    this.geometry.computeBoundingBox()
+    const bounding_box = this.geometry.boundingBox
+    if (bounding_box !== null) {
+      this.mesh_center_x = (bounding_box.min.x + bounding_box.max.x) / 2
+      this.side_dead_band = (bounding_box.max.x - bounding_box.min.x) * 0.05
+    }
+
+    this.geometry.computeBoundingSphere()
+    const bounding_sphere = this.geometry.boundingSphere
+    if (bounding_sphere !== null && bounding_sphere.radius > 0) {
+      this.max_plausible_distance = bounding_sphere.radius * 0.75
+    }
+
+    let left_x_offset_sum = 0
+    let left_bone_count = 0
+    this.cached_bone_sides.forEach((side, idx) => {
+      if (side === 'left') {
+        left_x_offset_sum += this.cached_median_child_bone_positions[idx].x - this.mesh_center_x
+        left_bone_count++
+      }
+    })
+    this.left_side_sign = left_bone_count > 0 ? Math.sign(left_x_offset_sum) : 0
   }
 
   public get_cached_median_child_bone_positions (): Vector3[] {
@@ -68,8 +100,10 @@ export class WeightCalculator {
 
     for (let i = 0; i < vertex_count; i++) {
       const vertex_position: Vector3 = new Vector3().fromBufferAttribute(this.geometry.attributes.position, i)
-      let closest_bone_distance: number = 1000 // arbitrary large number to start with
-      let closest_bone_index: number = 0
+      let closest_bone_distance: number = Infinity
+      let closest_bone_index: number = -1
+      let closest_any_distance: number = Infinity
+      let closest_any_index: number = 0
 
       this.bones.forEach((bone, idx) => {
         // Skip the root bone (global transform only) and leaf/orientation bones.
@@ -78,23 +112,50 @@ export class WeightCalculator {
           return
         }
 
-        // hip bones should have custom logic for distance. If the distance is too far away we should ignore it
-        // This will help with hips when left/right legs could be closer than knee bones
+        // vertices below the crotch belong to the left or right leg, so the
+        // hip/pelvis bone should not compete for them
         if (this.skeleton_type === SkeletonType.Human &&
           (bone.name.includes('hips') || bone.name.includes('pelvis'))) {
-          // if the intersection point is lower than the vertex position, that means the vertex is below
-          // the hips area, and is part of the left or right leg...ignore that result
-          if (this.distance_to_bottom_of_position_tracking_bone !== null && this.distance_to_bottom_of_position_tracking_bone < vertex_position.y) {
-            return// this vertex is below our crotch area, so it cannot be part of our hips
+          if (vertex_position.y < this.pelvis_exclusion_bottom_y) {
+            return
           }
         }
 
-        const distance: number = this.cached_median_child_bone_positions[idx].distanceTo(vertex_position)
+        const distance: number = this.cached_bone_segments[idx]
+          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+          .distanceTo(vertex_position)
+
+        if (distance < closest_any_distance) {
+          closest_any_distance = distance
+          closest_any_index = idx
+        }
+
+        // a sided bone (thigh_l, hand_r, ...) can never claim a vertex that is
+        // clearly on the other half of the body
+        const bone_side = this.cached_bone_sides[idx]
+        if (bone_side !== null && this.left_side_sign !== 0) {
+          const vertex_offset_x = vertex_position.x - this.mesh_center_x
+          if (Math.abs(vertex_offset_x) > this.side_dead_band) {
+            const vertex_on_left = Math.sign(vertex_offset_x) === this.left_side_sign
+            if (vertex_on_left !== (bone_side === 'left')) {
+              return
+            }
+          }
+        }
+
+        if (distance > this.max_plausible_distance) {
+          return
+        }
+
         if (distance < closest_bone_distance) {
           closest_bone_distance = distance
           closest_bone_index = idx
         }
       })
+
+      if (closest_bone_index === -1) {
+        closest_bone_index = closest_any_index
+      }
 
       this.bones_vertex_segmentation[closest_bone_index] ??= [] // Initialize the array if it doesn't exist
       this.bones_vertex_segmentation[closest_bone_index].push(i)
@@ -107,7 +168,7 @@ export class WeightCalculator {
 
   // every vertex checks to see if it is below the hips area,
   // so do this calculation once and cache it for the lookup later
-  private calculate_distance_to_bottom_of_position_tracking_bone (): number {
+  private calculate_pelvis_exclusion_bottom_y (): number {
 
     const position_tracking_bone_name: string = RigConfig.by_skeleton_type(this.skeleton_type as SkeletonType)?.position_tracking_bone_name || 'UNKNOWN POSITION BONE'
 
@@ -116,20 +177,23 @@ export class WeightCalculator {
       return name.includes(position_tracking_bone_name.toLowerCase())
     })
 
-    if (position_tracking_bone_object === undefined) { 
+    if (position_tracking_bone_object === undefined) {
         throw new Error('Position tracking bone not found')
     }
 
     const intesection_point: Vector3 | null = this.cast_intersection_ray_down_from_bone(position_tracking_bone_object)
 
-    // get the distance from the bone point to the intersection point
+    if (intesection_point === null) {
+      return -Infinity
+    }
+
     const bone_index = this.bones.findIndex(b => b === position_tracking_bone_object)
     const bone_position: Vector3 = this.cached_median_child_bone_positions[bone_index]
 
-    let distance_to_bottom: number = intesection_point?.distanceTo(bone_position) ?? 0
-    distance_to_bottom *= 1.1 // buffer zone to make sure to include vertices at intersection
+    // buffer zone to make sure to include vertices at intersection
+    const buffer: number = (bone_position.y - intesection_point.y) * 0.1
 
-    return distance_to_bottom
+    return intesection_point.y - buffer
   }
 
   private cast_intersection_ray_down_from_bone (bone: Bone): Vector3 | null {
