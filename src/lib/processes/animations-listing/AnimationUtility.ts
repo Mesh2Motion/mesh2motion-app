@@ -1,8 +1,44 @@
-import { AnimationClip, Quaternion, Vector3, type KeyframeTrack, type QuaternionKeyframeTrack } from 'three'
+import { AnimationClip, Matrix4, Quaternion, Vector3, type KeyframeTrack, type QuaternionKeyframeTrack, type Object3D, type SkinnedMesh, type Bone } from 'three'
 import type { TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 import { RigConfig } from '../../RigConfig'
 
 export class AnimationUtility {
+  // rest-pose hip height of the rig a skinned mesh is bound to, read from the
+  // bind matrices so a currently playing animation cannot skew it
+  static bind_pose_hips_height (skinned_mesh: SkinnedMesh): number | null {
+    const skeleton = skinned_mesh.skeleton
+    const hips_index = skeleton.bones.findIndex((bone) => {
+      const name = bone.name.toLowerCase()
+      return name.includes('hips') || name.includes('pelvis')
+    })
+    if (hips_index === -1 || skeleton.boneInverses[hips_index] === undefined) {
+      return null
+    }
+    const bind_matrix = new Matrix4().copy(skeleton.boneInverses[hips_index]).invert()
+    const height = Math.abs(new Vector3().setFromMatrixPosition(bind_matrix).y)
+    return height > 0 ? height : null
+  }
+
+  // rest-pose hip height of whatever armature ships inside an imported file
+  static rest_hips_height_from_scene (scene: Object3D): number | null {
+    let hips_bone: Object3D | null = null
+    scene.updateMatrixWorld(true)
+    scene.traverse((object) => {
+      if (hips_bone !== null || !((object as Bone).isBone ?? false)) {
+        return
+      }
+      const name = object.name.toLowerCase()
+      if (name.includes('hips') || name.includes('pelvis')) {
+        hips_bone = object
+      }
+    })
+    if (hips_bone === null) {
+      return null
+    }
+    const height = Math.abs(new Vector3().setFromMatrixPosition((hips_bone as Object3D).matrixWorld).y)
+    return height > 0 ? height : null
+  }
+
   // when we scaled the skeleton itself near the beginning, we kept track of that
   // this scaling will affect position keyframes since they expect the original skeleton scale
   // this will fix any issues with position keyframes not matching the current skeleton scale
