@@ -655,7 +655,9 @@ export class StepEditSkeleton extends EventTarget {
 
     // history snapshots restore bones by name, so they stay valid across a
     // reload of the same rig; only a different rig invalidates them
-    const skeleton_signature = this.threejs_skeleton.bones.map(b => b.name).sort().join('|')
+    const skeleton_signature = this.threejs_skeleton.bones
+      .map(b => `${b.name}:${b.position.x.toFixed(4)},${b.position.y.toFixed(4)},${b.position.z.toFixed(4)}`)
+      .sort().join('|')
     const same_rig = skeleton_signature === this.last_skeleton_signature
     this.last_skeleton_signature = skeleton_signature
 
