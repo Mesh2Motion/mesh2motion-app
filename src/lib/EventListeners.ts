@@ -3,7 +3,6 @@ import { ModelPreviewDisplay } from './enums/ModelPreviewDisplay'
 import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
-import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
 import { ModelAnalysisReport } from './processes/load-model/ModelAnalysisReport'
 import { DownloadSuccessDialog } from './components/download-success/DownloadSuccessDialog'
 import { ModalDialog } from './ModalDialog.ts'
@@ -233,15 +232,15 @@ export class EventListeners {
 
     // rotate model after loading it in to orient it correctly
     this.bootstrap.ui.dom_rotate_model_x_button?.addEventListener('click', () => {
-      ModelCleanupUtility.rotate_model_geometry(this.bootstrap.load_model_step.model_meshes(), 'x', 90)
+      this.bootstrap.load_model_step.rotate_model('x')
     })
 
     this.bootstrap.ui.dom_rotate_model_y_button?.addEventListener('click', () => {
-      ModelCleanupUtility.rotate_model_geometry(this.bootstrap.load_model_step.model_meshes(), 'y', 90)
+      this.bootstrap.load_model_step.rotate_model('y')
     })
 
     this.bootstrap.ui.dom_rotate_model_z_button?.addEventListener('click', () => {
-      ModelCleanupUtility.rotate_model_geometry(this.bootstrap.load_model_step.model_meshes(), 'z', 90)
+      this.bootstrap.load_model_step.rotate_model('z')
     })
 
     // show a breakdown of what was found in the imported file
@@ -256,16 +255,7 @@ export class EventListeners {
 
     // Auto-align model to floor
     this.bootstrap.ui.dom_auto_align_model_button?.addEventListener('click', () => {
-      // move the mesh geometry data to the floor
-      const mesh_data = this.bootstrap.load_model_step.model_meshes()
-      ModelCleanupUtility.move_model_to_floor(mesh_data)
-
-      // move the transform widget to reset it to the new position on the canvas
-      const py = mesh_data.position.y
-      if (py !== 0) {
-        ModelCleanupUtility.translate_model_vertices(mesh_data, 0, py, 0)
-        mesh_data.position.setY(0)
-      }
+      this.bootstrap.load_model_step.auto_align_model_to_floor()
     })
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {
@@ -315,9 +305,6 @@ export class EventListeners {
 
       // reset current bone selection for edit skeleton step
       this.bootstrap.edit_skeleton_step.set_currently_selected_bone(null)
-
-      // reset the undo/redo system
-      this.bootstrap.edit_skeleton_step.clear_undo_history()
     })
 
     // going back to load skeleton step from edit skeleton step
@@ -371,16 +358,27 @@ export class EventListeners {
 
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
-      // Only handle keyboard shortcuts when in EditSkeleton step
-      if (this.bootstrap.process_step !== ProcessStep.EditSkeleton) {
-        return
-      }
-
       // Define undo/redo shortcut conditions
       // Ctrl+Z or Cmd+Z for undo
       // Ctrl+Y, Cmd+Y, Ctrl+Shift+Z, or Cmd+Shift+Z for redo
       const is_undo_shortcut_pressed = (event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey
       const is_redo_shortcut_pressed = (event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.key === 'z' && event.shiftKey))
+
+      if (this.bootstrap.process_step === ProcessStep.LoadSkeleton) {
+        if (is_undo_shortcut_pressed) {
+          event.preventDefault()
+          this.bootstrap.load_model_step.undo_model_transform()
+        }
+        if (is_redo_shortcut_pressed) {
+          event.preventDefault()
+          this.bootstrap.load_model_step.redo_model_transform()
+        }
+        return
+      }
+
+      if (this.bootstrap.process_step !== ProcessStep.EditSkeleton) {
+        return
+      }
 
       if (is_undo_shortcut_pressed) {
         event.preventDefault()
