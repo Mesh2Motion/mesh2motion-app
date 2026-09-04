@@ -63,6 +63,7 @@ export class StepEditSkeleton extends EventTarget {
   private readonly joint_texture = new TextureLoader().load('/images/skeleton-joint-point.png')
 
   private _added_event_listeners: boolean = false
+  private last_skeleton_signature: string = ''
   private readonly preview_plane_manager: PreviewPlaneManager = PreviewPlaneManager.getInstance()
   private readonly arm_plane_manager: ArmPlaneManager = new ArmPlaneManager()
   public readonly independent_bone_movement: IndependentBoneMovement = new IndependentBoneMovement()
@@ -652,8 +653,13 @@ export class StepEditSkeleton extends EventTarget {
     this.create_threejs_skeleton_object()
     this.independent_bone_movement.set_rest_pose(this.threejs_skeleton)
 
-    // Initialize the undo/redo system with the skeleton
-    this.undo_redo_system.set_skeleton(this.threejs_skeleton)
+    // history snapshots restore bones by name, so they stay valid across a
+    // reload of the same rig; only a different rig invalidates them
+    const skeleton_signature = this.threejs_skeleton.bones.map(b => b.name).sort().join('|')
+    const same_rig = skeleton_signature === this.last_skeleton_signature
+    this.last_skeleton_signature = skeleton_signature
+
+    this.undo_redo_system.set_skeleton(this.threejs_skeleton, same_rig)
   }
 
   private create_threejs_skeleton_object (): Skeleton {

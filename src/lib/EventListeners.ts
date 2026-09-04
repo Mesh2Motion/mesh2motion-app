@@ -315,9 +315,6 @@ export class EventListeners {
 
       // reset current bone selection for edit skeleton step
       this.bootstrap.edit_skeleton_step.set_currently_selected_bone(null)
-
-      // reset the undo/redo system
-      this.bootstrap.edit_skeleton_step.clear_undo_history()
     })
 
     // going back to load skeleton step from edit skeleton step
