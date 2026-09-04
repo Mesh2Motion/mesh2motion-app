@@ -263,22 +263,18 @@ export class AnimationSearch extends EventTarget {
       return matches_search
     })
 
-    // Clear and rebuild the animation list
-    this.animation_list_container.innerHTML = ''
-
     // Show "no animations found" if the filtered list is empty
     if (this.filtered_animations_list.length === 0) {
       this.animation_list_container.innerHTML = '<div class="no-animations-message">No animations found</div>'
       return
     }
 
-    this.filtered_animations_list.forEach((animation_clip) => {
-      if (this.animation_list_container == null) {
-        return
-      }
+    const index_by_animation = new Map(this.all_animations.map((animation, index) => [animation, index]))
+    const animation_entries_html: string[] = []
 
+    this.filtered_animations_list.forEach((animation_clip) => {
       // Find the original index in the full list for proper data-index
-      const original_index = this.all_animations.findIndex(clip => clip === animation_clip)
+      const original_index = index_by_animation.get(animation_clip) ?? -1
 
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
@@ -330,9 +326,10 @@ export class AnimationSearch extends EventTarget {
           </button>
         </div>`
 
-      // append the entire item HTML to the DOM element
-      this.animation_list_container.innerHTML += animation_entry_html
+      animation_entries_html.push(animation_entry_html)
     })
+
+    this.animation_list_container.innerHTML = animation_entries_html.join('')
 
     // only so many WebM videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
