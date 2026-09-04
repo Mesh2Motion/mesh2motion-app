@@ -16,6 +16,7 @@ export class AnimationSearch extends EventTarget {
 
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
+  private filter_debounce_timer: ReturnType<typeof setTimeout> | null = null
 
   private static readonly mirror_mode_cycle: AnimationMirrorExportMode[] = ['none', 'mirrored', 'both']
 
@@ -86,11 +87,19 @@ export class AnimationSearch extends EventTarget {
     // Add the filter event listener
     this.filter_input.addEventListener('input', (event) => {
       const filter_text = (event.target as HTMLInputElement).value.toLowerCase()
-      this.render_filtered_animations(filter_text)
 
-      // emit an event to notify that we have filtered our animation listing
-      this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
-      this.dispatchEvent(this.custom_event)
+      if (this.filter_debounce_timer !== null) {
+        clearTimeout(this.filter_debounce_timer)
+      }
+
+      this.filter_debounce_timer = setTimeout(() => {
+        this.filter_debounce_timer = null
+        this.render_filtered_animations(filter_text)
+
+        // emit an event to notify that we have filtered our animation listing
+        this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
+        this.dispatchEvent(this.custom_event)
+      }, 150)
     })
   }
 
