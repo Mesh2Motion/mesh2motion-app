@@ -17,6 +17,7 @@ export class AnimationSearch extends EventTarget {
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
   private filter_debounce_timer: ReturnType<typeof setTimeout> | null = null
+  private preview_observer: IntersectionObserver | null = null
 
   private static readonly mirror_mode_cycle: AnimationMirrorExportMode[] = ['none', 'mirrored', 'both']
 
@@ -350,6 +351,8 @@ export class AnimationSearch extends EventTarget {
    * Only loads video elements when their placeholders are visible in the viewport.
    */
   private setup_lazy_video_loading (): void {
+    this.preview_observer?.disconnect()
+
     // Only set up IntersectionObserver if the container exists
     // any animation entry that is in view will run this code to convert it to a video element
     const observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
@@ -408,6 +411,7 @@ export class AnimationSearch extends EventTarget {
     // grabs all the animation list elements and tells the observer to start watching them for processing
     const placeholders = this.animation_list_container?.querySelectorAll('.anim-preview-placeholder')
     placeholders?.forEach(ph => { observer.observe(ph) })
+    this.preview_observer = observer
   }
 
   public animation_name_clean (input: string): string {
