@@ -21,6 +21,10 @@ export class WeightCalculator {
   private cached_median_child_bone_positions: Vector3[] = []
   private readonly bone_object_to_index = new Map<Bone, number>()
   private pelvis_exclusion_bottom_y: number = -Infinity
+  private cached_bone_sides: Array<'left' | 'right' | null> = []
+  private mesh_center_x: number = 0
+  private side_dead_band: number = 0
+  private left_side_sign: number = 0
 
   // each index will be a bone index. the value will be a list of vertex indices that belong to that bone
   private readonly bones_vertex_segmentation: number[][] = []
@@ -53,6 +57,24 @@ export class WeightCalculator {
     })
 
     this.pelvis_exclusion_bottom_y = this.calculate_pelvis_exclusion_bottom_y()
+
+    this.cached_bone_sides = this.bones.map(b => Utility.bone_side(b.name))
+    this.geometry.computeBoundingBox()
+    const bounding_box = this.geometry.boundingBox
+    if (bounding_box !== null) {
+      this.mesh_center_x = (bounding_box.min.x + bounding_box.max.x) / 2
+      this.side_dead_band = (bounding_box.max.x - bounding_box.min.x) * 0.05
+    }
+
+    let left_x_offset_sum = 0
+    let left_bone_count = 0
+    this.cached_bone_sides.forEach((side, idx) => {
+      if (side === 'left') {
+        left_x_offset_sum += this.cached_median_child_bone_positions[idx].x - this.mesh_center_x
+        left_bone_count++
+      }
+    })
+    this.left_side_sign = left_bone_count > 0 ? Math.sign(left_x_offset_sum) : 0
   }
 
   public get_cached_median_child_bone_positions (): Vector3[] {
@@ -84,6 +106,19 @@ export class WeightCalculator {
           (bone.name.includes('hips') || bone.name.includes('pelvis'))) {
           if (vertex_position.y < this.pelvis_exclusion_bottom_y) {
             return
+          }
+        }
+
+        // a sided bone (thigh_l, hand_r, ...) can never claim a vertex that is
+        // clearly on the other half of the body
+        const bone_side = this.cached_bone_sides[idx]
+        if (bone_side !== null && this.left_side_sign !== 0) {
+          const vertex_offset_x = vertex_position.x - this.mesh_center_x
+          if (Math.abs(vertex_offset_x) > this.side_dead_band) {
+            const vertex_on_left = Math.sign(vertex_offset_x) === this.left_side_sign
+            if (vertex_on_left !== (bone_side === 'left')) {
+              return
+            }
           }
         }
 

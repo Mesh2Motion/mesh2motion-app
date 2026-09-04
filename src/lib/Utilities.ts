@@ -246,6 +246,17 @@ export class Utility {
     })
   }
 
+  static bone_side (bone_name: string): 'left' | 'right' | null {
+    const name = bone_name.toLowerCase()
+    if (/(^right_|^r_|_right$|_r$|\.right$|\.r$|-right$|-r$)/.test(name)) {
+      return 'right'
+    }
+    if (/(^left_|^l_|_left$|_l$|\.left$|\.l$|-left$|-l$)/.test(name)) {
+      return 'left'
+    }
+    return null
+  }
+
   static calculate_bone_base_name (bone_name: string): string {
     // remove if bone name part if they have suffix
     let normalized_bone_name: string = bone_name.toLowerCase().replace(/(_r|_l|_right|_left)$/, '')
