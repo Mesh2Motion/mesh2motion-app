@@ -1,7 +1,7 @@
 import {
   Vector3, Raycaster, type Bone, Mesh,
   MeshBasicMaterial, DoubleSide,
-  type BufferGeometry
+  type BufferGeometry, type Line3
 } from 'three'
 
 import { Utility } from '../Utilities.js'
@@ -22,6 +22,8 @@ export class WeightCalculator {
   private readonly bone_object_to_index = new Map<Bone, number>()
   private pelvis_exclusion_bottom_y: number = -Infinity
   private cached_bone_sides: Array<'left' | 'right' | null> = []
+  private cached_bone_segments: Line3[] = []
+  private readonly segment_point_scratch: Vector3 = new Vector3()
   private mesh_center_x: number = 0
   private side_dead_band: number = 0
   private left_side_sign: number = 0
@@ -45,6 +47,7 @@ export class WeightCalculator {
    */
   public initialize_caches (): void {
     this.cached_median_child_bone_positions = this.bones.map(b => Utility.bone_midpoint_to_child(b))
+    this.cached_bone_segments = this.bones.map(b => Utility.bone_segment(b))
     this.bones.forEach((b, idx) => this.bone_object_to_index.set(b, idx))
 
     // The root bone is only for global transform changes, and leaf/orientation
@@ -122,7 +125,9 @@ export class WeightCalculator {
           }
         }
 
-        const distance: number = this.cached_median_child_bone_positions[idx].distanceTo(vertex_position)
+        const distance: number = this.cached_bone_segments[idx]
+          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+          .distanceTo(vertex_position)
         if (distance < closest_bone_distance) {
           closest_bone_distance = distance
           closest_bone_index = idx

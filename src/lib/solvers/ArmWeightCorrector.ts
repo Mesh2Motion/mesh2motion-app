@@ -1,7 +1,7 @@
 import {
   Vector3,
   Bone,
-  type BufferGeometry
+  type BufferGeometry, type Line3
 } from 'three'
 
 import { Utility } from '../Utilities.js'
@@ -28,6 +28,7 @@ export class ArmWeightCorrector {
   private readonly bones: Bone[]
   private readonly arm_plane_offset: number
   private left_side_sign: number = 0
+  private readonly segment_point_scratch: Vector3 = new Vector3()
 
   constructor (geometry: BufferGeometry, bones_master_data: Bone[], arm_plane_offset: number) {
     this.geometry = geometry
@@ -124,19 +125,19 @@ export class ArmWeightCorrector {
    * minus the root (global transform only) and leaf/orientation bones, which the
    * solver never assigns vertices to.
    */
-  private build_fallback_bone_candidates (arm_bone_indices: Set<number>): Array<{ index: number, midpoint: Vector3, side: 'left' | 'right' | null }> {
-    const candidates: Array<{ index: number, midpoint: Vector3, side: 'left' | 'right' | null }> = []
+  private build_fallback_bone_candidates (arm_bone_indices: Set<number>): Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }> {
+    const candidates: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }> = []
 
     this.bones.forEach((bone, idx) => {
       if (arm_bone_indices.has(idx)) { return }
       if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { return }
-      candidates.push({ index: idx, midpoint: Utility.bone_midpoint_to_child(bone), side: Utility.bone_side(bone.name) })
+      candidates.push({ index: idx, midpoint: Utility.bone_midpoint_to_child(bone), segment: Utility.bone_segment(bone), side: Utility.bone_side(bone.name) })
     })
 
     return candidates
   }
 
-  private calculate_left_side_sign (candidates: Array<{ index: number, midpoint: Vector3, side: 'left' | 'right' | null }>): number {
+  private calculate_left_side_sign (candidates: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>): number {
     let left_x_sum = 0
     let left_count = 0
     for (const candidate of candidates) {
@@ -153,7 +154,7 @@ export class ArmWeightCorrector {
     skin_weights: number[],
     plane_x: number,
     arm_bone_indices: Set<number>,
-    fallback_bones: Array<{ index: number, midpoint: Vector3 }>
+    fallback_bones: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>
   ): void {
     const vertex_count = this.geometry.attributes.position.array.length / 3
 
@@ -210,7 +211,7 @@ export class ArmWeightCorrector {
 
   private find_closest_fallback_bone (
     vertex_position: Vector3,
-    fallback_bones: Array<{ index: number, midpoint: Vector3, side: 'left' | 'right' | null }>
+    fallback_bones: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>
   ): number {
     const left_side_sign = this.left_side_sign
     const vertex_on_left = left_side_sign !== 0 && Math.sign(vertex_position.x) === left_side_sign
@@ -223,7 +224,9 @@ export class ArmWeightCorrector {
         if (vertex_on_left !== (candidate.side === 'left')) { continue }
       }
 
-      const distance = candidate.midpoint.distanceTo(vertex_position)
+      const distance = candidate.segment
+        .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+        .distanceTo(vertex_position)
       if (distance < closest_distance) {
         closest_distance = distance
         closest_index = candidate.index
@@ -233,7 +236,9 @@ export class ArmWeightCorrector {
     if (closest_index === -1) {
       closest_index = fallback_bones[0].index
       for (const candidate of fallback_bones) {
-        const distance = candidate.midpoint.distanceTo(vertex_position)
+        const distance = candidate.segment
+          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+          .distanceTo(vertex_position)
         if (distance < closest_distance) {
           closest_distance = distance
           closest_index = candidate.index
