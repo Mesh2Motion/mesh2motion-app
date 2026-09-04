@@ -27,6 +27,7 @@ export class WeightCalculator {
   private mesh_center_x: number = 0
   private side_dead_band: number = 0
   private left_side_sign: number = 0
+  private max_plausible_distance: number = Infinity
 
   // each index will be a bone index. the value will be a list of vertex indices that belong to that bone
   private readonly bones_vertex_segmentation: number[][] = []
@@ -69,6 +70,12 @@ export class WeightCalculator {
       this.side_dead_band = (bounding_box.max.x - bounding_box.min.x) * 0.05
     }
 
+    this.geometry.computeBoundingSphere()
+    const bounding_sphere = this.geometry.boundingSphere
+    if (bounding_sphere !== null && bounding_sphere.radius > 0) {
+      this.max_plausible_distance = bounding_sphere.radius * 0.75
+    }
+
     let left_x_offset_sum = 0
     let left_bone_count = 0
     this.cached_bone_sides.forEach((side, idx) => {
@@ -93,8 +100,10 @@ export class WeightCalculator {
 
     for (let i = 0; i < vertex_count; i++) {
       const vertex_position: Vector3 = new Vector3().fromBufferAttribute(this.geometry.attributes.position, i)
-      let closest_bone_distance: number = 1000 // arbitrary large number to start with
-      let closest_bone_index: number = 0
+      let closest_bone_distance: number = Infinity
+      let closest_bone_index: number = -1
+      let closest_any_distance: number = Infinity
+      let closest_any_index: number = 0
 
       this.bones.forEach((bone, idx) => {
         // Skip the root bone (global transform only) and leaf/orientation bones.
@@ -112,6 +121,15 @@ export class WeightCalculator {
           }
         }
 
+        const distance: number = this.cached_bone_segments[idx]
+          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+          .distanceTo(vertex_position)
+
+        if (distance < closest_any_distance) {
+          closest_any_distance = distance
+          closest_any_index = idx
+        }
+
         // a sided bone (thigh_l, hand_r, ...) can never claim a vertex that is
         // clearly on the other half of the body
         const bone_side = this.cached_bone_sides[idx]
@@ -125,14 +143,19 @@ export class WeightCalculator {
           }
         }
 
-        const distance: number = this.cached_bone_segments[idx]
-          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
-          .distanceTo(vertex_position)
+        if (distance > this.max_plausible_distance) {
+          return
+        }
+
         if (distance < closest_bone_distance) {
           closest_bone_distance = distance
           closest_bone_index = idx
         }
       })
+
+      if (closest_bone_index === -1) {
+        closest_bone_index = closest_any_index
+      }
 
       this.bones_vertex_segmentation[closest_bone_index] ??= [] // Initialize the array if it doesn't exist
       this.bones_vertex_segmentation[closest_bone_index].push(i)

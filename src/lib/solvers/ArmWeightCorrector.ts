@@ -28,6 +28,7 @@ export class ArmWeightCorrector {
   private readonly bones: Bone[]
   private readonly arm_plane_offset: number
   private left_side_sign: number = 0
+  private max_plausible_distance: number = Infinity
   private readonly segment_point_scratch: Vector3 = new Vector3()
 
   constructor (geometry: BufferGeometry, bones_master_data: Bone[], arm_plane_offset: number) {
@@ -89,6 +90,12 @@ export class ArmWeightCorrector {
     if (fallback_bones.length === 0) { return }
 
     this.left_side_sign = this.calculate_left_side_sign(fallback_bones)
+
+    this.geometry.computeBoundingSphere()
+    const bounding_sphere = this.geometry.boundingSphere
+    if (bounding_sphere !== null && bounding_sphere.radius > 0) {
+      this.max_plausible_distance = bounding_sphere.radius * 0.75
+    }
 
     this.correct_vertex_weights(skin_indices, skin_weights, plane_x, arm_bone_indices, fallback_bones)
   }
@@ -167,6 +174,20 @@ export class ArmWeightCorrector {
 
       const offset = i * 4
 
+      let has_arm_weight = false
+      for (let j = 0; j < 4; j++) {
+        if (arm_bone_indices.has(skin_indices[offset + j]) && skin_weights[offset + j] > 0) {
+          has_arm_weight = true
+          break
+        }
+      }
+      if (!has_arm_weight) { continue }
+
+      // no plausible replacement in range means the vertex keeps its arm
+      // weight rather than being handed to something absurdly far away
+      const replacement_bone_index = this.find_closest_fallback_bone(vertex_position, fallback_bones)
+      if (replacement_bone_index === -1) { continue }
+
       // Take the weight away from every arm bone influencing this vertex.
       // Index 0 is the root bone, which never receives weights, so it doubles
       // as the "empty slot" marker (same convention as HeadWeightCorrector).
@@ -185,8 +206,6 @@ export class ArmWeightCorrector {
       }
 
       if (stolen_weight <= 0) { continue }
-
-      const replacement_bone_index = this.find_closest_fallback_bone(vertex_position, fallback_bones)
 
       // Merge into the replacement bone's existing slot if it already influences
       // this vertex, otherwise reuse one of the slots we just emptied.
@@ -234,7 +253,6 @@ export class ArmWeightCorrector {
     }
 
     if (closest_index === -1) {
-      closest_index = fallback_bones[0].index
       for (const candidate of fallback_bones) {
         const distance = candidate.segment
           .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
@@ -244,6 +262,10 @@ export class ArmWeightCorrector {
           closest_index = candidate.index
         }
       }
+    }
+
+    if (closest_distance > this.max_plausible_distance) {
+      return -1
     }
 
     return closest_index
