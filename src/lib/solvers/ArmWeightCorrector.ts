@@ -24,11 +24,14 @@ import { Utility } from '../Utilities.js'
  * covers part of the chest.
  */
 export class ArmWeightCorrector {
+  public static readonly correction_half_height: number = 1.0
+
   private readonly geometry: BufferGeometry
   private readonly bones: Bone[]
   private readonly arm_plane_offset: number
   private left_side_sign: number = 0
   private max_plausible_distance: number = Infinity
+  private shoulder_center_y: number = 0
   private readonly segment_point_scratch: Vector3 = new Vector3()
 
   constructor (geometry: BufferGeometry, bones_master_data: Bone[], arm_plane_offset: number) {
@@ -80,6 +83,10 @@ export class ArmWeightCorrector {
     const anchor_x = ArmWeightCorrector.shoulder_anchor_x(this.bones)
     if (anchor_x === null) { return } // no arm bones on this rig, nothing to correct
 
+    const shoulder_bone = ArmWeightCorrector.find_shoulder_bone(this.bones)
+    if (shoulder_bone === undefined) { return }
+    this.shoulder_center_y = Utility.world_position_from_object(shoulder_bone).y
+
     const plane_x = anchor_x + this.arm_plane_offset
     if (plane_x <= 0) { return } // plane pushed past the center line, would strip both arms entirely
 
@@ -101,10 +108,10 @@ export class ArmWeightCorrector {
   }
 
   /**
-   * Every upperarm bone plus all of its descendants (lowerarm, hand, fingers),
-   * on both sides. Walking the hierarchy rather than matching a keyword list
-   * gives exactly "upperarm and below" without needing to enumerate every
-   * finger bone name, and it leaves the clavicle alone.
+   * Every upperarm bone plus its descendants down to (but not including) the
+   * hand, on both sides. Hands and fingers never cause the torso-drag problem
+   * this corrector exists for, so their weights are left alone. The clavicle
+   * is also excluded - it legitimately covers part of the chest.
    */
   private find_arm_bone_indices (): Set<number> {
     const bone_to_index = new Map<Bone, number>()
@@ -112,16 +119,20 @@ export class ArmWeightCorrector {
 
     const arm_bone_indices = new Set<number>()
 
+    const collect_until_hand = (bone: Bone): void => {
+      if (bone.name.toLowerCase().includes('hand')) { return }
+      const index = bone_to_index.get(bone)
+      if (index !== undefined) {
+        arm_bone_indices.add(index)
+      }
+      bone.children.forEach((child) => {
+        if (child instanceof Bone) { collect_until_hand(child) }
+      })
+    }
+
     this.bones.forEach((bone) => {
       if (!bone.name.toLowerCase().includes('upperarm')) { return }
-
-      bone.traverse((descendant) => {
-        if (!(descendant instanceof Bone)) { return }
-        const index = bone_to_index.get(descendant)
-        if (index !== undefined) {
-          arm_bone_indices.add(index)
-        }
-      })
+      collect_until_hand(bone)
     })
 
     return arm_bone_indices
@@ -171,6 +182,10 @@ export class ArmWeightCorrector {
       // Math.abs is what makes this symmetric: one slider drives both arms,
       // regardless of which side of the model is +X.
       if (Math.abs(vertex_position.x) >= plane_x) { continue } // outboard of the plane, genuinely arm territory
+
+      // only correct within the vertical span of the plane the user is shown,
+      // so hands hanging at hip height are left alone
+      if (Math.abs(vertex_position.y - this.shoulder_center_y) > ArmWeightCorrector.correction_half_height) { continue }
 
       const offset = i * 4
 

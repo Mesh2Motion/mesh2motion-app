@@ -1,4 +1,5 @@
 import { Group, Mesh, PlaneGeometry, MeshBasicMaterial, type Scene, DoubleSide } from 'three'
+import { ArmWeightCorrector } from '../../solvers/ArmWeightCorrector.js'
 
 /**
  * ArmPlaneManager - manages the pair of mirrored vertical planes that show where
@@ -19,7 +20,7 @@ export class ArmPlaneManager {
   private current_plane_x: number = 0.0
   private current_center_y: number = 0.0
   private current_center_z: number = 0.0
-  private readonly plane_size: number = 2.0
+  private readonly plane_size: number = ArmWeightCorrector.correction_half_height * 2
   private is_visible: boolean = false
 
   /**
