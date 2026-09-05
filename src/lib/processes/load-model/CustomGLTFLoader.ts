@@ -3,6 +3,7 @@ import { EventDispatcher } from 'three'
 import { type GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { type Scene } from 'three/src/scenes/Scene.js'
 import { ModalDialog } from '../../ModalDialog'
+import { TextureSourceRegistry } from './TextureSourceRegistry'
 
 /**
  * Loads a GLTF (with BIN and textures) from a ZIP file buffer, using in-memory URLs for all assets.
@@ -50,9 +51,14 @@ export class CustomGLTFLoader extends EventDispatcher {
 
       // Load the GLTF from the in-memory URL
       this.loader.load(gltf_url, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        onLoad(loaded_scene)
-        URL.revokeObjectURL(gltf_url)
+        // Keep the original compressed texture bytes around so exporting the model
+        // again does not push them through a lossy canvas re-encode.
+        TextureSourceRegistry.capture_from_gltf(gltf)
+          .finally(() => {
+            const loaded_scene: Scene = gltf.scene
+            onLoad(loaded_scene)
+            URL.revokeObjectURL(gltf_url)
+          })
       },
       undefined,
       (err) => {
