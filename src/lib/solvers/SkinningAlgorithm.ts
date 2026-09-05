@@ -8,6 +8,7 @@ import { Utility } from '../Utilities.js'
 import { SkeletonType } from '../enums/SkeletonType.js'
 import { HeadWeightCorrector } from './HeadWeightCorrector.js'
 import { ArmWeightCorrector } from './ArmWeightCorrector.js'
+import { DepthWeightCorrector } from './DepthWeightCorrector.js'
 import { WeightCalculator } from './WeightCalculator.js'
 import { ExtremityWeightCorrector } from './ExtremityWeightCorrector.js'
 import { WeightSmoother } from './WeightSmoother.js'
@@ -36,6 +37,11 @@ export default class SkinningAlgorithm {
   private use_arm_plane_correction: boolean = false
   private arm_plane_offset: number = 0.0
 
+  // Front/back plane correction properties. The distance is measured out from
+  // the shoulder joint's Z, which the corrector reads off the bones itself.
+  private use_depth_plane_correction: boolean = false
+  private depth_plane_distance: number = 0.10
+
   constructor (bone_hier: Object3D, skeleton_type: SkeletonType) {
     this.skeleton_type = skeleton_type
     this.bones_master_data = Utility.bone_list_from_hierarchy(bone_hier)
@@ -59,6 +65,14 @@ export default class SkinningAlgorithm {
 
   public set_arm_plane_offset (offset: number): void {
     this.arm_plane_offset = offset
+  }
+
+  public set_depth_plane_correction_enabled (enabled: boolean): void {
+    this.use_depth_plane_correction = enabled
+  }
+
+  public set_depth_plane_distance (distance: number): void {
+    this.depth_plane_distance = distance
   }
 
   public calculate_indexes_and_weights (): number[][] {
@@ -89,6 +103,19 @@ export default class SkinningAlgorithm {
         this.arm_plane_offset
       )
       arm_weight_corrector.apply_arm_weight_correction(skin_indices, skin_weights)
+    }
+
+    // Step 1d: Hand hair and other front/back geometry back from the arm bones.
+    // Long hair hangs at the same height and X as the arms, so the arm plane
+    // above cannot separate them - only depth can. Runs before smoothing for the
+    // same reason the arm correction does.
+    if (this.use_depth_plane_correction) {
+      const depth_weight_corrector = new DepthWeightCorrector(
+        this.geometry,
+        this.bones_master_data,
+        this.depth_plane_distance
+      )
+      depth_weight_corrector.apply_depth_weight_correction(skin_indices, skin_weights)
     }
 
     // Step 2: Smooth weight boundaries between adjacent bones

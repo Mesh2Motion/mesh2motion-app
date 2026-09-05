@@ -1,10 +1,10 @@
 import {
-  Vector3,
-  Bone,
+  type Bone,
   type BufferGeometry
 } from 'three'
 
 import { Utility } from '../Utilities.js'
+import { ArmWeightTransfer } from './ArmWeightTransfer.js'
 
 /**
  * Pulls torso vertices back off the arm bones.
@@ -22,6 +22,9 @@ import { Utility } from '../Utilities.js'
  * The "arm" set is the upperarm bone and everything below it. The clavicle is
  * deliberately excluded — it sits inboard of the shoulder joint and legitimately
  * covers part of the chest.
+ *
+ * See {@link DepthWeightCorrector} for the front/back counterpart, which catches
+ * hair and clothing instead of torso.
  */
 export class ArmWeightCorrector {
   private readonly geometry: BufferGeometry
@@ -80,152 +83,21 @@ export class ArmWeightCorrector {
     const plane_x = anchor_x + this.arm_plane_offset
     if (plane_x <= 0) { return } // plane pushed past the center line, would strip both arms entirely
 
-    const arm_bone_indices = this.find_arm_bone_indices()
+    const arm_bone_indices = ArmWeightTransfer.find_arm_bone_indices(this.bones)
     if (arm_bone_indices.size === 0) { return }
 
-    const fallback_bones = this.build_fallback_bone_candidates(arm_bone_indices)
+    const fallback_bones = ArmWeightTransfer.build_fallback_bone_candidates(this.bones, arm_bone_indices)
     if (fallback_bones.length === 0) { return }
 
-    this.correct_vertex_weights(skin_indices, skin_weights, plane_x, arm_bone_indices, fallback_bones)
-  }
-
-  /**
-   * Every upperarm bone plus all of its descendants (lowerarm, hand, fingers),
-   * on both sides. Walking the hierarchy rather than matching a keyword list
-   * gives exactly "upperarm and below" without needing to enumerate every
-   * finger bone name, and it leaves the clavicle alone.
-   */
-  private find_arm_bone_indices (): Set<number> {
-    const bone_to_index = new Map<Bone, number>()
-    this.bones.forEach((bone, idx) => bone_to_index.set(bone, idx))
-
-    const arm_bone_indices = new Set<number>()
-
-    this.bones.forEach((bone) => {
-      if (!bone.name.toLowerCase().includes('upperarm')) { return }
-
-      bone.traverse((descendant) => {
-        if (!(descendant instanceof Bone)) { return }
-        const index = bone_to_index.get(descendant)
-        if (index !== undefined) {
-          arm_bone_indices.add(index)
-        }
-      })
-    })
-
-    return arm_bone_indices
-  }
-
-  /**
-   * Bones a stripped vertex can be handed to: everything that isn't an arm bone,
-   * minus the root (global transform only) and leaf/orientation bones, which the
-   * solver never assigns vertices to.
-   */
-  private build_fallback_bone_candidates (arm_bone_indices: Set<number>): Array<{ index: number, midpoint: Vector3 }> {
-    const candidates: Array<{ index: number, midpoint: Vector3 }> = []
-
-    this.bones.forEach((bone, idx) => {
-      if (arm_bone_indices.has(idx)) { return }
-      if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { return }
-      candidates.push({ index: idx, midpoint: Utility.bone_midpoint_to_child(bone) })
-    })
-
-    return candidates
-  }
-
-  private correct_vertex_weights (
-    skin_indices: number[],
-    skin_weights: number[],
-    plane_x: number,
-    arm_bone_indices: Set<number>,
-    fallback_bones: Array<{ index: number, midpoint: Vector3 }>
-  ): void {
-    const vertex_count = this.geometry.attributes.position.array.length / 3
-
-    for (let i = 0; i < vertex_count; i++) {
-      const vertex_position = new Vector3().fromBufferAttribute(this.geometry.attributes.position, i)
-
+    ArmWeightTransfer.strip_arm_weights(
+      this.geometry,
+      skin_indices,
+      skin_weights,
+      arm_bone_indices,
+      fallback_bones,
       // Math.abs is what makes this symmetric: one slider drives both arms,
       // regardless of which side of the model is +X.
-      if (Math.abs(vertex_position.x) >= plane_x) { continue } // outboard of the plane, genuinely arm territory
-
-      const offset = i * 4
-
-      // Take the weight away from every arm bone influencing this vertex.
-      // Index 0 is the root bone, which never receives weights, so it doubles
-      // as the "empty slot" marker (same convention as HeadWeightCorrector).
-      let stolen_weight = 0
-      let first_freed_slot = -1
-      for (let j = 0; j < 4; j++) {
-        if (!arm_bone_indices.has(skin_indices[offset + j])) { continue }
-        if (skin_weights[offset + j] <= 0) { continue }
-
-        stolen_weight += skin_weights[offset + j]
-        skin_weights[offset + j] = 0
-        skin_indices[offset + j] = 0
-        if (first_freed_slot === -1) {
-          first_freed_slot = j
-        }
-      }
-
-      if (stolen_weight <= 0) { continue }
-
-      const replacement_bone_index = this.find_closest_fallback_bone(vertex_position, fallback_bones)
-
-      // Merge into the replacement bone's existing slot if it already influences
-      // this vertex, otherwise reuse one of the slots we just emptied.
-      let target_slot = -1
-      for (let j = 0; j < 4; j++) {
-        if (skin_indices[offset + j] === replacement_bone_index && skin_weights[offset + j] > 0) {
-          target_slot = j
-          break
-        }
-      }
-
-      if (target_slot === -1) {
-        target_slot = first_freed_slot
-        skin_indices[offset + target_slot] = replacement_bone_index
-      }
-
-      skin_weights[offset + target_slot] += stolen_weight
-
-      this.normalize_vertex_weights(skin_weights, offset)
-    }
-  }
-
-  private find_closest_fallback_bone (
-    vertex_position: Vector3,
-    fallback_bones: Array<{ index: number, midpoint: Vector3 }>
-  ): number {
-    let closest_distance = Infinity
-    let closest_index = fallback_bones[0].index
-
-    for (const candidate of fallback_bones) {
-      const distance = candidate.midpoint.distanceTo(vertex_position)
-      if (distance < closest_distance) {
-        closest_distance = distance
-        closest_index = candidate.index
-      }
-    }
-
-    return closest_index
-  }
-
-  /**
-   * Normalize weights for a single vertex to ensure they sum to 1.0
-   */
-  private normalize_vertex_weights (skin_weights: number[], offset: number): void {
-    const total_weight =
-      skin_weights[offset] +
-      skin_weights[offset + 1] +
-      skin_weights[offset + 2] +
-      skin_weights[offset + 3]
-
-    if (total_weight > 0) {
-      skin_weights[offset] /= total_weight
-      skin_weights[offset + 1] /= total_weight
-      skin_weights[offset + 2] /= total_weight
-      skin_weights[offset + 3] /= total_weight
-    }
+      (vertex_position) => Math.abs(vertex_position.x) < plane_x
+    )
   }
 }
