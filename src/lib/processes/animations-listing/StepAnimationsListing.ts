@@ -46,6 +46,7 @@ export class StepAnimationsListing extends EventTarget {
 
   private _added_event_listeners: boolean = false
   private is_loading_default_animations: boolean = false
+  private a_pose_debounce_timer: ReturnType<typeof setTimeout> | null = null
 
   // enable status for mirroring animations
   public mirror_animations_enabled: boolean = false
@@ -523,8 +524,14 @@ export class StepAnimationsListing extends EventTarget {
 
   // called by ArmExtensionControl whenever the arm extension amount changes
   private update_a_pose_value (): void {
-    this.rebuild_warped_animations()
-    this.play_animation(this.current_playing_index)
+    if (this.a_pose_debounce_timer !== null) {
+      clearTimeout(this.a_pose_debounce_timer)
+    }
+    this.a_pose_debounce_timer = setTimeout(() => {
+      this.a_pose_debounce_timer = null
+      this.rebuild_warped_animations()
+      this.play_animation(this.current_playing_index)
+    }, 100)
   }
 
   public build_animation_clip_ui (animation_clips_to_load: TransformedAnimationClipPair[], theme_manager: ThemeManager): void {

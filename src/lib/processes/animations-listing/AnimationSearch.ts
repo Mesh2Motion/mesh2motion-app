@@ -16,6 +16,8 @@ export class AnimationSearch extends EventTarget {
 
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
+  private filter_debounce_timer: ReturnType<typeof setTimeout> | null = null
+  private preview_observer: IntersectionObserver | null = null
 
   private static readonly mirror_mode_cycle: AnimationMirrorExportMode[] = ['none', 'mirrored', 'both']
 
@@ -72,9 +74,34 @@ export class AnimationSearch extends EventTarget {
   }
 
   private setup_theme_change_listener (): void {
-    // rebuild animation previews so we have the correct theme
+    // swap preview sources in place so we have the correct theme
     this.theme_manager.addEventListener('theme-changed', (new_theme) => {
-      this.render_filtered_animations(this.filter_input?.value ?? '')
+      this.update_preview_theme()
+    })
+  }
+
+  private update_preview_theme (): void {
+    if (this.animation_list_container === null) {
+      return
+    }
+
+    const theme_name: string = this.theme_manager.get_current_theme()
+    const retheme = (src: string): string => src.replace(/(light|dark)_([^/]+)$/, `${theme_name}_$2`)
+
+    const placeholders = this.animation_list_container.querySelectorAll('.anim-preview-placeholder')
+    placeholders.forEach((element) => {
+      const placeholder = element as HTMLElement
+      const data_src = placeholder.getAttribute('data-src')
+      if (data_src === null || data_src === '') {
+        return
+      }
+      placeholder.setAttribute('data-src', retheme(data_src))
+
+      const video = placeholder.querySelector('video')
+      if (video !== null) {
+        video.src = retheme(video.src)
+        video.load()
+      }
     })
   }
 
@@ -86,11 +113,19 @@ export class AnimationSearch extends EventTarget {
     // Add the filter event listener
     this.filter_input.addEventListener('input', (event) => {
       const filter_text = (event.target as HTMLInputElement).value.toLowerCase()
-      this.render_filtered_animations(filter_text)
 
-      // emit an event to notify that we have filtered our animation listing
-      this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
-      this.dispatchEvent(this.custom_event)
+      if (this.filter_debounce_timer !== null) {
+        clearTimeout(this.filter_debounce_timer)
+      }
+
+      this.filter_debounce_timer = setTimeout(() => {
+        this.filter_debounce_timer = null
+        this.render_filtered_animations(filter_text)
+
+        // emit an event to notify that we have filtered our animation listing
+        this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
+        this.dispatchEvent(this.custom_event)
+      }, 150)
     })
   }
 
@@ -263,22 +298,18 @@ export class AnimationSearch extends EventTarget {
       return matches_search
     })
 
-    // Clear and rebuild the animation list
-    this.animation_list_container.innerHTML = ''
-
     // Show "no animations found" if the filtered list is empty
     if (this.filtered_animations_list.length === 0) {
       this.animation_list_container.innerHTML = '<div class="no-animations-message">No animations found</div>'
       return
     }
 
-    this.filtered_animations_list.forEach((animation_clip) => {
-      if (this.animation_list_container == null) {
-        return
-      }
+    const index_by_animation = new Map(this.all_animations.map((animation, index) => [animation, index]))
+    const animation_entries_html: string[] = []
 
+    this.filtered_animations_list.forEach((animation_clip) => {
       // Find the original index in the full list for proper data-index
-      const original_index = this.all_animations.findIndex(clip => clip === animation_clip)
+      const original_index = index_by_animation.get(animation_clip) ?? -1
 
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
@@ -330,9 +361,10 @@ export class AnimationSearch extends EventTarget {
           </button>
         </div>`
 
-      // append the entire item HTML to the DOM element
-      this.animation_list_container.innerHTML += animation_entry_html
+      animation_entries_html.push(animation_entry_html)
     })
+
+    this.animation_list_container.innerHTML = animation_entries_html.join('')
 
     // only so many WebM videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
@@ -344,44 +376,67 @@ export class AnimationSearch extends EventTarget {
    * Only loads video elements when their placeholders are visible in the viewport.
    */
   private setup_lazy_video_loading (): void {
+    this.preview_observer?.disconnect()
+
     // Only set up IntersectionObserver if the container exists
     // any animation entry that is in view will run this code to convert it to a video element
     const observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
       entries.forEach(entry => {
         const placeholder = entry.target as HTMLElement
+        const row_element = placeholder.closest('.anim-item, .anim-custom-item') as HTMLElement | null
+        const existing_video = placeholder.querySelector('video')
 
-        // abort if animation entry is outside active viewing area (but don't unload - causes popping)
+        // release the video decoder once the entry scrolls out of the active area
         if (!entry.isIntersecting) {
+          if (existing_video != null) {
+            existing_video.pause()
+            existing_video.removeAttribute('src')
+            existing_video.load()
+            existing_video.remove()
+          }
+          if (row_element !== null) {
+            row_element.onpointerenter = null
+            row_element.onpointerleave = null
+          }
           return
         }
 
         // if element is already a video, and it is in view, don't convert
         // it to a video again, it is ok so abort any further work
-        const existing_video = placeholder.querySelector('video')
         if (existing_video != null) {
           return
         }
 
-        // element that just came into view and needs to be converted
-        // to a video element
+        const src = placeholder.getAttribute('data-src') ?? ''
+        if (src === '') {
+          return
+        }
+
+        // element that just came into view: show a paused first-frame preview
+        // that only plays while the pointer is over its row
         const video = document.createElement('video')
         video.className = 'anim-preview'
-        const src = placeholder.getAttribute('data-src') ?? ''
         video.src = src
         video.width = 100
         video.height = 120
         video.loop = true
         video.muted = true
         video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
-        video.autoplay = true
+        video.preload = 'metadata'
         placeholder.innerHTML = ''
         placeholder.appendChild(video)
+
+        if (row_element !== null) {
+          row_element.onpointerenter = () => { void video.play() }
+          row_element.onpointerleave = () => { video.pause() }
+        }
       })
-    }, { rootMargin: '300px' }) // rootMargin pre-loads videos before they scroll into view to reduce popping
+    }, { rootMargin: '300px' }) // rootMargin pre-loads previews before they scroll into view to reduce popping
 
     // grabs all the animation list elements and tells the observer to start watching them for processing
     const placeholders = this.animation_list_container?.querySelectorAll('.anim-preview-placeholder')
     placeholders?.forEach(ph => { observer.observe(ph) })
+    this.preview_observer = observer
   }
 
   public animation_name_clean (input: string): string {
