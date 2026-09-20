@@ -7,6 +7,7 @@ import { ExportBoneNamingService } from './ExportBoneNamingService.ts'
 import { ExportHierarchyService } from './ExportHierarchyService.ts'
 import { ExportAnimationCleanupService } from './ExportAnimationCleanupService.ts'
 import { GlbSkinCleanupService } from './GlbSkinCleanupService.ts'
+import { GlbTexturePassthroughService, type TexturePassthroughPlan } from './GlbTexturePassthroughService.ts'
 import { AnimationUtility } from '../animations-listing/AnimationUtility.ts'
 import { type AnimationExportSelection } from '../animations-listing/interfaces/AnimationExportSelection.ts'
 import { FbxTextureCompatibilityService } from './FbxTextureCompatibilityService.ts'
@@ -142,6 +143,23 @@ export class StepExportToFile extends EventTarget {
   }
 
   public async export_glb (exported_scene: Scene, animations_to_export: AnimationClip[], file_name: string): Promise<void> {
+    // GLTFExporter re-encodes every texture through a 2D canvas, which is lossy.
+    // Marking the textures here lets the original image bytes be put back afterwards.
+    const texture_passthrough = GlbTexturePassthroughService.prepare_scene(exported_scene)
+
+    try {
+      await this.parse_and_save_glb(exported_scene, animations_to_export, file_name, texture_passthrough)
+    } finally {
+      texture_passthrough.restore()
+    }
+  }
+
+  private async parse_and_save_glb (
+    exported_scene: Scene,
+    animations_to_export: AnimationClip[],
+    file_name: string,
+    texture_passthrough: TexturePassthroughPlan
+  ): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const gltf_exporter = new GLTFExporter()
 
@@ -158,7 +176,9 @@ export class StepExportToFile extends EventTarget {
           // Handle the result of the export
           if (result !== null) {
             const cleaned_result = GlbSkinCleanupService.remove_skin_skeleton_properties(result)
-            this.save_array_buffer(cleaned_result, `${file_name}.glb`)
+            const original_textures_result = GlbTexturePassthroughService.apply_original_textures(
+              cleaned_result, texture_passthrough.marked_textures)
+            this.save_array_buffer(original_textures_result, `${file_name}.glb`)
             resolve() // Resolve the promise when the export is complete
           } else {
             console.log('ERROR: result is not an instance of ArrayBuffer')

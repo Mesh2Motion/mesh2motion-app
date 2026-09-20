@@ -10,6 +10,7 @@ import { BufferGeometry, Group, type Material, type Object3D } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { Utility } from '../../Utilities.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
+import { TextureSourceRegistry } from './TextureSourceRegistry.ts'
 import { ModelAnalysisReport, type ModelImportAnalysis, type SceneSnapshot } from './ModelAnalysisReport.ts'
 import { PlatformUtils } from '../../PlatformUtils.ts'
 
@@ -209,8 +210,13 @@ export class StepLoadModel extends EventTarget {
       this.load_fbx_file(model_file_path)
     } else if (file_extension === 'glb') {
       this.gltf_loader.load(model_file_path as string, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        this.process_loaded_scene(loaded_scene)
+        // Keep the original compressed texture bytes around so exporting the model
+        // again does not push them through a lossy canvas re-encode.
+        TextureSourceRegistry.capture_from_gltf(gltf)
+          .finally(() => {
+            const loaded_scene: Scene = gltf.scene
+            this.process_loaded_scene(loaded_scene)
+          })
       })
     } else if (file_extension === 'zip') {
       console.log('ZIP file can contain GLTF+BIN model data')
