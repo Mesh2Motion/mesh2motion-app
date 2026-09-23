@@ -67,6 +67,11 @@ export class UI {
   dom_arm_plane_offset_input: HTMLInputElement | null = null
   dom_arm_plane_offset_label: HTMLElement | null = null
   dom_arm_plane_setting_container: HTMLElement | null = null
+  dom_use_depth_plane_container: HTMLElement | null = null
+  dom_depth_plane_checkbox: HTMLInputElement | null = null
+  dom_depth_plane_distance_input: HTMLInputElement | null = null
+  dom_depth_plane_distance_label: HTMLElement | null = null
+  dom_depth_plane_setting_container: HTMLElement | null = null
 
   dom_skinned_mesh_tools: HTMLElement | null = null
   dom_skinned_mesh_animation_tools: HTMLElement | null = null
@@ -197,6 +202,11 @@ export class UI {
     this.dom_arm_plane_offset_input = document.querySelector('#arm-plane-offset-input')
     this.dom_arm_plane_offset_label = document.querySelector('#arm-plane-offset-label')
     this.dom_arm_plane_setting_container = document.querySelector('#arm-plane-setting-container')
+    this.dom_use_depth_plane_container = document.querySelector('#use-depth-plane-container')
+    this.dom_depth_plane_checkbox = document.querySelector('#depth-plane-checkbox')
+    this.dom_depth_plane_distance_input = document.querySelector('#depth-plane-distance-input')
+    this.dom_depth_plane_distance_label = document.querySelector('#depth-plane-distance-label')
+    this.dom_depth_plane_setting_container = document.querySelector('#depth-plane-setting-container')
 
     this.dom_bind_pose_button = document.querySelector('#action_bind_pose')
     // this.dom_scale_skeleton_input_box = document.querySelector('#scale-input')

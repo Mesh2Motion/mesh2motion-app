@@ -634,6 +634,12 @@ export class Mesh2MotionEngine {
       this.edit_skeleton_step.get_arm_plane_offset()
     )
 
+    // Pass front/back plane correction settings to the weight skin step
+    this.weight_skin_step.set_depth_plane_correction_settings(
+      this.edit_skeleton_step.use_depth_plane_correction(),
+      this.edit_skeleton_step.get_depth_plane_distance()
+    )
+
     this.weight_skin_step.create_binding_skeleton()
 
     // add geometry data needed for skinning
@@ -675,6 +681,12 @@ export class Mesh2MotionEngine {
     this.weight_skin_step.set_arm_plane_correction_settings(
       this.edit_skeleton_step.use_arm_plane_correction(),
       this.edit_skeleton_step.get_arm_plane_offset()
+    )
+
+    // Pass front/back plane correction settings to the weight skin step
+    this.weight_skin_step.set_depth_plane_correction_settings(
+      this.edit_skeleton_step.use_depth_plane_correction(),
+      this.edit_skeleton_step.get_depth_plane_distance()
     )
   }
 

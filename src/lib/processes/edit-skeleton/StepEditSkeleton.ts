@@ -4,7 +4,9 @@ import { Utility } from '../../Utilities.ts'
 import { UndoRedoSystem } from './UndoRedoSystem.ts'
 import { PreviewPlaneManager } from './PreviewPlaneManager.ts'
 import { ArmPlaneManager } from './ArmPlaneManager.ts'
+import { DepthPlaneManager } from './DepthPlaneManager.ts'
 import { ArmWeightCorrector } from '../../solvers/ArmWeightCorrector.ts'
+import { DepthWeightCorrector } from '../../solvers/DepthWeightCorrector.ts'
 import { IndependentBoneMovement } from './IndependentBoneMovement.ts'
 import { ModalDialog } from '../../ModalDialog.ts'
 import {
@@ -60,11 +62,17 @@ export class StepEditSkeleton extends EventTarget {
   private enable_arm_plane_correction: boolean = false
   private arm_plane_offset: number = 0.0
 
+  // Front/back plane state. The distance is measured out from the shoulder
+  // joint's Z, so it has to match the default in create.html's slider.
+  private enable_depth_plane_correction: boolean = false
+  private depth_plane_distance: number = 0.10
+
   private readonly joint_texture = new TextureLoader().load('/images/skeleton-joint-point.png')
 
   private _added_event_listeners: boolean = false
   private readonly preview_plane_manager: PreviewPlaneManager = PreviewPlaneManager.getInstance()
   private readonly arm_plane_manager: ArmPlaneManager = new ArmPlaneManager()
+  private readonly depth_plane_manager: DepthPlaneManager = new DepthPlaneManager()
   public readonly independent_bone_movement: IndependentBoneMovement = new IndependentBoneMovement()
 
   // UI elements specific for this area
@@ -135,11 +143,23 @@ export class StepEditSkeleton extends EventTarget {
       }
     }
 
+    // the front/back correction hands weight back to the spine and head, so it
+    // only makes sense on the human rig too
+    if (this.ui.dom_use_depth_plane_container != null) {
+      if (skeleton_type === SkeletonType.Human) {
+        this.ui.dom_use_depth_plane_container.style.display = 'block'
+      } else {
+        this.ui.dom_use_depth_plane_container.style.display = 'none'
+        this.enable_depth_plane_correction = false // force setting to false in case it was enabled before
+      }
+    }
+
     this.update_skeleton_template_image(skeleton_type)
 
     // show/hide settings for the head correct depending on if it is checked
     this.show_preview_plane_options()
     this.show_arm_plane_options()
+    this.show_depth_plane_options()
   }
 
   private update_skeleton_template_image(skeleton_type: SkeletonType): void {
@@ -224,6 +244,7 @@ export class StepEditSkeleton extends EventTarget {
 
     this.initialize_preview_plane(main_scene)
     this.initialize_arm_plane(main_scene)
+    this.initialize_depth_plane(main_scene)
   }
 
   private initialize_arm_plane (main_scene: Scene): void {
@@ -273,6 +294,54 @@ export class StepEditSkeleton extends EventTarget {
       : Utility.world_position_from_object(shoulder_bone)
 
     this.arm_plane_manager.update_position(anchor_x + this.arm_plane_offset, shoulder_position.y, shoulder_position.z)
+  }
+
+  private initialize_depth_plane (main_scene: Scene): void {
+    this.depth_plane_manager.initialize(main_scene)
+
+    // off by default, but can be enabled if we navigate back to the step
+    this.depth_plane_manager.set_visibility(this.enable_depth_plane_correction)
+    this.refresh_depth_plane_position()
+
+    // set default value (and label) for the plane distance on UI
+    if (this.ui.dom_depth_plane_distance_input !== null && this.ui.dom_depth_plane_distance_label !== null) {
+      this.ui.dom_depth_plane_distance_input.value = this.depth_plane_distance.toString()
+      this.ui.dom_depth_plane_distance_label.textContent = this.format_depth_plane_distance_label()
+    }
+
+    // the checkbox is forced off for non-human rigs, so keep the DOM in sync
+    // with our state instead of leaving a checked box next to a hidden slider
+    if (this.ui.dom_depth_plane_checkbox !== null) {
+      this.ui.dom_depth_plane_checkbox.checked = this.enable_depth_plane_correction
+    }
+  }
+
+  /**
+   * Same percentage formatting as the arm plane offset, since both sliders are
+   * distances in the same small range of scene units.
+   */
+  private format_depth_plane_distance_label (): string {
+    return `${(this.depth_plane_distance * 100).toFixed(1)}%`
+  }
+
+  /**
+   * Move the front and back planes to the shoulder joint's depth, spread apart
+   * by the user's distance. The solver derives its planes the same way at skin
+   * time, so what the user sees here is what actually gets applied.
+   */
+  private refresh_depth_plane_position (): void {
+    const bones = this.threejs_skeleton.bones
+    if (bones.length === 0) { return }
+
+    const anchor_z = DepthWeightCorrector.shoulder_anchor_z(bones)
+    if (anchor_z === null) { return } // no arm bones on this rig
+
+    const shoulder_bone = ArmWeightCorrector.find_shoulder_bone(bones)
+    const shoulder_position = shoulder_bone === undefined
+      ? new Vector3()
+      : Utility.world_position_from_object(shoulder_bone)
+
+    this.depth_plane_manager.update_position(this.depth_plane_distance, shoulder_position.y, anchor_z)
   }
 
   private initialize_preview_plane (main_scene: Scene): void {
@@ -446,6 +515,32 @@ export class StepEditSkeleton extends EventTarget {
     return this.arm_plane_offset
   }
 
+  /**
+   * Toggle the front/back plane correction and the planes that visualize it
+   */
+  public set_use_depth_plane_correction (is_enabled: boolean): void {
+    this.enable_depth_plane_correction = is_enabled
+    this.depth_plane_manager.set_visibility(is_enabled)
+    this.refresh_depth_plane_position()
+  }
+
+  public use_depth_plane_correction (): boolean {
+    return this.enable_depth_plane_correction
+  }
+
+  /**
+   * Set how far in front of and behind the body the planes sit
+   * @param distance Distance along Z measured out from the shoulder joint
+   */
+  public set_depth_plane_distance (distance: number): void {
+    this.depth_plane_distance = distance
+    this.refresh_depth_plane_position()
+  }
+
+  public get_depth_plane_distance (): number {
+    return this.depth_plane_distance
+  }
+
   public add_event_listeners (): void {
     if (this.ui.dom_move_to_origin_button !== null) {
       this.ui.dom_move_to_origin_button.addEventListener('click', () => {
@@ -549,9 +644,29 @@ export class StepEditSkeleton extends EventTarget {
       }
     })
 
-    // keep the arm planes anchored to the shoulder joint when bones get moved
+    // Add front/back plane event listeners
+    this.ui.dom_depth_plane_checkbox?.addEventListener('change', (event) => {
+      const target = event.target as HTMLInputElement
+      this.set_use_depth_plane_correction(target.checked)
+
+      this.show_depth_plane_options()
+    })
+
+    this.ui.dom_depth_plane_distance_input?.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement
+      const distance = parseFloat(target.value)
+      this.set_depth_plane_distance(isNaN(distance) ? 0.10 : distance)
+
+      // Update the label to show current value
+      if (this.ui.dom_depth_plane_distance_label !== null) {
+        this.ui.dom_depth_plane_distance_label.textContent = this.format_depth_plane_distance_label()
+      }
+    })
+
+    // keep the arm and depth planes anchored to the shoulder joint when bones get moved
     this.addEventListener('skeletonTransformed', () => {
       this.refresh_arm_plane_position()
+      this.refresh_depth_plane_position()
     })
   }
 
@@ -564,6 +679,12 @@ export class StepEditSkeleton extends EventTarget {
   private show_arm_plane_options (): void {
     if (this.ui.dom_arm_plane_setting_container !== null) {
       this.ui.dom_arm_plane_setting_container.style.display = this.use_arm_plane_correction() ? 'flex' : 'none'
+    }
+  }
+
+  private show_depth_plane_options (): void {
+    if (this.ui.dom_depth_plane_setting_container !== null) {
+      this.ui.dom_depth_plane_setting_container.style.display = this.use_depth_plane_correction() ? 'flex' : 'none'
     }
   }
 
@@ -626,6 +747,15 @@ export class StepEditSkeleton extends EventTarget {
     if (this.ui.dom_arm_plane_offset_input !== null) {
       this.ui.dom_arm_plane_offset_input.removeEventListener('input', () => {})
     }
+
+    // Remove front/back plane event listeners
+    if (this.ui.dom_depth_plane_checkbox !== null) {
+      this.ui.dom_depth_plane_checkbox.removeEventListener('change', () => {})
+    }
+
+    if (this.ui.dom_depth_plane_distance_input !== null) {
+      this.ui.dom_depth_plane_distance_input.removeEventListener('input', () => {})
+    }
   }
 
   public cleanup_on_exit_step (): void {
@@ -633,6 +763,7 @@ export class StepEditSkeleton extends EventTarget {
     this.clear_hover_point_if_exists()
     this.remove_preview_plane()
     this.arm_plane_manager.cleanup()
+    this.depth_plane_manager.cleanup()
   }
 
   /**
