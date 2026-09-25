@@ -1,5 +1,6 @@
 import { Box3, SRGBColorSpace, Vector3, type BufferGeometry, type Material, type Mesh, type MeshPhongMaterial, type MeshStandardMaterial, type Object3D, type Texture } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
+import { MODEL_HEIGHT_LIMIT } from './ModelCleanupUtility.ts'
 
 /**
  * Materials arrive as whatever type the file's loader picked, so read them
@@ -402,10 +403,10 @@ export class ModelAnalysisReport {
     }
 
     const imported_size: Vector3 = imported.world_size
-    const largest_dimension: number = Math.max(imported_size.x, imported_size.y, imported_size.z)
+    const imported_height: number = imported_size.y
 
-    if (largest_dimension <= 0.5 || largest_dimension >= 20) {
-      warnings.push(`Model came in at ${this.format_number(largest_dimension)} units across, so import auto-scaled it to a workable size.`)
+    if (imported_height >= MODEL_HEIGHT_LIMIT) {
+      warnings.push(`Model came in at ${this.format_number(imported_height)} units tall, so import auto-scaled it to a workable size.`)
     }
 
     if (imported_size.z > imported_size.y * 1.25) {

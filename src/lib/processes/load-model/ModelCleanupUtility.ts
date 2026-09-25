@@ -2,6 +2,17 @@ import { Box3, type BufferGeometry, Group, Matrix4, MathUtils, type Object3DEven
 import { FrontSide } from 'three/src/constants.js'
 
 /**
+ * Maximum imported model height in scene units. Tune this against the built-in
+ * rigs and representative custom models; elongated models may exceed this in
+ * width or length without needing to be scaled.
+ * 
+ * We are doing height because the snake is much longer and we don't want to scale it down
+ * Humans are by far the most common, so let's just do scaling by the height for now.
+ * 
+ */
+export const MODEL_HEIGHT_LIMIT = 2
+
+/**
  * Utility helpers to clean up and normalize loaded model geometry.
  */
 export class ModelCleanupUtility {
@@ -111,19 +122,15 @@ export class ModelCleanupUtility {
 
     const bounding_box = this.calculate_bounding_box(scene_object)
     const height = bounding_box.max.y - bounding_box.min.y
-    const width = bounding_box.max.x - bounding_box.min.x
-    const depth = bounding_box.max.z - bounding_box.min.z
 
-    const largest_dimension = Math.max(height, width, depth)
-
-    if (largest_dimension > 0.5 && largest_dimension < 20) {
+    if (height <= MODEL_HEIGHT_LIMIT) {
       console.log('Model a reasonable size, so no scaling applied: ', bounding_box, ' units is bounding box')
       return
     } else {
-      console.log('Model is very large or small, so scaling applied: ', bounding_box, ' units is bounding box')
+      console.log('Model is too tall, so scaling applied: ', bounding_box, ' units is bounding box')
     }
 
-    scale_factor = 1.5 / largest_dimension
+    scale_factor = MODEL_HEIGHT_LIMIT / height
 
     scene_object.traverse((child) => {
       const child_obj = child as Mesh
