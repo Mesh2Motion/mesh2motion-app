@@ -969,8 +969,7 @@ div.modal-dialog-body p.survey-thank-you {
     height: 160px;
     padding: 0.5rem;
     box-sizing: border-box;
-    border: 1px dashed var(--bg-tertiary);
-    background: var(--bg-primary);
+    border-width: 1px;
     text-align: center;
     text-decoration: none;
     font-style: normal;
@@ -980,6 +979,7 @@ div.modal-dialog-body p.survey-thank-you {
 
 #animations-items .anim-request-tile:hover {
     border-color: var(--text-primary);
+    border: 1px dashed var(--bg-tertiary);
 }
 
 .anim-request-tile-icon {
@@ -989,6 +989,9 @@ div.modal-dialog-body p.survey-thank-you {
 
 .anim-request-tile-action {
     text-decoration: underline;
+}
+.anim-request-tile-action:hover {
+    text-decoration: none;
 }
 
 #build-version {

@@ -342,13 +342,13 @@ export class AnimationSearch extends EventTarget {
 
     // when searching, the results might be close but not what they want (e.g. "wall" but looking for "wall run")
     // so give them a way to request an animation at the end of the results
-    if (filter_text.trim() !== '') {
+    //if (filter_text.trim() !== '') {
       this.animation_list_container.insertAdjacentHTML('beforeend', `
         <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
           <span>Not finding what you want?</span>
           <span class="anim-request-tile-action">Request an animation</span>
         </a>`)
-    }
+   // }
 
     // only so many WebM videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
