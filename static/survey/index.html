@@ -12,8 +12,13 @@
       --text: #1d2330;
       --text-muted: #5d6677;
       --border: #dde1e8;
+      --border-strong: #b9c0cc;
       --accent: #2f6fdf;
       --error: #c62828;
+      --star: #e8710a;
+      --star-empty: #c9ced8;
+      --bar-track: #f0f2f5;
+      --selected-bg: #eaf1fd;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -23,8 +28,13 @@
         --text: #e4e8ef;
         --text-muted: #9aa3b2;
         --border: #2c3545;
+        --border-strong: #46516a;
         --accent: #6b9bff;
         --error: #ff6b6b;
+        --star: #ffa94d;
+        --star-empty: #3a4456;
+        --bar-track: #141a26;
+        --selected-bg: #1f2b42;
       }
     }
 
@@ -54,7 +64,7 @@
       margin-bottom: 1rem;
     }
 
-    input, button {
+    #token-form input, #token-form button {
       font: inherit;
       padding: 0.5rem 0.75rem;
       border-radius: 4px;
@@ -63,9 +73,9 @@
       color: var(--text);
     }
 
-    input { flex: 1; min-width: 12rem; }
+    #token-form input { flex: 1; min-width: 12rem; }
 
-    button {
+    #token-form button {
       background: var(--accent);
       border-color: var(--accent);
       color: #fff;
@@ -108,9 +118,125 @@
 
     th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
     td.date { white-space: nowrap; color: var(--text-muted); }
+    td.rating { white-space: nowrap; }
     td.text { white-space: pre-wrap; word-break: break-word; min-width: 16rem; }
 
     .empty { color: var(--text-muted); font-style: italic; }
+
+    /* Star display. The filled layer is clipped to a percentage for partial stars. */
+    .stars {
+      position: relative;
+      display: inline-block;
+      line-height: 1;
+      white-space: nowrap;
+      color: var(--star-empty);
+    }
+
+    .stars-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow: hidden;
+      color: var(--star);
+    }
+
+    .stars.large { font-size: 1.75rem; }
+
+    /* Summary on the left (kept in view while scrolling), feedback on the right; stacks on narrow screens */
+    .survey-layout {
+      display: grid;
+      grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+      gap: 2rem;
+      align-items: start;
+    }
+
+    #rating-summary { position: sticky; top: 1rem; }
+
+    @media (max-width: 56rem) {
+      .survey-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      #rating-summary { position: static; }
+    }
+
+    /* Rating summary (average + distribution bars) */
+    .rating-average {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+    }
+
+    .rating-total { color: var(--text-muted); margin: 0.5rem 0 1rem; }
+
+    .rating-rows {
+      display: grid;
+      gap: 0.25rem;
+      max-width: 34rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .rating-row {
+      display: grid;
+      grid-template-columns: 3.5rem 1fr 3rem 3rem;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.35rem 0.5rem;
+      margin: 0 -0.5rem;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .rating-row:hover:not(:disabled) .rating-label { text-decoration: underline; }
+    .rating-row:hover:not(:disabled) .bar { border-color: var(--star); }
+    .rating-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .rating-row[aria-pressed="true"] { background: var(--selected-bg); border-color: var(--accent); }
+    .rating-row:disabled { color: var(--text); cursor: default; }
+
+    .bar {
+      height: 1.25rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--bar-track);
+    }
+
+    .bar-fill { display: block; height: 100%; background: var(--star); }
+
+    .rating-percent { text-align: right; }
+    .rating-count { text-align: right; color: var(--text-muted); font-size: 0.9em; }
+
+    .feedback-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .feedback-toolbar label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+
+    .link-button {
+      padding: 0;
+      margin-left: 0.5rem;
+      border: none;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -136,7 +262,16 @@
         <h2>Feedback Survey</h2>
         <span class="count" id="survey-responses-count"></span>
       </div>
-      <div class="table-scroll" id="survey-responses"></div>
+      <div class="survey-layout">
+        <div id="rating-summary"></div>
+        <div class="survey-feedback">
+          <div class="feedback-toolbar" id="feedback-toolbar" hidden>
+            <span id="feedback-filter-label"></span>
+            <label><input type="checkbox" id="feedback-only" checked /> Only with written feedback</label>
+          </div>
+          <div class="table-scroll" id="survey-responses"></div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -145,9 +280,19 @@
     const WORKER_URL = 'https://mesh2motion-app.scottpetrovic.workers.dev'
     const TOKEN_STORAGE_KEY = 'm2m-survey-admin-token'
 
+    // Question names sent by DownloadSuccessDialog.ts
+    const RATING_QUESTION = 'Rating'
+    const FEEDBACK_QUESTION = 'Feedback'
+    const RATING_VALUES = [5, 4, 3, 2, 1]
+
     const token_form = document.getElementById('token-form')
     const token_input = document.getElementById('admin-token')
     const status_element = document.getElementById('status')
+    const feedback_only_checkbox = document.getElementById('feedback-only')
+
+    // Survey state: one entry per submission, plus the rating clicked in the summary (null = all)
+    let survey_submissions = []
+    let selected_rating = null
 
     function set_status (message, is_error = false) {
       status_element.textContent = message
@@ -160,7 +305,8 @@
       return isNaN(date.getTime()) ? utc_text : date.toLocaleString()
     }
 
-    // Builds a table using textContent so submitted text is never parsed as HTML
+    // Builds a table using textContent so submitted text is never parsed as HTML.
+    // A cell can pass a DOM element instead of text.
     function build_table (headers, rows) {
       const table = document.createElement('table')
       const header_row = table.createTHead().insertRow()
@@ -175,11 +321,22 @@
         const tr = tbody.insertRow()
         row.forEach((cell) => {
           const td = tr.insertCell()
-          td.textContent = cell.text
+          if (cell.element) {
+            td.appendChild(cell.element)
+          } else {
+            td.textContent = cell.text
+          }
           td.className = cell.class_name ?? ''
         })
       })
       return table
+    }
+
+    function build_empty_message (message) {
+      const empty = document.createElement('p')
+      empty.className = 'empty'
+      empty.textContent = message
+      return empty
     }
 
     function render_section (container_id, count_id, count_label, headers, rows) {
@@ -188,10 +345,7 @@
       document.getElementById(count_id).textContent = `${rows.length} ${count_label}`
 
       if (rows.length === 0) {
-        const empty = document.createElement('p')
-        empty.className = 'empty'
-        empty.textContent = 'Nothing submitted yet.'
-        container.appendChild(empty)
+        container.appendChild(build_empty_message('Nothing submitted yet.'))
         return
       }
 
@@ -208,28 +362,167 @@
         ['Submitted', 'Rig', 'Request'], rows)
     }
 
-    // Each survey submission is several rows (one per question) sharing a session_id.
-    // Group them into one table row per submission with a column per question.
-    function render_survey_responses (responses) {
-      const submissions = new Map()
-      const questions = []
+    // Five stars with the filled layer clipped to value / 5, so 4.7 shows a partial last star
+    function build_stars (value, size_class = '') {
+      const stars = document.createElement('span')
+      stars.className = `stars ${size_class}`.trim()
+      stars.setAttribute('role', 'img')
+      stars.setAttribute('aria-label', `${value} out of 5 stars`)
+      stars.textContent = '★★★★★'
 
+      const fill = document.createElement('span')
+      fill.className = 'stars-fill'
+      fill.style.width = `${(value / 5) * 100}%`
+      fill.textContent = '★★★★★'
+      stars.appendChild(fill)
+      return stars
+    }
+
+    function parse_rating (answer) {
+      const rating = Number(answer)
+      return RATING_VALUES.includes(rating) ? rating : null
+    }
+
+    // Each survey submission is several rows (one per question) sharing a session_id
+    function group_survey_submissions (responses) {
+      const submissions = new Map()
       responses.forEach((response) => {
         if (!submissions.has(response.session_id)) {
           submissions.set(response.session_id, { submitted_at: response.submitted_at, answers: {} })
         }
         submissions.get(response.session_id).answers[response.question] = response.answer
-        if (!questions.includes(response.question)) {
-          questions.push(response.question)
-        }
       })
 
-      const rows = Array.from(submissions.values()).map((submission) => [
+      return Array.from(submissions.values()).map((submission) => ({
+        submitted_at: submission.submitted_at,
+        rating: parse_rating(submission.answers[RATING_QUESTION]),
+        feedback: (submission.answers[FEEDBACK_QUESTION] ?? '').trim()
+      }))
+    }
+
+    function select_rating (rating) {
+      selected_rating = selected_rating === rating ? null : rating
+      render_rating_summary()
+      render_feedback_list()
+    }
+
+    // Average rating plus a clickable bar per star value, like a store review summary
+    function render_rating_summary () {
+      const container = document.getElementById('rating-summary')
+      container.innerHTML = ''
+
+      const rated = survey_submissions.filter((submission) => submission.rating !== null)
+      if (rated.length === 0) {
+        return
+      }
+
+      const average = rated.reduce((sum, submission) => sum + submission.rating, 0) / rated.length
+      const rounded_average = Math.round(average * 10) / 10
+
+      const average_row = document.createElement('div')
+      average_row.className = 'rating-average'
+      const average_text = document.createElement('span')
+      average_text.textContent = `${rounded_average} out of 5`
+      average_row.append(build_stars(rounded_average, 'large'), average_text)
+
+      const total = document.createElement('p')
+      total.className = 'rating-total'
+      total.textContent = `${rated.length} ${rated.length === 1 ? 'rating' : 'ratings'}`
+
+      const rows = document.createElement('div')
+      rows.className = 'rating-rows'
+
+      RATING_VALUES.forEach((rating) => {
+        const count = rated.filter((submission) => submission.rating === rating).length
+        const percent = Math.round((count / rated.length) * 100)
+
+        const row = document.createElement('button')
+        row.type = 'button'
+        row.className = 'rating-row'
+        row.disabled = count === 0
+        row.setAttribute('aria-pressed', String(selected_rating === rating))
+        row.addEventListener('click', () => select_rating(rating))
+
+        const label = document.createElement('span')
+        label.className = 'rating-label'
+        label.textContent = `${rating} star`
+
+        const bar = document.createElement('span')
+        bar.className = 'bar'
+        const bar_fill = document.createElement('span')
+        bar_fill.className = 'bar-fill'
+        bar_fill.style.width = `${percent}%`
+        bar.appendChild(bar_fill)
+
+        const percent_text = document.createElement('span')
+        percent_text.className = 'rating-percent'
+        percent_text.textContent = `${percent}%`
+
+        const count_text = document.createElement('span')
+        count_text.className = 'rating-count'
+        count_text.textContent = `(${count})`
+
+        row.append(label, bar, percent_text, count_text)
+        rows.appendChild(row)
+      })
+
+      container.append(average_row, total, rows)
+    }
+
+    // Submissions table, filtered by the selected rating and the "written feedback" checkbox
+    function render_feedback_list () {
+      const container = document.getElementById('survey-responses')
+      const toolbar = document.getElementById('feedback-toolbar')
+      const filter_label = document.getElementById('feedback-filter-label')
+      container.innerHTML = ''
+      document.getElementById('survey-responses-count').textContent = `${survey_submissions.length} latest submissions`
+
+      if (survey_submissions.length === 0) {
+        toolbar.hidden = true
+        container.appendChild(build_empty_message('Nothing submitted yet.'))
+        return
+      }
+      toolbar.hidden = false
+
+      const feedback_only = feedback_only_checkbox.checked
+      const visible = survey_submissions.filter((submission) =>
+        (selected_rating === null || submission.rating === selected_rating) &&
+        (!feedback_only || submission.feedback !== ''))
+
+      const noun = visible.length === 1 ? 'submission' : 'submissions'
+      const rating_part = selected_rating === null ? '' : ` rated ${selected_rating} star${selected_rating === 1 ? '' : 's'}`
+      const feedback_part = feedback_only ? ' with written feedback' : ''
+      filter_label.textContent = `Showing ${visible.length} ${noun}${rating_part}${feedback_part}`
+
+      if (selected_rating !== null) {
+        const clear_button = document.createElement('button')
+        clear_button.type = 'button'
+        clear_button.className = 'link-button'
+        clear_button.textContent = 'Show all ratings'
+        clear_button.addEventListener('click', () => select_rating(null))
+        filter_label.appendChild(clear_button)
+      }
+
+      if (visible.length === 0) {
+        container.appendChild(build_empty_message('No matching submissions.'))
+        return
+      }
+
+      const rows = visible.map((submission) => [
         { text: format_date(submission.submitted_at), class_name: 'date' },
-        ...questions.map((question) => ({ text: submission.answers[question] ?? '', class_name: 'text' }))
+        submission.rating === null
+          ? { text: '—', class_name: 'rating' }
+          : { element: build_stars(submission.rating), class_name: 'rating' },
+        { text: submission.feedback, class_name: 'text' }
       ])
-      render_section('survey-responses', 'survey-responses-count', 'latest submissions',
-        ['Submitted', ...questions], rows)
+      container.appendChild(build_table(['Submitted', 'Rating', 'Feedback'], rows))
+    }
+
+    function render_survey_responses (responses) {
+      survey_submissions = group_survey_submissions(responses)
+      selected_rating = null
+      render_rating_summary()
+      render_feedback_list()
     }
 
     async function load_responses (token) {
@@ -266,6 +559,8 @@
       event.preventDefault()
       load_responses(token_input.value.trim())
     })
+
+    feedback_only_checkbox.addEventListener('change', render_feedback_list)
 
     // Remember the token for this browser tab only
     let saved_token = null
