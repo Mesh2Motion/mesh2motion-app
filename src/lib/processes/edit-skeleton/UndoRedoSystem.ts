@@ -21,9 +21,11 @@ export class UndoRedoSystem extends EventTarget {
   /**
    * Set the skeleton reference that this undo/redo system will operate on
    */
-  public set_skeleton (skeleton: Skeleton): void {
+  public set_skeleton (skeleton: Skeleton, keep_history: boolean = false): void {
     this.skeleton_ref = skeleton
-    this.clear_history()
+    if (!keep_history) {
+      this.clear_history()
+    }
   }
 
   /**
