@@ -1,5 +1,5 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { type AnimationClip } from 'three'
+import { type AnimationClip, type Object3D, type SkinnedMesh } from 'three'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { type SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
@@ -156,7 +156,8 @@ export class AnimationLoader extends EventTarget {
   public async load_animations_from_file (
     file: File,
     skeleton_scale: number = 1.0,
-    metadata_override: Partial<AnimationClipMetadata> = {}
+    metadata_override: Partial<AnimationClipMetadata> = {},
+    target_skinned_mesh: SkinnedMesh | null = null
   ): Promise<TransformedAnimationClipPair[]> {
     const file_url = URL.createObjectURL(file)
     const file_total = file.size > 0 ? file.size : 1
@@ -188,7 +189,7 @@ export class AnimationLoader extends EventTarget {
 
             const processed_clips = this.process_loaded_animations(
               animations,
-              skeleton_scale,
+              this.calculate_import_scale(gltf.scene, skeleton_scale, target_skinned_mesh),
               metadata_override
             )
             resolve(processed_clips)
@@ -220,6 +221,31 @@ export class AnimationLoader extends EventTarget {
         }
       )
     })
+  }
+
+  /**
+   * The blind skeleton_scale multiplier assumes imported clips are authored at
+   * the reference rig's scale. A file that ships its own armature (including a
+   * model previously exported from this app) tells us its actual scale, so use
+   * the ratio of the current rig's hip height to the file's hip height instead.
+   */
+  private calculate_import_scale (
+    imported_scene: Object3D | null | undefined,
+    skeleton_scale: number,
+    target_skinned_mesh: SkinnedMesh | null
+  ): number {
+    if (imported_scene === null || imported_scene === undefined || target_skinned_mesh === null) {
+      return skeleton_scale
+    }
+
+    const current_hips_height = AnimationUtility.bind_pose_hips_height(target_skinned_mesh)
+    const imported_hips_height = AnimationUtility.rest_hips_height_from_scene(imported_scene)
+
+    if (current_hips_height === null || imported_hips_height === null) {
+      return skeleton_scale
+    }
+
+    return current_hips_height / imported_hips_height
   }
 
   /**
