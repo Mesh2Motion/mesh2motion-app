@@ -59,7 +59,7 @@ const MAX_RIG_TYPE_LENGTH = 50;
 const MAX_ANIMATION_REQUEST_LENGTH = 2000;
 
 const MAX_SURVEY_ITEMS = 2000; // // for report viewing. general survey
-const RESPONSES_READ_LIMIT = 1000; // for report viewing
+const RESPONSES_READ_LIMIT = 2000; // for report viewing
 
 /**
  * Handles POST /submit by validating payload shape, preparing DB writes,
