@@ -958,6 +958,39 @@ div.modal-dialog-body p.survey-thank-you {
     color: var(--text-primary);
 }
 
+/* tile at the end of filtered results to request an animation */
+#animations-items .anim-request-tile {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
+    width: 103px;
+    height: 160px;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    border: 1px dashed var(--bg-tertiary);
+    background: var(--bg-primary);
+    text-align: center;
+    text-decoration: none;
+    font-style: normal;
+    font-size: 85%;
+    line-height: 120%;
+}
+
+#animations-items .anim-request-tile:hover {
+    border-color: var(--text-primary);
+}
+
+.anim-request-tile-icon {
+    font-size: 200%;
+    line-height: 100%;
+}
+
+.anim-request-tile-action {
+    text-decoration: underline;
+}
+
 #build-version {
     position: fixed;
     bottom: 0;
