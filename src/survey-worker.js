@@ -15,6 +15,9 @@
  *   "rig_type": "human",
  *   "description": "A sword slash combo and a ledge climb"
  * }
+ *
+ * GET /responses (requires "Authorization: Bearer <ADMIN_TOKEN>") returns the latest
+ * survey submissions and animation requests for static/survey/index.html.
  */
 export default {
   /**
@@ -40,7 +43,12 @@ export default {
       return handleAnimationRequest(request, env);
     }
 
-    // 4) Fallback for unknown routes/methods.
+    // 4) Admin read endpoint: latest survey responses and animation requests.
+    if (request.method === "GET" && url.pathname === "/responses") {
+      return handleGetResponses(request, env);
+    }
+
+    // 5) Fallback for unknown routes/methods.
     return corsResponse({ error: "Not found" }, 404);
   },
 };
@@ -50,6 +58,7 @@ const MAX_QUESTION_LENGTH = 200;
 const MAX_ANSWER_LENGTH = 2000;
 const MAX_RIG_TYPE_LENGTH = 50;
 const MAX_ANIMATION_REQUEST_LENGTH = 2000;
+const RESPONSES_READ_LIMIT = 300; // for report viewing
 
 /**
  * Handles POST /submit by validating payload shape, preparing DB writes,
@@ -128,6 +137,65 @@ async function handleAnimationRequest(request, env) {
   ).bind(rig_type, description).run();
 
   return corsResponse({ success: true }, 201);
+}
+
+/**
+ * Handles GET /responses for the survey viewer page (static/survey/index.html).
+ * Requires "Authorization: Bearer <ADMIN_TOKEN>", where ADMIN_TOKEN is a worker secret.
+ * Returns the latest survey submissions (all answers grouped by session) and animation requests.
+ */
+async function handleGetResponses(request, env) {
+  if (!(await isAuthorized(request, env))) {
+    return corsResponse({ error: "Unauthorized" }, 401);
+  }
+
+  // A single survey submission is stored as multiple rows sharing a session_id,
+  // so limit by the latest sessions rather than by rows.
+  const survey_query = env.DB.prepare(
+    `SELECT session_id, question, answer, submitted_at FROM responses
+     WHERE session_id IN (
+       SELECT session_id FROM responses GROUP BY session_id ORDER BY MAX(id) DESC LIMIT ?
+     )
+     ORDER BY id DESC`
+  ).bind(RESPONSES_READ_LIMIT);
+
+  const animation_requests_query = env.DB.prepare(
+    "SELECT id, rig_type, description, submitted_at FROM animation_requests ORDER BY id DESC LIMIT ?"
+  ).bind(RESPONSES_READ_LIMIT);
+
+  const [survey_result, animation_requests_result] = await env.DB.batch([survey_query, animation_requests_query]);
+
+  return corsResponse(
+    {
+      survey_responses: survey_result.results,
+      animation_requests: animation_requests_result.results,
+    },
+    200
+  );
+}
+
+/**
+ * Compares the bearer token against the ADMIN_TOKEN secret in constant time.
+ * Denies everything when the secret has not been configured.
+ */
+async function isAuthorized(request, env) {
+  const admin_token = env.ADMIN_TOKEN;
+  if (typeof admin_token !== "string" || admin_token.length === 0) {
+    return false;
+  }
+
+  const auth_header = request.headers.get("Authorization") || "";
+  const provided_token = auth_header.startsWith("Bearer ") ? auth_header.slice(7) : "";
+
+  const encoder = new TextEncoder();
+  const provided_bytes = encoder.encode(provided_token);
+  const expected_bytes = encoder.encode(admin_token);
+
+  if (provided_bytes.byteLength !== expected_bytes.byteLength) {
+    return false;
+  }
+
+  return crypto.subtle.timingSafeEqual(provided_bytes, expected_bytes);
 }
 
 /**
@@ -225,7 +293,7 @@ function corsResponse(body, status) {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",         // restrict to your domain in production
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
   return new Response(body ? JSON.stringify(body) : null, { status, headers });

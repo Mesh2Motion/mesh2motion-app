@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Survey Responses</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --bg-panel: #ffffff;
+      --text: #1d2330;
+      --text-muted: #5d6677;
+      --border: #dde1e8;
+      --accent: #2f6fdf;
+      --error: #c62828;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121722;
+        --bg-panel: #1b2230;
+        --text: #e4e8ef;
+        --text-muted: #9aa3b2;
+        --border: #2c3545;
+        --accent: #6b9bff;
+        --error: #ff6b6b;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 2rem 1rem;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.4;
+    }
+
+    main {
+      max-width: 70rem;
+      margin: 0 auto;
+    }
+
+    h1 { margin: 0 0 1.5rem; }
+    h2 { margin: 0; font-size: 1.3rem; }
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input, button {
+      font: inherit;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      color: var(--text);
+    }
+
+    input { flex: 1; min-width: 12rem; }
+
+    button {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    #status { color: var(--text-muted); min-height: 1.4em; margin: 0 0 1.5rem; }
+    #status.error { color: var(--error); }
+
+    section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1rem;
+    }
+
+    .count { color: var(--text-muted); }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+    td.date { white-space: nowrap; color: var(--text-muted); }
+    td.text { white-space: pre-wrap; word-break: break-word; min-width: 16rem; }
+
+    .empty { color: var(--text-muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Survey Responses</h1>
+
+    <form id="token-form">
+      <input type="password" id="admin-token" placeholder="Admin token" autocomplete="current-password" required />
+      <button type="submit">Load</button>
+    </form>
+    <p id="status"></p>
+
+    <section>
+      <div class="section-header">
+        <h2>Animation Requests</h2>
+        <span class="count" id="animation-requests-count"></span>
+      </div>
+      <div class="table-scroll" id="animation-requests"></div>
+    </section>
+
+    <section>
+      <div class="section-header">
+        <h2>Feedback Survey</h2>
+        <span class="count" id="survey-responses-count"></span>
+      </div>
+      <div class="table-scroll" id="survey-responses"></div>
+    </section>
+  </main>
+
+  <script>
+    // Same worker that receives the survey submissions (src/survey-worker.js)
+    const WORKER_URL = 'https://mesh2motion-app.scottpetrovic.workers.dev'
+    const TOKEN_STORAGE_KEY = 'm2m-survey-admin-token'
+
+    const token_form = document.getElementById('token-form')
+    const token_input = document.getElementById('admin-token')
+    const status_element = document.getElementById('status')
+
+    function set_status (message, is_error = false) {
+      status_element.textContent = message
+      status_element.classList.toggle('error', is_error)
+    }
+
+    // D1 stores datetime('now') as UTC "YYYY-MM-DD HH:MM:SS"; show it in local time
+    function format_date (utc_text) {
+      const date = new Date(utc_text.replace(' ', 'T') + 'Z')
+      return isNaN(date.getTime()) ? utc_text : date.toLocaleString()
+    }
+
+    // Builds a table using textContent so submitted text is never parsed as HTML
+    function build_table (headers, rows) {
+      const table = document.createElement('table')
+      const header_row = table.createTHead().insertRow()
+      headers.forEach((header) => {
+        const th = document.createElement('th')
+        th.textContent = header
+        header_row.appendChild(th)
+      })
+
+      const tbody = table.createTBody()
+      rows.forEach((row) => {
+        const tr = tbody.insertRow()
+        row.forEach((cell) => {
+          const td = tr.insertCell()
+          td.textContent = cell.text
+          td.className = cell.class_name ?? ''
+        })
+      })
+      return table
+    }
+
+    function render_section (container_id, count_id, count_label, headers, rows) {
+      const container = document.getElementById(container_id)
+      container.innerHTML = ''
+      document.getElementById(count_id).textContent = `${rows.length} ${count_label}`
+
+      if (rows.length === 0) {
+        const empty = document.createElement('p')
+        empty.className = 'empty'
+        empty.textContent = 'Nothing submitted yet.'
+        container.appendChild(empty)
+        return
+      }
+
+      container.appendChild(build_table(headers, rows))
+    }
+
+    function render_animation_requests (requests) {
+      const rows = requests.map((request) => [
+        { text: format_date(request.submitted_at), class_name: 'date' },
+        { text: request.rig_type },
+        { text: request.description, class_name: 'text' }
+      ])
+      render_section('animation-requests', 'animation-requests-count', 'latest requests',
+        ['Submitted', 'Rig', 'Request'], rows)
+    }
+
+    // Each survey submission is several rows (one per question) sharing a session_id.
+    // Group them into one table row per submission with a column per question.
+    function render_survey_responses (responses) {
+      const submissions = new Map()
+      const questions = []
+
+      responses.forEach((response) => {
+        if (!submissions.has(response.session_id)) {
+          submissions.set(response.session_id, { submitted_at: response.submitted_at, answers: {} })
+        }
+        submissions.get(response.session_id).answers[response.question] = response.answer
+        if (!questions.includes(response.question)) {
+          questions.push(response.question)
+        }
+      })
+
+      const rows = Array.from(submissions.values()).map((submission) => [
+        { text: format_date(submission.submitted_at), class_name: 'date' },
+        ...questions.map((question) => ({ text: submission.answers[question] ?? '', class_name: 'text' }))
+      ])
+      render_section('survey-responses', 'survey-responses-count', 'latest submissions',
+        ['Submitted', ...questions], rows)
+    }
+
+    async function load_responses (token) {
+      set_status('Loading...')
+      try {
+        const res = await fetch(`${WORKER_URL}/responses`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+
+        if (res.status === 401) {
+          set_status('Invalid admin token.', true)
+          try { sessionStorage.removeItem(TOKEN_STORAGE_KEY) } catch {}
+          return
+        }
+
+        if (!res.ok) {
+          set_status(`Failed to load responses (${res.status} ${res.statusText}).`, true)
+          return
+        }
+
+        const data = await res.json()
+        try { sessionStorage.setItem(TOKEN_STORAGE_KEY, token) } catch {}
+
+        render_animation_requests(data.animation_requests ?? [])
+        render_survey_responses(data.survey_responses ?? [])
+        set_status(`Loaded ${new Date().toLocaleTimeString()}`)
+      } catch (error) {
+        console.error(error)
+        set_status('Could not reach the survey worker.', true)
+      }
+    }
+
+    token_form.addEventListener('submit', (event) => {
+      event.preventDefault()
+      load_responses(token_input.value.trim())
+    })
+
+    // Remember the token for this browser tab only
+    let saved_token = null
+    try { saved_token = sessionStorage.getItem(TOKEN_STORAGE_KEY) } catch {}
+    if (saved_token) {
+      token_input.value = saved_token
+      load_responses(saved_token)
+    }
+  </script>
+</body>
+</html>

@@ -6,10 +6,18 @@ I am using Cloudflare for this since that is just where I am doing things. If so
 2. Get the UUID of the database using the npx command in command prompt: npx wrangler d1 list
 3. Run this command to create the table that stores responses: 
 
-    npx wrangler d1 execute m2m-survey-responses --remote --file=survey/schema.sql
+    npx wrangler d1 execute m2m-survey-responses --remote --file=static/survey/schema.sql
 
 4. Run this command to actually deploy the new "worker" that will process the survey being sent: 
 
     npx wrangler deploy
 
 The schema file also creates the `animation_requests` table used by the "Request an animation" dialog (POST /animation-request). The statements use `IF NOT EXISTS`, so re-running step 3 on an existing database only adds missing tables.
+
+## Viewing responses
+
+`survey/index.html` shows the latest 50 feedback submissions and animation requests. It reads from the worker's `GET /responses` endpoint, which requires an admin token. Set the token as a worker secret (it is never stored in the repo), then enter it on the page:
+
+    npx wrangler secret put ADMIN_TOKEN
+
+Without the secret set, the endpoint rejects every request.
