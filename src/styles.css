@@ -942,12 +942,21 @@ input[type="file"] {
     left: 0;
 }
 
-#animations-items .no-animations-message {
-    padding: 0.5rem;
-    font-style: italic;
-    font-size: 90%;
+div.modal-dialog-body p.survey-thank-you {
+    margin-bottom: 0;
+    font-size: 120%;
 }
 
+#animations-items .no-animations-message,
+.request-animation-link {
+    padding: 0.5rem;
+    font-style: italic;
+    font-size: 100%;
+    align-items: center;
+}
+.request-animation-link {
+    color: var(--text-primary);
+}
 
 #build-version {
     position: fixed;
@@ -1038,3 +1047,4 @@ input[type="file"] {
 .download-success-desktop {
     display: none;
 }
+

@@ -419,11 +419,6 @@
   gap: 1rem;
 }
 
-.survey-thank-you {
-  font-style: italic;
-  margin-top: 0 !important;
-}
-
 .download-success-dialog-overlay {
   position: fixed;
   top: 0;
@@ -502,6 +497,50 @@
     padding: 1rem;
     justify-content: center;
     margin: 1rem auto;
+}
+
+/* ── Animation Request Dialog ── */
+
+.animation-request-dialog .modal-dialog-content {
+  width: 90vw;
+  max-width: 36rem;
+}
+
+.animation-request-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.animation-request-body label {
+  margin-bottom: 0;
+}
+
+.animation-request-textarea {
+  padding: 1rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--bg-tertiary);
+  font-family: 'Jost', sans-serif;
+  resize: vertical;
+  min-height: 6rem;
+}
+
+.animation-request-textarea::placeholder {
+  color: var(--text-primary);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.animation-request-textarea:focus {
+  outline: none;
+  border-color: var(--button-primary-bg);
+}
+
+.animation-request-error {
+  margin-bottom: 0 !important;
+}
+
+#animation-request-submit {
+  align-self: flex-end;
 }
 
 /* ── Star Rating Component ── */

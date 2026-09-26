@@ -1,4 +1,5 @@
 import { StarRating } from './StarRating'
+import { SURVEY_WORKER_URL } from '../../SurveyWorkerUrl'
 
 export class DownloadSuccessDialog {
   private dialog_element: HTMLDivElement | null = null
@@ -87,10 +88,8 @@ export class DownloadSuccessDialog {
       }
 
       // Use the Cloudflare Worker endpoint to submit the survey data
-      const WORKER_URL = "https://mesh2motion-app.scottpetrovic.workers.dev"
-
       try {
-        const res = await fetch(`${WORKER_URL}/submit`, {
+        const res = await fetch(`${SURVEY_WORKER_URL}/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ survey: survey_data })

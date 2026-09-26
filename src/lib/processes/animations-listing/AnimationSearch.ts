@@ -4,6 +4,7 @@ import { RigConfig } from '../../RigConfig'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'
+import { AnimationRequestDialog } from '../../components/animation-request/AnimationRequestDialog'
 
 export class AnimationSearch extends EventTarget {
   private all_animations: AnimationWithState[] = []
@@ -32,6 +33,7 @@ export class AnimationSearch extends EventTarget {
     this.theme_manager = theme_manager
     this.skeleton_type = skeleton_type
     this.setup_event_listeners()
+    AnimationRequestDialog.enable_request_links()
   }
 
   public initialize_animations (animations: TransformedAnimationClipPair[]): void {
@@ -268,7 +270,11 @@ export class AnimationSearch extends EventTarget {
 
     // Show "no animations found" if the filtered list is empty
     if (this.filtered_animations_list.length === 0) {
-      this.animation_list_container.innerHTML = '<div class="no-animations-message">No animations found</div>'
+      this.animation_list_container.innerHTML = `
+        <div class="no-animations-message">
+          No animations found.
+          <a href="#" class="request-animation-link" data-rig-type="${this.skeleton_type}">Request an animation</a>
+        </div>`
       return
     }
 

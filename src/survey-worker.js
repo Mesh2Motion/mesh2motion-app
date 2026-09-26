@@ -1,13 +1,19 @@
 /***
  * A simple Cloudflare Worker to accept survey responses and store them in a D1 database.
- * 
- * Expected payload format (JSON):
+ *
+ * POST /submit expected payload format (JSON):
  * {
  *   "survey": [
  *     { "question": "How satisfied are you?", "answer": 5 },
  *     { "question": "Any additional feedback?", "answer": "Great app!" }
  *   ],
  *   "session_id": "optional-session-id"
+ * }
+ *
+ * POST /animation-request expected payload format (JSON):
+ * {
+ *   "rig_type": "human",
+ *   "description": "A sword slash combo and a ledge climb"
  * }
  */
 export default {
@@ -29,7 +35,12 @@ export default {
       return handleSubmit(request, env);
     }
 
-    // 3) Fallback for unknown routes/methods.
+    // 3) Animation request endpoint: store a single rig type + description.
+    if (request.method === "POST" && url.pathname === "/animation-request") {
+      return handleAnimationRequest(request, env);
+    }
+
+    // 4) Fallback for unknown routes/methods.
     return corsResponse({ error: "Not found" }, 404);
   },
 };
@@ -37,6 +48,8 @@ export default {
 const MAX_SURVEY_ITEMS = 20;
 const MAX_QUESTION_LENGTH = 200;
 const MAX_ANSWER_LENGTH = 2000;
+const MAX_RIG_TYPE_LENGTH = 50;
+const MAX_ANIMATION_REQUEST_LENGTH = 2000;
 
 /**
  * Handles POST /submit by validating payload shape, preparing DB writes,
@@ -76,6 +89,45 @@ async function handleSubmit(request, env) {
     },
     201
   );
+}
+
+/**
+ * Handles POST /animation-request by validating the rig type and description,
+ * then inserting a single row into the animation_requests table.
+ */
+async function handleAnimationRequest(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return badRequest("Invalid JSON");
+  }
+
+  const rig_type = typeof body?.rig_type === "string" ? body.rig_type.trim() : "";
+  const description = typeof body?.description === "string" ? body.description.trim() : "";
+
+  if (!rig_type) {
+    return badRequest("rig_type is required");
+  }
+
+  if (rig_type.length > MAX_RIG_TYPE_LENGTH) {
+    return badRequest("rig_type is too long");
+  }
+
+  if (!description) {
+    return badRequest("description is required");
+  }
+
+  if (description.length > MAX_ANIMATION_REQUEST_LENGTH) {
+    return badRequest("description is too long");
+  }
+
+  // submitted_at defaults to the current timestamp and id auto-increments
+  await env.DB.prepare(
+    "INSERT INTO animation_requests (rig_type, description) VALUES (?, ?)"
+  ).bind(rig_type, description).run();
+
+  return corsResponse({ success: true }, 201);
 }
 
 /**
