@@ -42,7 +42,6 @@ export class WeightNormalizer {
     for (const vertex_index of vertices_that_do_not_have_influences_adding_to_one) {
       const offset = vertex_index * 4
 
-      // if the weight is 0.00, then we can assign the remaining weights to the other bones
       const weights = [
         all_skin_weights[offset],
         all_skin_weights[offset + 1],
@@ -50,14 +49,12 @@ export class WeightNormalizer {
         all_skin_weights[offset + 3]
       ]
       const weight_sum = weights.reduce((a, b) => a + b, 0)
-      const weight_per_index: number = (1 - weight_sum) / 3.0
-      console.log(weight_per_index)
+      if (weight_sum === 0) {
+        continue
+      }
 
-      // assign the weights all at once
       for (let i = 0; i < 4; i++) {
-        if (weights[i] !== 0) {
-          all_skin_weights[offset + i] += weight_per_index
-        }
+        all_skin_weights[offset + i] = weights[i] / weight_sum
       }
     }
   }

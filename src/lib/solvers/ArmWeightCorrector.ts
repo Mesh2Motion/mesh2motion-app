@@ -1,7 +1,7 @@
 import {
   Vector3,
   Bone,
-  type BufferGeometry
+  type BufferGeometry, type Line3
 } from 'three'
 
 import { Utility } from '../Utilities.js'
@@ -24,9 +24,15 @@ import { Utility } from '../Utilities.js'
  * covers part of the chest.
  */
 export class ArmWeightCorrector {
+  public static readonly correction_half_height: number = 1.0
+
   private readonly geometry: BufferGeometry
   private readonly bones: Bone[]
   private readonly arm_plane_offset: number
+  private left_side_sign: number = 0
+  private max_plausible_distance: number = Infinity
+  private shoulder_center_y: number = 0
+  private readonly segment_point_scratch: Vector3 = new Vector3()
 
   constructor (geometry: BufferGeometry, bones_master_data: Bone[], arm_plane_offset: number) {
     this.geometry = geometry
@@ -77,6 +83,10 @@ export class ArmWeightCorrector {
     const anchor_x = ArmWeightCorrector.shoulder_anchor_x(this.bones)
     if (anchor_x === null) { return } // no arm bones on this rig, nothing to correct
 
+    const shoulder_bone = ArmWeightCorrector.find_shoulder_bone(this.bones)
+    if (shoulder_bone === undefined) { return }
+    this.shoulder_center_y = Utility.world_position_from_object(shoulder_bone).y
+
     const plane_x = anchor_x + this.arm_plane_offset
     if (plane_x <= 0) { return } // plane pushed past the center line, would strip both arms entirely
 
@@ -86,14 +96,22 @@ export class ArmWeightCorrector {
     const fallback_bones = this.build_fallback_bone_candidates(arm_bone_indices)
     if (fallback_bones.length === 0) { return }
 
+    this.left_side_sign = this.calculate_left_side_sign(fallback_bones)
+
+    this.geometry.computeBoundingSphere()
+    const bounding_sphere = this.geometry.boundingSphere
+    if (bounding_sphere !== null && bounding_sphere.radius > 0) {
+      this.max_plausible_distance = bounding_sphere.radius * 0.75
+    }
+
     this.correct_vertex_weights(skin_indices, skin_weights, plane_x, arm_bone_indices, fallback_bones)
   }
 
   /**
-   * Every upperarm bone plus all of its descendants (lowerarm, hand, fingers),
-   * on both sides. Walking the hierarchy rather than matching a keyword list
-   * gives exactly "upperarm and below" without needing to enumerate every
-   * finger bone name, and it leaves the clavicle alone.
+   * Every upperarm bone plus its descendants down to (but not including) the
+   * hand, on both sides. Hands and fingers never cause the torso-drag problem
+   * this corrector exists for, so their weights are left alone. The clavicle
+   * is also excluded - it legitimately covers part of the chest.
    */
   private find_arm_bone_indices (): Set<number> {
     const bone_to_index = new Map<Bone, number>()
@@ -101,16 +119,20 @@ export class ArmWeightCorrector {
 
     const arm_bone_indices = new Set<number>()
 
+    const collect_until_hand = (bone: Bone): void => {
+      if (bone.name.toLowerCase().includes('hand')) { return }
+      const index = bone_to_index.get(bone)
+      if (index !== undefined) {
+        arm_bone_indices.add(index)
+      }
+      bone.children.forEach((child) => {
+        if (child instanceof Bone) { collect_until_hand(child) }
+      })
+    }
+
     this.bones.forEach((bone) => {
       if (!bone.name.toLowerCase().includes('upperarm')) { return }
-
-      bone.traverse((descendant) => {
-        if (!(descendant instanceof Bone)) { return }
-        const index = bone_to_index.get(descendant)
-        if (index !== undefined) {
-          arm_bone_indices.add(index)
-        }
-      })
+      collect_until_hand(bone)
     })
 
     return arm_bone_indices
@@ -121,16 +143,28 @@ export class ArmWeightCorrector {
    * minus the root (global transform only) and leaf/orientation bones, which the
    * solver never assigns vertices to.
    */
-  private build_fallback_bone_candidates (arm_bone_indices: Set<number>): Array<{ index: number, midpoint: Vector3 }> {
-    const candidates: Array<{ index: number, midpoint: Vector3 }> = []
+  private build_fallback_bone_candidates (arm_bone_indices: Set<number>): Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }> {
+    const candidates: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }> = []
 
     this.bones.forEach((bone, idx) => {
       if (arm_bone_indices.has(idx)) { return }
       if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { return }
-      candidates.push({ index: idx, midpoint: Utility.bone_midpoint_to_child(bone) })
+      candidates.push({ index: idx, midpoint: Utility.bone_midpoint_to_child(bone), segment: Utility.bone_segment(bone), side: Utility.bone_side(bone.name) })
     })
 
     return candidates
+  }
+
+  private calculate_left_side_sign (candidates: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>): number {
+    let left_x_sum = 0
+    let left_count = 0
+    for (const candidate of candidates) {
+      if (candidate.side === 'left') {
+        left_x_sum += candidate.midpoint.x
+        left_count++
+      }
+    }
+    return left_count > 0 ? Math.sign(left_x_sum) : 0
   }
 
   private correct_vertex_weights (
@@ -138,7 +172,7 @@ export class ArmWeightCorrector {
     skin_weights: number[],
     plane_x: number,
     arm_bone_indices: Set<number>,
-    fallback_bones: Array<{ index: number, midpoint: Vector3 }>
+    fallback_bones: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>
   ): void {
     const vertex_count = this.geometry.attributes.position.array.length / 3
 
@@ -149,7 +183,25 @@ export class ArmWeightCorrector {
       // regardless of which side of the model is +X.
       if (Math.abs(vertex_position.x) >= plane_x) { continue } // outboard of the plane, genuinely arm territory
 
+      // only correct within the vertical span of the plane the user is shown,
+      // so hands hanging at hip height are left alone
+      if (Math.abs(vertex_position.y - this.shoulder_center_y) > ArmWeightCorrector.correction_half_height) { continue }
+
       const offset = i * 4
+
+      let has_arm_weight = false
+      for (let j = 0; j < 4; j++) {
+        if (arm_bone_indices.has(skin_indices[offset + j]) && skin_weights[offset + j] > 0) {
+          has_arm_weight = true
+          break
+        }
+      }
+      if (!has_arm_weight) { continue }
+
+      // no plausible replacement in range means the vertex keeps its arm
+      // weight rather than being handed to something absurdly far away
+      const replacement_bone_index = this.find_closest_fallback_bone(vertex_position, fallback_bones)
+      if (replacement_bone_index === -1) { continue }
 
       // Take the weight away from every arm bone influencing this vertex.
       // Index 0 is the root bone, which never receives weights, so it doubles
@@ -169,8 +221,6 @@ export class ArmWeightCorrector {
       }
 
       if (stolen_weight <= 0) { continue }
-
-      const replacement_bone_index = this.find_closest_fallback_bone(vertex_position, fallback_bones)
 
       // Merge into the replacement bone's existing slot if it already influences
       // this vertex, otherwise reuse one of the slots we just emptied.
@@ -195,17 +245,42 @@ export class ArmWeightCorrector {
 
   private find_closest_fallback_bone (
     vertex_position: Vector3,
-    fallback_bones: Array<{ index: number, midpoint: Vector3 }>
+    fallback_bones: Array<{ index: number, midpoint: Vector3, segment: Line3, side: 'left' | 'right' | null }>
   ): number {
+    const left_side_sign = this.left_side_sign
+    const vertex_on_left = left_side_sign !== 0 && Math.sign(vertex_position.x) === left_side_sign
+
     let closest_distance = Infinity
-    let closest_index = fallback_bones[0].index
+    let closest_index = -1
 
     for (const candidate of fallback_bones) {
-      const distance = candidate.midpoint.distanceTo(vertex_position)
+      if (candidate.side !== null && left_side_sign !== 0 && vertex_position.x !== 0) {
+        if (vertex_on_left !== (candidate.side === 'left')) { continue }
+      }
+
+      const distance = candidate.segment
+        .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+        .distanceTo(vertex_position)
       if (distance < closest_distance) {
         closest_distance = distance
         closest_index = candidate.index
       }
+    }
+
+    if (closest_index === -1) {
+      for (const candidate of fallback_bones) {
+        const distance = candidate.segment
+          .closestPointToPoint(vertex_position, true, this.segment_point_scratch)
+          .distanceTo(vertex_position)
+        if (distance < closest_distance) {
+          closest_distance = distance
+          closest_index = candidate.index
+        }
+      }
+    }
+
+    if (closest_distance > this.max_plausible_distance) {
+      return -1
     }
 
     return closest_index

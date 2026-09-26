@@ -1,5 +1,5 @@
 import {
-  Vector3, Vector2, type Object3D, Mesh, Group, Bone, type Skeleton, Euler, Raycaster,
+  Vector3, Vector2, type Object3D, Mesh, Group, Bone, type Skeleton, Euler, Raycaster, Line3,
   type PerspectiveCamera, type Scene, type Object3DEventMap, type BufferAttribute, type BufferGeometry, type InterleavedBufferAttribute
 } from 'three'
 import BoneTransformState from './interfaces/BoneTransformState'
@@ -135,6 +135,19 @@ export class Utility {
     return new Vector3().lerpVectors(bone_position, child_position, 0.5)
   }
 
+  /**
+   * The world-space segment from a bone's start joint to its first child's
+   * joint. Childless bones collapse to a point at their own position.
+   */
+  static bone_segment (bone: Bone): Line3 {
+    const bone_position = Utility.world_position_from_object(bone)
+    if (bone.children.length === 0) {
+      return new Line3(bone_position, bone_position.clone())
+    }
+    const child = bone.children[0] as Bone
+    return new Line3(bone_position, Utility.world_position_from_object(child))
+  }
+
   static bone_list_from_hierarchy (bone_hierarchy: Object3D): Bone[] {
     if (bone_hierarchy === undefined || bone_hierarchy === null) {
       console.warn('bone_hierarchy is undefined or null')
@@ -244,6 +257,17 @@ export class Utility {
         bone.scale.copy(bone_transform.scale)
       }
     })
+  }
+
+  static bone_side (bone_name: string): 'left' | 'right' | null {
+    const name = bone_name.toLowerCase()
+    if (/(^right_|^r_|_right$|_r$|\.right$|\.r$|-right$|-r$)/.test(name)) {
+      return 'right'
+    }
+    if (/(^left_|^l_|_left$|_l$|\.left$|\.l$|-left$|-l$)/.test(name)) {
+      return 'left'
+    }
+    return null
   }
 
   static calculate_bone_base_name (bone_name: string): string {
