@@ -141,6 +141,7 @@
     z-index: 20;
     width: 16rem;
     max-height: calc(100vh - var(--navigation-height) - 17rem);
+    max-height: calc(100dvh - var(--navigation-height) - 17rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
     overflow-y: auto;
     padding: 0.5rem;
     border: 1px solid var(--bg-tertiary);

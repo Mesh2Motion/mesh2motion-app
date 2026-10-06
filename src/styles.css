@@ -556,6 +556,7 @@ option {
 
 #animations-items{
     max-height: calc(100vh - 22rem);
+    max-height: calc(100dvh - 22rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
     display: inline-flex;
     overflow: auto;;
     flex-direction: row;
@@ -571,6 +572,7 @@ option {
 #animations-items.create-page {
     /* create page has a tile at the top so we need this listing grid slightly smaller */
      max-height: calc(100vh - 30rem);
+     max-height: calc(100dvh - 30rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
 }
 
 #animations-items div {
