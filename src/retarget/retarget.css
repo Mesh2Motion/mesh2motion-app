@@ -25,6 +25,7 @@ h1 {
 
 #source-bones-list, #target-bones-list {
     height: calc(100vh - 490px); /* Hard-code the height to keep the UI consistent when filtering the lists */
+    height: calc(100dvh - 490px); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
     overflow-y: auto;
     background-color: var(--bg-alternate);
     border-radius: 0.25rem;
@@ -116,11 +117,13 @@ h1 {
 
 #animations-items {
     max-height: calc(100vh - 17rem);
+    max-height: calc(100dvh - 17rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
 }
 
 #animations-listing.has-arm-extension #animations-items {
     /* reserve room for the arm extension controls so the download row stays on screen */
     max-height: calc(100vh - 25rem);
+    max-height: calc(100dvh - 25rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
 }
 
 #auto-bone-map-match {
