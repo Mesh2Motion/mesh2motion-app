@@ -6,7 +6,7 @@ import { DOMUtilities } from '../../DOMUtilities.ts'
 
 import { Scene } from 'three/src/scenes/Scene.js'
 import { Mesh } from 'three/src/objects/Mesh.js'
-import { BufferGeometry, Group, type Material, type Object3D } from 'three'
+import { Box3, BufferGeometry, Group, type Material, type Object3D } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { Utility } from '../../Utilities.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
@@ -29,6 +29,10 @@ export class StepLoadModel extends EventTarget {
 
   // file the user picked, only used for labeling the analysis report
   private source_file_name: string = 'Unknown file'
+
+
+  private transform_undo_stack: Array<{ kind: 'rotate', axis: 'x' | 'y' | 'z', degrees: number } | { kind: 'translate', dx: number, dy: number, dz: number }> = []
+  private transform_redo_stack: typeof this.transform_undo_stack = []
 
   // diagnostic snapshot of what the file contained vs. what import produced
   private import_analysis: ModelImportAnalysis | null = null
@@ -174,7 +178,70 @@ export class StepLoadModel extends EventTarget {
     this.import_analysis = null
   }
 
+  public rotate_model (axis: 'x' | 'y' | 'z'): void {
+    ModelCleanupUtility.rotate_model_geometry(this.model_meshes(), axis, 90)
+    this.transform_undo_stack.push({ kind: 'rotate', axis, degrees: 90 })
+    this.transform_redo_stack = []
+  }
+
+  public auto_align_model_to_floor (): void {
+    const mesh_data = this.model_meshes()
+    const before_y = this.lowest_model_point(mesh_data)
+
+    ModelCleanupUtility.move_model_to_floor(mesh_data)
+
+    const py = mesh_data.position.y
+    if (py !== 0) {
+      ModelCleanupUtility.translate_model_vertices(mesh_data, 0, py, 0)
+      mesh_data.position.setY(0)
+    }
+
+    const dy = this.lowest_model_point(mesh_data) - before_y
+    if (dy !== 0 && isFinite(dy)) {
+      this.transform_undo_stack.push({ kind: 'translate', dx: 0, dy, dz: 0 })
+      this.transform_redo_stack = []
+    }
+  }
+
+  public undo_model_transform (): boolean {
+    const op = this.transform_undo_stack.pop()
+    if (op === undefined) { return false }
+    this.apply_transform_op(op, true)
+    this.transform_redo_stack.push(op)
+    return true
+  }
+
+  public redo_model_transform (): boolean {
+    const op = this.transform_redo_stack.pop()
+    if (op === undefined) { return false }
+    this.apply_transform_op(op, false)
+    this.transform_undo_stack.push(op)
+    return true
+  }
+
+  private apply_transform_op (op: (typeof this.transform_undo_stack)[number], inverse: boolean): void {
+    const sign = inverse ? -1 : 1
+    if (op.kind === 'rotate') {
+      ModelCleanupUtility.rotate_model_geometry(this.model_meshes(), op.axis, sign * op.degrees)
+    } else {
+      ModelCleanupUtility.translate_model_vertices(this.model_meshes(), sign * op.dx, sign * op.dy, sign * op.dz)
+    }
+  }
+
+  private lowest_model_point (mesh_data: Scene | Group): number {
+    let lowest = Infinity
+    mesh_data.traverse((obj: Object3D) => {
+      if (obj.type === 'Mesh') {
+        const bounding_box = new Box3().setFromObject(obj)
+        lowest = Math.min(lowest, bounding_box.min.y)
+      }
+    })
+    return lowest
+  }
+
   public reset_model_position (): void {
+    this.transform_undo_stack = []
+    this.transform_redo_stack = []
     let i = 0
     this.final_mesh_data.traverse((obj: Object3D) => {
       if (obj.type === 'Mesh') {
