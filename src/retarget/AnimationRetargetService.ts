@@ -4,6 +4,7 @@ import {
   type Skeleton
 } from 'three'
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
+import { Utility } from '../lib/Utilities.ts'
 import { TargetBoneMappingType } from './steps/StepBoneMapping.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { Retargeter } from './human-retargeting/Retargeter.ts'
@@ -156,6 +157,11 @@ export class AnimationRetargetService {
 
     const reverse_mappings = RetargetUtils.reverse_bone_mapping(this.bone_mappings)
 
+    // even a same-named rig (a re-imported Mesh2Motion export) is usually a
+    // scaled copy of the reference skeleton, so root motion and hip height in
+    // the position tracks have to be rescaled to the target's proportions
+    const position_scale_delta = this.calculate_position_scale_delta()
+
     // Process each track in the source animation
     source_clip.tracks.forEach((track) => {
       // Parse the track name to get the bone name and property
@@ -187,6 +193,11 @@ export class AnimationRetargetService {
           const new_track = new QuaternionKeyframeTrack(new_track_name, times_copy, values_copy)
           new_tracks.push(new_track)
         } else if (track_property === 'position' || track_property === 'scale') {
+          if (track_property === 'position' && position_scale_delta !== 1) {
+            for (let i = 0; i < values_copy.length; i++) {
+              values_copy[i] *= position_scale_delta
+            }
+          }
           const new_track = new VectorKeyframeTrack(new_track_name, times_copy, values_copy)
           new_tracks.push(new_track)
         } else {
@@ -205,6 +216,50 @@ export class AnimationRetargetService {
   // #endregion
 
   // #region PRIVATE METHODS
+
+  private calculate_position_scale_delta (): number {
+    if (this.target_skinned_meshes.length === 0) {
+      return 1
+    }
+
+    const source_skeleton: Skeleton | null = RetargetUtils.create_skeleton_from_group_object(this.source_armature)
+    if (source_skeleton === null) {
+      return 1
+    }
+
+    const target_rest_skeleton: Skeleton =
+      RetargetUtils.clone_skeleton(this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
+
+    const source_height = AnimationRetargetService.hips_rest_height(source_skeleton)
+    const target_height = AnimationRetargetService.hips_rest_height(target_rest_skeleton)
+
+    if (!Number.isFinite(source_height) || !Number.isFinite(target_height) ||
+      source_height <= 0 || target_height <= 0) {
+      return 1
+    }
+
+    return target_height / source_height
+  }
+
+  private static hips_rest_height (skeleton: Skeleton): number {
+    const hips_bone = skeleton.bones.find((bone) => {
+      const name = bone.name.toLowerCase()
+      return name.includes('hips') || name.includes('pelvis')
+    })
+
+    if (hips_bone !== undefined) {
+      return Math.abs(Utility.world_position_from_object(hips_bone).y)
+    }
+
+    let min_y = Infinity
+    let max_y = -Infinity
+    skeleton.bones.forEach((bone) => {
+      const world_y = Utility.world_position_from_object(bone).y
+      min_y = Math.min(min_y, world_y)
+      max_y = Math.max(max_y, world_y)
+    })
+    return max_y - min_y
+  }
 
   private apply_human_swing_twist_retargeting (source_clip: AnimationClip): AnimationClip {
     // the retargeter needs Skeleton inputs for both source and target.

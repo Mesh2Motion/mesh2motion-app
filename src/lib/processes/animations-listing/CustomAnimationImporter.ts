@@ -117,7 +117,8 @@ export class CustomAnimationImporter extends EventTarget {
       const new_animation_clips = await this.animation_loader.load_animations_from_file(
         file,
         this.skeleton_scale,
-        metadata_override
+        metadata_override,
+        this.skinned_meshes_to_animate[0] ?? null
       )
 
       // Validate custom animations against our target skeleton
