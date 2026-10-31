@@ -1,5 +1,5 @@
 import { PropCatalog, type PropDefinition } from './PropCatalog.ts'
-import { PropType } from './PropType.ts'
+import { NO_PROP, type PropId } from './PropId.ts'
 
 /**
  * Custom dropdown for choosing a prop. A native <select> cannot render images
@@ -13,7 +13,7 @@ export class PropPicker extends EventTarget {
   private readonly trigger_name: HTMLElement
   private readonly listbox: HTMLElement
   private readonly options: HTMLElement[] = []
-  private current_value: PropType = PropType.None
+  private current_value: PropId = NO_PROP
   private active_index: number = 0
 
   constructor (private readonly element: HTMLElement, label: string) {
@@ -46,12 +46,12 @@ export class PropPicker extends EventTarget {
     this.render_value()
   }
 
-  public get value (): PropType {
+  public get value (): PropId {
     return this.current_value
   }
 
-  public set value (value: PropType) {
-    this.current_value = PropCatalog.find(value) !== undefined ? value : PropType.None
+  public set value (value: PropId) {
+    this.current_value = PropCatalog.find(value) !== undefined ? value : NO_PROP
     this.render_value()
   }
 
@@ -175,7 +175,7 @@ export class PropPicker extends EventTarget {
   }
 
   private choose (index: number): void {
-    const value = this.options[index]?.dataset.value as PropType | undefined
+    const value = this.options[index]?.dataset.value
     if (value === undefined) {
       return
     }
@@ -200,7 +200,7 @@ export class PropPicker extends EventTarget {
     })
   }
 
-  private index_of (value: PropType): number {
+  private index_of (value: PropId): number {
     return Math.max(0, this.options.findIndex((option) => option.dataset.value === value))
   }
 
@@ -212,7 +212,7 @@ export class PropPicker extends EventTarget {
     return `<img src="${definition.preview_path}" alt="" loading="lazy">`
   }
 
-  private option_html (value: PropType, name: string, definition?: PropDefinition): string {
+  private option_html (value: PropId, name: string, definition?: PropDefinition): string {
     return `
       <div class="prop-picker-option" role="option" id="${this.id}-option-${value}"
         data-value="${value}" aria-selected="false" title="${name}">
@@ -230,7 +230,7 @@ export class PropPicker extends EventTarget {
       const header_id = `${this.id}-group-${category_index}`
       const category_options = definitions
         .filter((definition) => definition.category === category)
-        .map((definition) => this.option_html(definition.type, definition.display_name, definition))
+        .map((definition) => this.option_html(definition.id, definition.display_name, definition))
         .join('')
 
       return `
@@ -242,7 +242,7 @@ export class PropPicker extends EventTarget {
     }).join('')
 
     return `
-      <div class="prop-picker-grid">${this.option_html(PropType.None, 'None')}</div>
+      <div class="prop-picker-grid">${this.option_html(NO_PROP, 'None')}</div>
       ${groups_html}
     `
   }

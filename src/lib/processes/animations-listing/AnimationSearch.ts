@@ -2,15 +2,21 @@ import { type ThemeManager } from '../../ThemeManager'
 import { SkeletonType } from '../../enums/SkeletonType'
 import { RigConfig } from '../../RigConfig'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
-import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
+import { type AnimationEntry } from './interfaces/AnimationEntry'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'
 import { AnimationRequestDialog } from '../../components/animation-request/AnimationRequestDialog'
+import { ModalDialog } from '../../ModalDialog'
 
 export class AnimationSearch extends EventTarget {
   private all_animations: AnimationWithState[] = []
   private readonly filter_input: HTMLInputElement | null = null
+  private readonly tag_filter_button: HTMLButtonElement | null = null
   private readonly animation_list_container: HTMLElement | null = null
   private filtered_animations_list: AnimationWithState[] = []
+
+  // tags used by the current animations, and the ones checked in the tag filter dialog
+  private available_tags: string[] = []
+  private readonly selected_tags = new Set<string>()
 
   private readonly theme_manager: ThemeManager
   private readonly skeleton_type: SkeletonType
@@ -26,9 +32,10 @@ export class AnimationSearch extends EventTarget {
     both: '/images/icons/mirror-both.svg'
   }
 
-  constructor (filter_input_id: string, animation_list_container_id: string, theme_manager: ThemeManager, skeleton_type: SkeletonType) {
+  constructor (filter_input_id: string, animation_list_container_id: string, theme_manager: ThemeManager, skeleton_type: SkeletonType, tag_filter_button_id: string = 'animation-tag-filter-button') {
     super()
     this.filter_input = document.querySelector(`#${filter_input_id}`)
+    this.tag_filter_button = document.querySelector(`#${tag_filter_button_id}`)
     this.animation_list_container = document.querySelector(`#${animation_list_container_id}`)
     this.theme_manager = theme_manager
     this.skeleton_type = skeleton_type
@@ -36,19 +43,108 @@ export class AnimationSearch extends EventTarget {
     AnimationRequestDialog.enable_request_links()
   }
 
-  public initialize_animations (animations: TransformedAnimationClipPair[]): void {
+  public initialize_animations (animations: AnimationEntry[]): void {
     // Convert to animations with state tracking
     this.all_animations = this.map_animations_to_state(animations)
 
+    this.update_available_tags()
     this.render_filtered_animations('')
   }
 
-  public add_animations (animations: TransformedAnimationClipPair[]): void {
+  public add_animations (animations: AnimationEntry[]): void {
     const new_animations = this.map_animations_to_state(animations)
 
     this.all_animations.push(...new_animations)
+    this.all_animations.sort((a, b) => {
+      if (a.name < b.name) { return -1 }
+      if (a.name > b.name) { return 1 }
+      return 0
+    })
+    this.update_available_tags()
     const filter_text = this.filter_input?.value.toLowerCase() ?? ''
     this.render_filtered_animations(filter_text)
+  }
+
+  /**
+   * Collects every tag used by the current animations for the tag filter dialog.
+   * The tag button is hidden when no animations have tags (most non-human rigs).
+   */
+  private update_available_tags (): void {
+    const unique_tags = new Set<string>()
+    this.all_animations.forEach(animation => {
+      animation.metadata.tags.forEach(tag => unique_tags.add(tag.toLowerCase()))
+    })
+    this.available_tags = Array.from(unique_tags).sort()
+
+    // drop any checked tags that no longer exist after adding animations
+    this.selected_tags.forEach(tag => {
+      if (!unique_tags.has(tag)) {
+        this.selected_tags.delete(tag)
+      }
+    })
+
+    if (this.tag_filter_button !== null) {
+      this.tag_filter_button.style.display = this.available_tags.length > 0 ? '' : 'none'
+    }
+    this.update_tag_filter_button_state()
+  }
+
+  /** Shows how many tags are checked on the tag button so it is clear a filter is active */
+  private update_tag_filter_button_state (): void {
+    if (this.tag_filter_button === null) {
+      return
+    }
+
+    const selected_count = this.selected_tags.size
+    this.tag_filter_button.classList.toggle('active', selected_count > 0)
+
+    const count_element = this.tag_filter_button.querySelector<HTMLElement>('#animation-tag-filter-count')
+    if (count_element !== null) {
+      count_element.textContent = selected_count.toString()
+      count_element.style.display = selected_count > 0 ? '' : 'none'
+    }
+  }
+
+  private tag_display_name (tag: string): string {
+    return tag.charAt(0).toUpperCase() + tag.slice(1)
+  }
+
+  /**
+   * Opens a dialog listing every tag as a checkbox. Checking a tag applies the filter
+   * right away, so the dialog only needs a close button.
+   */
+  private show_tag_filter_dialog (): void {
+    const tag_checkboxes_html = this.available_tags.map(tag => {
+      const checked_attribute = this.selected_tags.has(tag) ? 'checked' : ''
+      return `
+        <label class="styled-checkbox">
+          <input type="checkbox" value="${tag}" ${checked_attribute}>
+          <span>${this.tag_display_name(tag)}</span>
+        </label>`
+    }).join('')
+
+    const dialog = new ModalDialog('Filter by Tag', `<div class="tag-filter-list">${tag_checkboxes_html}</div>`, { customClass: 'tag-filter-dialog' })
+    dialog.show()
+
+    dialog.get_body_element()?.addEventListener('change', (event) => {
+      const checkbox = event.target as HTMLInputElement
+      if (checkbox.checked) {
+        this.selected_tags.add(checkbox.value)
+      } else {
+        this.selected_tags.delete(checkbox.value)
+      }
+      this.apply_tag_filter()
+    })
+  }
+
+  private apply_tag_filter (): void {
+    this.update_tag_filter_button_state()
+
+    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
+    this.render_filtered_animations(filter_text)
+
+    this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_ids() } })
+    this.dispatchEvent(this.custom_event)
   }
 
   /**
@@ -57,14 +153,18 @@ export class AnimationSearch extends EventTarget {
    * @param animations The list of animations to convert to a format with state for the UI
    * @returns A list of animations with state for the UI to track which animations are selected for export and filtering
    */
-  private map_animations_to_state (animations: TransformedAnimationClipPair[]): AnimationWithState[] {
-    return animations.map((pair) => {
-      const animation_with_state = pair.display_animation_clip as unknown as AnimationWithState
-      animation_with_state.isChecked = false
-      animation_with_state.mirror_export_mode = 'none'
-      animation_with_state.metadata = pair.metadata // enhanced searching/display with custom animations
-      return animation_with_state
-    })
+  private map_animations_to_state (animations: AnimationEntry[]): AnimationWithState[] {
+    return animations.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      metadata: entry.metadata, // enhanced searching/display with custom animations
+      isChecked: false,
+      mirror_export_mode: 'none'
+    }))
+  }
+
+  private find_animation (animation_id: string | null): AnimationWithState | undefined {
+    return this.all_animations.find(animation => animation.id === animation_id)
   }
 
   private setup_event_listeners (): void {
@@ -91,9 +191,15 @@ export class AnimationSearch extends EventTarget {
       this.render_filtered_animations(filter_text)
 
       // emit an event to notify that we have filtered our animation listing
-      this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_indices() } })
+      this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_ids() } })
       this.dispatchEvent(this.custom_event)
     })
+
+    // assigned instead of added because a new AnimationSearch is created when switching rigs,
+    // and older instances should not open their own copy of the dialog
+    if (this.tag_filter_button !== null) {
+      this.tag_filter_button.onclick = () => { this.show_tag_filter_dialog() }
+    }
   }
 
   private setup_row_state_listeners (): void {
@@ -111,10 +217,9 @@ export class AnimationSearch extends EventTarget {
 
           // If a tile is deselected, reset its mirror mode so re-select starts from None.
           if (!target.checked) {
-            const animation_index_str = row_element.getAttribute('data-animation-index')
-            const animation_index = animation_index_str !== null ? parseInt(animation_index_str) : NaN
-            if (!isNaN(animation_index) && animation_index >= 0 && animation_index < this.all_animations.length) {
-              this.all_animations[animation_index].mirror_export_mode = 'none'
+            const animation = this.find_animation(row_element.getAttribute('data-animation-id'))
+            if (animation !== undefined) {
+              animation.mirror_export_mode = 'none'
             }
 
             const mirror_toggle = row_element.querySelector('button[data-action="cycle-mirror-mode"]') as HTMLButtonElement | null
@@ -136,7 +241,7 @@ export class AnimationSearch extends EventTarget {
       // emit an event to notify other parts of the application that export options have changed
       this.custom_event = new CustomEvent('export-options-changed', {
         detail: {
-          selectedAnimations: this.get_selected_animation_indices(),
+          selectedAnimations: this.get_selected_animation_ids(),
           exportAnimationCount: this.get_selected_export_animation_count()
         }
       })
@@ -154,21 +259,20 @@ export class AnimationSearch extends EventTarget {
       event.preventDefault()
       event.stopPropagation()
 
-      const animation_index_str = toggle_button.getAttribute('data-animation-index')
-      const animation_index = animation_index_str !== null ? parseInt(animation_index_str) : NaN
-      if (isNaN(animation_index) || animation_index < 0 || animation_index >= this.all_animations.length) {
+      const animation = this.find_animation(toggle_button.getAttribute('data-animation-id'))
+      if (animation === undefined) {
         return
       }
 
-      const current_mode: AnimationMirrorExportMode = this.all_animations[animation_index].mirror_export_mode ?? 'none'
+      const current_mode: AnimationMirrorExportMode = animation.mirror_export_mode ?? 'none'
       const next_mode = this.get_next_mirror_export_mode(current_mode)
-      this.all_animations[animation_index].mirror_export_mode = next_mode
+      animation.mirror_export_mode = next_mode
 
       this.sync_mirror_toggle_button_state(toggle_button, next_mode)
 
       this.custom_event = new CustomEvent('export-options-changed', {
         detail: {
-          selectedAnimations: this.get_selected_animation_indices(),
+          selectedAnimations: this.get_selected_animation_ids(),
           exportAnimationCount: this.get_selected_export_animation_count()
         }
       })
@@ -227,10 +331,10 @@ export class AnimationSearch extends EventTarget {
     const checkboxes = this.animation_list_container.querySelectorAll('input[type="checkbox"]')
     checkboxes.forEach((checkbox) => {
       const input = checkbox as HTMLInputElement
-      const animation_index = parseInt(input.value)
+      const animation = this.find_animation(input.value)
 
-      if (!isNaN(animation_index) && animation_index < this.all_animations.length) {
-        this.all_animations[animation_index].isChecked = input.checked
+      if (animation !== undefined) {
+        animation.isChecked = input.checked
       }
     })
 
@@ -252,12 +356,19 @@ export class AnimationSearch extends EventTarget {
       return
     }
 
-    // Filter animations based on search text and selected-only mode
+    // Filter animations based on search text, checked tags, and selected-only mode
     this.filtered_animations_list = this.all_animations.filter(animation => {
+      // animations only need one of the checked tags to show up
+      if (this.selected_tags.size > 0 && !animation.metadata.tags.some(tag => this.selected_tags.has(tag.toLowerCase()))) {
+        return false
+      }
+
 
       // some animation names have underscores (even though that isn't shown on UI), others have spaces. 
-      // we need to support both for searching to get a consistent match
-      const matches_search = animation.name.toLowerCase().replace(/_/g, ' ').includes(filter_text.toLowerCase().trim())
+      // we need to support both for searching to get a consistent match. Tags like 'combat' match too
+      const search_text = filter_text.toLowerCase().trim()
+      const matches_search = animation.name.toLowerCase().replace(/_/g, ' ').includes(search_text) ||
+        animation.metadata.tags.some(tag => tag.toLowerCase().includes(search_text))
 
       if (this.show_selected_only) {
         return matches_search && animation.isChecked === true
@@ -282,9 +393,6 @@ export class AnimationSearch extends EventTarget {
       if (this.animation_list_container == null) {
         return
       }
-
-      // Find the original index in the full list for proper data-index
-      const original_index = this.all_animations.findIndex(clip => clip === animation_clip)
 
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
@@ -312,14 +420,14 @@ export class AnimationSearch extends EventTarget {
       const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
       const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)
       const animation_entry_html = `
-        <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-index="${original_index}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
-          <button class="secondary-button play anim-play-button" data-action="play-animation" data-index="${original_index}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
+        <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-id="${animation_clip.id}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
+          <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
             ${custom_animation_badge_html}
             <div class="anim-preview-placeholder"${preview_data_src_attribute}></div>
           </button>
 
           <label class="styled-checkbox anim-row-checkbox">
-            <input type="checkbox" name="${animation_clip.name}" value="${original_index}" ${checked_attribute}>
+            <input type="checkbox" name="${animation_clip.name}" value="${animation_clip.id}" ${checked_attribute}>
             <span class="anim-preview-label">${this.animation_name_clean(animation_clip.name)}</span>
           </label>
 
@@ -327,7 +435,7 @@ export class AnimationSearch extends EventTarget {
             class="no-style-button anim-mirror-mode-toggle"
             type="button"
             data-action="cycle-mirror-mode"
-            data-animation-index="${original_index}"
+            data-animation-id="${animation_clip.id}"
             data-mirror-mode="${mirror_export_mode}"
             aria-label="${mirror_toggle_label}"
             title="${mirror_toggle_label}"
@@ -414,27 +522,17 @@ export class AnimationSearch extends EventTarget {
 
   /**
    * Gets the list of animations that are checked to be exported
-   * @returns An array of selected animation indices.
+   * @returns An array of selected animation ids.
    */
-  public get_selected_animation_indices (): number[] {
-    return this.all_animations
-      .map((animation, index) => (animation.isChecked === true) ? index : -1)
-      .filter(index => index !== -1)
+  public get_selected_animation_ids (): string[] {
+    return this.get_selected_animations().map(animation => animation.id)
   }
 
   public get_selected_animation_export_selections (): AnimationExportSelection[] {
-    return this.all_animations
-      .map((animation, index) => {
-        if (animation.isChecked !== true) {
-          return null
-        }
-
-        return {
-          animation_index: index,
-          mirror_export_mode: animation.mirror_export_mode ?? 'none'
-        } as AnimationExportSelection
-      })
-      .filter((selection): selection is AnimationExportSelection => selection !== null)
+    return this.get_selected_animations().map((animation): AnimationExportSelection => ({
+      animation_id: animation.id,
+      mirror_export_mode: animation.mirror_export_mode ?? 'none'
+    }))
   }
 
   public get_selected_export_animation_count (): number {
@@ -459,12 +557,14 @@ export class AnimationSearch extends EventTarget {
   }
 
   public toggle_select_all_animations (): void {
-    // Check if all animations are currently selected
-    const all_selected = this.all_animations.every(animation => animation.isChecked === true)
+    // Only affect the animations currently visible after filtering,
+    // so selections hidden by the text or tag filter are left alone
+    const visible_animations = this.filtered_animations_list
+    const all_selected = visible_animations.every(animation => animation.isChecked === true)
 
     // Toggle the state: if all are selected, deselect all; otherwise, select all
     const new_state = !all_selected
-    this.all_animations.forEach(animation => {
+    visible_animations.forEach(animation => {
       animation.isChecked = new_state
     })
 
@@ -483,7 +583,7 @@ export class AnimationSearch extends EventTarget {
     // Emit event to notify that export options have changed
     this.custom_event = new CustomEvent('export-options-changed', {
       detail: {
-        selectedAnimations: this.get_selected_animation_indices(),
+        selectedAnimations: this.get_selected_animation_ids(),
         exportAnimationCount: this.get_selected_export_animation_count()
       }
     })

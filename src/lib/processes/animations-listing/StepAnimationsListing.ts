@@ -8,6 +8,8 @@ import {
 import { AnimationUtility } from './AnimationUtility.ts'
 import { ArmExtensionControl } from './ArmExtensionControl.ts'
 import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
+import { AnimationLibrary, type AnimationLibraryLoadProgress } from './AnimationLibrary.ts'
+import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
 import { type ModelVariationSwitcher } from './ModelVariationSwitcher.ts'
 
@@ -16,8 +18,8 @@ import { RigConfig } from '../../RigConfig.ts'
 import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
 import { AnimationSearch } from './AnimationSearch.ts'
-import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
-import { type AnimationExportSelection } from './interfaces/AnimationExportSelection.ts'
+import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
+import { type AnimationClipExportSelection } from './interfaces/AnimationExportSelection.ts'
 import { PropsManager } from './props/PropsManager.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
@@ -25,16 +27,17 @@ export class StepAnimationsListing extends EventTarget {
   private readonly theme_manager: ThemeManager
   private readonly ui: UI
   private readonly animation_player: AnimationPlayer
-  private animation_clips_loaded: TransformedAnimationClipPair[] = []
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
+  private readonly animation_library: AnimationLibrary = new AnimationLibrary(this.animation_loader)
 
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private skinned_meshes_to_animate: SkinnedMesh[] = []
   private model_variation_switcher: ModelVariationSwitcher | null = null
-  private current_playing_index: number = 0
+  private current_playing_id: string | null = null
   private skeleton_type: SkeletonType = SkeletonType.Human
 
-  private animations_file_path: string = 'animations/'
+  // prefix that points from the current page to the static root, e.g. '../' for pages in a sub-folder
+  private static_root_path: string = ''
 
   // retrieved from load skeleton step
   // we will use this to scale all position animation keyframes (uniform scale)
@@ -47,7 +50,6 @@ export class StepAnimationsListing extends EventTarget {
   private readonly props_manager: PropsManager = new PropsManager()
 
   private _added_event_listeners: boolean = false
-  private is_loading_default_animations: boolean = false
 
   // enable status for mirroring animations
   public mirror_animations_enabled: boolean = false
@@ -55,8 +57,8 @@ export class StepAnimationsListing extends EventTarget {
   // Animation search functionality
   public animation_search: AnimationSearch | null = null
 
-  public set_animations_file_path (path: string): void {
-    this.animations_file_path = path
+  public set_static_root_path (path: string): void {
+    this.static_root_path = path
   }
 
   // shared "Expand / Contract Arms" controls. owns the current arm extension amount
@@ -72,6 +74,11 @@ export class StepAnimationsListing extends EventTarget {
 
     this.custom_animation_importer = new CustomAnimationImporter(this.animation_loader)
 
+    // applied to every clip as it loads, and again to loaded clips whenever a warp setting changes
+    this.animation_library.set_display_transform((clip_pairs: TransformedAnimationClipPair[]) => {
+      this.apply_display_warps(clip_pairs)
+    })
+
     // fancy way to bind the import context by implementing the function
     // from the CustomAnimationImporter and passing in the current context values. this allows
     // the CustomAnimationImporter to be decoupled from the StepAnimationsListing
@@ -84,8 +91,14 @@ export class StepAnimationsListing extends EventTarget {
 
     this.custom_animation_importer.addEventListener('import-success', (event: Event) => {
       const new_clips = (event as CustomEvent<TransformedAnimationClipPair[]>).detail
-      this.animation_clips_loaded.push(...new_clips)
-      this.onAllAnimationsLoaded()
+      const new_entries = this.animation_library.add_loaded_clips(new_clips)
+      this.animation_search?.add_animations(new_entries)
+      this.update_filtered_animation_listing_ui()
+
+      // show the first imported animation
+      if (new_entries.length > 0) {
+        this.play_animation(new_entries[0].id)
+      }
     })
   }
 
@@ -111,7 +124,7 @@ export class StepAnimationsListing extends EventTarget {
     }
 
     this.reset_step_data()
-    this.custom_animation_importer.set_enabled(!this.is_loading_default_animations)
+    this.custom_animation_importer.set_enabled(true)
 
     this.skeleton_type = skeleton_type
     this.props_manager.begin(skeleton_type, skeleton_scale)
@@ -129,10 +142,10 @@ export class StepAnimationsListing extends EventTarget {
     // reset previous state if we are re-entering this step
     // this will happen if we are reskinning the mesh after changes
     this.props_manager.detach_all()
-    this.animation_clips_loaded = []
+    this.animation_library.clear()
     this.skinned_meshes_to_animate = []
     this.animation_mixer = new AnimationMixer(new Object3D())
-    this.current_playing_index = 0
+    this.current_playing_id = null
     this.animation_search = null
     this.model_variation_pelvis_position_scale = 1.0
     this.reset_ui_elements()
@@ -171,25 +184,6 @@ export class StepAnimationsListing extends EventTarget {
   }
 
   /**
-   * Returns a list of all of the currently-displayed animation clips.
-   */
-  public animation_clips (): AnimationClip[] {
-    return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
-  }
-
-  public get_animation_metadata (index: number): AnimationClipMetadata | null {
-    if (index < 0 || index >= this.animation_clips_loaded.length) {
-      return null
-    }
-
-    return this.animation_clips_loaded[index].metadata
-  }
-
-  public is_animation_custom (index: number): boolean {
-    return this.get_animation_metadata(index)?.source_type === 'custom-import'
-  }
-
-  /**
    * Returns the skinned meshes currently used for animation playback.
    * This is used during the download/export process to retrieved final skinned mesh
    */
@@ -208,12 +202,12 @@ export class StepAnimationsListing extends EventTarget {
   public apply_model_variation_arm_extension (value: number): void {
     this.arm_extension_control.set_value(value)
 
-    if (this.animation_clips_loaded.length === 0) {
+    if (this.animation_library.all().length === 0) {
       return
     }
 
     this.rebuild_warped_animations()
-    this.play_animation(this.current_playing_index)
+    this.play_animation(this.current_playing_id)
   }
 
   /**
@@ -223,12 +217,12 @@ export class StepAnimationsListing extends EventTarget {
   public apply_model_variation_pelvis_position_scale (value: number): void {
     this.model_variation_pelvis_position_scale = value
 
-    if (this.animation_clips_loaded.length === 0) {
+    if (this.animation_library.all().length === 0) {
       return
     }
 
     this.rebuild_warped_animations()
-    this.play_animation(this.current_playing_index)
+    this.play_animation(this.current_playing_id)
   }
 
   /**
@@ -259,7 +253,7 @@ export class StepAnimationsListing extends EventTarget {
     this.props_manager.attach_to_skinned_meshes(new_skinned_meshes)
 
     // replay current animation on the new meshes
-    this.play_animation(this.current_playing_index)
+    this.play_animation(this.current_playing_id)
     this.animation_player.play()
   }
 
@@ -284,46 +278,20 @@ export class StepAnimationsListing extends EventTarget {
     this.skinned_meshes_to_animate = final_skinned_meshes
     this.props_manager.attach_to_skinned_meshes(final_skinned_meshes)
 
-    // Set the animations file path on the loader
-    this.animation_loader.set_animations_file_path(this.animations_file_path)
+    // animation file paths are relative to the static root
+    this.animation_loader.set_static_root_path(this.static_root_path)
 
-    this.is_loading_default_animations = true
-    this.custom_animation_importer.set_enabled(false)
-
-    // Reset the animation clips loaded
-    this.animation_clips_loaded = []
     // Create an animation mixer to do the playback. Play the first by default
     this.animation_mixer = new AnimationMixer(new Object3D())
 
-    // Load animations using the new AnimationLoader
-    this.animation_loader.load_animations(this.skeleton_type, this.skeleton_scale)
-      .then((loaded_clips: TransformedAnimationClipPair[]) => {
-        this.animation_clips_loaded = loaded_clips
-        this.onAllAnimationsLoaded()
-      })
-      .catch((error: Error) => {
-        console.error('Failed to load animations:', error)
-        this.is_loading_default_animations = false
-        this.custom_animation_importer.set_enabled(true)
-        // You could emit an error event here or show a user-friendly message
-      })
+    // lists every animation for the rig right away. Each GLB downloads the first time it is played or exported
+    this.animation_library.reset(this.skeleton_type, this.skeleton_scale)
+    this.on_animation_library_ready()
   }
 
-  private onAllAnimationsLoaded (): void {
-    this.is_loading_default_animations = false
-    this.custom_animation_importer.set_enabled(true)
-    // sort all animation names alphabetically
-    this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
-      if (a.display_animation_clip.name < b.display_animation_clip.name) { return -1 }
-      if (a.display_animation_clip.name > b.display_animation_clip.name) { return 1 }
-      return 0
-    })
-
+  private on_animation_library_ready (): void {
     // create user interface with all available animation clips
-    this.build_animation_clip_ui(
-      this.animation_clips_loaded,
-      this.theme_manager
-    )
+    this.build_animation_clip_ui(this.theme_manager)
 
     // add event listener to listem for checkbox changes when we change
     // the amount of animations to export
@@ -340,7 +308,8 @@ export class StepAnimationsListing extends EventTarget {
       this.update_filtered_animation_listing_ui()
     })
 
-    this.play_animation(0) // play the first animation by default
+    // play the first animation by default
+    this.play_animation(this.animation_library.all()[0]?.id ?? null)
   }
 
   private onAnimationLoadProgress (progress: AnimationLoadProgress): void {
@@ -383,24 +352,26 @@ export class StepAnimationsListing extends EventTarget {
   }
 
   /**
-   * Rebuilds all of the warped animations by applying the specified warps.
+   * Rebuilds all of the loaded warped animations by applying the specified warps.
    */
   private rebuild_warped_animations (): void {
-    // Reset all of the warped clips to the corresponding original clip.
-    this.animation_clips_loaded.forEach((warped_clip: TransformedAnimationClipPair) => {
-      warped_clip.display_animation_clip = AnimationUtility.deep_clone_animation_clip(warped_clip.original_animation_clip)
-    })
+    this.animation_library.rebuild_display_clips()
+  }
 
+  /**
+   * Applies the current warps to display clips that start out as copies of their original clip.
+   */
+  private apply_display_warps (clip_pairs: TransformedAnimationClipPair[]): void {
     if (this.mirror_animations_enabled) {
-      AnimationUtility.apply_animation_mirroring(this.animation_clips_loaded)
+      AnimationUtility.apply_animation_mirroring(clip_pairs)
     }
 
     /// Apply the arm extension warp:
-    AnimationUtility.apply_arm_extension_warp(this.animation_clips_loaded, this.arm_extension_control.value())
+    AnimationUtility.apply_arm_extension_warp(clip_pairs, this.arm_extension_control.value())
 
     /// Raise/lower the hips to match the proportions of the active model variation:
     AnimationUtility.apply_position_tracking_bone_scale(
-      this.animation_clips_loaded,
+      clip_pairs,
       RigConfig.by_skeleton_type(this.skeleton_type)?.position_tracking_bone_name,
       this.model_variation_pelvis_position_scale
     )
@@ -419,8 +390,33 @@ export class StepAnimationsListing extends EventTarget {
     }
   }
 
-  private play_animation (index: number = 0): void {
-    this.current_playing_index = index
+  private play_animation (animation_id: string | null): void {
+    if (animation_id === null) {
+      return
+    }
+
+    this.current_playing_id = animation_id
+
+    const clip_pair = this.animation_library.find(animation_id)?.clip_pair
+    if (clip_pair === undefined) {
+      return
+    }
+
+    // download the animation the first time it is played, then play it if it is still the one picked
+    if (clip_pair === null) {
+      this.animation_library.load(animation_id)
+        .then(() => {
+          if (this.current_playing_id === animation_id) {
+            this.play_animation(animation_id)
+          }
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to load animation:', animation_id, error)
+        })
+      return
+    }
+
+    const clip_to_play: AnimationClip = clip_pair.display_animation_clip
 
     // animation mixer has internal cache with animations. doing this helps clear it
     // otherwise modifications like arm extension will not update
@@ -431,7 +427,6 @@ export class StepAnimationsListing extends EventTarget {
     this.skinned_meshes_to_animate.forEach((skinned_mesh: SkinnedMesh) => {
       this.reset_root_motion_position(skinned_mesh)
 
-      const clip_to_play: AnimationClip = this.animation_clips_loaded[this.current_playing_index].display_animation_clip
       const anim_action: AnimationAction = this.animation_mixer.clipAction(clip_to_play, skinned_mesh)
 
       anim_action.stop()
@@ -443,19 +438,16 @@ export class StepAnimationsListing extends EventTarget {
 
     // Update the animation player with the current animation and all actions
     if (all_animation_actions.length > 0) {
-      const clip_to_play: AnimationClip = this.animation_clips_loaded[this.current_playing_index].display_animation_clip
       this.animation_player.set_animation(clip_to_play, all_animation_actions)
     }
   }
 
   private update_download_button_enabled (): void {
-    // see if any of the "export" checkboxes are active. if not we need to disable the "Download" button
-    const animation_checkboxes = this.get_animated_selected_elements()
-    const is_any_checkbox_checked: boolean = Array.from(animation_checkboxes).some((checkbox) => {
-      return (checkbox as HTMLInputElement).checked
-    })
+    // see if any animations are selected for export, including ones hidden by filtering.
+    // if not we need to disable the "Download" button
+    const is_any_animation_selected: boolean = (this.animation_search?.get_selected_animation_ids().length ?? 0) > 0
     if (this.ui.dom_export_button != null) {
-      this.ui.dom_export_button.disabled = !is_any_checkbox_checked
+      this.ui.dom_export_button.disabled = !is_any_animation_selected
     }
   }
 
@@ -468,10 +460,15 @@ export class StepAnimationsListing extends EventTarget {
       return
     }
 
-    // Add progress event for when animation GLB file is downloading for skeleton
+    // Add progress event for when a custom animation GLB file is importing
     this.animation_loader.addEventListener('progress', (event: Event) => {
       const progress = (event as CustomEvent<AnimationLoadProgress>).detail
       this.onAnimationLoadProgress(progress)
+    })
+
+    // progress for downloading many library animations at once, like before an export
+    this.animation_library.addEventListener('progress', (event: Event) => {
+      AnimationLibraryProgressBar.update((event as CustomEvent<AnimationLibraryLoadProgress>).detail)
     })
 
     // event listener for animation clip list with changing the current animation
@@ -485,10 +482,9 @@ export class StepAnimationsListing extends EventTarget {
             return
           }
 
-          const animation_index_str = play_button.getAttribute('data-index')
-          if (animation_index_str != null) {
-            const animation_index: number = Number(animation_index_str)
-            this.play_animation(animation_index)
+          const animation_id = play_button.getAttribute('data-animation-id')
+          if (animation_id != null) {
+            this.play_animation(animation_id)
           }
         }
       })
@@ -505,7 +501,7 @@ export class StepAnimationsListing extends EventTarget {
       this.mirror_animations_enabled = is_checked
       // Rebuild animations with or without mirroring
       this.rebuild_warped_animations()
-      this.play_animation(this.current_playing_index)
+      this.play_animation(this.current_playing_id)
     })
 
     // event listener for animation view mode tabs (Library vs Selected)
@@ -532,35 +528,32 @@ export class StepAnimationsListing extends EventTarget {
   // called by ArmExtensionControl whenever the arm extension amount changes
   private update_a_pose_value (): void {
     this.rebuild_warped_animations()
-    this.play_animation(this.current_playing_index)
+    this.play_animation(this.current_playing_id)
   }
 
-  public build_animation_clip_ui (animation_clips_to_load: TransformedAnimationClipPair[], theme_manager: ThemeManager): void {
+  public build_animation_clip_ui (theme_manager: ThemeManager): void {
     // Initialize AnimationSearch if not already done
     // we could switch skeleton types using navigation, so need to re-create in case this happens
     this.animation_search = new AnimationSearch('animation-filter', 'animations-items', theme_manager, this.skeleton_type)
 
     // Use the animation search class to handle the UI
-    this.animation_search.initialize_animations(animation_clips_to_load)
+    this.animation_search.initialize_animations(this.animation_library.all())
   }
 
-  public get_animated_selected_elements (): NodeListOf<Element> {
-    // this needs to be called ad-hoc as selections might change
-    return document.querySelectorAll('#animations-items input[type="checkbox"]')
-  }
+  /**
+   * Downloads any selected animations that are not loaded yet, then returns the display
+   * clip for each selection so the export includes the current warps.
+   */
+  public async get_animation_clips_to_export (): Promise<AnimationClipExportSelection[]> {
+    const export_selections = this.animation_search?.get_selected_animation_export_selections() ?? []
+    await this.animation_library.load_many(export_selections.map(selection => selection.animation_id))
 
-  public get_animation_indices_to_export (): number[] {
-    if (this.animation_search === null) {
-      return []
-    }
-    return this.animation_search.get_selected_animation_indices()
-  }
-
-  public get_animation_export_selections (): AnimationExportSelection[] {
-    if (this.animation_search === null) {
-      return []
-    }
-
-    return this.animation_search.get_selected_animation_export_selections()
+    return export_selections.flatMap((selection) => {
+      const clip_pair = this.animation_library.find(selection.animation_id)?.clip_pair
+      if (clip_pair === undefined || clip_pair === null) {
+        return []
+      }
+      return [{ clip: clip_pair.display_animation_clip, mirror_export_mode: selection.mirror_export_mode }]
+    })
   }
 }

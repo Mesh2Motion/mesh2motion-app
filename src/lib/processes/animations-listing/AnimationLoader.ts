@@ -1,4 +1,5 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { type AnimationClip } from 'three'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { type SkeletonType } from '../../enums/SkeletonType.ts'
@@ -19,8 +20,10 @@ export interface AnimationLoadProgress {
 }
 
 export class AnimationLoader extends EventTarget {
-  private readonly gltf_loader: GLTFLoader = new GLTFLoader()
-  private animations_file_path: string = 'animations/'
+  // animation GLBs from the asset library are meshopt compressed
+  private readonly gltf_loader: GLTFLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+  // prefix that points from the current page to the static root, e.g. '../' for pages in a sub-folder
+  private static_root_path: string = ''
   private readonly file_progress_map = new Map<string, { loaded: number, total: number }>()
   private completed_files: number = 0
   private total_files: number = 0
@@ -35,113 +38,32 @@ export class AnimationLoader extends EventTarget {
   }
 
   /**
-   * Sets the base path for animation files
+   * Sets the path from the current page to the static root. Animation file paths are relative to the static root.
    */
-  public set_animations_file_path (path: string): void {
-    this.animations_file_path = path
+  public set_static_root_path (path: string): void {
+    this.static_root_path = path
   }
 
   /**
-   * Loads all animations for the specified skeleton type
-   * @param skeleton_type The type of skeleton to load animations for
-   * @param skeleton_scale Scale factor to apply to position keyframes
-   * @returns Promise that resolves with the loaded animation clips
+   * Sets the rig that loaded animations are processed for (position tracking bone, etc.)
    */
-  public async load_animations (
-    skeleton_type: SkeletonType,
-    skeleton_scale: number = 1.0
-  ): Promise<TransformedAnimationClipPair[]> {
+  public set_skeleton_type (skeleton_type: SkeletonType): void {
     this.skeleton_type = skeleton_type
-    const configured_animation_files = RigConfig.get_animation_file_paths(this.skeleton_type)
-    const file_paths = configured_animation_files.map(f => `${this.animations_file_path}${f}`)
+  }
 
-    if (file_paths.length === 0) {
-      throw new Error(`No animation files found for skeleton type: ${this.skeleton_type}`)
-    }
-
-    // Initialize progress tracking
-    this.file_progress_map.clear()
-    this.completed_files = 0
-    this.total_files = file_paths.length
-
-    // Initialize all files in progress map
-    file_paths.forEach(file_path => {
-      this.file_progress_map.set(file_path, { loaded: 0, total: 1 })
-    })
-
-    return await new Promise((resolve, reject) => {
-      const loaded_clips: TransformedAnimationClipPair[] = []
-      let completed_loads = 0
-      const total_loads = file_paths.length
-      let has_error = false
-
-      // Emit initial progress
-      this.emit_enhanced_progress('', 0, 1)
-
-      file_paths.forEach((file_path, index) => {
-        this.gltf_loader.load(
-          file_path,
-          (gltf: any) => {
-            if (has_error) return // Don't process if we already had an error
-
-            try {
-              // Mark file as completed
-              this.file_progress_map.set(file_path, { loaded: 1, total: 1 })
-              this.completed_files++
-
-              // Process the loaded animations
-              const processed_clips = this.process_loaded_animations(
-                gltf.animations as AnimationClip[],
-                skeleton_scale,
-                {
-                  source_type: 'default-library',
-                  tags: []
-                }
-              )
-              loaded_clips.push(...processed_clips)
-
-              completed_loads++
-
-              // Emit progress update
-              this.emit_enhanced_progress(file_path, 1, 1)
-
-              // Check if all animations are loaded
-              if (completed_loads === total_loads) {
-                // Sort animations alphabetically by name
-                loaded_clips.sort((a, b) => {
-                  return a.display_animation_clip.name.localeCompare(b.display_animation_clip.name)
-                })
-
-                resolve(loaded_clips)
-              }
-            } catch (error) {
-              if (!has_error) {
-                has_error = true
-                const error_message = error instanceof Error ? error.message : String(error)
-                reject(new Error(`Failed to process animations from ${file_path}: ${error_message}`))
-              }
-            }
-          },
-          (progress_event) => {
-            // Enhanced progress tracking during file loading
-            if (progress_event.lengthComputable) {
-              const current_progress = { loaded: progress_event.loaded, total: progress_event.total }
-              this.file_progress_map.set(file_path, current_progress)
-
-              // Emit real-time progress
-              this.emit_enhanced_progress(file_path, progress_event.loaded, progress_event.total)
-            }
-          },
-          (error) => {
-            if (!has_error) {
-              has_error = true
-              const error_message = error instanceof Error ? error.message : String(error)
-              reject(new Error(`Failed to load animation file ${file_path}: ${error_message}`))
-            }
-          }
-        )
-      })
-    })
+  /**
+   * Loads one animation GLB from the asset library. Each library GLB holds a single clip.
+   * @param file_path GLB file path relative to the static root
+   * @param skeleton_scale Scale factor to apply to position keyframes
+   * @returns Promise that resolves with the processed animation clips
+   */
+  public async load_animation_file (
+    file_path: string,
+    skeleton_scale: number,
+    metadata_override: Partial<AnimationClipMetadata> = {}
+  ): Promise<TransformedAnimationClipPair[]> {
+    const gltf = await this.gltf_loader.loadAsync(`${this.static_root_path}${file_path}`)
+    return this.process_loaded_animations(gltf.animations, skeleton_scale, metadata_override)
   }
 
   /**

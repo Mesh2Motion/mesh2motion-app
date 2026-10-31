@@ -30,6 +30,11 @@ export class ModalDialog {
     })
   }
 
+  /** Body element of the open dialog, for wiring up interactive content */
+  public get_body_element (): HTMLElement | null {
+    return this.dialog_element?.querySelector('.modal-dialog-body') ?? null
+  }
+
   public remove (): void {
     if (this.dialog_element && this.dialog_element.parentNode) {
       this.dialog_element.parentNode.removeChild(this.dialog_element)

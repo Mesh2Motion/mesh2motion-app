@@ -288,15 +288,16 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_export_button?.addEventListener('click', () => {
-      const all_clips = this.bootstrap.animations_listing_step.animation_clips()
-      const export_selections = this.bootstrap.animations_listing_step.get_animation_export_selections()
-
-      this.bootstrap.file_export_step.set_animation_clips_to_export(all_clips, export_selections)
-      void this.bootstrap.file_export_step.export(
-        this.bootstrap.animations_listing_step.active_skinned_meshes(),
-        'exported-model',
-        this.bootstrap.download_settings
-      )
+      // selected animations that were never played still need to be downloaded first
+      void this.bootstrap.animations_listing_step.get_animation_clips_to_export()
+        .then(async (export_selections) => {
+          this.bootstrap.file_export_step.set_animation_clips_to_export(export_selections)
+          await this.bootstrap.file_export_step.export(
+            this.bootstrap.animations_listing_step.active_skinned_meshes(),
+            'exported-model',
+            this.bootstrap.download_settings
+          )
+        })
         .then(() => {
           new DownloadSuccessDialog().show()
         })

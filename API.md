@@ -65,7 +65,7 @@ Returns an array of variations:
     "id": "cat",
     "display_name": "Carrot",
     "model_url": "https://app.mesh2motion.org/models-variation/fox/cat.glb",
-    "preview_image_url": "https://app.mesh2motion.org/models-variation/fox/preview/cat.png",
+    "preview_image_url": "https://app.mesh2motion.org/variation-previews/fox/cat.png",
     "license": "CC-BY",
     "attribution": "David Revoy"
   }

@@ -3,7 +3,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { AnimationRetargetService } from '../AnimationRetargetService'
 import { AnimationUtility } from '../../lib/processes/animations-listing/AnimationUtility'
-import { type AnimationExportSelection } from '../../lib/processes/animations-listing/interfaces/AnimationExportSelection'
+import { type AnimationClipExportSelection } from '../../lib/processes/animations-listing/interfaces/AnimationExportSelection'
 import { type DownloadSettings, ExportContents, ExportFormat, type FbxExportPreset } from '../../lib/processes/export-to-file/DownloadSettings'
 import { ExportBoneNamingService } from '../../lib/processes/export-to-file/ExportBoneNamingService'
 import { ExportHierarchyService } from '../../lib/processes/export-to-file/ExportHierarchyService'
@@ -15,13 +15,10 @@ export class StepExportRetargetedAnimations extends EventTarget {
   public animation_clips_to_export: AnimationClip[] = []
   private readonly fbx_exporter: FBXExporter = new FBXExporter()
 
-  public set_animation_clips_to_export (all_animations_clips: AnimationClip[], export_selections: AnimationExportSelection[]): void {
+  public set_animation_clips_to_export (export_selections: AnimationClipExportSelection[]): void {
     this.animation_clips_to_export = []
     export_selections.forEach((selection) => {
-      const source_clip: AnimationClip | undefined = all_animations_clips[selection.animation_index]
-      if (source_clip === undefined) {
-        return
-      }
+      const source_clip: AnimationClip = selection.clip
 
       if (selection.mirror_export_mode === 'none') {
         this.animation_clips_to_export.push(source_clip.clone())

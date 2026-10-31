@@ -1,5 +1,4 @@
-import { RigConfig, type RigConfigEntry } from '../lib/RigConfig'
-import { type ModelVariation } from '../lib/RigModelVariations'
+import { RigConfig, type ModelVariation, type RigConfigEntry } from '../lib/RigConfig'
 
 /**
  * Read-only public API served by the Cloudflare worker under /api.
@@ -40,8 +39,7 @@ export function handleApiRequest (url: URL): ApiResult {
   }
 
   if (sub_resource === 'variations') {
-    const variations = rig.model_variations ?? []
-    return { body: variations.map(variation => variation_summary(variation, url.origin)), status: 200 }
+    return { body: rig.model_variations.map(variation => variation_summary(variation, url.origin)), status: 200 }
   }
 
   return not_found('Unknown API route')
@@ -54,15 +52,14 @@ function rig_summary (rig: RigConfigEntry, origin: string): Record<string, unkno
     model_url: asset_url(rig.model_file, origin),
     rig_url: asset_url(rig.rig_file, origin),
     skeleton_template_image_url: asset_url(rig.skeleton_template_image_url, origin),
-    variation_count: rig.model_variations?.length ?? 0,
+    variation_count: rig.model_variations.length,
     variations_url: `${origin}${API_PREFIX}rigs/${rig.skeleton_type}/variations`
   }
 }
 
 function variation_summary (variation: ModelVariation, origin: string): Record<string, unknown> {
   return {
-    // file name without extension, e.g. 'models-variation/human/zombie.glb' -> 'zombie'
-    id: variation.model_file.split('/').pop()?.replace(/\.glb$/, ''),
+    id: variation.name,
     display_name: variation.display_name,
     model_url: asset_url(variation.model_file, origin),
     preview_image_url: asset_url(variation.preview_image, origin),

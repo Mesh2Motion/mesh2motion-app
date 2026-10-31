@@ -1,6 +1,6 @@
-import { type PropType } from './PropType.ts'
+import { type PropId } from './PropId.ts'
 
 export interface PropSelection {
-  left: PropType
-  right: PropType
+  left: PropId
+  right: PropId
 }

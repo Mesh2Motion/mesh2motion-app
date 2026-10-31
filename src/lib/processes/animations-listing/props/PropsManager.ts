@@ -2,7 +2,7 @@ import { type Euler, Matrix4, Mesh, Quaternion, type Bone, type Object3D, type S
 import { SkeletonType } from '../../../enums/SkeletonType.ts'
 import { PropCatalog } from './PropCatalog.ts'
 import { PropSide } from './PropSide.ts'
-import { PropType } from './PropType.ts'
+import { NO_PROP, type PropId } from './PropId.ts'
 import { type PropSelection } from './PropSelection.ts'
 import { PropsPanel } from './PropsPanel.ts'
 import { HandBoneResolver } from './HandBoneResolver.ts'
@@ -31,7 +31,7 @@ export function mount_scale (side: PropSide, size_factor: number): Vector3 {
  */
 export class PropsManager extends EventTarget {
   private readonly panel: PropsPanel = new PropsPanel()
-  private selection: PropSelection = { left: PropType.None, right: PropType.None }
+  private selection: PropSelection = { left: NO_PROP, right: NO_PROP }
   private skeleton_type: SkeletonType = SkeletonType.None
   private skeleton_scale: number = 1.0
   private target_skinned_meshes: SkinnedMesh[] = []
@@ -56,7 +56,7 @@ export class PropsManager extends EventTarget {
 
     const is_supported = PropCatalog.is_supported_skeleton(skeleton_type)
     if (!is_supported) {
-      this.selection = { left: PropType.None, right: PropType.None }
+      this.selection = { left: NO_PROP, right: NO_PROP }
       this.panel.set_selection(this.selection)
     }
 
@@ -115,7 +115,7 @@ export class PropsManager extends EventTarget {
     const skeletons = this.unique_skeletons()
 
     Object.values(PropSide).forEach((side) => {
-      const prop_type = side === PropSide.Left ? this.selection.left : this.selection.right
+      const prop_id = side === PropSide.Left ? this.selection.left : this.selection.right
       let found_hand_bone = false
 
       skeletons.forEach((skeleton) => {
@@ -125,15 +125,15 @@ export class PropsManager extends EventTarget {
         }
 
         found_hand_bone = true
-        void this.attach_prop(prop_type, side, hand_bone, generation)
+        void this.attach_prop(prop_id, side, hand_bone, generation)
       })
 
       this.panel.set_side_enabled(side, skeletons.length === 0 || found_hand_bone)
     })
   }
 
-  private async attach_prop (prop_type: PropType, side: PropSide, hand_bone: Bone, generation: number): Promise<void> {
-    const definition = PropCatalog.find(prop_type)
+  private async attach_prop (prop_id: PropId, side: PropSide, hand_bone: Bone, generation: number): Promise<void> {
+    const definition = PropCatalog.find(prop_id)
     if (definition === undefined) {
       return
     }
@@ -153,7 +153,7 @@ export class PropsManager extends EventTarget {
       return
     }
 
-    prop_object.name = `prop_${prop_type}_${side}`
+    prop_object.name = `prop_${prop_id}_${side}`
     prop_object.userData[PROP_USER_DATA_KEY] = true
 
     // keep the prop the same world size no matter how the hand bone is scaled

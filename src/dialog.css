@@ -543,6 +543,23 @@
   align-self: flex-end;
 }
 
+/* ── Animation Tag Filter Dialog ── */
+
+.tag-filter-dialog .modal-dialog-content {
+  width: 90vw;
+  max-width: 30rem;
+}
+
+.tag-filter-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  margin: 0;
+}
+
+.tag-filter-list .styled-checkbox {
+  cursor: pointer;
+}
+
 /* ── Star Rating Component ── */
 
 .star-rating {

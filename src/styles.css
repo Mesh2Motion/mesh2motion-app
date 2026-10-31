@@ -553,6 +553,25 @@ option {
     margin-bottom: 0.5rem;
 }
 
+/* keep the tag button next to the Select All button instead of centered */
+#animation-tag-filter-button {
+    margin-right: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5em 0.8em;
+}
+
+/* outline the tag button while a tag filter is applied */
+#animation-tag-filter-button.active {
+    outline: 1px solid var(--text-primary);
+}
+
+#animation-tag-filter-count {
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
 
 #animations-items{
     max-height: calc(100vh - 22rem);

@@ -7,7 +7,7 @@ import { VariationLicenseCatalog } from '../../VariationLicenseInfo'
 
 /**
  * Manages the model variation selection on the "Explore" page.
- * When a rig type is selected that has model_variations in its RigConfig,
+ * When a rig type is selected that has model_variations in the asset manifest,
  * a button is shown that opens a confirmation dialog with image previews
  * and attribution for each variation. Otherwise the button is hidden.
  *
@@ -146,7 +146,7 @@ export class ModelVariationSwitcher extends EventTarget {
       card.className = 'variation-card'
 
       const img = document.createElement('img')
-      img.src =  '../' + variation.preview_image
+      img.src = '../' + variation.preview_image
       img.alt = variation.display_name
       img.className = 'variation-preview-image'
       card.appendChild(img)
@@ -176,7 +176,7 @@ export class ModelVariationSwitcher extends EventTarget {
       }
 
       // add class for default selection
-      if (this.pending_variation !== null && variation.model_file === this.pending_variation.model_file) {
+      if (this.pending_variation !== null && variation.name === this.pending_variation.name) {
         card.classList.add('selected')
       }
 

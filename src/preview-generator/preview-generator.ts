@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { WebMRecorder } from './webm-recorder.ts'
@@ -32,8 +33,6 @@ class PreviewGenerator {
   private animation_clips: THREE.AnimationClip[] = []
 
   private current_animation_index_processing: number = 0
-
-  private selected_file_to_load: string = ''
 
   private readonly preview_height: number = 120
   private readonly preview_width: number = 100
@@ -110,12 +109,24 @@ class PreviewGenerator {
     this.scene_.add(this.environment_container)
   }
 
-  public initialize (file_to_load: string): void {
-    this.selected_file_to_load = file_to_load
+  public initialize (skeleton_type: SkeletonType): void {
+    const rig = RigConfig.by_skeleton_type(skeleton_type)
+    if (rig === undefined) {
+      console.error('Unknown rig selected for preview generation:', skeleton_type)
+      return
+    }
 
-    const loader = new GLTFLoader()
-    loader.load(this.selected_file_to_load, (gltf) => {
+    // page lives one folder below the static root
+    // animation GLBs from the asset library are meshopt compressed
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+    const clip_promises = rig.animations.map(async (animation) => {
+      const clip_gltf = await loader.loadAsync('../' + animation.file)
+      return clip_gltf.animations[0]
+    })
+
+    loader.load('../' + rig.model_file, async (gltf) => {
       this.scene_.add(gltf.scene)
+      const animation_clips = (await Promise.all(clip_promises)).filter((clip) => clip !== undefined)
 
       // Find the first SkinnedMesh
       gltf.scene.traverse((child: any) => {
@@ -128,20 +139,17 @@ class PreviewGenerator {
         }
       })
 
-      if (this.new_skinned_mesh && gltf.animations && gltf.animations.length > 0) {
+      if (this.new_skinned_mesh && animation_clips.length > 0) {
         this.mixer_ = new THREE.AnimationMixer(this.new_skinned_mesh)
 
-        this.animation_clips = gltf.animations
+        this.animation_clips = animation_clips
 
         // remove all root motion data.
         // This is the same function that the animation listing done
         // TODO: with cleaning up data, the fox sitting has a weird height offset
         // I would think the cleanup should work with all skeleton types
-        if (file_to_load.includes('human')) {
-          const position_tracking_bone_name: string | undefined = 
-            RigConfig.by_skeleton_type(SkeletonType.Human)?.position_tracking_bone_name
-            
-          AnimationUtility.clean_track_data(this.animation_clips, position_tracking_bone_name)
+        if (skeleton_type === SkeletonType.Human) {
+          AnimationUtility.clean_track_data(this.animation_clips, rig.position_tracking_bone_name)
         }
 
         const clip = this.animation_clips[0]
@@ -245,16 +253,16 @@ const app = new PreviewGenerator()
 // Populate animation file dropdown from central rig config
 const animation_file_dropdown = document.getElementById('animation-file-dropdown') as HTMLSelectElement | null
 if (animation_file_dropdown !== null) {
-  DOMUtilities.populate_animation_file_select(animation_file_dropdown)
+  DOMUtilities.populate_animation_rig_select(animation_file_dropdown)
 }
 
 // look out for select change
 // don't start the application logic until we pick a model to use
 animation_file_dropdown?.addEventListener('change', (event) => {
-  const selected_file = (event.target as HTMLSelectElement).value
+  const selected_rig = (event.target as HTMLSelectElement).value as SkeletonType
 
   // disable the select drop-down to prevent re-initialization
   animation_file_dropdown.disabled = true
 
-  app.initialize(selected_file)
+  app.initialize(selected_rig)
 })

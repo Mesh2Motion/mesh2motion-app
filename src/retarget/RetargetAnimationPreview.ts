@@ -1,5 +1,6 @@
 import { type AnimationClip, AnimationMixer, Object3D, type Scene, type SkinnedMesh, type AnimationAction } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import type { StepBoneMapping } from './steps/StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
@@ -12,7 +13,8 @@ import { RigConfig } from '../lib/RigConfig.ts'
  */
 export class RetargetAnimationPreview extends EventTarget {
   private readonly step_bone_mapping: StepBoneMapping
-  private readonly gltf_loader: GLTFLoader = new GLTFLoader()
+  // animation GLBs from the asset library are meshopt compressed
+  private readonly gltf_loader: GLTFLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
 
   private animation_mixer: AnimationMixer | null = null
   private current_animation_clip: AnimationClip | null = null
@@ -88,19 +90,22 @@ export class RetargetAnimationPreview extends EventTarget {
   }
 
   /**
-   * Load the first animation from the appropriate animation file
+   * Load the walk animation for the source rig, or the first animation if it has no walk
    */
   private async load_first_animation (): Promise<void> {
     // get location of animation file to load that has preview animations
     const source_skeleton_type = AnimationRetargetService.getInstance().get_skeleton_type()
-    const animation_file_paths = RigConfig.get_animation_file_paths(source_skeleton_type)
+    // every rig should have a walk animation
+    const rig_animations = RigConfig.animations_for(source_skeleton_type)
+    const preview_animation = rig_animations.find(animation => animation.name.toLowerCase().includes('walk')) ?? rig_animations[0]
 
-    if (animation_file_paths.length === 0) {
+    if (preview_animation === undefined) {
       console.log('No animation file found for skeleton type:', source_skeleton_type)
       return
     }
 
-    const animation_file_path = animation_file_paths[0]
+    // page lives one folder below the static root
+    const animation_file_path = '../' + preview_animation.file
 
     // if we are coming back to this step and already loaded a default animation, skip reloading
     // and just do the playing
@@ -115,9 +120,7 @@ export class RetargetAnimationPreview extends EventTarget {
           animation_file_path,
           (gltf: any) => {
             if (gltf.animations !== null && gltf.animations !== undefined && gltf.animations.length > 0) {
-              // find the "walk animation clip". every rig should have one of those.
-              const walk_animation = gltf.animations.find((clip: AnimationClip) => clip.name.toLowerCase().includes('walk'))
-              this.current_animation_clip = walk_animation ?? gltf.animations[0]
+              this.current_animation_clip = gltf.animations[0]
 
               if (this.current_animation_clip !== null) {
                 console.log('Loaded animation:', this.current_animation_clip.name)

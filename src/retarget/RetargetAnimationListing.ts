@@ -1,11 +1,14 @@
 import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
 import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
+import { AnimationLibrary, type AnimationLibraryLoadProgress } from '../lib/processes/animations-listing/AnimationLibrary.ts'
+import { AnimationLibraryProgressBar } from '../lib/processes/animations-listing/AnimationLibraryProgressBar.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import { ArmExtensionControl } from '../lib/processes/animations-listing/ArmExtensionControl.ts'
 import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, type AnimationAction } from 'three'
 import type { ThemeManager } from '../lib/ThemeManager.ts'
 import { type TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair.ts'
+import { type AnimationClipExportSelection } from '../lib/processes/animations-listing/interfaces/AnimationExportSelection.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
 import { StepExportRetargetedAnimations } from './steps/StepExportRetargetedAnimations.ts'
 import { UI } from '../lib/UI.ts'
@@ -15,7 +18,7 @@ import { ModalDialog } from '../lib/ModalDialog.ts'
 
 /**
  * RetargetAnimationListing - Handles animation listing and playback specifically for retargeting workflow
- * Reuses AnimationPlayer, AnimationSearch, and AnimationLoader but tailored for retargeting needs
+ * Reuses AnimationPlayer, AnimationSearch, and AnimationLibrary but tailored for retargeting needs
  */
 export class RetargetAnimationListing extends EventTarget {
   private readonly theme_manager: ThemeManager
@@ -23,16 +26,16 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
   private readonly step_export_retargeted_animations: StepExportRetargetedAnimations = new StepExportRetargetedAnimations()
   private readonly download_settings: DownloadSettings
-  private animation_clips_loaded: TransformedAnimationClipPair[] = []
+  private readonly animation_library: AnimationLibrary = new AnimationLibrary(this.animation_loader)
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private readonly ui: UI = UI.getInstance()
 
   // shared "Expand / Contract Arms" controls. owns the current arm extension amount
   private readonly arm_extension_control: ArmExtensionControl = ArmExtensionControl.getInstance()
 
-  // -1 means nothing has been played yet, so there is nothing to re-play when the
+  // null means nothing has been played yet, so there is nothing to re-play when the
   // arm extension changes. unlike the create workflow, this step does not auto-play
-  private current_playing_index: number = -1
+  private current_playing_id: string | null = null
 
   private _added_event_listeners: boolean = false
 
@@ -47,6 +50,12 @@ export class RetargetAnimationListing extends EventTarget {
     this.theme_manager = theme_manager
     this.download_settings = download_settings
     this.animation_player = new AnimationPlayer()
+
+    // The warp is applied to the source-space display clip, so both the preview
+    // and the export (which each retarget the display clip) pick it up.
+    this.animation_library.set_display_transform((clip_pairs: TransformedAnimationClipPair[]) => {
+      AnimationUtility.apply_arm_extension_warp(clip_pairs, this.arm_extension_control.value())
+    })
   }
 
   public begin (): void {
@@ -82,18 +91,14 @@ export class RetargetAnimationListing extends EventTarget {
   }
 
   public reset_step_data (): void {
-    this.animation_clips_loaded = []
+    this.animation_library.clear()
     this.animation_mixer = new AnimationMixer(new Object3D())
-    this.current_playing_index = -1
+    this.current_playing_id = null
     this.animation_player.clear_animation()
   }
 
   public mixer (): AnimationMixer {
     return this.animation_mixer
-  }
-
-  public animation_clips (): AnimationClip[] {
-    return this.animation_clips_loaded.map(clip => clip.display_animation_clip)
   }
 
   /**
@@ -118,20 +123,12 @@ export class RetargetAnimationListing extends EventTarget {
   }
 
   public load_and_apply_default_animation_to_skinned_mesh (): void {
-    this.animation_loader.set_animations_file_path('../../animations/')
-    this.animation_clips_loaded = []
+    this.animation_loader.set_static_root_path('../')
     this.animation_mixer = new AnimationMixer(new Object3D())
 
-    // this animation loader comes from the Mesh2Motion engine, so still
-    // pass in the skeleton type this way
-    this.animation_loader.load_animations(AnimationRetargetService.getInstance().get_skeleton_type())
-      .then((loaded_clips: TransformedAnimationClipPair[]) => {
-        this.animation_clips_loaded = loaded_clips
-        this.on_all_animations_loaded()
-      })
-      .catch((error: Error) => {
-        console.error('Failed to load animations for retargeting:', error)
-      })
+    // lists every animation for the source rig right away. Each GLB downloads the first time it is played or exported
+    this.animation_library.reset(AnimationRetargetService.getInstance().get_skeleton_type(), 1.0)
+    this.on_all_animations_loaded()
   }
 
   /**
@@ -140,7 +137,7 @@ export class RetargetAnimationListing extends EventTarget {
   private update_export_button_enabled_state (): void {
     // if there are no animations selected disable the download button
 
-    const animations_selected_count: number = this.animation_search?.get_selected_animation_indices().length ?? 0
+    const animations_selected_count: number = this.animation_search?.get_selected_animation_ids().length ?? 0
     const export_count: number = this.animation_search?.get_selected_export_animation_count() ?? 0
 
     if (this.export_button !== null) {
@@ -155,18 +152,8 @@ export class RetargetAnimationListing extends EventTarget {
   }
 
   private on_all_animations_loaded (): void {
-    // the arm slider can be moved while the animation files are still downloading
-    this.rebuild_warped_animations()
-
-    // Sort alphabetically
-    this.animation_clips_loaded.sort((a: TransformedAnimationClipPair, b: TransformedAnimationClipPair) => {
-      if (a.display_animation_clip.name < b.display_animation_clip.name) return -1
-      if (a.display_animation_clip.name > b.display_animation_clip.name) return 1
-      return 0
-    })
-
     // Build animation UI
-    this.build_animation_clip_ui(this.animation_clips_loaded)
+    this.build_animation_clip_ui()
 
     // Update animation selection count when selections change
     this.animation_search?.addEventListener('export-options-changed', () => {
@@ -176,18 +163,18 @@ export class RetargetAnimationListing extends EventTarget {
     // Update animation listing count display
     const listing_count_element = document.getElementById('animation-listing-count')
     if (listing_count_element !== null) {
-      listing_count_element.textContent = this.animation_clips_loaded.length.toString() + ' animations'
+      listing_count_element.textContent = this.animation_library.all().length.toString() + ' animations'
     }
 
     // the export button enabled state relies on the animation search being initialized
     // since we created a new one above, we need to recalculate this method
     this.update_export_button_enabled_state()
 
-    console.log(`Loaded ${this.animation_clips_loaded.length} animations for retargeting`)
+    console.log(`Listed ${this.animation_library.all().length} animations for retargeting`)
   }
 
-  private build_animation_clip_ui (animation_clips: TransformedAnimationClipPair[]): void {
-    // Initialize AnimationSearch with the loaded clips
+  private build_animation_clip_ui (): void {
+    // Initialize AnimationSearch with every animation in the library
     this.animation_search = new AnimationSearch(
       'animation-filter',
       'animations-items',
@@ -195,7 +182,7 @@ export class RetargetAnimationListing extends EventTarget {
       AnimationRetargetService.getInstance().get_skeleton_type()
     )
 
-    this.animation_search.initialize_animations(animation_clips)
+    this.animation_search.initialize_animations(this.animation_library.all())
 
     // Add click event listeners to animation items for playback
     const animations_container = document.getElementById('animations-items')
@@ -204,50 +191,47 @@ export class RetargetAnimationListing extends EventTarget {
         const target = event.target as HTMLElement
         const button = target.closest('.play')
 
-        if (button !== null) {
-          const index = parseInt((button as HTMLButtonElement).dataset.index ?? '-1')
-          if (index >= 0) {
-            this.play_animation(index)
-          }
+        const animation_id = (button as HTMLButtonElement | null)?.dataset.animationId
+        if (animation_id !== undefined) {
+          this.play_animation(animation_id)
         }
       })
     }
   }
 
-  /**
-   * Rebuilds all of the warped animations by applying the specified warps.
-   * The warp is applied to the source-space display clip, so both the preview
-   * and the export (which each retarget the display clip) pick it up.
-   */
-  private rebuild_warped_animations (): void {
-    // Reset all of the warped clips to the corresponding original clip.
-    this.animation_clips_loaded.forEach((warped_clip: TransformedAnimationClipPair) => {
-      warped_clip.display_animation_clip = AnimationUtility.deep_clone_animation_clip(warped_clip.original_animation_clip)
-    })
-
-    /// Apply the arm extension warp:
-    AnimationUtility.apply_arm_extension_warp(this.animation_clips_loaded, this.arm_extension_control.value())
-  }
-
   // called by ArmExtensionControl whenever the arm extension amount changes
   private update_arm_extension_value (): void {
-    this.rebuild_warped_animations()
+    this.animation_library.rebuild_display_clips()
 
     // nothing auto-plays in this step, so only re-play if the user picked an animation
-    if (this.current_playing_index >= 0) {
-      this.play_animation(this.current_playing_index)
+    if (this.current_playing_id !== null) {
+      this.play_animation(this.current_playing_id)
     }
   }
 
-  private play_animation (index: number): void {
-    if (index < 0 || index >= this.animation_clips_loaded.length) {
-      console.warn('Invalid animation index:', index)
+  private play_animation (animation_id: string): void {
+    const animation_pair = this.animation_library.find(animation_id)?.clip_pair
+    if (animation_pair === undefined) {
+      console.warn('Invalid animation id:', animation_id)
       return
     }
 
-    this.current_playing_index = index
+    this.current_playing_id = animation_id
 
-    const animation_pair = this.animation_clips_loaded[index]
+    // download the animation the first time it is played, then play it if it is still the one picked
+    if (animation_pair === null) {
+      this.animation_library.load(animation_id)
+        .then(() => {
+          if (this.current_playing_id === animation_id) {
+            this.play_animation(animation_id)
+          }
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to load animation:', animation_id, error)
+        })
+      return
+    }
+
     const display_clip = animation_pair.display_animation_clip
 
     // the mixer keeps an internal cache of every clip it has been handed. dragging the
@@ -281,17 +265,22 @@ export class RetargetAnimationListing extends EventTarget {
     // For now, keeping it minimal
     this.setup_animation_loop()
 
+    // progress for downloading many animations at once before an export
+    this.animation_library.addEventListener('progress', (event: Event) => {
+      AnimationLibraryProgressBar.update((event as CustomEvent<AnimationLibraryLoadProgress>).detail)
+    })
+
     // configure export animations button
     this.export_button = document.getElementById('export-retargeting-button') as HTMLButtonElement
     this.export_button?.addEventListener('click', () => {
       // send in all the selected animation clips for export
-      this.step_export_retargeted_animations.set_animation_clips_to_export(
-        this.animation_clips_loaded.map(clip => clip.display_animation_clip),
-        this.animation_search?.get_selected_animation_export_selections() ?? []
-      )
+      this.get_animation_clips_to_export()
+        .then(async (export_selections) => {
+          this.step_export_retargeted_animations.set_animation_clips_to_export(export_selections)
 
-      // configure the export out step with retargeting info
-      this.step_export_retargeted_animations.export('retargeted_animations', this.download_settings)
+          // configure the export out step with retargeting info
+          await this.step_export_retargeted_animations.export('retargeted_animations', this.download_settings)
+        })
         .catch((error: unknown) => {
           const error_message = error instanceof Error ? error.message : 'Unknown export error'
           new ModalDialog('Retarget export failed', error_message).show()
@@ -312,19 +301,8 @@ export class RetargetAnimationListing extends EventTarget {
     const toggle_select_all_button = document.querySelector('#toggle-select-all-animations')
     toggle_select_all_button?.addEventListener('click', () => {
       this.animation_search?.toggle_select_all_animations()
-      // Update the export button disabled state
-      const animation_checkboxes = document.querySelectorAll('#animations-items input[type="checkbox"]')
-      const is_any_checkbox_checked: boolean = Array.from(animation_checkboxes).some((checkbox) => {
-        return (checkbox as HTMLInputElement).checked
-      })
-      if (this.export_button != null) {
-        this.export_button.disabled = !is_any_checkbox_checked
-      }
-      // Update the count
-      const count_element = document.getElementById('animation-selection-count')
-      if (count_element != null) {
-        count_element.textContent = (this.animation_search?.get_selected_export_animation_count() ?? 0).toString()
-      }
+      // Update the export button disabled state and count, including selections hidden by filtering
+      this.update_export_button_enabled_state()
     })
   }
 
@@ -332,8 +310,25 @@ export class RetargetAnimationListing extends EventTarget {
     return this.animation_player
   }
 
-  public get_selected_animation_indices (): number[] {
-    return this.animation_search?.get_selected_animation_indices() ?? []
+  public get_selected_animation_ids (): string[] {
+    return this.animation_search?.get_selected_animation_ids() ?? []
+  }
+
+  /**
+   * Downloads any selected animations that are not loaded yet, then returns the display
+   * clip for each selection so the export includes the current arm extension.
+   */
+  private async get_animation_clips_to_export (): Promise<AnimationClipExportSelection[]> {
+    const export_selections = this.animation_search?.get_selected_animation_export_selections() ?? []
+    await this.animation_library.load_many(export_selections.map(selection => selection.animation_id))
+
+    return export_selections.flatMap((selection) => {
+      const clip_pair = this.animation_library.find(selection.animation_id)?.clip_pair
+      if (clip_pair === undefined || clip_pair === null) {
+        return []
+      }
+      return [{ clip: clip_pair.display_animation_clip, mirror_export_mode: selection.mirror_export_mode }]
+    })
   }
 
   private setup_animation_loop (): void {

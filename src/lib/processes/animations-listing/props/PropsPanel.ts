@@ -1,7 +1,7 @@
 import { UI } from '../../../UI.ts'
 import { PropPicker } from './PropPicker.ts'
 import { PropSide } from './PropSide.ts'
-import { PropType } from './PropType.ts'
+import { NO_PROP } from './PropId.ts'
 import { type PropSelection } from './PropSelection.ts'
 
 export class PropsPanel extends EventTarget {
@@ -87,8 +87,8 @@ export class PropsPanel extends EventTarget {
 
   private dispatch_selection_changed (): void {
     const selection: PropSelection = {
-      left: this.left_picker?.value ?? PropType.None,
-      right: this.right_picker?.value ?? PropType.None
+      left: this.left_picker?.value ?? NO_PROP,
+      right: this.right_picker?.value ?? NO_PROP
     }
 
     this.dispatchEvent(new CustomEvent<PropSelection>('props-selection-changed', { detail: selection }))

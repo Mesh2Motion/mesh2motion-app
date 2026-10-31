@@ -20,6 +20,8 @@ export default defineConfig({
   build:
     {
       outDir: '../dist',
+      // bundled JS/CSS go here instead of the default 'assets', which is the asset library folder in static/
+      assetsDir: 'bundle',
       emptyOutDir: true,
       sourcemap: true,
       rollupOptions: {

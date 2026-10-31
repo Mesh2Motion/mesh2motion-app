@@ -8,7 +8,7 @@ import { ExportHierarchyService } from './ExportHierarchyService.ts'
 import { ExportAnimationCleanupService } from './ExportAnimationCleanupService.ts'
 import { GlbSkinCleanupService } from './GlbSkinCleanupService.ts'
 import { AnimationUtility } from '../animations-listing/AnimationUtility.ts'
-import { type AnimationExportSelection } from '../animations-listing/interfaces/AnimationExportSelection.ts'
+import { type AnimationClipExportSelection } from '../animations-listing/interfaces/AnimationExportSelection.ts'
 import { FbxTextureCompatibilityService } from './FbxTextureCompatibilityService.ts'
 import { PropsExportFilter } from '../animations-listing/props/PropsExportFilter.ts'
 
@@ -18,13 +18,10 @@ export class StepExportToFile extends EventTarget {
   private animation_clips_to_export: AnimationClip[] = []
   private readonly fbx_exporter: FBXExporter = new FBXExporter()
 
-  public set_animation_clips_to_export (all_animations_clips: AnimationClip[], export_selections: AnimationExportSelection[]): void {
+  public set_animation_clips_to_export (export_selections: AnimationClipExportSelection[]): void {
     this.animation_clips_to_export = []
     export_selections.forEach((selection) => {
-      const source_clip: AnimationClip | undefined = all_animations_clips[selection.animation_index]
-      if (source_clip === undefined) {
-        return
-      }
+      const source_clip: AnimationClip = selection.clip
 
       if (selection.mirror_export_mode === 'none') {
         this.animation_clips_to_export.push(source_clip.clone())

@@ -1,0 +1,1161 @@
+{
+  "version": 1,
+  "generated": "2026-10-31T17:56:36.713Z",
+  "categories": [
+    "arrow",
+    "axe",
+    "bow",
+    "dagger",
+    "fistweapon",
+    "halberd",
+    "hammer",
+    "shield",
+    "spear",
+    "staff",
+    "sword",
+    "wand",
+    "guns"
+  ],
+  "props": [
+    {
+      "name": "arrow_A",
+      "display_name": "arrow_A",
+      "file": "props/arrow_A.glb",
+      "hash": "1cd4daef62f2d3af",
+      "preview": {
+        "file": "props/preview/arrow_A.png",
+        "hash": "f68e55d56aba5ba1"
+      },
+      "category": "arrow",
+      "tags": [
+        "arrow"
+      ],
+      "dimensions": {
+        "width": 0.0668,
+        "depth": 0.0771,
+        "height": 0.6072
+      },
+      "vertices": 97,
+      "triangles": 64,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "arrow_B",
+      "display_name": "arrow_B",
+      "file": "props/arrow_B.glb",
+      "hash": "cddc0acdac595cc2",
+      "preview": {
+        "file": "props/preview/arrow_B.png",
+        "hash": "996ddbb94d995fc3"
+      },
+      "category": "arrow",
+      "tags": [
+        "arrow"
+      ],
+      "dimensions": {
+        "width": 0.0742,
+        "depth": 0.0888,
+        "height": 0.6298
+      },
+      "vertices": 712,
+      "triangles": 602,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "axe_A",
+      "display_name": "axe_A",
+      "file": "props/axe_A.glb",
+      "hash": "13b89844f462551c",
+      "preview": {
+        "file": "props/preview/axe_A.png",
+        "hash": "e819bed95959f23d"
+      },
+      "category": "axe",
+      "tags": [
+        "axe"
+      ],
+      "dimensions": {
+        "width": 0.4279,
+        "depth": 0.1252,
+        "height": 0.581
+      },
+      "vertices": 1243,
+      "triangles": 1206,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "axe_B",
+      "display_name": "axe_B",
+      "file": "props/axe_B.glb",
+      "hash": "f46c8d79f690df3b",
+      "preview": {
+        "file": "props/preview/axe_B.png",
+        "hash": "a39ce8ca325db449"
+      },
+      "category": "axe",
+      "tags": [
+        "axe"
+      ],
+      "dimensions": {
+        "width": 0.5767,
+        "depth": 0.1252,
+        "height": 0.8306
+      },
+      "vertices": 1312,
+      "triangles": 1246,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "axe_C",
+      "display_name": "axe_C",
+      "file": "props/axe_C.glb",
+      "hash": "b1913d82545fd16b",
+      "preview": {
+        "file": "props/preview/axe_C.png",
+        "hash": "cdd93a420be351a7"
+      },
+      "category": "axe",
+      "tags": [
+        "axe"
+      ],
+      "dimensions": {
+        "width": 0.3804,
+        "depth": 0.1018,
+        "height": 0.6759
+      },
+      "vertices": 973,
+      "triangles": 890,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "bow_A",
+      "display_name": "bow_A",
+      "file": "props/bow_A.glb",
+      "hash": "858400b0c52e57cf",
+      "preview": {
+        "file": "props/preview/bow_A.png",
+        "hash": "c29ae9ff701eff52"
+      },
+      "category": "bow",
+      "tags": [
+        "bow"
+      ],
+      "dimensions": {
+        "width": 0.1979,
+        "depth": 0.0458,
+        "height": 0.9787
+      },
+      "vertices": 600,
+      "triangles": 492,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "bow_A_withString",
+      "display_name": "bow_A_withString",
+      "file": "props/bow_A_withString.glb",
+      "hash": "bc7ca7dcccdc2b43",
+      "preview": {
+        "file": "props/preview/bow_A_withString.png",
+        "hash": "76101f3d69028de1"
+      },
+      "category": "bow",
+      "tags": [
+        "bow"
+      ],
+      "dimensions": {
+        "width": 0.1979,
+        "depth": 0.0458,
+        "height": 0.9787
+      },
+      "vertices": 787,
+      "triangles": 700,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "bow_B",
+      "display_name": "bow_B",
+      "file": "props/bow_B.glb",
+      "hash": "b0b60ef9804071bf",
+      "preview": {
+        "file": "props/preview/bow_B.png",
+        "hash": "bbec5bfd140aedfb"
+      },
+      "category": "bow",
+      "tags": [
+        "bow"
+      ],
+      "dimensions": {
+        "width": 0.3353,
+        "depth": 0.0833,
+        "height": 0.9572
+      },
+      "vertices": 2708,
+      "triangles": 2244,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "bow_B_withString",
+      "display_name": "bow_B_withString",
+      "file": "props/bow_B_withString.glb",
+      "hash": "372db3c52e332d27",
+      "preview": {
+        "file": "props/preview/bow_B_withString.png",
+        "hash": "1a707712110d87ce"
+      },
+      "category": "bow",
+      "tags": [
+        "bow"
+      ],
+      "dimensions": {
+        "width": 0.3353,
+        "depth": 0.0833,
+        "height": 0.9572
+      },
+      "vertices": 2844,
+      "triangles": 2368,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "dagger_A",
+      "display_name": "dagger_A",
+      "file": "props/dagger_A.glb",
+      "hash": "41b96e662b994893",
+      "preview": {
+        "file": "props/preview/dagger_A.png",
+        "hash": "192a4443f2768c04"
+      },
+      "category": "dagger",
+      "tags": [
+        "dagger"
+      ],
+      "dimensions": {
+        "width": 0.075,
+        "depth": 0.2192,
+        "height": 0.6441
+      },
+      "vertices": 476,
+      "triangles": 374,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "dagger_B",
+      "display_name": "dagger_B",
+      "file": "props/dagger_B.glb",
+      "hash": "a5ec1bbf54608d6f",
+      "preview": {
+        "file": "props/preview/dagger_B.png",
+        "hash": "f1d25537b26e09dc"
+      },
+      "category": "dagger",
+      "tags": [
+        "dagger"
+      ],
+      "dimensions": {
+        "width": 0.2983,
+        "depth": 0.0481,
+        "height": 0.6796
+      },
+      "vertices": 531,
+      "triangles": 502,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "fistweapon_A",
+      "display_name": "fistweapon_A",
+      "file": "props/fistweapon_A.glb",
+      "hash": "62143af61296173d",
+      "preview": {
+        "file": "props/preview/fistweapon_A.png",
+        "hash": "9db1bf00e13cd06b"
+      },
+      "category": "fistweapon",
+      "tags": [
+        "fistweapon"
+      ],
+      "dimensions": {
+        "width": 0.0429,
+        "depth": 0.1134,
+        "height": 0.1617
+      },
+      "vertices": 282,
+      "triangles": 218,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "fistweapon_A_stacked",
+      "display_name": "fistweapon_A_stacked",
+      "file": "props/fistweapon_A_stacked.glb",
+      "hash": "d67b053c7b6e413c",
+      "preview": {
+        "file": "props/preview/fistweapon_A_stacked.png",
+        "hash": "4b30c96800a802e7"
+      },
+      "category": "fistweapon",
+      "tags": [
+        "fistweapon"
+      ],
+      "dimensions": {
+        "width": 0.0813,
+        "depth": 0.215,
+        "height": 0.1756
+      },
+      "vertices": 564,
+      "triangles": 436,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "fistweapon_B",
+      "display_name": "fistweapon_B",
+      "file": "props/fistweapon_B.glb",
+      "hash": "821a7c602c710299",
+      "preview": {
+        "file": "props/preview/fistweapon_B.png",
+        "hash": "5dfa509bd3f2926f"
+      },
+      "category": "fistweapon",
+      "tags": [
+        "fistweapon"
+      ],
+      "dimensions": {
+        "width": 0.2603,
+        "depth": 0.0882,
+        "height": 0.1777
+      },
+      "vertices": 300,
+      "triangles": 220,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "fistweapon_B_stacked",
+      "display_name": "fistweapon_B_stacked",
+      "file": "props/fistweapon_B_stacked.glb",
+      "hash": "80d21bffaddcba8f",
+      "preview": {
+        "file": "props/preview/fistweapon_B_stacked.png",
+        "hash": "7a14a6c720c65c87"
+      },
+      "category": "fistweapon",
+      "tags": [
+        "fistweapon"
+      ],
+      "dimensions": {
+        "width": 0.1192,
+        "depth": 0.3439,
+        "height": 0.2593
+      },
+      "vertices": 597,
+      "triangles": 440,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "halberd",
+      "display_name": "halberd",
+      "file": "props/halberd.glb",
+      "hash": "de513c13b9fd7ded",
+      "preview": {
+        "file": "props/preview/halberd.png",
+        "hash": "08efc426be728e49"
+      },
+      "category": "halberd",
+      "tags": [
+        "halberd"
+      ],
+      "dimensions": {
+        "width": 0.6464,
+        "depth": 0.1455,
+        "height": 1.3734
+      },
+      "vertices": 1723,
+      "triangles": 1496,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "hammer_A",
+      "display_name": "hammer_A",
+      "file": "props/hammer_A.glb",
+      "hash": "87ec8602dfdfc11d",
+      "preview": {
+        "file": "props/preview/hammer_A.png",
+        "hash": "d32e7adc2b3cc9f9"
+      },
+      "category": "hammer",
+      "tags": [
+        "hammer"
+      ],
+      "dimensions": {
+        "width": 0.4068,
+        "depth": 0.224,
+        "height": 0.5694
+      },
+      "vertices": 628,
+      "triangles": 524,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "hammer_B",
+      "display_name": "hammer_B",
+      "file": "props/hammer_B.glb",
+      "hash": "a31dc51134662955",
+      "preview": {
+        "file": "props/preview/hammer_B.png",
+        "hash": "229aa405c59e8b7e"
+      },
+      "category": "hammer",
+      "tags": [
+        "hammer"
+      ],
+      "dimensions": {
+        "width": 0.3401,
+        "depth": 0.3234,
+        "height": 0.7547
+      },
+      "vertices": 772,
+      "triangles": 712,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "hammer_C",
+      "display_name": "hammer_C",
+      "file": "props/hammer_C.glb",
+      "hash": "53cd61e56ab398f5",
+      "preview": {
+        "file": "props/preview/hammer_C.png",
+        "hash": "702887a497c1df56"
+      },
+      "category": "hammer",
+      "tags": [
+        "hammer"
+      ],
+      "dimensions": {
+        "width": 0.2321,
+        "depth": 0.2321,
+        "height": 0.6952
+      },
+      "vertices": 855,
+      "triangles": 840,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "shield_A",
+      "display_name": "shield_A",
+      "file": "props/shield_A.glb",
+      "hash": "3d9f1467dfebf821",
+      "preview": {
+        "file": "props/preview/shield_A.png",
+        "hash": "08248b589a7cae3e"
+      },
+      "category": "shield",
+      "tags": [
+        "shield"
+      ],
+      "dimensions": {
+        "width": 0.3863,
+        "depth": 0.1165,
+        "height": 0.4899
+      },
+      "vertices": 390,
+      "triangles": 354,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "shield_B",
+      "display_name": "shield_B",
+      "file": "props/shield_B.glb",
+      "hash": "f84a3675355221c4",
+      "preview": {
+        "file": "props/preview/shield_B.png",
+        "hash": "e88e5a1f92355ff2"
+      },
+      "category": "shield",
+      "tags": [
+        "shield"
+      ],
+      "dimensions": {
+        "width": 0.5102,
+        "depth": 0.124,
+        "height": 0.6613
+      },
+      "vertices": 426,
+      "triangles": 368,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "shield_C",
+      "display_name": "shield_C",
+      "file": "props/shield_C.glb",
+      "hash": "a24b03ab31f158bd",
+      "preview": {
+        "file": "props/preview/shield_C.png",
+        "hash": "d55b08a93438d78c"
+      },
+      "category": "shield",
+      "tags": [
+        "shield"
+      ],
+      "dimensions": {
+        "width": 0.5086,
+        "depth": 0.2424,
+        "height": 0.6654
+      },
+      "vertices": 762,
+      "triangles": 584,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "spear_A",
+      "display_name": "spear_A",
+      "file": "props/spear_A.glb",
+      "hash": "0cbb15fc5751c754",
+      "preview": {
+        "file": "props/preview/spear_A.png",
+        "hash": "2efe9a94a142e939"
+      },
+      "category": "spear",
+      "tags": [
+        "spear"
+      ],
+      "dimensions": {
+        "width": 0.123,
+        "depth": 0.1392,
+        "height": 1.5694
+      },
+      "vertices": 1420,
+      "triangles": 1216,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "staff_A",
+      "display_name": "staff_A",
+      "file": "props/staff_A.glb",
+      "hash": "2fc81376fdc4c366",
+      "preview": {
+        "file": "props/preview/staff_A.png",
+        "hash": "d923ae5ccd2204ed"
+      },
+      "category": "staff",
+      "tags": [
+        "staff"
+      ],
+      "dimensions": {
+        "width": 0.0557,
+        "depth": 0.0624,
+        "height": 1.0747
+      },
+      "vertices": 563,
+      "triangles": 500,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "staff_B",
+      "display_name": "staff_B",
+      "file": "props/staff_B.glb",
+      "hash": "51dfa321b63a7ac5",
+      "preview": {
+        "file": "props/preview/staff_B.png",
+        "hash": "870b00dcaf0d2bcf"
+      },
+      "category": "staff",
+      "tags": [
+        "staff"
+      ],
+      "dimensions": {
+        "width": 0.1369,
+        "depth": 0.3085,
+        "height": 1.158
+      },
+      "vertices": 893,
+      "triangles": 664,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_A",
+      "display_name": "sword_A",
+      "file": "props/sword_A.glb",
+      "hash": "ffe9ce1812ee269b",
+      "preview": {
+        "file": "props/preview/sword_A.png",
+        "hash": "9fd0e0f317fd84a9"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.3039,
+        "depth": 0.0643,
+        "height": 0.8869
+      },
+      "vertices": 367,
+      "triangles": 292,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_B",
+      "display_name": "sword_B",
+      "file": "props/sword_B.glb",
+      "hash": "9a9aad850cd819a3",
+      "preview": {
+        "file": "props/preview/sword_B.png",
+        "hash": "25be5143f404a8ff"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.3054,
+        "depth": 0.0601,
+        "height": 0.8928
+      },
+      "vertices": 546,
+      "triangles": 460,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_C",
+      "display_name": "sword_C",
+      "file": "props/sword_C.glb",
+      "hash": "828b88a9f9c1c9ad",
+      "preview": {
+        "file": "props/preview/sword_C.png",
+        "hash": "287ef7afc31474a6"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.1327,
+        "depth": 0.0768,
+        "height": 1.0646
+      },
+      "vertices": 465,
+      "triangles": 349,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_D",
+      "display_name": "sword_D",
+      "file": "props/sword_D.glb",
+      "hash": "89116cfef0a2fbf6",
+      "preview": {
+        "file": "props/preview/sword_D.png",
+        "hash": "0d7ab649c7c4e189"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.3575,
+        "depth": 0.2008,
+        "height": 1.0191
+      },
+      "vertices": 675,
+      "triangles": 730,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_E",
+      "display_name": "sword_E",
+      "file": "props/sword_E.glb",
+      "hash": "755e6327d054b161",
+      "preview": {
+        "file": "props/preview/sword_E.png",
+        "hash": "f7f41ffa4cfe29db"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.4397,
+        "depth": 0.1185,
+        "height": 1.6258
+      },
+      "vertices": 818,
+      "triangles": 616,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "wand_A",
+      "display_name": "wand_A",
+      "file": "props/wand_A.glb",
+      "hash": "1297389931625ed6",
+      "preview": {
+        "file": "props/preview/wand_A.png",
+        "hash": "db49f1aeb6bfb3de"
+      },
+      "category": "wand",
+      "tags": [
+        "wand"
+      ],
+      "dimensions": {
+        "width": 0.1067,
+        "depth": 0.1045,
+        "height": 0.5781
+      },
+      "vertices": 531,
+      "triangles": 442,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "Sniper",
+      "display_name": "Sniper",
+      "file": "props/Sniper.glb",
+      "hash": "3a59449c51c60e1d",
+      "preview": {
+        "file": "props/preview/Sniper.png",
+        "hash": "392a0f8974729731"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.8425,
+        "depth": 0.0783,
+        "height": 0.3132
+      },
+      "vertices": 2044,
+      "triangles": 1441,
+      "materials": [
+        "DarkGrey",
+        "Grey",
+        "Black"
+      ]
+    },
+    {
+      "name": "SMG",
+      "display_name": "SMG",
+      "file": "props/SMG.glb",
+      "hash": "840c012915c614e1",
+      "preview": {
+        "file": "props/preview/SMG.png",
+        "hash": "89f08a1eedf2b8ec"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.4854,
+        "depth": 0.0541,
+        "height": 0.2623
+      },
+      "vertices": 1060,
+      "triangles": 1008,
+      "materials": [
+        "Grey.002",
+        "DarkGrey.002",
+        "Grey2",
+        "Black.001"
+      ]
+    },
+    {
+      "name": "Sniper_2",
+      "display_name": "Sniper_2",
+      "file": "props/Sniper_2.glb",
+      "hash": "eb59f07e31f00878",
+      "preview": {
+        "file": "props/preview/Sniper_2.png",
+        "hash": "c610d4e653c8bb81"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.8187,
+        "depth": 0.0791,
+        "height": 0.32
+      },
+      "vertices": 1516,
+      "triangles": 1298,
+      "materials": [
+        "Grey.001",
+        "DarkGrey.001",
+        "Wood"
+      ]
+    },
+    {
+      "name": "Shotgun",
+      "display_name": "Shotgun",
+      "file": "props/Shotgun.glb",
+      "hash": "3957c9a79fb9c4ad",
+      "preview": {
+        "file": "props/preview/Shotgun.png",
+        "hash": "4031dd0b90d12383"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.8282,
+        "depth": 0.0654,
+        "height": 0.1767
+      },
+      "vertices": 1163,
+      "triangles": 1264,
+      "materials": [
+        "Grey2.001",
+        "Grey.003",
+        "DarkGrey.003",
+        "Wood.001"
+      ]
+    },
+    {
+      "name": "ShortCannon",
+      "display_name": "ShortCannon",
+      "file": "props/ShortCannon.glb",
+      "hash": "eb80dd439b8e06dc",
+      "preview": {
+        "file": "props/preview/ShortCannon.png",
+        "hash": "198373a9879bc481"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.7888,
+        "depth": 0.0825,
+        "height": 0.2055
+      },
+      "vertices": 549,
+      "triangles": 462,
+      "materials": [
+        "Grey.004",
+        "DarkGrey.004",
+        "Wood.002"
+      ]
+    },
+    {
+      "name": "RocketLauncher",
+      "display_name": "RocketLauncher",
+      "file": "props/RocketLauncher.glb",
+      "hash": "45e51cbab5ad906f",
+      "preview": {
+        "file": "props/preview/RocketLauncher.png",
+        "hash": "200ccfbdcb57a8e0"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.709,
+        "depth": 0.2554,
+        "height": 0.4066
+      },
+      "vertices": 1197,
+      "triangles": 1228,
+      "materials": [
+        "Black.002",
+        "Grey.005",
+        "DarkGrey.005",
+        "Red"
+      ]
+    },
+    {
+      "name": "Pistol",
+      "display_name": "Pistol",
+      "file": "props/Pistol.glb",
+      "hash": "aa1f347eec63eee7",
+      "preview": {
+        "file": "props/preview/Pistol.png",
+        "hash": "4062667a685a3397"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.3171,
+        "depth": 0.0473,
+        "height": 0.1933
+      },
+      "vertices": 1043,
+      "triangles": 990,
+      "materials": [
+        "Grey.006",
+        "DarkGrey.006",
+        "Wood.003"
+      ]
+    },
+    {
+      "name": "Knife_1",
+      "display_name": "Knife_1",
+      "file": "props/Knife_1.glb",
+      "hash": "49e8a411c5832aff",
+      "preview": {
+        "file": "props/preview/Knife_1.png",
+        "hash": "96b5597f1f90b41d"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.0642,
+        "depth": 0.0324,
+        "height": 0.3482
+      },
+      "vertices": 724,
+      "triangles": 687,
+      "materials": [
+        "Grey.007",
+        "LightGrey",
+        "DarkWood",
+        "Wood.004"
+      ]
+    },
+    {
+      "name": "Knife_2",
+      "display_name": "Knife_2",
+      "file": "props/Knife_2.glb",
+      "hash": "2f58993e9507de3b",
+      "preview": {
+        "file": "props/preview/Knife_2.png",
+        "hash": "8824e6204fa33804"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.0568,
+        "depth": 0.0297,
+        "height": 0.3096
+      },
+      "vertices": 804,
+      "triangles": 764,
+      "materials": [
+        "DarkGrey.007",
+        "Black.003",
+        "LightGrey.001"
+      ]
+    },
+    {
+      "name": "AK",
+      "display_name": "AK",
+      "file": "props/AK.glb",
+      "hash": "c579eaef7ab0513a",
+      "preview": {
+        "file": "props/preview/AK.png",
+        "hash": "8c6e25e2bcc05dd3"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.6802,
+        "depth": 0.0735,
+        "height": 0.3493
+      },
+      "vertices": 1804,
+      "triangles": 1128,
+      "materials": [
+        "Grey.008",
+        "Grey2.002",
+        "Wood.005",
+        "DarkGrey.009"
+      ]
+    },
+    {
+      "name": "Shovel",
+      "display_name": "Shovel",
+      "file": "props/Shovel.glb",
+      "hash": "7386facaee9f217c",
+      "preview": {
+        "file": "props/preview/Shovel.png",
+        "hash": "e810a8aa0191ff0b"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.0598,
+        "depth": 0.2452,
+        "height": 1.4526
+      },
+      "vertices": 541,
+      "triangles": 662,
+      "materials": [
+        "DarkWood.001",
+        "Grey.009",
+        "Red.001"
+      ]
+    },
+    {
+      "name": "Revolver_Small",
+      "display_name": "Revolver_Small",
+      "file": "props/Revolver_Small.glb",
+      "hash": "de7540898ef85cc1",
+      "preview": {
+        "file": "props/preview/Revolver_Small.png",
+        "hash": "80415a2a52e8d5d8"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.3023,
+        "depth": 0.0719,
+        "height": 0.2323
+      },
+      "vertices": 1344,
+      "triangles": 1350,
+      "materials": [
+        "Grey2.003",
+        "Grey.010",
+        "DarkGrey.010",
+        "Wood.006"
+      ]
+    },
+    {
+      "name": "Revolver",
+      "display_name": "Revolver",
+      "file": "props/Revolver.glb",
+      "hash": "f25f790a83bf1b1d",
+      "preview": {
+        "file": "props/preview/Revolver.png",
+        "hash": "2db296378fe6d7d5"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.4182,
+        "depth": 0.0741,
+        "height": 0.2237
+      },
+      "vertices": 1520,
+      "triangles": 1354,
+      "materials": [
+        "Grey2.004",
+        "Grey.011",
+        "DarkGrey.011",
+        "Wood.007"
+      ]
+    },
+    {
+      "name": "GrenadeLauncher",
+      "display_name": "GrenadeLauncher",
+      "file": "props/GrenadeLauncher.glb",
+      "hash": "0a50724b9654e872",
+      "preview": {
+        "file": "props/preview/GrenadeLauncher.png",
+        "hash": "5baaa256eb3f95d7"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.6065,
+        "depth": 0.2406,
+        "height": 0.2794
+      },
+      "vertices": 1391,
+      "triangles": 1261,
+      "materials": [
+        "Grey.012",
+        "DarkGrey.012",
+        "Wood.008",
+        "Grey2.005"
+      ]
+    },
+    {
+      "name": "Sickle",
+      "display_name": "Sickle",
+      "file": "props/Sickle.glb",
+      "hash": "3c17bc7ce8cfbc44",
+      "preview": {
+        "file": "props/preview/Sickle.png",
+        "hash": "42ec7286c57019be"
+      },
+      "category": "guns",
+      "tags": [
+        "guns"
+      ],
+      "dimensions": {
+        "width": 0.4137,
+        "depth": 0.0692,
+        "height": 0.6563
+      },
+      "vertices": 115,
+      "triangles": 219,
+      "materials": [
+        "weapons"
+      ]
+    }
+  ]
+}

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { Bone, Euler, Group, Mesh, Quaternion, Skeleton, Vector3 } from 'three'
 import { HandBoneResolver } from './HandBoneResolver'
 import { PropCatalog } from './PropCatalog'
-import { PropType } from './PropType'
+import { NO_PROP } from './PropId'
+import { props_manifest } from '../../../AssetManifest'
 import { PropsExportFilter, PROP_USER_DATA_KEY } from './PropsExportFilter'
 import { PropSide } from './PropSide'
 import { mount_quaternion, mount_scale } from './PropsManager'
@@ -16,14 +17,28 @@ function make_skeleton (names: string[]): Skeleton {
 }
 
 describe('PropCatalog', () => {
-  it('registers every bundled prop model and keeps legacy Pole and Staff choices', () => {
+  it('registers every prop from the props manifest', () => {
     const definitions = PropCatalog.all()
 
-    expect(definitions).toHaveLength(44)
-    expect(new Set(definitions.map((definition) => definition.asset_path)).size).toBe(44)
-    expect(PropCatalog.find(PropType.Pole)?.asset_path).toBe('props/spear_A.glb')
-    expect(PropCatalog.find(PropType.Pole)?.model_offset_y).toBe(0)
-    expect(PropCatalog.find(PropType.Staff)?.asset_path).toBe('props/staff_A.glb')
+    expect(definitions).toHaveLength(props_manifest.props.length)
+    expect(new Set(definitions.map((definition) => definition.asset_path)).size).toBe(definitions.length)
+    expect(PropCatalog.find('spear_A')?.asset_path).toBe('assets/props/spear_A.glb')
+    expect(PropCatalog.find('spear_A')?.preview_path).toBe('assets/props/preview/spear_A.png')
+    expect(PropCatalog.find('spear_A')?.model_offset_y).toBe(0)
+    expect(PropCatalog.find(NO_PROP)).toBeUndefined()
+  })
+
+  it('uses app display names and categories, overriding the manifest category when configured', () => {
+    expect(PropCatalog.find('sword_C')?.display_name).toBe('Katana')
+    expect(PropCatalog.find('sword_C')?.category).toBe('Swords')
+    expect(PropCatalog.find('Knife_1')?.category).toBe('Daggers')
+    expect(PropCatalog.find('Shovel')?.category).toBe('Tools')
+  })
+
+  it('falls back to the manifest name and category for props without settings', () => {
+    const definition = PropCatalog.find('fistweapon_A_stacked')
+    expect(definition?.display_name).toBe('Fistweapon A Stacked')
+    expect(definition?.category).toBe('Fist Weapons')
   })
 })
 

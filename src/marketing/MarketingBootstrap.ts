@@ -109,7 +109,7 @@ export class MarketingBootstrap {
 
     // need to automatically finish the edit skeleton step and move onto the next step
     this.mesh2motion_engine.load_skeleton_step.addEventListener('skeletonLoaded', () => {
-      this.mesh2motion_engine.animations_listing_step.set_animations_file_path('../animations/')
+      this.mesh2motion_engine.animations_listing_step.set_static_root_path('../')
       this.mesh2motion_engine.process_step_changed(ProcessStep.BindPose)
     })
   }
