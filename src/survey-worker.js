@@ -18,7 +18,11 @@
  *
  * GET /responses (requires "Authorization: Bearer <ADMIN_TOKEN>") returns the latest
  * survey submissions and animation requests for static/survey/index.html.
+ *
+ * GET /api/... is the public read-only API (rigs, model variations). See src/api/ApiRoutes.ts.
  */
+import { API_PREFIX, handleApiRequest } from "./api/ApiRoutes";
+
 export default {
   /**
    * Routes incoming HTTP requests to the appropriate worker behavior.
@@ -48,7 +52,13 @@ export default {
       return handleGetResponses(request, env);
     }
 
-    // 5) Fallback for unknown routes/methods.
+    // 5) Public read-only API: rigs and model variations.
+    if (request.method === "GET" && url.pathname.startsWith(API_PREFIX)) {
+      const { body, status } = handleApiRequest(url);
+      return corsResponse(body, status);
+    }
+
+    // 6) Fallback for unknown routes/methods.
     return corsResponse({ error: "Not found" }, 404);
   },
 };
