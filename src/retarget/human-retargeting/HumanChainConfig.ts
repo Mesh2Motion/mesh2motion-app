@@ -47,16 +47,34 @@ export class HumanChainConfig {
   // then we can duplicate that source config to a target config. We can go through the bone
   // mapping and swap out all the source bone names for the target bone names
 
+  /**
+   * Build the chain configs for both sides of a bone mapping. The mapping is direction
+   * neutral, so the caller decides which config drives the animation and which receives it:
+   * the retarget page plays Mesh2Motion animations onto the other rig, while importing
+   * animations in the main app goes the other way.
+   * @param bone_mapping - other rig bone name -> Mesh2Motion bone name
+   */
+  public static build_mapped_chain_configs (bone_mapping: Map<string, string>): {
+    mesh2motion_config: Record<string, string[]>
+    other_rig_config: Record<string, string[]>
+  } {
+    const mesh2motion_config = HumanChainConfig.build_custom_source_config(bone_mapping)
+    const other_rig_config = HumanChainConfig.build_custom_target_config(mesh2motion_config, bone_mapping)
+    return { mesh2motion_config, other_rig_config }
+  }
+
   public static build_custom_source_config (bone_mapping: Map<string, string>): Record<string, string[]> {
     // we will bring in the bones that are mapped
     const base_source_config = structuredClone(HumanChainConfig.mesh2motion_config)
-    const flat_source_bone_names: string = this.flat_bone_name_list(bone_mapping.values()) // values store the Mesh2Motion bones
+
+    // values store the Mesh2Motion bones. A Set keeps 'head' from matching 'head_leaf'
+    const mapped_source_bone_names = new Set<string>(bone_mapping.values())
 
     for (const chain_name in base_source_config) {
       const bone_names_in_chain = base_source_config[chain_name]
       for (let i = 0; i < bone_names_in_chain.length; i++) {
         const bone_name = bone_names_in_chain[i]
-        if (!flat_source_bone_names.includes(bone_name)) {
+        if (!mapped_source_bone_names.has(bone_name)) {
           // no mapping for this bone, so we will replace it with an empty string
           bone_names_in_chain[i] = ''
         }
@@ -66,21 +84,6 @@ export class HumanChainConfig {
     console.log('Custom Source Config has been CREATED!!!:', base_source_config)
 
     return base_source_config
-  }
-
-  /**
-   * To speed up finding bones in the list of chains and list of bones, flatten everything for faster searching
-   * @param bone_config
-   * @returns string of all the bone names separated by commas
-   */
-  private static flat_bone_name_list (bones_list: MapIterator<string>): string {
-    let easy_searchable_bone_names: string = ''
-
-    // flatten all keys (source bone names)
-    for (const key of bones_list) {
-      easy_searchable_bone_names += key + ','
-    }
-    return easy_searchable_bone_names
   }
 
   public static build_custom_target_config (source_config: Record<string, string[]>, bone_mapping: Map<string, string>): Record<string, string[]> {

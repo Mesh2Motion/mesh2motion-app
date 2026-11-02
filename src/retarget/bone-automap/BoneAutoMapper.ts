@@ -1,61 +1,92 @@
-import { Bone, Group, Object3D, Scene, SkinnedMesh } from 'three'
+import { type Bone, type Object3D, type SkinnedMesh } from 'three'
 import { BoneCategoryMapper } from './BoneCategoryMapper'
 import { BoneChainResolver, type RawBoneRecord } from './BoneChainResolver'
 import { CanonicalSlotMapper } from './CanonicalSlotMapper'
+import { Mesh2MotionMapper } from './Mesh2MotionMapper'
 import { MixamoMapper } from './MixamoMapper'
 import { RigifyMapper } from './RigifyMapper'
-import { TargetBoneMappingType } from '../steps/StepBoneMapping'
-import { AnimationRetargetService } from '../AnimationRetargetService'
+import { TargetBoneMappingType } from './TargetBoneMappingType'
 
 // re-exported so existing imports from './BoneAutoMapper' keep working
 export { BoneCategory, BoneSide, BoneSlot, type BoneMetadata } from './BoneTypes'
 import { type BoneMetadata } from './BoneTypes'
 
 /**
- * BoneAutoMapper - Handles automatic bone mapping between source and target skeletons
- * Source = Mesh2Motion skeleton (draggable bones)
- * Target = Uploaded mesh skeleton (drop zones)
+ * BoneAutoMapper - Handles automatic bone mapping between a Mesh2Motion skeleton and another rig
+ * Source = Mesh2Motion skeleton
+ * Target = the other rig (an uploaded mesh on the retarget page, or the rig an imported
+ *          animation was authored on in the main app)
  *
  * Rigs that match a known template (Mixamo, Rigify) go through that template's
  * exact table. Everything else goes through canonical slot resolution, which
  * reduces both skeletons to (joint, side, position-in-chain) and matches on that -
  * see BoneSlotVocabulary and BoneChainResolver.
+ *
+ * Holds no state, so it works the same whichever direction the animation flows.
  */
 export class BoneAutoMapper {
   /**
+   * Work out which known template, if any, the target rig follows
+   * @param source_bone_names - Mesh2Motion bone names
+   * @param target_bone_names - other rig's bone names
+   */
+  public static detect_mapping_type (source_bone_names: string[], target_bone_names: string[]): TargetBoneMappingType {
+    if (MixamoMapper.is_target_valid_skeleton(target_bone_names)) {
+      return TargetBoneMappingType.Mixamo
+    }
+
+    if (RigifyMapper.is_target_valid_skeleton(target_bone_names)) {
+      return TargetBoneMappingType.Rigify
+    }
+
+    if (Mesh2MotionMapper.is_source_bones_same_as_target(source_bone_names, target_bone_names)) {
+      return TargetBoneMappingType.Mesh2Motion
+    }
+
+    return TargetBoneMappingType.Custom
+  }
+
+  /**
    * Attempts to automatically map source bones (Mesh2Motion) to target bones (uploaded mesh)
-   * Reads both armatures and the detected rig type from AnimationRetargetService.
+   * @param source_armature - Mesh2Motion armature. A plain Group of Bones, no skinned meshes
+   * @param target_armature - other rig. Bones are read off its first SkinnedMesh
+   * @param mapping_type - template detected for the target rig
    * @returns Map of target bone name -> source bone name
    */
-  public static auto_map_bones (): Map<string, string> {
-    // Traverse source skeleton to build parent-child relationships
-    const source_armature: Group | null = AnimationRetargetService.getInstance().get_source_armature()
-    if (source_armature === null) {
-      console.error('Source armature is null while extracting bone parent map.')
-      return new Map<string, string>()
-    }
+  public static auto_map_bones (
+    source_armature: Object3D, target_armature: Object3D, mapping_type: TargetBoneMappingType
+  ): Map<string, string> {
+    const source_bones: Bone[] = source_armature.children.length > 0
+      ? BoneAutoMapper.collect_armature_bones(source_armature)
+      : []
 
-    // Create metadata for both source and target bones
-    const retarget_service: AnimationRetargetService = AnimationRetargetService.getInstance()
-    let source_bones_meta: BoneMetadata[] = []
-    let target_bones_meta: BoneMetadata[] = []
+    const target_bones: Bone[] = target_armature.children.length > 0
+      ? BoneAutoMapper.collect_skinned_mesh_bones(target_armature)
+      : []
 
-    if (retarget_service.get_source_armature().children.length > 0) {
-      source_bones_meta = BoneAutoMapper.create_all_bone_metadata(retarget_service.get_source_armature(), true)
-    }
+    return BoneAutoMapper.map_bones(source_bones, target_bones, mapping_type)
+  }
 
-    if (retarget_service.get_target_armature().children.length > 0) {
-      target_bones_meta = BoneAutoMapper.create_all_bone_metadata(retarget_service.get_target_armature(), false)
-    }
+  /**
+   * Map Mesh2Motion bones to another rig's bones
+   * @param source_bones - Mesh2Motion bones
+   * @param target_bones - other rig's bones
+   * @param mapping_type - template detected for the target rig
+   * @returns Map of target bone name -> source bone name
+   */
+  public static map_bones (
+    source_bones: Bone[], target_bones: Bone[], mapping_type: TargetBoneMappingType
+  ): Map<string, string> {
+    const source_bones_meta: BoneMetadata[] = BoneAutoMapper.create_bone_metadata(source_bones)
+    const target_bones_meta: BoneMetadata[] = BoneAutoMapper.create_bone_metadata(target_bones)
 
-    // if the target is a mixamo rig and our skeleton type is human, we can do a direct name mapping
-    // without worrying about guessing
-    if (retarget_service.get_target_mapping_type() === TargetBoneMappingType.Mixamo) {
+    // known templates get a direct name mapping without worrying about guessing
+    if (mapping_type === TargetBoneMappingType.Mixamo) {
       console.log('Target skeleton appears to be a Mixamo rig, performing direct name mapping...')
       return MixamoMapper.map_mixamo_bones(source_bones_meta, target_bones_meta)
     }
 
-    if (retarget_service.get_target_mapping_type() === TargetBoneMappingType.Rigify) {
+    if (mapping_type === TargetBoneMappingType.Rigify) {
       console.log('Target skeleton appears to be a Rigify rig, performing direct name mapping...')
       return RigifyMapper.map_rigify_bones(source_bones_meta, target_bones_meta)
     }
@@ -100,46 +131,45 @@ export class BoneAutoMapper {
   }
 
   /**
-   * Build resolved metadata for every bone in an armature.
-   * @param armature - the armature to read bones from
-   * @param is_source_skeleton - source is a plain Group of Bones; target bones come
-   *                             off a SkinnedMesh's skeleton
+   * the source M2M skeleton is a Group that contains a lot of bones...but no Skinned Meshes,
+   * so just traverse the tree and build the bone list directly
    */
-  private static create_all_bone_metadata (armature: Group | Scene, is_source_skeleton: boolean): BoneMetadata[] {
+  private static collect_armature_bones (armature: Object3D): Bone[] {
     const bones: Bone[] = []
-
-    // the source M2M skeleton is a Group that contains a lot of bones...but no Skinned Meshes,
-    // so just traverse the tree and build the bone list directly
-    if (is_source_skeleton) {
-      armature.traverse((child: Object3D) => {
-        if (child.type === 'Bone') {
-          bones.push(child as Bone)
-        }
-      })
-    } else {
-      // if we find multiple skinned meshes, we will log a warning. Probably won't be an issue, but just putting
-      // this in there for now
-      let skinned_mesh_found: boolean = false
-      let skinned_mesh: SkinnedMesh | null = null
-      armature.traverse((child: Object3D) => {
-        if (child.type === 'SkinnedMesh') {
-          if (skinned_mesh_found) {
-            console.log('create_all_bone_metadata(): Multiple SkinnedMesh objects found in armature. Only processing the first one.')
-            return
-          }
-          skinned_mesh_found = true
-          skinned_mesh = child as SkinnedMesh
-        }
-      })
-
-      if (skinned_mesh !== null) {
-        bones.push(...(skinned_mesh as SkinnedMesh).skeleton.bones)
+    armature.traverse((child: Object3D) => {
+      if (child.type === 'Bone') {
+        bones.push(child as Bone)
       }
-    }
+    })
+    return bones
+  }
 
-    // BoneChainResolver works on plain records, so it can be tested without a scene.
-    // A bone's parent is often the armature node rather than another bone; the
-    // resolver treats any parent outside the bone list as no parent.
+  /**
+   * target bones come off a SkinnedMesh's skeleton. If we find multiple skinned meshes,
+   * we will log a warning. Probably won't be an issue, but just putting this in there for now
+   */
+  private static collect_skinned_mesh_bones (armature: Object3D): Bone[] {
+    let skinned_mesh: SkinnedMesh | null = null
+    armature.traverse((child: Object3D) => {
+      if (child.type === 'SkinnedMesh') {
+        if (skinned_mesh !== null) {
+          console.log('collect_skinned_mesh_bones(): Multiple SkinnedMesh objects found in armature. Only processing the first one.')
+          return
+        }
+        skinned_mesh = child as SkinnedMesh
+      }
+    })
+
+    return skinned_mesh !== null ? [...(skinned_mesh as SkinnedMesh).skeleton.bones] : []
+  }
+
+  /**
+   * Build resolved metadata for every bone.
+   * BoneChainResolver works on plain records, so it can be tested without a scene.
+   * A bone's parent is often the armature node rather than another bone; the
+   * resolver treats any parent outside the bone list as no parent.
+   */
+  private static create_bone_metadata (bones: Bone[]): BoneMetadata[] {
     const bone_records: RawBoneRecord[] = bones.map(bone => ({
       name: bone.name,
       parent_name: bone.parent !== null ? bone.parent.name : null

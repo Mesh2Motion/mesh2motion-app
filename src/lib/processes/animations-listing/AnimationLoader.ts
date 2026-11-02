@@ -1,6 +1,7 @@
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
-import { type AnimationClip } from 'three'
+import { type AnimationClip, type Group, type Object3D } from 'three'
+import { FBXLoader } from '../../io/FBXLoader.ts'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { type SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
@@ -19,9 +20,17 @@ export interface AnimationLoadProgress {
   overallBytesTotal: number
 }
 
+export interface LoadedAnimationSource {
+  animations: AnimationClip[]
+  // scene the animations came with. Holds the rig they were authored on
+  scene: Object3D
+}
+
 export class AnimationLoader extends EventTarget {
   // animation GLBs from the asset library are meshopt compressed
   private readonly gltf_loader: GLTFLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+  // custom imports can also come in as FBX, which is what Mixamo hands out
+  private readonly fbx_loader: FBXLoader = new FBXLoader()
   // prefix that points from the current page to the static root, e.g. '../' for pages in a sub-folder
   private static_root_path: string = ''
   private readonly file_progress_map = new Map<string, { loaded: number, total: number }>()
@@ -67,21 +76,18 @@ export class AnimationLoader extends EventTarget {
   }
 
   /**
-   * Loads animations from a local GLB file and validates against target skeleton.
-   * @param file The GLB file to load
-   * @param skinned_meshes Target skinned meshes to validate against
-   * @param skeleton_scale Scale factor to apply to position keyframes
-   * @returns Promise that resolves with the loaded animation clips
+   * Loads the raw animations from a local GLB or FBX file, along with the scene they were
+   * authored on. The scene holds the source rig, which is needed when the animations have
+   * to be retargeted onto our skeleton. Nothing is processed or validated here.
+   * @param file The GLB or FBX file to load
+   * @returns Promise that resolves with the unprocessed clips and their scene
    * @throws {NoAnimationsError} If no animations found in file
    * @throws {LoadError} If file cannot be loaded
    */
-  public async load_animations_from_file (
-    file: File,
-    skeleton_scale: number = 1.0,
-    metadata_override: Partial<AnimationClipMetadata> = {}
-  ): Promise<TransformedAnimationClipPair[]> {
+  public async load_animation_source_file (file: File): Promise<LoadedAnimationSource> {
     const file_url = URL.createObjectURL(file)
     const file_total = file.size > 0 ? file.size : 1
+    const is_fbx: boolean = file.name.toLowerCase().endsWith('.fbx')
 
     this.file_progress_map.clear()
     this.completed_files = 0
@@ -89,58 +95,46 @@ export class AnimationLoader extends EventTarget {
     this.file_progress_map.set(file.name, { loaded: 0, total: file_total })
     this.emit_enhanced_progress(file.name, 0, file_total)
 
+    const finish_progress = (): void => {
+      // Emit final progress to hide the loader UI
+      this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
+      this.completed_files = 1
+      this.emit_enhanced_progress(file.name, file_total, file_total)
+    }
+
     return await new Promise((resolve, reject) => {
-      this.gltf_loader.load(
-        file_url,
-        (gltf: any) => {
-          URL.revokeObjectURL(file_url)
+      const on_load = (scene: Object3D, animations: AnimationClip[] | undefined): void => {
+        URL.revokeObjectURL(file_url)
+        finish_progress()
 
-          try {
-            const animations = gltf.animations as AnimationClip[]
-            if (animations === null || animations === undefined || animations.length === 0) {
-              this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
-              this.completed_files = 1
-              this.emit_enhanced_progress(file.name, file_total, file_total)
-              throw new NoAnimationsError('No animations found in the GLB file.')
-            }
-
-            this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
-            this.completed_files = 1
-            this.emit_enhanced_progress(file.name, file_total, file_total)
-
-            const processed_clips = this.process_loaded_animations(
-              animations,
-              skeleton_scale,
-              metadata_override
-            )
-            resolve(processed_clips)
-          } catch (error) {
-            // Emit final progress to hide the loader UI
-            this.file_progress_map.set(file.name, { loaded: file_total, total: file_total })
-            this.completed_files = 1
-            this.emit_enhanced_progress(file.name, file_total, file_total)
-
-            const error_message = error instanceof Error ? error.message : String(error)
-            if (error instanceof NoAnimationsError) {
-              reject(error)
-            } else {
-              reject(new LoadError(`Failed to process animations from ${file.name}: ${error_message}`))
-            }
-          }
-        },
-        (progress_event) => {
-          if (progress_event.lengthComputable) {
-            const total_bytes = progress_event.total > 0 ? progress_event.total : file_total
-            this.file_progress_map.set(file.name, { loaded: progress_event.loaded, total: total_bytes })
-            this.emit_enhanced_progress(file.name, progress_event.loaded, total_bytes)
-          }
-        },
-        (error) => {
-          URL.revokeObjectURL(file_url)
-          const error_message = error instanceof Error ? error.message : String(error)
-          reject(new LoadError(`Failed to load animation file ${file.name}: ${error_message}`))
+        if (animations === undefined || animations.length === 0) {
+          reject(new NoAnimationsError('No animations found in the file.'))
+          return
         }
-      )
+
+        resolve({ animations, scene })
+      }
+
+      const on_progress = (progress_event: ProgressEvent): void => {
+        if (progress_event.lengthComputable) {
+          const total_bytes = progress_event.total > 0 ? progress_event.total : file_total
+          this.file_progress_map.set(file.name, { loaded: progress_event.loaded, total: total_bytes })
+          this.emit_enhanced_progress(file.name, progress_event.loaded, total_bytes)
+        }
+      }
+
+      const on_error = (error: unknown): void => {
+        URL.revokeObjectURL(file_url)
+        finish_progress()
+        const error_message = error instanceof Error ? error.message : String(error)
+        reject(new LoadError(`Failed to load animation file ${file.name}: ${error_message}`))
+      }
+
+      if (is_fbx) {
+        this.fbx_loader.load(file_url, (fbx: Group) => { on_load(fbx, fbx.animations) }, on_progress, on_error)
+      } else {
+        this.gltf_loader.load(file_url, (gltf: GLTF) => { on_load(gltf.scene, gltf.animations) }, on_progress, on_error)
+      }
     })
   }
 

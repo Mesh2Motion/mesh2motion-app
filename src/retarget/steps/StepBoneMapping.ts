@@ -1,19 +1,10 @@
 import { type Scene, type SkinnedMesh } from 'three'
 import { BoneAutoMapper } from '../bone-automap/BoneAutoMapper.ts'
-import { MixamoMapper } from '../bone-automap/MixamoMapper.ts'
-import { RigifyMapper } from '../bone-automap/RigifyMapper.ts'
 import { AnimationRetargetService } from '../AnimationRetargetService.ts'
-import { Mesh2MotionMapper } from '../bone-automap/Mesh2MotionMapper.ts'
+import { TargetBoneMappingType } from '../bone-automap/TargetBoneMappingType.ts'
 
-// when we are auto-mapping, keep track of what rig type we matched target against
-export enum TargetBoneMappingType {
-  Mixamo = 'mixamo',
-  Rigify = 'rigify',
-  Mesh2Motion = 'mesh2motion',
-  Custom = 'custom', // trying to figure out bone mappings with bone name analysis
-  None = 'none'
-  // TODO: Add more types later
-}
+// re-exported so existing imports from './StepBoneMapping' keep working
+export { TargetBoneMappingType }
 
 export class StepBoneMapping extends EventTarget {
   // DOM references
@@ -428,22 +419,17 @@ export class StepBoneMapping extends EventTarget {
     const retarget_service: AnimationRetargetService = AnimationRetargetService.getInstance()
 
     // see if target bones follow a known template
-    const target_bone_names = this.get_target_bone_names()
-    if (MixamoMapper.is_target_valid_skeleton(target_bone_names)) {
-      retarget_service.set_target_mapping_type(TargetBoneMappingType.Mixamo)
-    } else if (RigifyMapper.is_target_valid_skeleton(target_bone_names)) {
-      retarget_service.set_target_mapping_type(TargetBoneMappingType.Rigify)
-    } else if (Mesh2MotionMapper.is_source_bones_same_as_target(
+    retarget_service.set_target_mapping_type(BoneAutoMapper.detect_mapping_type(
       this.get_source_bone_names(),
       this.get_target_bone_names()
-    )) {
-      retarget_service.set_target_mapping_type(TargetBoneMappingType.Mesh2Motion)
-    } else {
-      retarget_service.set_target_mapping_type(TargetBoneMappingType.Custom)
-    }
+    ))
 
     // Use BoneAutoMapper to generate mappings
-    const auto_mappings = BoneAutoMapper.auto_map_bones()
+    const auto_mappings = BoneAutoMapper.auto_map_bones(
+      retarget_service.get_source_armature(),
+      retarget_service.get_target_armature(),
+      retarget_service.get_target_mapping_type()
+    )
 
     // Apply the auto-generated mappings
     retarget_service.set_bone_mappings(auto_mappings)

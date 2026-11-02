@@ -85,7 +85,8 @@ export class StepAnimationsListing extends EventTarget {
     this.custom_animation_importer.set_import_context_provider(() => {
       return {
         skinned_meshes_to_animate: this.skinned_meshes_to_animate,
-        skeleton_scale: this.skeleton_scale
+        skeleton_scale: this.skeleton_scale,
+        skeleton_type: this.skeleton_type
       }
     })
 
@@ -300,6 +301,10 @@ export class StepAnimationsListing extends EventTarget {
       if (this.ui.dom_animation_count != null) {
         this.ui.dom_animation_count.innerHTML = this.animation_search?.get_selected_export_animation_count().toString() ?? '0'
       }
+
+      // the clip list's click handler runs before the checkbox change is recorded,
+      // so the button has to be refreshed here once the selection is up to date
+      this.update_download_button_enabled()
     })
 
     // add event listener to listen for filtered animations listing

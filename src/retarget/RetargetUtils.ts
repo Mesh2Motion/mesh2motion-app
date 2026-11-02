@@ -109,6 +109,56 @@ export class RetargetUtils {
   }
 
   /**
+   * Recover the rest pose of a skinned mesh's skeleton from its bind matrices, without
+   * touching the live bones. For skeletons that may already be mid-animation, where
+   * capture_bone_rest_transforms is too late.
+   *
+   * At rest, skinning is the identity, which pins each bone's world matrix to
+   * meshWorld * bindMatrix^-1 * boneInverse^-1 (attached bind mode). Root bones are then
+   * divided by whatever their non-bone parent currently is, so a mesh that was moved or
+   * scaled after binding still comes out right.
+   */
+  static capture_bind_pose_rest_transforms (skinned_mesh: SkinnedMesh): BoneRestTransform[] {
+    const skeleton: Skeleton = skinned_mesh.skeleton
+    skinned_mesh.updateWorldMatrix(true, false)
+
+    // bindMatrixInverse can't be used here: in attached mode three.js overwrites it with the
+    // mesh's current inverse world every frame, so invert bindMatrix itself
+    const bind_space_to_world = new Matrix4()
+    if (skinned_mesh.bindMode === 'attached') {
+      bind_space_to_world.copy(skinned_mesh.matrixWorld).multiply(skinned_mesh.bindMatrix.clone().invert())
+    }
+
+    const rest_world_matrices: Matrix4[] = skeleton.boneInverses.map((bone_inverse) =>
+      bind_space_to_world.clone().multiply(bone_inverse.clone().invert()))
+
+    const parent_inverse = new Matrix4()
+    const local = new Matrix4()
+
+    return skeleton.bones.map((bone, index) => {
+      const parent_index: number = bone.parent !== null ? skeleton.bones.indexOf(bone.parent as Bone) : -1
+      if (parent_index !== -1) {
+        parent_inverse.copy(rest_world_matrices[parent_index]).invert()
+      } else if (bone.parent !== null) {
+        bone.parent.updateWorldMatrix(true, false)
+        parent_inverse.copy(bone.parent.matrixWorld).invert()
+      } else {
+        parent_inverse.identity()
+      }
+
+      local.copy(parent_inverse).multiply(rest_world_matrices[index])
+
+      const rest_transform: BoneRestTransform = {
+        position: new Vector3(),
+        quaternion: new Quaternion(),
+        scale: new Vector3()
+      }
+      local.decompose(rest_transform.position, rest_transform.quaternion, rest_transform.scale)
+      return rest_transform
+    })
+  }
+
+  /**
    * Validates that the retargetable model contains SkinnedMeshes with bones
    * @returns true if valid SkinnedMeshes are found, false otherwise
    */

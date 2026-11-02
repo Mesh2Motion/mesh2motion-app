@@ -4,9 +4,9 @@ import {
   type Skeleton
 } from 'three'
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
-import { TargetBoneMappingType } from './steps/StepBoneMapping.ts'
+import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { Retargeter } from './human-retargeting/Retargeter.ts'
+import { HumanClipRetargeter } from './human-retargeting/HumanClipRetargeter.ts'
 import { Rig } from './human-retargeting/Rig.ts'
 import { HumanChainConfig } from './human-retargeting/HumanChainConfig.ts'
 import { RetargetDiagnostics, type RestPoseSnapshot } from './RetargetDiagnostics.ts'
@@ -242,11 +242,11 @@ export class AnimationRetargetService {
     // so a Mixamo rig exported without the prefix resolved to no joints at all and
     // came out as an empty rig. The bone mapping already encodes the same chains
     // using the target's real bone names, so there is nothing to shortcut.
-    const custom_source_config = HumanChainConfig.build_custom_source_config(this.get_bone_mappings())
-    const custom_target_config = HumanChainConfig.build_custom_target_config(custom_source_config, this.get_bone_mappings())
+    // the source here is always the Mesh2Motion rig, the target is the uploaded rig
+    const { mesh2motion_config, other_rig_config } = HumanChainConfig.build_mapped_chain_configs(this.get_bone_mappings())
 
-    source_rig.fromConfig(custom_source_config)
-    target_rig.fromConfig(custom_target_config)
+    source_rig.fromConfig(mesh2motion_config)
+    target_rig.fromConfig(other_rig_config)
 
     // instrumentation. Runs before the retargeter drives anything, so the rigs are still
     // holding the rest pose they captured. See RetargetDiagnostics for why each check exists
@@ -256,35 +256,16 @@ export class AnimationRetargetService {
     RetargetDiagnostics.report_pose_fidelity('SOURCE', source_rest_snapshot, source_rig)
     RetargetDiagnostics.report_source_consistency(source_rig, source_skeleton)
 
-    const retargeter: Retargeter = new Retargeter(source_rig, target_rig, source_clip)
-
-    // apply any global rig correction the user has set (fixes tilted rigs that
-    // have no root bone, only a pelvis bone at the top of the hierarchy)
-    retargeter.set_root_correction_x(this.root_correction_x_degrees)
-
-    // TODO: experiment with the additives later with T-pose correction
-    // retargeter.additives.push(
-    //     (Ref.addAxis  = new AxisAdditive( 'armL', 'y', 0 * Math.PI / 180 )),
-    //     (Ref.addTwist = new ChainTwistAdditive( 'armR', 0 * Math.PI / 180 )),
-    // );
-
-    // Initialize the retargeter with a small delta
-    retargeter.update(0.001)
-
-    // Bake the retargeted animation into keyframe tracks
-    // 30 fps for input animations is usually sufficient for now
-    const retargeted_tracks: Array<QuaternionKeyframeTrack | VectorKeyframeTrack> = retargeter.bake_animation_to_tracks(30)
+    const retargeted_clip: AnimationClip = HumanClipRetargeter.retarget(source_clip, source_rig, target_rig, {
+      clip_name: `${source_clip.name} RT`, // RT means retargeted
+      // apply any global rig correction the user has set
+      root_correction_x_degrees: this.root_correction_x_degrees
+    })
 
     // the decisive check: any UNMAPPED bone that moves off its rest pose on frame 0 is
     // carrying a corrupted rest pose out of the cloned skeleton
-    RetargetDiagnostics.report_baked_frame_zero(retargeted_tracks, target_rest_snapshot, target_rig)
-
-    // Create and return the new retargeted animation clip
-    const retargeted_clip = new AnimationClip(
-      `${source_clip.name} RT`, // RT means retargeted
-      source_clip.duration,
-      retargeted_tracks
-    )
+    RetargetDiagnostics.report_baked_frame_zero(
+      retargeted_clip.tracks as Array<QuaternionKeyframeTrack | VectorKeyframeTrack>, target_rest_snapshot, target_rig)
 
     console.log(`Swing-Twist retargeting complete: ${source_clip.name} -> ${retargeted_clip.name}`)
     console.log('getting source clip before bone correction:', source_clip.tracks)
