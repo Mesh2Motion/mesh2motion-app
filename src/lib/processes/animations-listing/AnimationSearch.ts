@@ -449,7 +449,7 @@ export class AnimationSearch extends EventTarget {
 
           <label class="styled-checkbox anim-row-checkbox">
             <input type="checkbox" name="${animation_clip.name}" value="${animation_clip.id}" ${checked_attribute}>
-            <span class="anim-preview-label">${this.animation_name_clean(animation_clip.name)}</span>
+            <span class="anim-preview-label" title="${this.animation_name_clean(animation_clip.name)}">${this.animation_name_clean(animation_clip.name)}</span>
           </label>
 
           <button
