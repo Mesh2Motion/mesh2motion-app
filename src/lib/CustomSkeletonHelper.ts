@@ -54,6 +54,11 @@ function get_joint_texture (): Texture {
   return shared_joint_texture
 }
 
+// bone opacity is a user setting that applies to every skeleton on screen.
+// Helpers get rebuilt often, so the value lives here and new helpers pick it up
+let shared_bone_opacity = 0.4
+const live_helpers = new Set<CustomSkeletonHelper>()
+
 class CustomSkeletonHelper extends InstancedMesh {
   // kept for parity with three's own SkeletonHelper, which callers duck type against
   public readonly isSkeletonHelper: boolean = true
@@ -83,7 +88,23 @@ class CustomSkeletonHelper extends InstancedMesh {
 
   private readonly thickness_ratio: number
 
+  // an explicit opacity option opts this helper out of the shared setting
+  private readonly follows_shared_opacity: boolean
+
   private _joint_color: Color = new Color(0x0F89B9) // Default joint color blue
+
+  public static set_bone_opacity (opacity: number): void {
+    shared_bone_opacity = opacity
+    for (const helper of live_helpers) {
+      if (helper.follows_shared_opacity) {
+        (helper.material as MeshBasicMaterial).opacity = opacity
+      }
+    }
+  }
+
+  public static get_bone_opacity (): number {
+    return shared_bone_opacity
+  }
 
   constructor (object: any, options: CustomSkeletonHelperOptions = {}) {
     const bones = getBoneList(object)
@@ -111,7 +132,7 @@ class CustomSkeletonHelper extends InstancedMesh {
       side: FrontSide, // culling backfaces makes each convex bone shape self-occlude correctly
       transparent: true, // also load bearing: keeps the helper in the transparent pass, which
       // renders after the opaque model, so the skeleton still draws over the mesh
-      opacity: options.opacity ?? 0.75,
+      opacity: options.opacity ?? shared_bone_opacity,
       depthTest: false,
       depthWrite: false
     })
@@ -120,6 +141,9 @@ class CustomSkeletonHelper extends InstancedMesh {
     super(create_octahedral_bone_geometry(), material, Math.max(segment_bone_indices.length, 1))
     this.count = segment_bone_indices.length
     this.instanceMatrix.setUsage(DynamicDrawUsage)
+
+    this.follows_shared_opacity = options.opacity === undefined
+    live_helpers.add(this)
 
     if(options.jointColor) {
       this._joint_color = new Color(options.jointColor)
@@ -318,6 +342,7 @@ class CustomSkeletonHelper extends InstancedMesh {
       return this
     }
     this.is_disposed = true
+    live_helpers.delete(this)
 
     this.geometry.dispose()
     ;(this.material as Material).dispose()

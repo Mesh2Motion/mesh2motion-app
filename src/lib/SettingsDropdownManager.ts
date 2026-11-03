@@ -1,5 +1,6 @@
 import { UI } from './UI'
 import { DOMUtilities } from './DOMUtilities'
+import { CustomSkeletonHelper } from './CustomSkeletonHelper'
 import { type SceneEnvironmentManager } from './SceneEnvironmentManager'
 
 export class SettingsDropdownManager {
@@ -57,6 +58,7 @@ export class SettingsDropdownManager {
 
     this.initialize_light_intensity_setting()
     this.initialize_turntable_speed_setting()
+    this.initialize_bone_opacity_setting()
     this.initialize_floor_grid_setting()
     this.initialize_background_setting()
   }
@@ -136,6 +138,25 @@ export class SettingsDropdownManager {
       }
 
       this.scene_environment?.set_turntable_speed(slider_value)
+    })
+  }
+
+  private initialize_bone_opacity_setting (): void {
+    const bone_opacity_input = this.ui.dom_bone_opacity_input
+    if (bone_opacity_input === null) {
+      return
+    }
+
+    // the slider markup carries the default, so push it to the helpers on startup
+    CustomSkeletonHelper.set_bone_opacity(Number(bone_opacity_input.value))
+
+    bone_opacity_input.addEventListener('input', () => {
+      const slider_value = Number(bone_opacity_input.value)
+      if (!Number.isFinite(slider_value)) {
+        return
+      }
+
+      CustomSkeletonHelper.set_bone_opacity(slider_value)
     })
   }
 

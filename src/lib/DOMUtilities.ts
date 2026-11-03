@@ -16,6 +16,7 @@ interface RangeSettingConfig {
 interface SettingsDefaultsConfig {
   light_intensity: RangeSettingConfig
   turntable_speed: RangeSettingConfig
+  bone_opacity: RangeSettingConfig
   floor_grid_enabled: boolean
   solid_background_enabled: boolean
 }
@@ -51,6 +52,12 @@ export class DOMUtilities {
       max: '8',
       value: '0',
       step: '0.1'
+    },
+    bone_opacity: {
+      min: '0.1',
+      max: '0.7',
+      value: '0.4',
+      step: '0.01'
     },
     floor_grid_enabled: true,
     solid_background_enabled: true
@@ -419,6 +426,11 @@ export class DOMUtilities {
           <div class="settings-dropdown-row">
             <label for="turntable-speed-input">Turntable</label>
             <input type="range" id="turntable-speed-input" min="${defaults.turntable_speed.min}" max="${defaults.turntable_speed.max}" value="${defaults.turntable_speed.value}" step="${defaults.turntable_speed.step}" />
+          </div>
+
+          <div class="settings-dropdown-row">
+            <label for="bone-opacity-input">Bone opacity</label>
+            <input type="range" id="bone-opacity-input" min="${defaults.bone_opacity.min}" max="${defaults.bone_opacity.max}" value="${defaults.bone_opacity.value}" step="${defaults.bone_opacity.step}" />
           </div>
 
           <div class="settings-dropdown-row">
