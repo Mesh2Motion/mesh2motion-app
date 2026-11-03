@@ -556,6 +556,11 @@ option {
 
 #model-pose-instructions .model-pose-instructions-heading {
     font-size: 1.1rem;
+    cursor: pointer;
+}
+
+#model-pose-instructions[open] .model-pose-instructions-heading {
+    margin-bottom: 0.5rem;
 }
 
 #model-pose-instructions ol {
@@ -1145,7 +1150,13 @@ div.modal-dialog-body p.survey-thank-you {
 
 /* Skeleton Template Image Styles */
 .skeleton-template-image-clickable {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  cursor: pointer;
   transition: border 0.2s ease;
   border: 2px solid transparent;
   border-radius: 4px;
@@ -1156,12 +1167,8 @@ div.modal-dialog-body p.survey-thank-you {
 }
 
 .skeleton-template-image-preview {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background: rgb(0 0 0 / 26%);
     border-radius: 4px;
-    padding: 6px;
+    padding: 4px;
 }
 
 /* custom message for our desktop application since we will

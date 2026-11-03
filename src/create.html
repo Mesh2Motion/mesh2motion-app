@@ -206,20 +206,19 @@
 
           <!-- reference image for people to see example of rig fitting on a model -->
           <div id="skeleton-template-image" class="skeleton-template-image-clickable">
-              <img class="skeleton-template-image-preview ignore-filters" src="images/icons/zoom.svg" alt="Preview image" width="20" height="20" />
+              <span>See bone reference placement</span>
+              <img class="skeleton-template-image-preview ignore-filters" src="images/icons/zoom.svg" alt="" width="16" height="16" />
           </div>
 
           <!-- posing tips. only shown for the human skeleton -->
-          <div id="model-pose-instructions">
-            <p class="model-pose-instructions-heading">Tips</p>
-            <p>The 3d models work best with a <strong>T-pose</strong> by default (arms straight out to the sides).</p>
-            <p>Using an <strong>A-pose</strong> model (arms angled down)?</p>
+          <details id="model-pose-instructions">
+            <summary class="model-pose-instructions-heading">Using A-Pose Character?</summary>
             <ol>
               <li>Set Positioning to <strong>Transform Widget</strong></li>
               <li>Choose the <strong>Rotation</strong> transform</li>
               <li>Select each shoulder / upper arm bone and rotate it down to line up with the arm</li>
             </ol>
-          </div>
+          </details>
 
           <div style="display: flex; flex-direction: column;">
             

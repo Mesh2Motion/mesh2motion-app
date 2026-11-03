@@ -151,17 +151,8 @@ export class StepEditSkeleton extends EventTarget {
     // figure out where the template image URL is at from the Rig Config
     const rig_config_entry = RigConfig.all.find(entry => entry.skeleton_type === skeleton_type)
 
-    // update DOM element background image
     this.dom_template_image = document.getElementById('skeleton-template-image')
     if (this.dom_template_image !== null && rig_config_entry !== undefined) {
-      this.dom_template_image.style.width = '250px'
-      this.dom_template_image.style.height = '220px'
-      this.dom_template_image.style.backgroundImage = `url(${ rig_config_entry.skeleton_template_image_url  })`
-      this.dom_template_image.style.backgroundSize = 'contain'
-      this.dom_template_image.style.backgroundRepeat = 'no-repeat'
-      this.dom_template_image.style.backgroundPosition = 'center'
-      this.dom_template_image.style.cursor = 'pointer'
-
       // Remove existing click handler to avoid duplicates
       this.dom_template_image.onclick = null
 
