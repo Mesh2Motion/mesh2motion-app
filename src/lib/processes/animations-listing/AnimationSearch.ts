@@ -24,6 +24,12 @@ export class AnimationSearch extends EventTarget {
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
 
+  // rows are built once per animation list and hidden when filtered out
+  private readonly row_elements = new Map<string, HTMLElement>()
+  private no_animations_message: HTMLElement | null = null
+  private request_animation_tile: HTMLElement | null = null
+  private lazy_video_observer: IntersectionObserver | null = null
+
   private static readonly mirror_mode_cycle: AnimationMirrorExportMode[] = ['none', 'mirrored', 'both']
 
   private static readonly mirror_mode_icons: Record<AnimationMirrorExportMode, string> = {
@@ -48,7 +54,7 @@ export class AnimationSearch extends EventTarget {
     this.all_animations = this.map_animations_to_state(animations)
 
     this.update_available_tags()
-    this.render_filtered_animations('')
+    this.rebuild_animation_rows()
   }
 
   public add_animations (animations: AnimationEntry[]): void {
@@ -61,8 +67,7 @@ export class AnimationSearch extends EventTarget {
       return 0
     })
     this.update_available_tags()
-    const filter_text = this.filter_input?.value.toLowerCase() ?? ''
-    this.render_filtered_animations(filter_text)
+    this.rebuild_animation_rows()
   }
 
   /**
@@ -176,7 +181,7 @@ export class AnimationSearch extends EventTarget {
   private setup_theme_change_listener (): void {
     // rebuild animation previews so we have the correct theme
     this.theme_manager.addEventListener('theme-changed', (new_theme) => {
-      this.render_filtered_animations(this.filter_input?.value ?? '')
+      this.rebuild_animation_rows()
     })
   }
 
@@ -351,13 +356,33 @@ export class AnimationSearch extends EventTarget {
     this.render_filtered_animations(filter_text)
   }
 
+  /**
+   * Shows only the rows matching the current filters. Rows are hidden instead of rebuilt so
+   * their preview videos keep playing; rebuilding re-downloads every visible MP4 and stutters.
+   */
   private render_filtered_animations (filter_text: string): void {
     if (this.animation_list_container === null) {
       return
     }
 
-    // Filter animations based on search text, checked tags, and selected-only mode
-    this.filtered_animations_list = this.all_animations.filter(animation => {
+    this.filtered_animations_list = this.get_matching_animations(filter_text)
+
+    const visible_ids = new Set(this.filtered_animations_list.map(animation => animation.id))
+    this.row_elements.forEach((row_element, animation_id) => {
+      row_element.style.display = visible_ids.has(animation_id) ? '' : 'none'
+    })
+
+    const has_results = this.filtered_animations_list.length > 0
+    if (this.no_animations_message !== null) {
+      this.no_animations_message.style.display = has_results ? 'none' : ''
+    }
+    if (this.request_animation_tile !== null) {
+      this.request_animation_tile.style.display = has_results ? '' : 'none'
+    }
+  }
+
+  private get_matching_animations (filter_text: string): AnimationWithState[] {
+    return this.all_animations.filter(animation => {
       // animations only need one of the checked tags to show up
       if (this.selected_tags.size > 0 && !animation.metadata.tags.some(tag => this.selected_tags.has(tag.toLowerCase()))) {
         return false
@@ -375,25 +400,21 @@ export class AnimationSearch extends EventTarget {
       }
       return matches_search
     })
+  }
 
-    // Clear and rebuild the animation list
-    this.animation_list_container.innerHTML = ''
-
-    // Show "no animations found" if the filtered list is empty
-    if (this.filtered_animations_list.length === 0) {
-      this.animation_list_container.innerHTML = `
-        <div class="no-animations-message">
-          No animations found.
-          <a href="#" class="request-animation-link" data-rig-type="${this.skeleton_type}">Request an animation</a>
-        </div>`
+  /**
+   * Builds a row for every animation, then applies the current filters. Only needed when the
+   * animation list or theme changes, since the preview video URLs depend on both.
+   */
+  private rebuild_animation_rows (): void {
+    if (this.animation_list_container === null) {
       return
     }
 
-    this.filtered_animations_list.forEach((animation_clip) => {
-      if (this.animation_list_container == null) {
-        return
-      }
+    this.lazy_video_observer?.disconnect()
+    this.row_elements.clear()
 
+    const rows_html = this.all_animations.map((animation_clip) => {
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
       const checked_attribute = was_checked ? 'checked' : ''
@@ -419,7 +440,7 @@ export class AnimationSearch extends EventTarget {
 
       const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
       const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)
-      const animation_entry_html = `
+      return `
         <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-id="${animation_clip.id}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
           <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
             ${custom_animation_badge_html}
@@ -443,20 +464,28 @@ export class AnimationSearch extends EventTarget {
             <img src="${AnimationSearch.mirror_mode_icons[mirror_export_mode]}" alt="${mirror_toggle_label}" class="action-icon">
           </button>
         </div>`
-
-      // append the entire item HTML to the DOM element
-      this.animation_list_container.innerHTML += animation_entry_html
-    })
+    }).join('')
 
     // when searching, the results might be close but not what they want (e.g. "wall" but looking for "wall run")
     // so give them a way to request an animation at the end of the results
-    //if (filter_text.trim() !== '') {
-      this.animation_list_container.insertAdjacentHTML('beforeend', `
-        <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
-          <span>Not finding what you want?</span>
-          <span class="anim-request-tile-action">Request an animation</span>
-        </a>`)
-   // }
+    this.animation_list_container.innerHTML = `
+      ${rows_html}
+      <div class="no-animations-message">
+        No animations found.
+        <a href="#" class="request-animation-link" data-rig-type="${this.skeleton_type}">Request an animation</a>
+      </div>
+      <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
+        <span>Not finding what you want?</span>
+        <span class="anim-request-tile-action">Request an animation</span>
+      </a>`
+
+    this.animation_list_container.querySelectorAll<HTMLElement>('[data-animation-id].anim-item, [data-animation-id].anim-custom-item').forEach((row_element) => {
+      this.row_elements.set(row_element.getAttribute('data-animation-id') ?? '', row_element)
+    })
+    this.no_animations_message = this.animation_list_container.querySelector('.no-animations-message')
+    this.request_animation_tile = this.animation_list_container.querySelector('.anim-request-tile')
+
+    this.render_filtered_animations(this.filter_input?.value.toLowerCase() ?? '')
 
     // only so many WebM videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
@@ -470,7 +499,7 @@ export class AnimationSearch extends EventTarget {
   private setup_lazy_video_loading (): void {
     // Only set up IntersectionObserver if the container exists
     // any animation entry that is in view will run this code to convert it to a video element
-    const observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
+    this.lazy_video_observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
       entries.forEach(entry => {
         const placeholder = entry.target as HTMLElement
 
@@ -505,7 +534,7 @@ export class AnimationSearch extends EventTarget {
 
     // grabs all the animation list elements and tells the observer to start watching them for processing
     const placeholders = this.animation_list_container?.querySelectorAll('.anim-preview-placeholder')
-    placeholders?.forEach(ph => { observer.observe(ph) })
+    placeholders?.forEach(ph => { this.lazy_video_observer?.observe(ph) })
   }
 
   public animation_name_clean (input: string): string {
@@ -569,7 +598,7 @@ export class AnimationSearch extends EventTarget {
     })
 
     // Update all checkboxes in the UI
-    this.update_all_checkboxes_in_ui(new_state)
+    this.update_checkboxes_in_ui(visible_animations, new_state)
 
     // Save row state to ensure inputs are synced with backing animation state
     this.save_current_row_states()
@@ -590,14 +619,16 @@ export class AnimationSearch extends EventTarget {
     this.dispatchEvent(this.custom_event)
   }
 
-  private update_all_checkboxes_in_ui (checked_state: boolean): void {
-    if (this.animation_list_container === null) {
-      return
-    }
-
-    const checkboxes = this.animation_list_container.querySelectorAll('input[type="checkbox"]')
-    checkboxes.forEach((checkbox) => {
-      (checkbox as HTMLInputElement).checked = checked_state
+  // filtered-out rows stay in the DOM, so only touch the rows for the given animations
+  private update_checkboxes_in_ui (animations: AnimationWithState[], checked_state: boolean): void {
+    animations.forEach((animation) => {
+      const row_element = this.row_elements.get(animation.id)
+      const checkbox = row_element?.querySelector<HTMLInputElement>('input[type="checkbox"]')
+      if (row_element === undefined || checkbox === null || checkbox === undefined) {
+        return
+      }
+      checkbox.checked = checked_state
+      row_element.setAttribute('data-selected', checked_state ? 'true' : 'false')
     })
   }
 }
