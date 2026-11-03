@@ -46,6 +46,10 @@ export class StepLoadModel extends EventTarget {
   // controls whether to preserve all objects (bones, lights, etc.) or strip to meshes only
   private preserve_skinned_mesh: boolean = false
 
+  // the reference models in the drop-down are authored at the exact size of their skeleton
+  // template, so scaling them on import would leave the template misaligned (e.g. the 2.1m kaiju)
+  private is_reference_model: boolean = false
+
   // for debugging, let's count these to help us test performance things better
   vertex_count = 0
   triangle_count = 0
@@ -154,7 +158,7 @@ export class StepLoadModel extends EventTarget {
           const file_name = model_selection.options[model_selection.selectedIndex].value
           const file_extension: string = Utility.get_file_extension(file_name)
           this.source_file_name = file_name.split('/').pop() ?? file_name
-          this.load_model_file(file_name, file_extension)
+          this.load_model_file(file_name, file_extension, true)
         }
       })
     }
@@ -200,7 +204,10 @@ export class StepLoadModel extends EventTarget {
     this.preserve_skinned_mesh = preserve
   }
 
-  public load_model_file (model_file_path: string | ArrayBuffer | null, file_extension: string): void {
+  public load_model_file (model_file_path: string | ArrayBuffer | null, file_extension: string,
+    is_reference_model: boolean = false): void {
+    this.is_reference_model = is_reference_model
+
     // only the FBX loader can flag this, so clear it here or a previous broken FBX
     // would keep forcing the fallback material onto every model loaded after it
     this.mesh_has_broken_material = false
@@ -349,7 +356,9 @@ export class StepLoadModel extends EventTarget {
 
     // Some objects come in very large, which makes it harder to work with
     // scale everything down to a max height. mutate the clean scene object
-    ModelCleanupUtility.scale_model_on_import_if_extreme(clean_scene_with_only_models)
+    if (!this.is_reference_model) {
+      ModelCleanupUtility.scale_model_on_import_if_extreme(clean_scene_with_only_models)
+    }
 
     // preserved skinned meshes shouldn't be breaking apart mesh data
     // breaking apart skinned meshes converts it to a regular mesh which we don't want.

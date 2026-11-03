@@ -94,7 +94,7 @@ const rig_settings: RigSettings[] = [
       'psx-monster-03': { display_name: 'Monster 3', attribution: 'elbolilloduro', pelvis_position_scale: 1.05 },
       'psx-monster-04': { display_name: 'Monster 4', attribution: 'elbolilloduro', pelvis_position_scale: 1.55 },
       'psx-monster-05': { display_name: 'Monster 5', attribution: 'elbolilloduro', pelvis_position_scale: 1.12 },
-      sophia: { display_name: 'Sophia', attribution: 'Tysan Tan', license: 'CC-SA 4.0' },
+      sophia: { display_name: 'Sophia', attribution: 'Tysan Tan', license: 'CC-SA 4.0', pelvis_position_scale: 0.94 },
       jay: { display_name: 'Jay', attribution: 'Blender Studio', license: 'CC-BY' },
       sintel: { display_name: 'Sintel', attribution: 'Blender Studio', license: 'CC-BY' },
       bunny: { display_name: 'Bunny', attribution: 'Blender Studio', license: 'CC-BY', expand_arms: -30 }

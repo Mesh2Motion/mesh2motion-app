@@ -48,7 +48,7 @@ export class MarketingBootstrap {
         // if we previously swapped a variation model into scene, clear it first
         this.mesh2motion_engine.animations_listing_step.clear_variation_model_from_scene()
         this.mesh2motion_engine.load_model_step.clear_loaded_model_data()
-        this.mesh2motion_engine.load_model_step.load_model_file('../' + rig.model_file, 'glb')
+        this.mesh2motion_engine.load_model_step.load_model_file('../' + rig.model_file, 'glb', true)
         this.skeleton_type = rig.skeleton_type
         this.change_active_skeleton(model_button)
         this.model_variation_switcher.update_for_rig(rig.skeleton_type)
