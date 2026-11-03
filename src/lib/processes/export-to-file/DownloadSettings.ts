@@ -23,6 +23,12 @@ export enum FbxExportPreset {
   // Maya = 'maya'
 }
 
+// The exporter's 'unity' preset writes FrontAxisSign/CoordAxisSign = -1, which Unity reads
+// as a 180° turn, so exports faced backwards. '-Z' writes the standard Maya/Mixamo header.
+export function fbx_export_axis_overrides (preset: FbxExportPreset): { axisForward?: '-Z' } {
+  return preset === FbxExportPreset.Unity ? { axisForward: '-Z' } : {}
+}
+
 export class DownloadSettings extends EventTarget {
   private selected_bone_naming_structure: BoneNamingStructure = this.get_default_bone_naming_structure()
   private selected_export_contents: ExportContents = this.get_default_export_contents()

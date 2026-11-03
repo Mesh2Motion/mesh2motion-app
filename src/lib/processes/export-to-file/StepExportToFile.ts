@@ -2,7 +2,7 @@ import { UI } from '../../UI.ts'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { type AnimationClip, Scene, type SkinnedMesh, type Object3D } from 'three'
-import { type DownloadSettings, ExportContents, ExportFormat, type FbxExportPreset } from './DownloadSettings.ts'
+import { type DownloadSettings, ExportContents, ExportFormat, type FbxExportPreset, fbx_export_axis_overrides } from './DownloadSettings.ts'
 import { ExportBoneNamingService } from './ExportBoneNamingService.ts'
 import { ExportHierarchyService } from './ExportHierarchyService.ts'
 import { ExportAnimationCleanupService } from './ExportAnimationCleanupService.ts'
@@ -187,6 +187,7 @@ export class StepExportToFile extends EventTarget {
     try {
       const result = await this.fbx_exporter.parseAsync(exported_scene, {
         preset: fbx_export_preset,
+        ...fbx_export_axis_overrides(fbx_export_preset),
         includeAnimations: true,
         animations: animations_to_export,
         onlyVisible: false,

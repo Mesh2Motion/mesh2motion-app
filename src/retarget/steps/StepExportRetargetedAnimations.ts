@@ -4,7 +4,7 @@ import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { AnimationRetargetService } from '../AnimationRetargetService'
 import { AnimationUtility } from '../../lib/processes/animations-listing/AnimationUtility'
 import { type AnimationClipExportSelection } from '../../lib/processes/animations-listing/interfaces/AnimationExportSelection'
-import { type DownloadSettings, ExportContents, ExportFormat, type FbxExportPreset } from '../../lib/processes/export-to-file/DownloadSettings'
+import { type DownloadSettings, ExportContents, ExportFormat, type FbxExportPreset, fbx_export_axis_overrides } from '../../lib/processes/export-to-file/DownloadSettings'
 import { ExportBoneNamingService } from '../../lib/processes/export-to-file/ExportBoneNamingService'
 import { ExportHierarchyService } from '../../lib/processes/export-to-file/ExportHierarchyService'
 import { ExportAnimationCleanupService } from '../../lib/processes/export-to-file/ExportAnimationCleanupService'
@@ -165,6 +165,7 @@ export class StepExportRetargetedAnimations extends EventTarget {
     try {
       const result = await this.fbx_exporter.parseAsync(exported_scene, {
         preset: fbx_export_preset,
+        ...fbx_export_axis_overrides(fbx_export_preset),
         includeAnimations: true,
         animations: animations_to_export,
         onlyVisible: false,
