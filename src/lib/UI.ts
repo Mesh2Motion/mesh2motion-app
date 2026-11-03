@@ -61,6 +61,8 @@ export class UI {
   dom_preview_plane_height_label: HTMLElement | null = null
   dom_preview_plane_setting_container: HTMLElement | null = null
 
+  dom_model_pose_instructions: HTMLElement | null = null
+
   // arm plane controls
   dom_use_arm_plane_container: HTMLElement | null = null
   dom_arm_plane_checkbox: HTMLInputElement | null = null
@@ -195,6 +197,8 @@ export class UI {
     this.dom_preview_plane_height_input = document.querySelector('#preview-plane-height-input')
     this.dom_preview_plane_height_label = document.querySelector('#preview-plane-height-label')
     this.dom_preview_plane_setting_container = document.querySelector('#preview-plane-setting-container')
+
+    this.dom_model_pose_instructions = document.querySelector('#model-pose-instructions')
 
     // arm plane controls
     this.dom_use_arm_plane_container = document.querySelector('#use-arm-plane-container')

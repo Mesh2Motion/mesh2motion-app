@@ -503,6 +503,71 @@ option {
     row-gap: 0.4rem;
 }
 
+#model-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1.5rem 1rem;
+    border: 2px dashed var(--text-alternate);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-alternate) 60%, transparent);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+#model-drop-zone:hover,
+#model-drop-zone.drag-over {
+    border-color: var(--button-primary-bg);
+    background: var(--bg-alternate);
+}
+
+/* keep child elements from firing their own dragleave events while hovering over the zone */
+#model-drop-zone.drag-over * {
+    pointer-events: none;
+}
+
+#model-drop-zone .model-drop-zone-title {
+    font-size: 1.15rem;
+}
+
+#model-drop-zone .model-drop-zone-subtext {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--text-alternate);
+}
+
+#model-pose-instructions {
+    background-color: var(--bg-alternate);
+    border-left: 4px solid var(--button-primary-bg);
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+
+    /* keep the panel at its normal width. the undo/redo buttons are positioned against it */
+    max-width: 260px;
+    box-sizing: border-box;
+}
+
+#model-pose-instructions p {
+    margin: 0 0 0.5rem 0;
+}
+
+#model-pose-instructions .model-pose-instructions-heading {
+    font-size: 1.1rem;
+}
+
+#model-pose-instructions ol {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+#model-pose-instructions li {
+    display: list-item;
+    margin-bottom: 0.25rem;
+}
+
 #tool-panel {
     position: fixed;
     height: fit-content;

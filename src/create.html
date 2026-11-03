@@ -53,15 +53,16 @@
         <div id="load-model-tools">
           <!-- <p class="step-instructions">Supports GLB, GLTF, FBX</p> -->
 
-          <label
-            for="model-upload"
-            class="button"
-            data-tippy-content="GLB and FBX preferred. ZIP is for GLTF+BIN and textures separately. DAE+textures is also supported in ZIP format."
-          >
-            <span class="button-icon-group">
-              <img src="images/icons/upload.svg" alt="Upload" width="16" height="16" />
-              <span>Upload</span>
-              <img src="images/icons/help.svg" alt="Help" width="20" height="20" />
+          <!-- drop area for the model file. clicking anywhere in it also opens the file picker -->
+          <label id="model-drop-zone" for="model-upload">
+            <img src="images/icons/upload.svg" alt="" width="32" height="32" />
+            <span class="model-drop-zone-title">Drop your 3D model here</span>
+            <span class="model-drop-zone-subtext">or click to browse</span>
+            <span class="model-drop-zone-subtext">
+              GLB, FBX, or ZIP
+              <img
+                data-tippy-content="GLB and FBX preferred. ZIP is for GLTF+BIN and textures separately. DAE+textures is also supported in ZIP format."
+                src="images/icons/help.svg" alt="Help" width="16" height="16" />
             </span>
           </label>
           <input
@@ -206,6 +207,18 @@
           <!-- reference image for people to see example of rig fitting on a model -->
           <div id="skeleton-template-image" class="skeleton-template-image-clickable">
               <img class="skeleton-template-image-preview ignore-filters" src="images/icons/zoom.svg" alt="Preview image" width="20" height="20" />
+          </div>
+
+          <!-- posing tips. only shown for the human skeleton -->
+          <div id="model-pose-instructions">
+            <p class="model-pose-instructions-heading">Tips</p>
+            <p>The 3d models work best with a <strong>T-pose</strong> by default (arms straight out to the sides).</p>
+            <p>Using an <strong>A-pose</strong> model (arms angled down)?</p>
+            <ol>
+              <li>Set Positioning to <strong>Transform Widget</strong></li>
+              <li>Choose the <strong>Rotation</strong> transform</li>
+              <li>Select each shoulder / upper arm bone and rotate it down to line up with the arm</li>
+            </ol>
           </div>
 
           <div style="display: flex; flex-direction: column;">

@@ -124,15 +124,8 @@ export class StepLoadModel extends EventTarget {
       // handle file upload
       this.ui.dom_upload_model_button.addEventListener('change', (event: Event) => {
         const file = event.target.files[0]
-        const file_extension: string = Utility.get_file_extension(file.name)
-        this.source_file_name = file.name
-
-        const reader = new FileReader()
-        reader.readAsDataURL(file)
-        reader.onload = () => {
-          console.log('File reader loaded', reader)
-          this.load_model_file(reader.result, file_extension)
-        }
+        if (file === undefined) return
+        this.load_uploaded_file(file)
       })
 
       // iOS has a weird issue with accepted file extensions, so we need to just
@@ -141,6 +134,8 @@ export class StepLoadModel extends EventTarget {
         this.ui.dom_upload_model_button.setAttribute('accept', '*/*')
       }
     }
+
+    this.add_drop_zone_event_listeners()
 
     if (this.ui.dom_load_model_debug_checkbox !== null) {
       this.ui.dom_load_model_debug_checkbox.addEventListener('change', (event: Event) => {
@@ -161,6 +156,51 @@ export class StepLoadModel extends EventTarget {
           this.load_model_file(file_name, file_extension, true)
         }
       })
+    }
+  }
+
+  private add_drop_zone_event_listeners (): void {
+    const drop_zone = document.querySelector<HTMLElement>('#model-drop-zone')
+    if (drop_zone === null) return
+
+    drop_zone.addEventListener('dragover', (event: DragEvent) => {
+      event.preventDefault()
+      drop_zone.classList.add('drag-over')
+    })
+
+    drop_zone.addEventListener('dragleave', () => {
+      drop_zone.classList.remove('drag-over')
+    })
+
+    drop_zone.addEventListener('drop', (event: DragEvent) => {
+      event.preventDefault()
+      drop_zone.classList.remove('drag-over')
+
+      const file = event.dataTransfer?.files[0]
+      if (file === undefined) return
+      this.load_uploaded_file(file)
+    })
+
+    // a file dropped outside the drop zone would make the browser navigate away
+    // and open it, which loses all progress. swallow those drops instead
+    window.addEventListener('dragover', (event: DragEvent) => { event.preventDefault() })
+    window.addEventListener('drop', (event: DragEvent) => { event.preventDefault() })
+  }
+
+  private load_uploaded_file (file: File): void {
+    const file_extension: string = Utility.get_file_extension(file.name).toLowerCase()
+    if (!['glb', 'fbx', 'zip'].includes(file_extension)) {
+      new ModalDialog('Unsupported file type', 'Please use a GLB, FBX, or ZIP (GLTF+BIN) file.').show()
+      return
+    }
+
+    this.source_file_name = file.name
+
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = () => {
+      console.log('File reader loaded', reader)
+      this.load_model_file(reader.result, file_extension)
     }
   }
 

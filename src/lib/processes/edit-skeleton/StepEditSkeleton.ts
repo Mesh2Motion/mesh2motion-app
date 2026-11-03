@@ -125,6 +125,11 @@ export class StepEditSkeleton extends EventTarget {
       }
     }
 
+    // T-pose / A-pose tips only apply to the human skeleton
+    if (this.ui.dom_model_pose_instructions != null) {
+      this.ui.dom_model_pose_instructions.style.display = skeleton_type === SkeletonType.Human ? 'block' : 'none'
+    }
+
     // only human skeletons have the arm plane correction option
     if (this.ui.dom_use_arm_plane_container != null) {
       if (skeleton_type === SkeletonType.Human) {
