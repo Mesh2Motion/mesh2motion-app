@@ -140,8 +140,11 @@ export class ModelVariationSwitcher extends EventTarget {
 
     grid.innerHTML = '' // reset whatever was there before
 
+    // show tiles alphabetically. Sort a copy so the rig's default (first) variation is unchanged
+    const sorted_variations = [...variations].sort((a, b) => a.display_name.localeCompare(b.display_name))
+
     // create tiles for each variation item
-    for (const variation of variations) {
+    for (const variation of sorted_variations) {
       const card = document.createElement('div')
       card.className = 'variation-card'
 
