@@ -118,7 +118,18 @@ export class Utility {
   }
 
   /**
-   * The point halfway between a bone's start joint and its first child's joint.
+   * The child joint that marks where this bone ends. A leaf/tip child exists
+   * only to orient its parent, so it wins over branching children — e.g.
+   * mouth_upper -> [mouth_lower, mouth_upper_tip] or fox nose -> [ear_1_l, ..., head_tip].
+   * Otherwise falls back to the first child.
+   */
+  static primary_child_bone (bone: Bone): Bone | undefined {
+    const child_bones = bone.children.filter((c): c is Bone => c instanceof Bone)
+    return child_bones.find(c => Utility.is_leaf_bone(c)) ?? child_bones[0]
+  }
+
+  /**
+   * The point halfway between a bone's start joint and its primary child's joint.
    * This is the reference point the skinning solvers measure vertex distances
    * against — a bone's "center of mass" rather than its start joint, which
    * keeps long bones from losing vertices to their neighbors.
@@ -126,11 +137,10 @@ export class Utility {
    */
   static bone_midpoint_to_child (bone: Bone): Vector3 {
     const bone_position = Utility.world_position_from_object(bone)
-    if (bone.children.length === 0) {
+    const child = Utility.primary_child_bone(bone)
+    if (child === undefined) {
       return bone_position.clone()
     }
-    // Assume first child is the relevant one
-    const child = bone.children[0] as Bone
     const child_position = Utility.world_position_from_object(child)
     return new Vector3().lerpVectors(bone_position, child_position, 0.5)
   }
@@ -308,7 +318,7 @@ export class Utility {
       // if bone has a child, we are going to calculate the distance by getting the half way
       // point between bone and child bone...to hopefully yield better results
       if (bone.has_child_bone) {
-        const child_bone: Bone = bone.bone_object.children[0] as Bone
+        const child_bone: Bone = Utility.primary_child_bone(bone.bone_object) ?? bone.bone_object.children[0] as Bone
         const child_bone_position: Vector3 = Utility.world_position_from_object(child_bone)
         const bone_position: Vector3 = Utility.world_position_from_object(bone.bone_object)
         const half_way_point: Vector3 = bone_position.add(child_bone_position).divideScalar(2)

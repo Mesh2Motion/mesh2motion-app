@@ -86,8 +86,9 @@ export class ExtremityWeightCorrector {
       // Axis points from the start joint toward the child (down the finger).
       // For leaf bones with no child, use the direction away from the parent.
       let direction: Vector3
-      if (bone.children.length > 0) {
-        const child_head = Utility.world_position_from_object(bone.children[0] as Bone)
+      const primary_child = Utility.primary_child_bone(bone)
+      if (primary_child !== undefined) {
+        const child_head = Utility.world_position_from_object(primary_child)
         direction = Utility.direction_between_points(head, child_head)
       } else {
         const parent_head = Utility.world_position_from_object(parent as Bone)
