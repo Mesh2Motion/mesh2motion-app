@@ -1,85 +1,129 @@
 {
   "version": 1,
-  "generated": "2026-10-31T17:56:29.950Z",
+  "generated": "2026-11-06T20:41:49.612Z",
   "rigs": {
     "bird": {
       "fps": 24,
       "model": {
         "file": "bird/model.glb",
-        "hash": "5775d5ed40db5af2"
+        "hash": "dd13844423b47525"
       },
       "skeleton": {
         "file": "bird/skeleton.glb",
-        "hash": "8cc46fa2710e1c22"
+        "hash": "4b81a922c963a12a"
       },
       "variations": [
         {
           "name": "eagle",
           "file": "bird/variations/eagle.glb",
-          "hash": "5267c5709a5241d8",
+          "hash": "e6a4967e00cca98e",
           "source": "rig-variations/bird-eagle.blend"
         },
         {
           "name": "seagull",
           "file": "bird/variations/seagull.glb",
-          "hash": "736345231cc3e68b",
+          "hash": "ece6abb2400c6267",
           "source": "rig-variations/bird-seagull.blend"
         }
       ],
       "animations": [
         {
-          "name": "Flap",
-          "file": "bird/animations/flap.glb",
-          "hash": "5d8452e583300f64",
+          "name": "Hop",
+          "file": "bird/animations/hop.glb",
+          "hash": "b12efab1da122766",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 20,
+          "duration": 0.7917,
+          "source": "rigs/bird/WIP-animation-bird-hop.blend"
+        },
+        {
+          "name": "Death",
+          "file": "bird/animations/death.glb",
+          "hash": "222be7d3c50e9626",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 15,
-          "duration": 0.5833,
+          "frame_count": 41,
+          "duration": 1.6667,
+          "source": "rigs/bird/animation-bird-death.blend"
+        },
+        {
+          "name": "Flap",
+          "file": "bird/animations/flap.glb",
+          "hash": "9e0eb76dbd17029a",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 14,
+          "duration": 0.5417,
           "source": "rigs/bird/animation-bird-flap.blend"
         },
         {
           "name": "Glide",
           "file": "bird/animations/glide.glb",
-          "hash": "7fa34fda2fe440ac",
+          "hash": "383c754618b6bf23",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
-          "frame_count": 15,
-          "duration": 0.5833,
+          "frame_count": 14,
+          "duration": 0.5417,
           "source": "rigs/bird/animation-bird-glide.blend"
         },
         {
           "name": "Idle",
           "file": "bird/animations/idle.glb",
-          "hash": "135bba74f53f4649",
+          "hash": "2ec6e177a217ebb7",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 29,
+          "duration": 1.1667,
+          "source": "rigs/bird/animation-bird-idle.blend"
+        },
+        {
+          "name": "Land",
+          "file": "bird/animations/land.glb",
+          "hash": "03d71e61b51de312",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 30,
-          "duration": 1.2083,
-          "source": "rigs/bird/animation-bird-idle.blend"
+          "frame_count": 41,
+          "duration": 1.6667,
+          "source": "rigs/bird/animation-bird-land.blend"
         },
         {
           "name": "Rest Pose",
           "file": "bird/animations/rest-pose.glb",
-          "hash": "b953e5d034e867c5",
+          "hash": "bfa703cd256164ae",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 10,
-          "duration": 0.375,
+          "frame_count": 9,
+          "duration": 0.3333,
           "source": "rigs/bird/animation-bird-rest-pose.blend"
+        },
+        {
+          "name": "Take_Off",
+          "file": "bird/animations/take-off.glb",
+          "hash": "c759b780bf6b4af2",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 33,
+          "duration": 1.3333,
+          "source": "rigs/bird/animation-bird-take-off.blend"
         },
         {
           "name": "Walk",
           "file": "bird/animations/walk.glb",
-          "hash": "99d66edec8958223",
+          "hash": "fceb6857e9930b67",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
-          "frame_count": 12,
-          "duration": 0.4583,
+          "frame_count": 11,
+          "duration": 0.4167,
           "source": "rigs/bird/animation-bird-walk.blend"
         }
       ]
@@ -88,205 +132,18 @@
       "fps": 24,
       "model": {
         "file": "dragon/model.glb",
-        "hash": "b8fbce93f561d23c"
+        "hash": "ef7210fa742197fc"
       },
       "skeleton": {
         "file": "dragon/skeleton.glb",
-        "hash": "7f8866c6901def6b"
+        "hash": "612125877851828d"
       },
       "variations": [],
       "animations": [
         {
-          "name": "Combat Idle",
-          "file": "dragon/animations/combat-idle.glb",
-          "hash": "3d238afe652c45f9",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 64,
-          "duration": 2.625,
-          "source": "rigs/dragon/WIP-animation-dragon-combat-idle.blend"
-        },
-        {
-          "name": "Death",
-          "file": "dragon/animations/death.glb",
-          "hash": "95bb5c3a819d9f7d",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 85,
-          "duration": 3.5,
-          "source": "rigs/dragon/WIP-animation-dragon-death.blend"
-        },
-        {
-          "name": "Dive Attack",
-          "file": "dragon/animations/dive-attack.glb",
-          "hash": "629b5a75ab9a323b",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 40,
-          "duration": 1.625,
-          "source": "rigs/dragon/WIP-animation-dragon-dive-attack.blend"
-        },
-        {
-          "name": "Eat",
-          "file": "dragon/animations/eat.glb",
-          "hash": "76cf0f6f8f401d7a",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 72,
-          "duration": 2.9583,
-          "source": "rigs/dragon/WIP-animation-dragon-eat.blend"
-        },
-        {
-          "name": "Fly Death",
-          "file": "dragon/animations/fly-death.glb",
-          "hash": "aeba9c6ce70b5d04",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 49,
-          "duration": 2,
-          "source": "rigs/dragon/WIP-animation-dragon-fly-death.blend"
-        },
-        {
-          "name": "Fly Fire Breath",
-          "file": "dragon/animations/fly-fire.glb",
-          "hash": "07913f2061df3e62",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 48,
-          "duration": 1.9583,
-          "source": "rigs/dragon/WIP-animation-dragon-fly-fire.blend"
-        },
-        {
-          "name": "Fly Hit",
-          "file": "dragon/animations/fly-hit.glb",
-          "hash": "c2063543dfc4ba08",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 24,
-          "duration": 0.9583,
-          "source": "rigs/dragon/WIP-animation-dragon-fly-hit.blend"
-        },
-        {
-          "name": "Hit",
-          "file": "dragon/animations/hit.glb",
-          "hash": "4cf7883248f739ce",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 22,
-          "duration": 0.875,
-          "source": "rigs/dragon/WIP-animation-dragon-hit.blend"
-        },
-        {
-          "name": "Hover",
-          "file": "dragon/animations/hover.glb",
-          "hash": "e0d5b1c70839df23",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 24,
-          "duration": 0.9583,
-          "source": "rigs/dragon/WIP-animation-dragon-hover.blend"
-        },
-        {
-          "name": "Land",
-          "file": "dragon/animations/land.glb",
-          "hash": "051f95c155a3ad2c",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
-          "source": "rigs/dragon/WIP-animation-dragon-land.blend"
-        },
-        {
-          "name": "Run",
-          "file": "dragon/animations/run.glb",
-          "hash": "47e222217959dac4",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 16,
-          "duration": 0.625,
-          "source": "rigs/dragon/WIP-animation-dragon-run.blend"
-        },
-        {
-          "name": "Sleep",
-          "file": "dragon/animations/sleep.glb",
-          "hash": "3fad0619dcf9f6fe",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 96,
-          "duration": 3.9583,
-          "source": "rigs/dragon/WIP-animation-dragon-sleep.blend"
-        },
-        {
-          "name": "Tail Swipe",
-          "file": "dragon/animations/tail-swipe.glb",
-          "hash": "68f8aeeb190080f5",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 44,
-          "duration": 1.7917,
-          "source": "rigs/dragon/WIP-animation-dragon-tail-swipe.blend"
-        },
-        {
-          "name": "Take Off",
-          "file": "dragon/animations/take-off.glb",
-          "hash": "3ebd17dc34d05a23",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
-          "source": "rigs/dragon/WIP-animation-dragon-take-off.blend"
-        },
-        {
-          "name": "Taunt",
-          "file": "dragon/animations/taunt.glb",
-          "hash": "955e5400f8b4e55f",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 60,
-          "duration": 2.4583,
-          "source": "rigs/dragon/WIP-animation-dragon-taunt.blend"
-        },
-        {
-          "name": "Wake Up",
-          "file": "dragon/animations/wake-up.glb",
-          "hash": "c5d48025a2d06c1e",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 77,
-          "duration": 3.1667,
-          "source": "rigs/dragon/WIP-animation-dragon-wake-up.blend"
-        },
-        {
-          "name": "Wing Buffet",
-          "file": "dragon/animations/wing-buffet.glb",
-          "hash": "badf25c45bafa7c0",
-          "tags": [],
-          "loop": false,
-          "root_motion": false,
-          "frame_count": 50,
-          "duration": 2.0417,
-          "source": "rigs/dragon/WIP-animation-dragon-wing-buffet.blend"
-        },
-        {
           "name": "Attack",
           "file": "dragon/animations/attack.glb",
-          "hash": "c5a25c943c94dd23",
+          "hash": "78fcfb869e5b3f47",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -295,31 +152,42 @@
           "source": "rigs/dragon/animation-dragon-attack.blend"
         },
         {
-          "name": "Fire_Breath",
-          "file": "dragon/animations/fire-breath.glb",
-          "hash": "9ab665f34eb6724a",
+          "name": "Death",
+          "file": "dragon/animations/death.glb",
+          "hash": "26f1bb0bed2ad3e2",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 60,
-          "duration": 2.4583,
+          "frame_count": 101,
+          "duration": 4.1667,
+          "source": "rigs/dragon/animation-dragon-death.blend"
+        },
+        {
+          "name": "Fire_Breath",
+          "file": "dragon/animations/fire-breath.glb",
+          "hash": "cafa0ae4becfa994",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 76,
+          "duration": 3.125,
           "source": "rigs/dragon/animation-dragon-fire-breath.blend"
         },
         {
           "name": "Fly Flap",
           "file": "dragon/animations/fly-flap.glb",
-          "hash": "4f8f028fded95d8f",
+          "hash": "f88bfed6ea026dab",
           "tags": [],
           "loop": true,
           "root_motion": false,
-          "frame_count": 18,
-          "duration": 0.7083,
+          "frame_count": 32,
+          "duration": 1.2917,
           "source": "rigs/dragon/animation-dragon-fly-flap.blend"
         },
         {
           "name": "Fly Glide",
           "file": "dragon/animations/fly-glide.glb",
-          "hash": "4a0b8ab56f0ea3cf",
+          "hash": "7622d36bf49a240e",
           "tags": [],
           "loop": true,
           "root_motion": false,
@@ -328,9 +196,20 @@
           "source": "rigs/dragon/animation-dragon-fly-glide.blend"
         },
         {
+          "name": "Hurt",
+          "file": "dragon/animations/hurt.glb",
+          "hash": "15b4248ff7203a76",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 30,
+          "duration": 1.2083,
+          "source": "rigs/dragon/animation-dragon-hurt.blend"
+        },
+        {
           "name": "Idle",
           "file": "dragon/animations/idle.glb",
-          "hash": "d41a92fa52c4de5b",
+          "hash": "bd31e05fcac6d6bf",
           "tags": [],
           "loop": true,
           "root_motion": false,
@@ -339,9 +218,20 @@
           "source": "rigs/dragon/animation-dragon-idle.blend"
         },
         {
+          "name": "Land",
+          "file": "dragon/animations/land.glb",
+          "hash": "1fff2da048e3e927",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 91,
+          "duration": 3.75,
+          "source": "rigs/dragon/animation-dragon-land.blend"
+        },
+        {
           "name": "Rest Pose",
           "file": "dragon/animations/rest-pose.glb",
-          "hash": "b6e1383567db54b6",
+          "hash": "2e618f7a9f23a494",
           "tags": [],
           "loop": true,
           "root_motion": false,
@@ -352,7 +242,7 @@
         {
           "name": "Roar",
           "file": "dragon/animations/roar.glb",
-          "hash": "a83d0742631a2c71",
+          "hash": "bd0e54dd113bbe3d",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -361,9 +251,20 @@
           "source": "rigs/dragon/animation-dragon-roar.blend"
         },
         {
+          "name": "Take_Off",
+          "file": "dragon/animations/take-off.glb",
+          "hash": "c54918c99fb0ceb0",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 81,
+          "duration": 3.3333,
+          "source": "rigs/dragon/animation-dragon-take-off.blend"
+        },
+        {
           "name": "Walk",
           "file": "dragon/animations/walk.glb",
-          "hash": "f52843065836607a",
+          "hash": "54e4b134972b5e33",
           "tags": [],
           "loop": true,
           "root_motion": false,
@@ -374,44 +275,44 @@
       ]
     },
     "fox": {
-      "fps": 30,
+      "fps": 24,
       "model": {
         "file": "fox/model.glb",
-        "hash": "a396acba0a0a9ac1"
+        "hash": "b4aa9fdfeb70e248"
       },
       "skeleton": {
         "file": "fox/skeleton.glb",
-        "hash": "6ba196ca1f6ffb68"
+        "hash": "495e98bc3d36e103"
       },
       "variations": [
         {
           "name": "base",
           "file": "fox/variations/base.glb",
-          "hash": "bb309d0ce4f3fcfd",
+          "hash": "b49a8f74c53aa905",
           "source": "rig-variations/fox-base.blend"
         },
         {
           "name": "cat",
           "file": "fox/variations/cat.glb",
-          "hash": "69ee899b194ca5eb",
+          "hash": "00c663dcfbd5d774",
           "source": "rig-variations/fox-cat.blend"
         },
         {
           "name": "dog",
           "file": "fox/variations/dog.glb",
-          "hash": "f5eaafd8be1cb6a4",
+          "hash": "aeb01fa780ba63b1",
           "source": "rig-variations/fox-dog.blend"
         },
         {
           "name": "horse",
           "file": "fox/variations/horse.glb",
-          "hash": "47b60203428095e4",
+          "hash": "5641c2283b2553e1",
           "source": "rig-variations/fox-horse.blend"
         },
         {
           "name": "panda",
           "file": "fox/variations/panda.glb",
-          "hash": "a5915c86626a6a7d",
+          "hash": "03ddb2317e14748a",
           "source": "rig-variations/fox-panda.blend"
         }
       ],
@@ -419,166 +320,232 @@
         {
           "name": "Bark",
           "file": "fox/animations/bark.glb",
-          "hash": "691312cfafac5aec",
+          "hash": "a1c952ac1d90058a",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 84,
-          "duration": 2.7667,
+          "frame_count": 67,
+          "duration": 2.75,
           "source": "rigs/fox/animation-fox-bark.blend"
         },
         {
           "name": "Bite",
           "file": "fox/animations/bite.glb",
-          "hash": "d069bb1b981d8851",
+          "hash": "cbf12c8dfb855ddb",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 26,
+          "frame_count": 21,
           "duration": 0.8333,
           "source": "rigs/fox/animation-fox-bite.blend"
         },
         {
           "name": "Death",
           "file": "fox/animations/death.glb",
-          "hash": "a042b6e0b248dd65",
+          "hash": "1848ac3b7010822e",
           "tags": [],
           "loop": false,
           "root_motion": false,
           "frame_count": 35,
-          "duration": 1.1333,
+          "duration": 1.4167,
           "source": "rigs/fox/animation-fox-death.blend"
         },
         {
           "name": "Fall",
           "file": "fox/animations/fall.glb",
-          "hash": "1f0db1dc7ec7e1ef",
+          "hash": "2ff332965a353df7",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 16,
+          "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/fox/animation-fox-fall.blend"
         },
         {
           "name": "Fetch",
           "file": "fox/animations/fetch.glb",
-          "hash": "5f50c568ab357086",
+          "hash": "46d4ef65fa2f475b",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 30,
-          "duration": 0.9667,
+          "frame_count": 29,
+          "duration": 1.1667,
           "source": "rigs/fox/animation-fox-fetch.blend"
         },
         {
           "name": "Flip",
           "file": "fox/animations/flip.glb",
-          "hash": "c4e1f92a6e4e2957",
+          "hash": "2f32e893e9b1622a",
           "tags": [],
           "loop": false,
           "root_motion": false,
           "frame_count": 89,
-          "duration": 2.9333,
+          "duration": 3.6667,
           "source": "rigs/fox/animation-fox-flip.blend"
         },
         {
           "name": "Howl",
           "file": "fox/animations/howl.glb",
-          "hash": "77f6e390230a5bc3",
+          "hash": "f62d1ac2b8a1cd6c",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 70,
-          "duration": 2.3,
+          "frame_count": 69,
+          "duration": 2.8333,
           "source": "rigs/fox/animation-fox-howl.blend"
         },
         {
           "name": "Idle Alert",
           "file": "fox/animations/idle-alert.glb",
-          "hash": "57ba06e80fca4b21",
+          "hash": "e930090b8b2b74fe",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
-          "frame_count": 49,
-          "duration": 1.6,
+          "frame_count": 48,
+          "duration": 1.9583,
           "source": "rigs/fox/animation-fox-idle-alert.blend"
         },
         {
           "name": "Idle",
           "file": "fox/animations/idle.glb",
-          "hash": "8c9d0c507832d861",
+          "hash": "984b1c44b6ab6399",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
           "frame_count": 40,
-          "duration": 1.3,
+          "duration": 1.625,
           "source": "rigs/fox/animation-fox-idle.blend"
         },
         {
           "name": "Jump",
           "file": "fox/animations/jump.glb",
-          "hash": "1a8f227a6e720ad7",
+          "hash": "3f236b3020204717",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 66,
-          "duration": 2.1667,
+          "frame_count": 52,
+          "duration": 2.125,
           "source": "rigs/fox/animation-fox-jump.blend"
+        },
+        {
+          "name": "Play Bow",
+          "file": "fox/animations/play-bow.glb",
+          "hash": "b72c060154dc11b3",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 100,
+          "duration": 4.125,
+          "source": "rigs/fox/animation-fox-play-bow.blend"
         },
         {
           "name": "Rest Pose",
           "file": "fox/animations/rest-pose.glb",
-          "hash": "f02b4e8bbb131d16",
+          "hash": "cdc4bda34a50eea3",
           "tags": [],
           "loop": true,
           "root_motion": false,
-          "frame_count": 9,
-          "duration": 0.2667,
+          "frame_count": 7,
+          "duration": 0.25,
           "source": "rigs/fox/animation-fox-rest-pose.blend"
         },
         {
           "name": "Run",
           "file": "fox/animations/run.glb",
-          "hash": "01a3f25fc1be6e0b",
+          "hash": "01afc506c2a74c5b",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 14,
+          "duration": 0.5417,
+          "source": "rigs/fox/animation-fox-run.blend"
+        },
+        {
+          "name": "Scratch_Ear",
+          "file": "fox/animations/scratch-ear.glb",
+          "hash": "14446de395015b5d",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 14,
-          "duration": 0.4333,
-          "source": "rigs/fox/animation-fox-run.blend"
+          "frame_count": 81,
+          "duration": 3.3333,
+          "source": "rigs/fox/animation-fox-scratch-ear.blend"
+        },
+        {
+          "name": "Shake_Off",
+          "file": "fox/animations/shake-off.glb",
+          "hash": "4812ad4fb3434e41",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 90,
+          "duration": 3.7083,
+          "source": "rigs/fox/animation-fox-shake-off.blend"
         },
         {
           "name": "Sit",
           "file": "fox/animations/sit.glb",
-          "hash": "3bbc4c016eeae219",
+          "hash": "e7c5182f3514baff",
           "tags": [],
           "loop": false,
           "root_motion": false,
           "frame_count": 40,
-          "duration": 1.3,
+          "duration": 1.625,
           "source": "rigs/fox/animation-fox-sit.blend"
+        },
+        {
+          "name": "Sleep",
+          "file": "fox/animations/sleep.glb",
+          "hash": "ac96d9d30319690c",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 181,
+          "duration": 7.5,
+          "source": "rigs/fox/animation-fox-sleep.blend"
         },
         {
           "name": "Sneak",
           "file": "fox/animations/sneak.glb",
-          "hash": "22a09a3b62eeb231",
+          "hash": "57f32d50144afd6d",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
           "frame_count": 39,
-          "duration": 1.2667,
+          "duration": 1.5833,
           "source": "rigs/fox/animation-fox-sneak.blend"
+        },
+        {
+          "name": "Swim",
+          "file": "fox/animations/swim.glb",
+          "hash": "ab19ef2abaac0cc3",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 20,
+          "duration": 0.7917,
+          "source": "rigs/fox/animation-fox-swim.blend"
+        },
+        {
+          "name": "Trot",
+          "file": "fox/animations/trot.glb",
+          "hash": "2722121897e1a77b",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 16,
+          "duration": 0.625,
+          "source": "rigs/fox/animation-fox-trot.blend"
         },
         {
           "name": "Walk",
           "file": "fox/animations/walk.glb",
-          "hash": "31ada2449733c497",
+          "hash": "4ae1ada4c1f5a311",
           "tags": [],
-          "loop": false,
+          "loop": true,
           "root_motion": false,
-          "frame_count": 31,
-          "duration": 1,
+          "frame_count": 23,
+          "duration": 0.9167,
           "source": "rigs/fox/animation-fox-walk.blend"
         }
       ]
@@ -587,29 +554,29 @@
       "fps": 30,
       "model": {
         "file": "horse/model.glb",
-        "hash": "8f0102b26e22be3c"
+        "hash": "7d783e721e611f36"
       },
       "skeleton": {
         "file": "horse/skeleton.glb",
-        "hash": "e263cd83ed69e97a"
+        "hash": "52205da7fe180af9"
       },
       "variations": [],
       "animations": [
         {
           "name": "Death",
           "file": "horse/animations/death.glb",
-          "hash": "23db7b69eeb82cf4",
+          "hash": "809de4ce00ab0116",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 43,
-          "duration": 1.4,
+          "frame_count": 46,
+          "duration": 1.5,
           "source": "rigs/horse/animation-horse-death.blend"
         },
         {
           "name": "Eating",
           "file": "horse/animations/eating.glb",
-          "hash": "1ed03a49a2ed0de9",
+          "hash": "b93645e5006db93e",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -620,7 +587,7 @@
         {
           "name": "Head_But",
           "file": "horse/animations/headbut.glb",
-          "hash": "08615fcd691cf45d",
+          "hash": "d83e829bf45e7eba",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -631,7 +598,7 @@
         {
           "name": "Idle",
           "file": "horse/animations/idle.glb",
-          "hash": "647830b45ce87f8d",
+          "hash": "ae3d45d7f1a5ff05",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -642,7 +609,7 @@
         {
           "name": "Kick",
           "file": "horse/animations/kick.glb",
-          "hash": "aec4073919dd9380",
+          "hash": "eb9f2d7b374173d5",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -653,7 +620,7 @@
         {
           "name": "lay_to_idle",
           "file": "horse/animations/lay-to-idle.glb",
-          "hash": "9dba9f33538d0d42",
+          "hash": "d1ed0345b34af59a",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -664,7 +631,7 @@
         {
           "name": "Rear",
           "file": "horse/animations/rear.glb",
-          "hash": "7f3920dc6f0d6d8d",
+          "hash": "b052846c446b4fe1",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -675,18 +642,18 @@
         {
           "name": "Rest_Pose",
           "file": "horse/animations/rest-pose.glb",
-          "hash": "39f17b6cb4e505ec",
+          "hash": "8a80f2f94c88ca67",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 5,
-          "duration": 0.1333,
+          "frame_count": 29,
+          "duration": 0.9333,
           "source": "rigs/horse/animation-horse-rest-pose.blend"
         },
         {
           "name": "Run",
           "file": "horse/animations/run.glb",
-          "hash": "6775ee1da94519ad",
+          "hash": "72a2a316ace776bf",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -697,7 +664,7 @@
         {
           "name": "Sleep",
           "file": "horse/animations/sleep.glb",
-          "hash": "7b29a1255a825768",
+          "hash": "dd794766bc65b247",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -708,7 +675,7 @@
         {
           "name": "Trot",
           "file": "horse/animations/trot.glb",
-          "hash": "07129a68c9d1244e",
+          "hash": "0e92681cd48020f3",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -719,7 +686,7 @@
         {
           "name": "Turn_Left",
           "file": "horse/animations/turn-left.glb",
-          "hash": "9e321c5edb6a7d93",
+          "hash": "0ae51f6ca643fe33",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -730,7 +697,7 @@
         {
           "name": "Turn_Right",
           "file": "horse/animations/turn-right.glb",
-          "hash": "10789723dc1572d2",
+          "hash": "7e09ed5583e9f02f",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -741,7 +708,7 @@
         {
           "name": "Walk",
           "file": "horse/animations/walk.glb",
-          "hash": "bf8b64b1dfed1436",
+          "hash": "f22c4f5c59af7e36",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -755,185 +722,185 @@
       "fps": 24,
       "model": {
         "file": "human/model.glb",
-        "hash": "5ae502131a9ed978"
+        "hash": "bce15f56f0ca4daf"
       },
       "skeleton": {
         "file": "human/skeleton.glb",
-        "hash": "ad2b45b8d0032f38"
+        "hash": "1784d9aa20e24dee"
       },
       "variations": [
         {
           "name": "base",
           "file": "human/variations/base.glb",
-          "hash": "05dd7e6b115c5e97",
+          "hash": "0f4d69ed8c9a8b7f",
           "source": "rig-variations/human-base.blend"
         },
         {
           "name": "bunny",
           "file": "human/variations/bunny.glb",
-          "hash": "2517cd483fee5b85",
+          "hash": "149d8658c6b2acbd",
           "source": "rig-variations/human-bunny.blend"
         },
         {
           "name": "jay",
           "file": "human/variations/jay.glb",
-          "hash": "f002e80b0fe6e32d",
+          "hash": "3273da3e250a3052",
           "source": "rig-variations/human-jay.blend"
         },
         {
           "name": "mannequin-female",
           "file": "human/variations/mannequin-female.glb",
-          "hash": "8a9c157a22ca4240",
+          "hash": "9fefe4da6f377763",
           "source": "rig-variations/human-mannequin-female.blend"
         },
         {
           "name": "psx-05",
           "file": "human/variations/psx-05.glb",
-          "hash": "a746a340078176d4",
+          "hash": "db85dc8b5889f001",
           "source": "rig-variations/human-psx-05.blend"
         },
         {
           "name": "psx-06",
           "file": "human/variations/psx-06.glb",
-          "hash": "db76284962962345",
+          "hash": "ff36be351b114b93",
           "source": "rig-variations/human-psx-06.blend"
         },
         {
           "name": "psx-10",
           "file": "human/variations/psx-10.glb",
-          "hash": "647da8eb97a1540e",
+          "hash": "65e434eae04e8738",
           "source": "rig-variations/human-psx-10.blend"
         },
         {
           "name": "psx-15",
           "file": "human/variations/psx-15.glb",
-          "hash": "b2e1cae4e115813c",
+          "hash": "f300943c83bba5cf",
           "source": "rig-variations/human-psx-15.blend"
         },
         {
           "name": "psx-17-female-police",
           "file": "human/variations/psx-17-female-police.glb",
-          "hash": "d4a6b9c1595134ed",
+          "hash": "ffdc330a24aed21d",
           "source": "rig-variations/human-psx-17-female-police.blend"
         },
         {
           "name": "psx-18-police",
           "file": "human/variations/psx-18-police.glb",
-          "hash": "d9f379408069161c",
+          "hash": "4b2d60c7b3bb1ceb",
           "source": "rig-variations/human-psx-18-police.blend"
         },
         {
           "name": "psx-21-police",
           "file": "human/variations/psx-21-police.glb",
-          "hash": "1330214c12c5db6f",
+          "hash": "507e1be225ac3320",
           "source": "rig-variations/human-psx-21-police.blend"
         },
         {
           "name": "psx-26-doctor",
           "file": "human/variations/psx-26-doctor.glb",
-          "hash": "b40779d9351ae109",
+          "hash": "48b53789b03ed2ac",
           "source": "rig-variations/human-psx-26-doctor.blend"
         },
         {
           "name": "psx-28-female-hm",
           "file": "human/variations/psx-28-female-hm.glb",
-          "hash": "32d85e72f612836d",
+          "hash": "a1015028852a6067",
           "source": "rig-variations/human-psx-28-female-hm.blend"
         },
         {
           "name": "psx-28-hm",
           "file": "human/variations/psx-28-hm.glb",
-          "hash": "b7bda35c9254c125",
+          "hash": "7f7723e216814625",
           "source": "rig-variations/human-psx-28-hm.blend"
         },
         {
           "name": "psx-31-female",
           "file": "human/variations/psx-31-female.glb",
-          "hash": "0091a941fceaf821",
+          "hash": "f29a577408280b28",
           "source": "rig-variations/human-psx-31-female.blend"
         },
         {
           "name": "psx-32",
           "file": "human/variations/psx-32.glb",
-          "hash": "af2ea138b17ecc5f",
+          "hash": "e5edc41e07773589",
           "source": "rig-variations/human-psx-32.blend"
         },
         {
           "name": "psx-female-08",
           "file": "human/variations/psx-female-08.glb",
-          "hash": "dacdf131b7855858",
+          "hash": "96f203091de0bfd0",
           "source": "rig-variations/human-psx-female-08.blend"
         },
         {
           "name": "psx-female-09",
           "file": "human/variations/psx-female-09.glb",
-          "hash": "92cfd4ea58196651",
+          "hash": "c299b9c0be98038d",
           "source": "rig-variations/human-psx-female-09.blend"
         },
         {
           "name": "psx-killer-04",
           "file": "human/variations/psx-killer-04.glb",
-          "hash": "25633b3ed6fc6f94",
+          "hash": "16f615e495dfef9f",
           "source": "rig-variations/human-psx-killer-04.blend"
         },
         {
           "name": "psx-killer-05",
           "file": "human/variations/psx-killer-05.glb",
-          "hash": "5b933c15a1b50bd3",
+          "hash": "f793e171dc29e9d8",
           "source": "rig-variations/human-psx-killer-05.blend"
         },
         {
           "name": "psx-killer-06",
           "file": "human/variations/psx-killer-06.glb",
-          "hash": "6978d5eaa93cebac",
+          "hash": "c07e66ed1b72b2c6",
           "source": "rig-variations/human-psx-killer-06.blend"
         },
         {
           "name": "psx-killer-07",
           "file": "human/variations/psx-killer-07.glb",
-          "hash": "87cae1dc3325669f",
+          "hash": "a471ac8e19bb676d",
           "source": "rig-variations/human-psx-killer-07.blend"
         },
         {
           "name": "psx-monster-03",
           "file": "human/variations/psx-monster-03.glb",
-          "hash": "a79a734dcee7d6c7",
+          "hash": "7dd87add55ec66db",
           "source": "rig-variations/human-psx-monster-03.blend"
         },
         {
           "name": "psx-monster-04",
           "file": "human/variations/psx-monster-04.glb",
-          "hash": "50180fef484b31bf",
+          "hash": "553f1054d79f58e4",
           "source": "rig-variations/human-psx-monster-04.blend"
         },
         {
           "name": "psx-monster-05",
           "file": "human/variations/psx-monster-05.glb",
-          "hash": "3a71ae753127ea2b",
+          "hash": "35b2047a2614a7f0",
           "source": "rig-variations/human-psx-monster-05.blend"
         },
         {
           "name": "psx-monster",
           "file": "human/variations/psx-monster.glb",
-          "hash": "04833cdaba215509",
+          "hash": "5fe63e26ad8c8c61",
           "source": "rig-variations/human-psx-monster.blend"
         },
         {
           "name": "sintel",
           "file": "human/variations/sintel.glb",
-          "hash": "73ac4766d3c7abe0",
+          "hash": "4279836f77e30189",
           "source": "rig-variations/human-sintel.blend"
         },
         {
           "name": "sophia",
           "file": "human/variations/sophia.glb",
-          "hash": "75c25de936426634",
+          "hash": "6faaac07d4c5c22b",
           "source": "rig-variations/human-sophia.blend"
         },
         {
           "name": "zombie",
           "file": "human/variations/zombie.glb",
-          "hash": "b8493ccfb13bcabd",
+          "hash": "118a7ec40fa2a965",
           "source": "rig-variations/human-zombie.blend"
         }
       ],
@@ -941,20 +908,20 @@
         {
           "name": "Attack_Ground_Pound",
           "file": "human/animations/attack-ground-pound.glb",
-          "hash": "7e9a1d74d8dfaa9a",
+          "hash": "5f5aabf1db73902f",
           "tags": [
             "abilities"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 66,
-          "duration": 2.7083,
+          "frame_count": 72,
+          "duration": 2.9583,
           "source": "rigs/human/abilities/animation-human-attack-ground-pound.blend"
         },
         {
           "name": "Consume Item",
           "file": "human/animations/consume-powerup.glb",
-          "hash": "761be5d63eff39a9",
+          "hash": "27a069f2928ec64f",
           "tags": [
             "abilities"
           ],
@@ -967,7 +934,7 @@
         {
           "name": "Flying Forward Super",
           "file": "human/animations/flying-forward-super.glb",
-          "hash": "e0d6d2b674bfe058",
+          "hash": "cb383dfe86c6f2de",
           "tags": [
             "abilities"
           ],
@@ -980,7 +947,7 @@
         {
           "name": "Flying Forward",
           "file": "human/animations/flying-forward.glb",
-          "hash": "b001e79b5caf4e49",
+          "hash": "075f81c664515db9",
           "tags": [
             "abilities"
           ],
@@ -993,7 +960,7 @@
         {
           "name": "Glide",
           "file": "human/animations/glide.glb",
-          "hash": "e8a60f08d513d269",
+          "hash": "838a2141b2da3169",
           "tags": [
             "abilities"
           ],
@@ -1006,7 +973,7 @@
         {
           "name": "Levitate Entrance",
           "file": "human/animations/levitate-entrance.glb",
-          "hash": "9da5361468d4362b",
+          "hash": "8ec2c30422e5e672",
           "tags": [
             "abilities"
           ],
@@ -1019,7 +986,7 @@
         {
           "name": "Levitate Idle",
           "file": "human/animations/levitate-idle.glb",
-          "hash": "b22f9405b59eb235",
+          "hash": "72856cb0f6ce0d2f",
           "tags": [
             "abilities"
           ],
@@ -1030,9 +997,22 @@
           "source": "rigs/human/abilities/animation-human-levitate-idle.blend"
         },
         {
+          "name": "Power_Burst",
+          "file": "human/animations/power-burst.glb",
+          "hash": "0c5d3af50a139d51",
+          "tags": [
+            "abilities"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 102,
+          "duration": 4.2083,
+          "source": "rigs/human/abilities/animation-human-power-burst.blend"
+        },
+        {
           "name": "Power Up",
           "file": "human/animations/power-up.glb",
-          "hash": "398a8ee7c6bd3003",
+          "hash": "1fab392445f12ee8",
           "tags": [
             "abilities"
           ],
@@ -1045,7 +1025,7 @@
         {
           "name": "Spell_Simple_Enter",
           "file": "human/animations/spell-simple-enter.glb",
-          "hash": "e270a78bfefe46af",
+          "hash": "37c5e1d18198c148",
           "tags": [
             "abilities",
             "quaternius"
@@ -1059,7 +1039,7 @@
         {
           "name": "Spell_Simple_Exit",
           "file": "human/animations/spell-simple-exit.glb",
-          "hash": "268725856920a311",
+          "hash": "ad79e275b642acc4",
           "tags": [
             "abilities",
             "quaternius"
@@ -1073,7 +1053,7 @@
         {
           "name": "Spell_Simple_Idle",
           "file": "human/animations/spell-simple-idle.glb",
-          "hash": "f1ede274259fdc35",
+          "hash": "7a68d23ecae4976b",
           "tags": [
             "abilities",
             "quaternius"
@@ -1087,7 +1067,7 @@
         {
           "name": "Spell_Simple_Shoot",
           "file": "human/animations/spell-simple-shoot.glb",
-          "hash": "be2197295965130b",
+          "hash": "ec0c8133130d3048",
           "tags": [
             "abilities",
             "quaternius"
@@ -1101,7 +1081,7 @@
         {
           "name": "Two-hand Blast",
           "file": "human/animations/two-hand-blast.glb",
-          "hash": "cea332f303056df6",
+          "hash": "2a6a46ce8580836d",
           "tags": [
             "abilities"
           ],
@@ -1112,9 +1092,22 @@
           "source": "rigs/human/abilities/animation-human-two-hand-blast.blend"
         },
         {
+          "name": "Burpee",
+          "file": "human/animations/burpee.glb",
+          "hash": "b95835b26d61f130",
+          "tags": [
+            "activities"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 80,
+          "duration": 3.2917,
+          "source": "rigs/human/activities/animation-human-burpee.blend"
+        },
+        {
           "name": "Chest_Open",
           "file": "human/animations/chest-open.glb",
-          "hash": "ff19f274b4e7dadb",
+          "hash": "9114a135144c07b8",
           "tags": [
             "activities",
             "quaternius"
@@ -1128,7 +1121,7 @@
         {
           "name": "Chop_Tree",
           "file": "human/animations/chop-tree.glb",
-          "hash": "f3c841bce1a6adf3",
+          "hash": "d783dce507331bf2",
           "tags": [
             "activities",
             "quaternius"
@@ -1142,20 +1135,20 @@
         {
           "name": "Chop_Wood",
           "file": "human/animations/chop-wood.glb",
-          "hash": "e89a50249c0b00c0",
+          "hash": "8e4f6b2b8d749cb5",
           "tags": [
             "activities"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 32,
-          "duration": 1.2917,
+          "frame_count": 40,
+          "duration": 1.625,
           "source": "rigs/human/activities/animation-human-chop-wood.blend"
         },
         {
           "name": "Consume",
           "file": "human/animations/consume.glb",
-          "hash": "481d13827dc3028e",
+          "hash": "93ff67295f91ade0",
           "tags": [
             "activities",
             "quaternius"
@@ -1167,9 +1160,22 @@
           "source": "rigs/human/activities/animation-human-consume.blend"
         },
         {
+          "name": "Drumming",
+          "file": "human/animations/drumming.glb",
+          "hash": "485d626ca4b9d6cf",
+          "tags": [
+            "activities"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 97,
+          "duration": 4,
+          "source": "rigs/human/activities/animation-human-drumming.blend"
+        },
+        {
           "name": "Farm_Harvest",
           "file": "human/animations/farm-harvest.glb",
-          "hash": "b1370a8aa1cb08a9",
+          "hash": "2070c7bef2ef312e",
           "tags": [
             "activities",
             "quaternius"
@@ -1183,7 +1189,7 @@
         {
           "name": "Farm_PlantSeed",
           "file": "human/animations/farm-plantseed.glb",
-          "hash": "a576bb4351a1356d",
+          "hash": "fc98ddad4cd7aca5",
           "tags": [
             "activities",
             "quaternius"
@@ -1197,7 +1203,7 @@
         {
           "name": "Farm_Watering",
           "file": "human/animations/farm-watering.glb",
-          "hash": "75d38adeff6e73ec",
+          "hash": "171db73b8cd99f99",
           "tags": [
             "activities",
             "quaternius"
@@ -1211,7 +1217,7 @@
         {
           "name": "Fixing_Kneeling",
           "file": "human/animations/fixing-kneeling.glb",
-          "hash": "ceb745d0c1ee358b",
+          "hash": "239d0d15a645572a",
           "tags": [
             "activities",
             "quaternius"
@@ -1223,9 +1229,22 @@
           "source": "rigs/human/activities/animation-human-fixing-kneeling.blend"
         },
         {
+          "name": "Guitar_Playing",
+          "file": "human/animations/guitar-playing.glb",
+          "hash": "6c2aaa53647bb77d",
+          "tags": [
+            "activities"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 96,
+          "duration": 3.9583,
+          "source": "rigs/human/activities/animation-human-guitar-playing.blend"
+        },
+        {
           "name": "Hammering",
           "file": "human/animations/hammering.glb",
-          "hash": "aeb90408bebbc6f9",
+          "hash": "a9e559ca6bb62bff",
           "tags": [
             "activities"
           ],
@@ -1238,7 +1257,7 @@
         {
           "name": "Interact",
           "file": "human/animations/interact.glb",
-          "hash": "ba82a7eb55f8ee28",
+          "hash": "9091ffa013fccc28",
           "tags": [
             "activities",
             "quaternius"
@@ -1252,7 +1271,7 @@
         {
           "name": "Jumping Jacks",
           "file": "human/animations/jumping-jacks.glb",
-          "hash": "90e49d863219eab0",
+          "hash": "6f33651902b227f2",
           "tags": [
             "activities"
           ],
@@ -1265,7 +1284,7 @@
         {
           "name": "Knock",
           "file": "human/animations/knock.glb",
-          "hash": "3c6d728f9dd0d8a8",
+          "hash": "829cd52d12607de4",
           "tags": [
             "activities"
           ],
@@ -1278,7 +1297,7 @@
         {
           "name": "Mining",
           "file": "human/animations/mining.glb",
-          "hash": "03aa482cd0c8816c",
+          "hash": "0f65bae918dbcb84",
           "tags": [
             "activities"
           ],
@@ -1289,9 +1308,22 @@
           "source": "rigs/human/activities/animation-human-mining.blend"
         },
         {
+          "name": "Open Door",
+          "file": "human/animations/open-door.glb",
+          "hash": "37b95b2d8b2e0c67",
+          "tags": [
+            "activities"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 110,
+          "duration": 4.5417,
+          "source": "rigs/human/activities/animation-human-open-door.blend"
+        },
+        {
           "name": "Pick Up",
           "file": "human/animations/pick-up.glb",
-          "hash": "8074066adf0c3e31",
+          "hash": "e7cce9330a8402d7",
           "tags": [
             "activities"
           ],
@@ -1304,7 +1336,7 @@
         {
           "name": "PickUp_Table",
           "file": "human/animations/pickup-table.glb",
-          "hash": "05619fd0a5182835",
+          "hash": "e766b343577a3f6f",
           "tags": [
             "activities",
             "quaternius"
@@ -1318,7 +1350,7 @@
         {
           "name": "Push",
           "file": "human/animations/push.glb",
-          "hash": "4ab170f0a2fde235",
+          "hash": "8dd37dfe212f06a9",
           "tags": [
             "activities",
             "quaternius"
@@ -1332,7 +1364,7 @@
         {
           "name": "Pushup",
           "file": "human/animations/pushup.glb",
-          "hash": "95a5dc786a5a4b7d",
+          "hash": "dc4a89fcf51f9242",
           "tags": [
             "activities"
           ],
@@ -1345,7 +1377,7 @@
         {
           "name": "Rope Pull",
           "file": "human/animations/rope-pull.glb",
-          "hash": "0e64b1109d88db3c",
+          "hash": "607c859ba9739646",
           "tags": [
             "activities"
           ],
@@ -1358,20 +1390,33 @@
         {
           "name": "Shovel Dig",
           "file": "human/animations/shovel-dig.glb",
-          "hash": "b13ab19aeec413ad",
+          "hash": "87da2d81a144a2a0",
           "tags": [
             "activities"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 65,
-          "duration": 2.6667,
+          "frame_count": 99,
+          "duration": 4.0833,
           "source": "rigs/human/activities/animation-human-shovel-dig.blend"
+        },
+        {
+          "name": "Sitting Writing",
+          "file": "human/animations/sitting-writing.glb",
+          "hash": "4553a2491e586a14",
+          "tags": [
+            "activities"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 96,
+          "duration": 3.9583,
+          "source": "rigs/human/activities/animation-human-sitting-writing.blend"
         },
         {
           "name": "Throw Object",
           "file": "human/animations/throw-ball.glb",
-          "hash": "84c17168dcffa5fc",
+          "hash": "2405f53a9c571f9d",
           "tags": [
             "activities"
           ],
@@ -1384,7 +1429,7 @@
         {
           "name": "Rest Pose",
           "file": "human/animations/rest-pose.glb",
-          "hash": "0b5fd99f78d5eb49",
+          "hash": "e1669b4f6dee30e2",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -1395,7 +1440,7 @@
         {
           "name": "Defend",
           "file": "human/animations/defend.glb",
-          "hash": "b105c5b6cbec2125",
+          "hash": "b4c21c0947e7b677",
           "tags": [
             "combat",
             "defense"
@@ -1409,7 +1454,7 @@
         {
           "name": "Dodge_back",
           "file": "human/animations/dodge-back.glb",
-          "hash": "603a1a4fb0e7a418",
+          "hash": "f47f45d604f92c7c",
           "tags": [
             "combat",
             "defense"
@@ -1423,7 +1468,7 @@
         {
           "name": "Dodge_back_RM",
           "file": "human/animations/dodge-back-rm.glb",
-          "hash": "4a51b2aa372b8abe",
+          "hash": "bc2e59bcbb570063",
           "tags": [
             "combat",
             "defense"
@@ -1437,63 +1482,63 @@
         {
           "name": "Dodge_left",
           "file": "human/animations/dodge-left.glb",
-          "hash": "66d5e18846a3018d",
+          "hash": "08c37b4bd281cc3c",
           "tags": [
             "combat",
             "defense"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 21,
-          "duration": 0.8333,
+          "frame_count": 25,
+          "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-left.blend"
         },
         {
           "name": "Dodge_left_RM",
           "file": "human/animations/dodge-left-rm.glb",
-          "hash": "6636c71f8348e817",
+          "hash": "df3b628f07bfc16b",
           "tags": [
             "combat",
             "defense"
           ],
           "loop": false,
           "root_motion": true,
-          "frame_count": 21,
-          "duration": 0.8333,
+          "frame_count": 25,
+          "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-left_RM.blend"
         },
         {
           "name": "Dodge_right",
           "file": "human/animations/dodge-right.glb",
-          "hash": "12f6fc4fc4bf53f7",
+          "hash": "9406b33065234b5a",
           "tags": [
             "combat",
             "defense"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 21,
-          "duration": 0.8333,
+          "frame_count": 25,
+          "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-right.blend"
         },
         {
           "name": "Dodge_right_RM",
           "file": "human/animations/dodge-right-rm.glb",
-          "hash": "1e1176b6f6c31693",
+          "hash": "4955d935f3fd167f",
           "tags": [
             "combat",
             "defense"
           ],
           "loop": false,
           "root_motion": true,
-          "frame_count": 21,
-          "duration": 0.8333,
+          "frame_count": 25,
+          "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-right_RM.blend"
         },
         {
           "name": "Idle_Shield_Break",
           "file": "human/animations/idle-shield-break.glb",
-          "hash": "58fa25d47aa72eec",
+          "hash": "cc3fbc324969891d",
           "tags": [
             "combat",
             "defense",
@@ -1508,7 +1553,7 @@
         {
           "name": "Idle_Shield",
           "file": "human/animations/idle-shield.glb",
-          "hash": "f1c6c4501f17ee38",
+          "hash": "2c523672559f8a6a",
           "tags": [
             "combat",
             "defense",
@@ -1523,7 +1568,7 @@
         {
           "name": "Shield_OneShot",
           "file": "human/animations/shield-oneshot.glb",
-          "hash": "a694eaa2e501b1de",
+          "hash": "e864ccd61f829880",
           "tags": [
             "combat",
             "defense",
@@ -1538,7 +1583,7 @@
         {
           "name": "Sword_Block",
           "file": "human/animations/sword-block.glb",
-          "hash": "c4d5d84991761a2e",
+          "hash": "e0509533376ca175",
           "tags": [
             "combat",
             "defense",
@@ -1553,7 +1598,7 @@
         {
           "name": "Dagger Stab",
           "file": "human/animations/dagger-stab.glb",
-          "hash": "cb2ecf8d7877143c",
+          "hash": "58f1214a39a170d5",
           "tags": [
             "combat",
             "melee"
@@ -1567,7 +1612,7 @@
         {
           "name": "Dual_Wield_Combo",
           "file": "human/animations/dual-wield-combo.glb",
-          "hash": "015de65b30bdf7bc",
+          "hash": "b533fae4c654b830",
           "tags": [
             "combat",
             "melee"
@@ -1581,7 +1626,7 @@
         {
           "name": "Dual_Wield_Cross_Slash",
           "file": "human/animations/dual-wield-cross-slash.glb",
-          "hash": "e509dafed16240e9",
+          "hash": "f63a46d952a5b766",
           "tags": [
             "combat",
             "melee"
@@ -1595,7 +1640,7 @@
         {
           "name": "Idle_Sword",
           "file": "human/animations/idle-sword.glb",
-          "hash": "1a850598f46663c5",
+          "hash": "54e2d11bdfe8f4b1",
           "tags": [
             "combat",
             "melee",
@@ -1608,51 +1653,65 @@
           "source": "rigs/human/combat/melee/animation-human-idle-sword.blend"
         },
         {
-          "name": "One_Hand_Slash_Combo",
-          "file": "human/animations/one-hand-slash-combo.glb",
-          "hash": "82703ae08d968b65",
+          "name": "Attack_Jump",
+          "file": "human/animations/jump-attack.glb",
+          "hash": "e1a44257111d9533",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 44,
-          "duration": 1.7917,
+          "frame_count": 59,
+          "duration": 2.4167,
+          "source": "rigs/human/combat/melee/animation-human-jump-attack.blend"
+        },
+        {
+          "name": "One_Hand_Slash_Combo",
+          "file": "human/animations/one-hand-slash-combo.glb",
+          "hash": "7de1ffd1a6162b03",
+          "tags": [
+            "combat",
+            "melee"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 43,
+          "duration": 1.75,
           "source": "rigs/human/combat/melee/animation-human-one-hand-slash-combo.blend"
         },
         {
           "name": "One Hand Weapon Idle",
           "file": "human/animations/one-hand-weapon-idle.glb",
-          "hash": "456b0e60316ebfd6",
+          "hash": "555123e6fc998d75",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 64,
-          "duration": 2.625,
+          "frame_count": 63,
+          "duration": 2.5833,
           "source": "rigs/human/combat/melee/animation-human-one-hand-weapon-idle.blend"
         },
         {
           "name": "Polearm Idle",
           "file": "human/animations/polearm-idle.glb",
-          "hash": "90bd1d89b04a095c",
+          "hash": "901862bd829af2f8",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 64,
-          "duration": 2.625,
+          "frame_count": 63,
+          "duration": 2.5833,
           "source": "rigs/human/combat/melee/animation-human-polearm-idle.blend"
         },
         {
           "name": "Polearm_Run",
           "file": "human/animations/polearm-run.glb",
-          "hash": "e56ee584e19855a7",
+          "hash": "7b25a34b55ff19aa",
           "tags": [
             "combat",
             "melee"
@@ -1666,7 +1725,7 @@
         {
           "name": "Shield_Dash_RM",
           "file": "human/animations/shield-dash-rm.glb",
-          "hash": "41978acdefcf102a",
+          "hash": "0a5561c3eafe5202",
           "tags": [
             "combat",
             "melee",
@@ -1681,7 +1740,7 @@
         {
           "name": "Spear_Thrust",
           "file": "human/animations/spear-thrust.glb",
-          "hash": "de28eea1eebb573e",
+          "hash": "0e95ec00cdde9eb8",
           "tags": [
             "combat",
             "melee"
@@ -1695,35 +1754,35 @@
         {
           "name": "Staff_Combo",
           "file": "human/animations/staff-combo.glb",
-          "hash": "20719c57c9f86ecd",
+          "hash": "7c43a4bea89c98af",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 57,
-          "duration": 2.3333,
+          "frame_count": 72,
+          "duration": 2.9583,
           "source": "rigs/human/combat/melee/animation-human-staff-combo.blend"
         },
         {
           "name": "Staff_Spin",
           "file": "human/animations/staff-spin.glb",
-          "hash": "b4a62c4c4395c578",
+          "hash": "df4134c71fc488bd",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 25,
-          "duration": 1,
+          "frame_count": 20,
+          "duration": 0.7917,
           "source": "rigs/human/combat/melee/animation-human-staff-spin.blend"
         },
         {
           "name": "Sword_Attack_Air_Vertical",
           "file": "human/animations/sword-attack-air-vertical.glb",
-          "hash": "9f663bec4aaa2578",
+          "hash": "bf0d330bd6102220",
           "tags": [
             "combat",
             "melee"
@@ -1737,7 +1796,7 @@
         {
           "name": "Sword_Attack",
           "file": "human/animations/sword-attack.glb",
-          "hash": "dc6e392278db7107",
+          "hash": "228f86e32a61f292",
           "tags": [
             "combat",
             "melee",
@@ -1752,7 +1811,7 @@
         {
           "name": "Sword_Attack_RM",
           "file": "human/animations/sword-attack-rm.glb",
-          "hash": "0cfab8e60021410c",
+          "hash": "17b9e193d3f1c6bf",
           "tags": [
             "combat",
             "melee",
@@ -1767,7 +1826,7 @@
         {
           "name": "Sword_Dash_RM",
           "file": "human/animations/sword-dash-rm.glb",
-          "hash": "2bbb316de350c9c9",
+          "hash": "391a983f37c8bfbc",
           "tags": [
             "combat",
             "melee",
@@ -1775,14 +1834,14 @@
           ],
           "loop": false,
           "root_motion": true,
-          "frame_count": 38,
-          "duration": 1.5417,
+          "frame_count": 39,
+          "duration": 1.5833,
           "source": "rigs/human/combat/melee/animation-human-sword-dash_RM.blend"
         },
         {
           "name": "Sword_Regular_A_Rec",
           "file": "human/animations/sword-regular-a-rec.glb",
-          "hash": "5f7656d3b1913133",
+          "hash": "8e8b763f963cc3aa",
           "tags": [
             "combat",
             "melee",
@@ -1797,7 +1856,7 @@
         {
           "name": "Sword_Regular_A",
           "file": "human/animations/sword-regular-a.glb",
-          "hash": "61bdb0969346e4de",
+          "hash": "e260588d6d9ca65d",
           "tags": [
             "combat",
             "melee",
@@ -1812,7 +1871,7 @@
         {
           "name": "Sword_Regular_B_Rec",
           "file": "human/animations/sword-regular-b-rec.glb",
-          "hash": "4d69a6d3c9c9a83c",
+          "hash": "c5a82b2cd40a7c5a",
           "tags": [
             "combat",
             "melee",
@@ -1827,7 +1886,7 @@
         {
           "name": "Sword_Regular_B",
           "file": "human/animations/sword-regular-b.glb",
-          "hash": "47b4dbe56e404ffb",
+          "hash": "04a0ffcd42f86a1f",
           "tags": [
             "combat",
             "melee",
@@ -1842,7 +1901,7 @@
         {
           "name": "Sword_Regular_C",
           "file": "human/animations/sword-regular-c.glb",
-          "hash": "5204e93d041fc65a",
+          "hash": "968bd1d41923d968",
           "tags": [
             "combat",
             "melee",
@@ -1857,7 +1916,7 @@
         {
           "name": "Sword_Regular_C_RM",
           "file": "human/animations/sword-regular-c-rm.glb",
-          "hash": "0290951e97541d44",
+          "hash": "d85186bc8587487f",
           "tags": [
             "combat",
             "melee",
@@ -1872,7 +1931,7 @@
         {
           "name": "Sword_Regular_Combo",
           "file": "human/animations/sword-regular-combo.glb",
-          "hash": "54318d351be95ab4",
+          "hash": "a44b2e15ca30d7b8",
           "tags": [
             "combat",
             "melee",
@@ -1887,7 +1946,7 @@
         {
           "name": "Two_Handed_Horizontal_Swing",
           "file": "human/animations/two-handed-horizontal-swing.glb",
-          "hash": "8909f70b909edf56",
+          "hash": "72ed27363f552880",
           "tags": [
             "combat",
             "melee"
@@ -1901,7 +1960,7 @@
         {
           "name": "Two_Handed_Overhead_Slam",
           "file": "human/animations/two-handed-overhead-slam.glb",
-          "hash": "97849db1462629a0",
+          "hash": "28a3d385cb5f6eff",
           "tags": [
             "combat",
             "melee"
@@ -1915,21 +1974,21 @@
         {
           "name": "Weapon_Block",
           "file": "human/animations/weapon-block.glb",
-          "hash": "fec80ca734dd74a9",
+          "hash": "2066e2e1c1a263b8",
           "tags": [
             "combat",
             "melee"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 37,
-          "duration": 1.5,
+          "frame_count": 46,
+          "duration": 1.875,
           "source": "rigs/human/combat/melee/animation-human-weapon-block.blend"
         },
         {
           "name": "Weapon_Draw",
           "file": "human/animations/weapon-draw.glb",
-          "hash": "e687945154366cad",
+          "hash": "45ac84d7ab76dfa4",
           "tags": [
             "combat",
             "melee"
@@ -1943,49 +2002,49 @@
         {
           "name": "Bow Pull Hold",
           "file": "human/animations/bow-pull-hold.glb",
-          "hash": "3f93c5f661fd4d2e",
+          "hash": "f8574e1ace756417",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 6,
-          "duration": 0.2083,
+          "frame_count": 60,
+          "duration": 2.4583,
           "source": "rigs/human/combat/ranged/animation-human-bow-pull-hold.blend"
         },
         {
           "name": "Bow Pull Back",
           "file": "human/animations/bow-pull.glb",
-          "hash": "3f343c35675d60df",
+          "hash": "37633813e15f14f8",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 31,
-          "duration": 1.25,
+          "frame_count": 61,
+          "duration": 2.5,
           "source": "rigs/human/combat/ranged/animation-human-bow-pull.blend"
         },
         {
           "name": "Bow Release",
           "file": "human/animations/bow-release.glb",
-          "hash": "663599593b77a64c",
+          "hash": "8e5b7d6470d5ae5d",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 12,
-          "duration": 0.4583,
+          "frame_count": 25,
+          "duration": 1,
           "source": "rigs/human/combat/ranged/animation-human-bow-release.blend"
         },
         {
           "name": "Bow",
           "file": "human/animations/bow.glb",
-          "hash": "5f8cc4a5a0ae234c",
+          "hash": "311e5421b721b62b",
           "tags": [
             "combat",
             "ranged"
@@ -1999,21 +2058,21 @@
         {
           "name": "Grenade_Throw",
           "file": "human/animations/grenade-throw.glb",
-          "hash": "adb32047e2419c23",
+          "hash": "db9ba8b39a0d5487",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 42,
-          "duration": 1.7083,
+          "frame_count": 47,
+          "duration": 1.9167,
           "source": "rigs/human/combat/ranged/animation-human-grenade-throw.blend"
         },
         {
           "name": "Knife_Throw",
           "file": "human/animations/knife-throw.glb",
-          "hash": "0b79a7076974ae77",
+          "hash": "09ca347c272895d4",
           "tags": [
             "combat",
             "ranged"
@@ -2027,7 +2086,7 @@
         {
           "name": "OverhandThrow",
           "file": "human/animations/overhandthrow.glb",
-          "hash": "a7f2ff68a52eca1a",
+          "hash": "e80f559a2921afad",
           "tags": [
             "combat",
             "ranged",
@@ -2042,7 +2101,7 @@
         {
           "name": "Pistol_Aim_Down",
           "file": "human/animations/pistol-aim-down.glb",
-          "hash": "fca6597c3851b601",
+          "hash": "9222863d76412234",
           "tags": [
             "combat",
             "ranged",
@@ -2050,14 +2109,14 @@
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 5,
-          "duration": 0.1667,
+          "frame_count": 4,
+          "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-down.blend"
         },
         {
           "name": "Pistol_Aim_Neutral",
           "file": "human/animations/pistol-aim-neutral.glb",
-          "hash": "dfac5d4d82362319",
+          "hash": "a6682992b9c32fa7",
           "tags": [
             "combat",
             "ranged",
@@ -2065,14 +2124,14 @@
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 5,
-          "duration": 0.1667,
+          "frame_count": 4,
+          "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-neutral.blend"
         },
         {
           "name": "Pistol_Aim_Up",
           "file": "human/animations/pistol-aim-up.glb",
-          "hash": "5ed539e04f172545",
+          "hash": "e58603df4043100c",
           "tags": [
             "combat",
             "ranged",
@@ -2080,42 +2139,42 @@
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 5,
-          "duration": 0.1667,
+          "frame_count": 4,
+          "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-up.blend"
         },
         {
           "name": "Pistol Fire",
           "file": "human/animations/pistol-fire.glb",
-          "hash": "23f2abe8c58de59a",
+          "hash": "2f08a008076afdc7",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 30,
-          "duration": 1.2083,
+          "frame_count": 24,
+          "duration": 0.9583,
           "source": "rigs/human/combat/ranged/animation-human-pistol-fire.blend"
         },
         {
           "name": "Pistol_Idle_Aim",
           "file": "human/animations/pistol-idle-aim.glb",
-          "hash": "739885e425097d61",
+          "hash": "b189d8024e435318",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 48,
-          "duration": 1.9583,
+          "frame_count": 47,
+          "duration": 1.9167,
           "source": "rigs/human/combat/ranged/animation-human-pistol-idle-aim.blend"
         },
         {
           "name": "Pistol_Idle",
           "file": "human/animations/pistol-idle.glb",
-          "hash": "fff0ee763c25afd9",
+          "hash": "5da93e84972b0091",
           "tags": [
             "combat",
             "ranged",
@@ -2130,7 +2189,7 @@
         {
           "name": "Pistol_Prone",
           "file": "human/animations/pistol-prone.glb",
-          "hash": "23b05d989f9d7f35",
+          "hash": "50b59e908624e3d2",
           "tags": [
             "combat",
             "ranged"
@@ -2144,7 +2203,7 @@
         {
           "name": "Pistol_Reload_2",
           "file": "human/animations/pistol-reload-2.glb",
-          "hash": "94682ca7d967096f",
+          "hash": "1327059dce3e7bed",
           "tags": [
             "combat",
             "ranged",
@@ -2159,21 +2218,21 @@
         {
           "name": "Pistol_Reload",
           "file": "human/animations/pistol-reload.glb",
-          "hash": "14e1d8f8044ae380",
+          "hash": "9d466daab32637b4",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 49,
-          "duration": 2,
+          "frame_count": 61,
+          "duration": 2.5,
           "source": "rigs/human/combat/ranged/animation-human-pistol-reload.blend"
         },
         {
           "name": "Pistol_Shoot",
           "file": "human/animations/pistol-shoot.glb",
-          "hash": "09d37be1024dd775",
+          "hash": "03b0ec7a2ae3021f",
           "tags": [
             "combat",
             "ranged",
@@ -2188,7 +2247,7 @@
         {
           "name": "Pistol Walk",
           "file": "human/animations/pistol-walk.glb",
-          "hash": "631dc248b58afaa3",
+          "hash": "945cb5cbff65cf25",
           "tags": [
             "combat",
             "ranged"
@@ -2202,7 +2261,7 @@
         {
           "name": "Rifle_Fire",
           "file": "human/animations/rifle-fire.glb",
-          "hash": "9a0cdfb65b97bff5",
+          "hash": "eb94aed2543bf06f",
           "tags": [
             "combat",
             "ranged"
@@ -2216,7 +2275,7 @@
         {
           "name": "Rifle_Idle",
           "file": "human/animations/rifle-idle.glb",
-          "hash": "001eaae12f41fd9d",
+          "hash": "d7b23200c8ecdfb9",
           "tags": [
             "combat",
             "ranged"
@@ -2230,7 +2289,7 @@
         {
           "name": "Rifle_Reload",
           "file": "human/animations/rifle-reload.glb",
-          "hash": "713cc0c0a5c9e316",
+          "hash": "71a788327e6afdfd",
           "tags": [
             "combat",
             "ranged"
@@ -2244,7 +2303,7 @@
         {
           "name": "Rifle_Run",
           "file": "human/animations/rifle-run.glb",
-          "hash": "9b11368582f047b4",
+          "hash": "1171c71e302ac3e7",
           "tags": [
             "combat",
             "ranged"
@@ -2258,7 +2317,7 @@
         {
           "name": "Rifle_Walk",
           "file": "human/animations/rifle-walk.glb",
-          "hash": "cf6bb58fb0b6d444",
+          "hash": "16d936a4b47f611d",
           "tags": [
             "combat",
             "ranged"
@@ -2272,63 +2331,63 @@
         {
           "name": "Spear_Throw",
           "file": "human/animations/spear-throw.glb",
-          "hash": "56763f8542550ceb",
+          "hash": "8f652a5bc896bf9d",
           "tags": [
             "combat",
             "ranged"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
+          "frame_count": 33,
+          "duration": 1.3333,
           "source": "rigs/human/combat/ranged/animation-human-spear-throw.blend"
         },
         {
           "name": "Death_A",
           "file": "human/animations/death-a.glb",
-          "hash": "e96b0d5f6aff879a",
+          "hash": "b2cd811cf25dd0d6",
           "tags": [
             "combat",
             "reactions"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 109,
-          "duration": 4.5,
+          "frame_count": 111,
+          "duration": 4.5833,
           "source": "rigs/human/combat/reactions/animation-human-death-A.blend"
         },
         {
           "name": "Death_B",
           "file": "human/animations/death-b.glb",
-          "hash": "3089ab2c415056a0",
+          "hash": "ed3c28b7e5404e99",
           "tags": [
             "combat",
             "reactions"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 46,
-          "duration": 1.875,
+          "frame_count": 49,
+          "duration": 2,
           "source": "rigs/human/combat/reactions/animation-human-death-B.blend"
         },
         {
           "name": "Death_C",
           "file": "human/animations/death-c.glb",
-          "hash": "cf4450975e5abacb",
+          "hash": "50679ba0248f8d2f",
           "tags": [
             "combat",
             "reactions"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 54,
-          "duration": 2.2083,
+          "frame_count": 61,
+          "duration": 2.5,
           "source": "rigs/human/combat/reactions/animation-human-death-C.blend"
         },
         {
           "name": "Death_D",
           "file": "human/animations/death-d.glb",
-          "hash": "e6c9979d1aa45761",
+          "hash": "7ff7e8336a622405",
           "tags": [
             "combat",
             "reactions",
@@ -2343,7 +2402,7 @@
         {
           "name": "Spin_Death",
           "file": "human/animations/death-spin-rm.glb",
-          "hash": "71302d42bc0f5858",
+          "hash": "29337440b061b40d",
           "tags": [
             "combat",
             "reactions"
@@ -2357,7 +2416,7 @@
         {
           "name": "Dizzy",
           "file": "human/animations/dizzy.glb",
-          "hash": "f2b2b823b1fe1ae2",
+          "hash": "257f3f1115e2109e",
           "tags": [
             "combat",
             "reactions"
@@ -2371,7 +2430,7 @@
         {
           "name": "Hit_Chest",
           "file": "human/animations/hit-chest.glb",
-          "hash": "f646272725826687",
+          "hash": "7051f57eeb32dd6a",
           "tags": [
             "combat",
             "reactions",
@@ -2386,7 +2445,7 @@
         {
           "name": "Hit_Head",
           "file": "human/animations/hit-head.glb",
-          "hash": "9d6020450a3256d3",
+          "hash": "2bd5669b94073ddf",
           "tags": [
             "combat",
             "reactions",
@@ -2401,7 +2460,7 @@
         {
           "name": "Hit_Knockback",
           "file": "human/animations/hit-knockback.glb",
-          "hash": "ba42a6cc31aed119",
+          "hash": "16c6d0f6f4a99ea2",
           "tags": [
             "combat",
             "reactions",
@@ -2416,7 +2475,7 @@
         {
           "name": "Hit_Knockback_RM",
           "file": "human/animations/hit-knockback-rm.glb",
-          "hash": "bdf2a003171aa58d",
+          "hash": "db11af69560fd409",
           "tags": [
             "combat",
             "reactions",
@@ -2431,7 +2490,7 @@
         {
           "name": "LayToIdle",
           "file": "human/animations/laytoidle.glb",
-          "hash": "b287877d0806a793",
+          "hash": "b6ea557995109f47",
           "tags": [
             "combat",
             "reactions",
@@ -2446,7 +2505,7 @@
         {
           "name": "Fighting Idle",
           "file": "human/animations/fighting-idle.glb",
-          "hash": "7c94be1ff8cb8827",
+          "hash": "ab21876f3ee73618",
           "tags": [
             "combat",
             "unarmed"
@@ -2460,7 +2519,7 @@
         {
           "name": "Fighting Left Jab",
           "file": "human/animations/fighting-left-jab.glb",
-          "hash": "819a499eaa85e830",
+          "hash": "a2b5a8c434f6d509",
           "tags": [
             "combat",
             "unarmed"
@@ -2474,7 +2533,7 @@
         {
           "name": "Fighting Right Jab",
           "file": "human/animations/fighting-right-jab.glb",
-          "hash": "cc1271a080a79655",
+          "hash": "2fa48738a6026308",
           "tags": [
             "combat",
             "unarmed"
@@ -2488,7 +2547,7 @@
         {
           "name": "Kick Front",
           "file": "human/animations/kick-front.glb",
-          "hash": "bea482aeed8dda0c",
+          "hash": "44f265489d6f0c73",
           "tags": [
             "combat",
             "unarmed"
@@ -2502,7 +2561,7 @@
         {
           "name": "Kick Roundhouse",
           "file": "human/animations/kick-roundhouse.glb",
-          "hash": "673397db0ad14c8b",
+          "hash": "c6b7187ab19ee742",
           "tags": [
             "combat",
             "unarmed"
@@ -2516,7 +2575,7 @@
         {
           "name": "Kick Side",
           "file": "human/animations/kick-side.glb",
-          "hash": "14daf401a3d519bc",
+          "hash": "653f21b32c8532ca",
           "tags": [
             "combat",
             "unarmed"
@@ -2530,21 +2589,21 @@
         {
           "name": "Kick_Spin",
           "file": "human/animations/kick-spin.glb",
-          "hash": "aa2db1498e3043c8",
+          "hash": "197e7abb04803985",
           "tags": [
             "combat",
             "unarmed"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
+          "frame_count": 46,
+          "duration": 1.875,
           "source": "rigs/human/combat/unarmed/animation-human-kick-spin.blend"
         },
         {
           "name": "Melee_Hook_Rec",
           "file": "human/animations/melee-hook-rec.glb",
-          "hash": "2d00a59551473a9a",
+          "hash": "01d56d988dca0bb7",
           "tags": [
             "combat",
             "unarmed",
@@ -2559,7 +2618,7 @@
         {
           "name": "Melee_Hook",
           "file": "human/animations/melee-hook.glb",
-          "hash": "731f7df7ef1a08bf",
+          "hash": "8d41fdc3c67cde6b",
           "tags": [
             "combat",
             "unarmed",
@@ -2574,7 +2633,7 @@
         {
           "name": "Punch_Cross",
           "file": "human/animations/punch-cross.glb",
-          "hash": "8d48ab0c787ffb94",
+          "hash": "9de0e4dedb9aec65",
           "tags": [
             "combat",
             "unarmed",
@@ -2589,7 +2648,7 @@
         {
           "name": "Punch_Jab",
           "file": "human/animations/punch-jab.glb",
-          "hash": "bd45de24a9cd4c5f",
+          "hash": "3723568cf799c162",
           "tags": [
             "combat",
             "unarmed",
@@ -2604,33 +2663,33 @@
         {
           "name": "Clapping",
           "file": "human/animations/clapping.glb",
-          "hash": "e2b40641052642bc",
+          "hash": "4d603cf8b90b1099",
           "tags": [
             "emotes"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 49,
-          "duration": 2,
+          "frame_count": 36,
+          "duration": 1.4583,
           "source": "rigs/human/emotes/animation-human-clapping.blend"
         },
         {
           "name": "Dab",
           "file": "human/animations/dab.glb",
-          "hash": "898430d1e57ea80f",
+          "hash": "2deb58f359d7ab1f",
           "tags": [
             "emotes"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
+          "frame_count": 47,
+          "duration": 1.9167,
           "source": "rigs/human/emotes/animation-human-dab.blend"
         },
         {
           "name": "Dance_Arm_Pump",
           "file": "human/animations/dance-arm-pump.glb",
-          "hash": "ceceb4e319478c8f",
+          "hash": "f74803590c39d8e1",
           "tags": [
             "emotes"
           ],
@@ -2643,7 +2702,7 @@
         {
           "name": "Dance Body Roll",
           "file": "human/animations/dance-body-roll.glb",
-          "hash": "ab7874b2c5a350dd",
+          "hash": "d3b4a9cd14ac8e25",
           "tags": [
             "emotes"
           ],
@@ -2656,7 +2715,7 @@
         {
           "name": "Dance Charleston",
           "file": "human/animations/dance-charleston.glb",
-          "hash": "c0628f4f695d8151",
+          "hash": "8601731bf4ff1899",
           "tags": [
             "emotes"
           ],
@@ -2669,7 +2728,7 @@
         {
           "name": "Dance Reach Hip",
           "file": "human/animations/dance-reach-hip.glb",
-          "hash": "9d1d89824d7057a7",
+          "hash": "46dbb91bf949c69c",
           "tags": [
             "emotes"
           ],
@@ -2682,7 +2741,7 @@
         {
           "name": "Dance_Simple",
           "file": "human/animations/dance-simple.glb",
-          "hash": "0203162a18babc86",
+          "hash": "aa3e2b18ffac97ad",
           "tags": [
             "emotes",
             "quaternius"
@@ -2696,20 +2755,20 @@
         {
           "name": "Greeting",
           "file": "human/animations/greeting.glb",
-          "hash": "bd50cb85ec7baea8",
+          "hash": "abf286fad0374970",
           "tags": [
             "emotes"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 115,
-          "duration": 4.75,
+          "frame_count": 119,
+          "duration": 4.9167,
           "source": "rigs/human/emotes/animation-human-greeting.blend"
         },
         {
           "name": "Head Nod",
           "file": "human/animations/head-nod.glb",
-          "hash": "80b867ae04d5c78f",
+          "hash": "8a44b309edc5c937",
           "tags": [
             "emotes"
           ],
@@ -2722,7 +2781,7 @@
         {
           "name": "Moonwalk",
           "file": "human/animations/moonwalk.glb",
-          "hash": "5cb4453dd91ae3f8",
+          "hash": "114f2f51e2a2069c",
           "tags": [
             "emotes"
           ],
@@ -2733,9 +2792,22 @@
           "source": "rigs/human/emotes/animation-human-moonwalk.blend"
         },
         {
+          "name": "Singing",
+          "file": "human/animations/singing.glb",
+          "hash": "f7f2d1a7e79bf5bb",
+          "tags": [
+            "emotes"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 96,
+          "duration": 3.9583,
+          "source": "rigs/human/emotes/animation-human-singing.blend"
+        },
+        {
           "name": "Yes",
           "file": "human/animations/yes.glb",
-          "hash": "8fa03e1c64c78c11",
+          "hash": "a059523bf92320a8",
           "tags": [
             "emotes",
             "quaternius"
@@ -2749,7 +2821,7 @@
         {
           "name": "Angry",
           "file": "human/animations/angry.glb",
-          "hash": "548c574851af572e",
+          "hash": "978b28846a2ca7fa",
           "tags": [
             "emotions"
           ],
@@ -2762,7 +2834,7 @@
         {
           "name": "Confused",
           "file": "human/animations/confused.glb",
-          "hash": "b394a97afb008bb6",
+          "hash": "20d0ba8de8aea5fb",
           "tags": [
             "emotions"
           ],
@@ -2775,7 +2847,7 @@
         {
           "name": "Reject",
           "file": "human/animations/reject.glb",
-          "hash": "cad8308d830fdc95",
+          "hash": "27a4ea946e5ee0f8",
           "tags": [
             "emotions"
           ],
@@ -2788,7 +2860,7 @@
         {
           "name": "Shivering",
           "file": "human/animations/shiver.glb",
-          "hash": "bbf85a991791a697",
+          "hash": "0e5a4b5c98440075",
           "tags": [
             "emotions"
           ],
@@ -2801,20 +2873,20 @@
         {
           "name": "Sit_Ground_Crying",
           "file": "human/animations/sit-ground-crying.glb",
-          "hash": "c5ecc2b823bf901d",
+          "hash": "730d66bc8b7c8dfc",
           "tags": [
             "emotions"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 48,
-          "duration": 1.9583,
+          "frame_count": 60,
+          "duration": 2.4583,
           "source": "rigs/human/emotions/animation-human-sit-ground-crying.blend"
         },
         {
           "name": "Tired Hunched",
           "file": "human/animations/tired-hunched.glb",
-          "hash": "cc3594af78ec37f6",
+          "hash": "6993e4d924b2efbf",
           "tags": [
             "emotions"
           ],
@@ -2827,7 +2899,7 @@
         {
           "name": "Kneeling Tired",
           "file": "human/animations/tired-kneeling.glb",
-          "hash": "2d3f0168f209d039",
+          "hash": "936b27b69bdcac05",
           "tags": [
             "emotions"
           ],
@@ -2840,33 +2912,33 @@
         {
           "name": "Victory Fist Pump",
           "file": "human/animations/victory-fist-pump.glb",
-          "hash": "460f874225e311c5",
+          "hash": "9241e35c368c17d7",
           "tags": [
             "emotions"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 54,
-          "duration": 2.2083,
+          "frame_count": 60,
+          "duration": 2.4583,
           "source": "rigs/human/emotions/animation-human-victory-fist-pump.blend"
         },
         {
           "name": "Victory",
           "file": "human/animations/victory.glb",
-          "hash": "39ca7ddbd85825a9",
+          "hash": "660f7b607d0b396a",
           "tags": [
             "emotions"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 40,
-          "duration": 1.625,
+          "frame_count": 45,
+          "duration": 1.8333,
           "source": "rigs/human/emotions/animation-human-victory.blend"
         },
         {
           "name": "Crouch_Idle",
           "file": "human/animations/crouch-idle.glb",
-          "hash": "61f035c6e56c7b15",
+          "hash": "3a34c46805ac98ce",
           "tags": [
             "idles",
             "quaternius"
@@ -2880,21 +2952,21 @@
         {
           "name": "Driving",
           "file": "human/animations/driving.glb",
-          "hash": "1f95a7317d3f17e5",
+          "hash": "e2dd4d2e0bc89a9c",
           "tags": [
             "idles",
             "quaternius"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 50,
-          "duration": 2.0417,
+          "frame_count": 49,
+          "duration": 2,
           "source": "rigs/human/idles/animation-human-driving.blend"
         },
         {
           "name": "Idle_A",
           "file": "human/animations/idle-a.glb",
-          "hash": "0b3a8ac8800adc3b",
+          "hash": "87b14d162867d644",
           "tags": [
             "idles",
             "quaternius"
@@ -2908,7 +2980,7 @@
         {
           "name": "Idle_FoldArms",
           "file": "human/animations/idle-foldarms.glb",
-          "hash": "ea1093df44081883",
+          "hash": "cf2633678d94edad",
           "tags": [
             "idles",
             "quaternius"
@@ -2922,7 +2994,7 @@
         {
           "name": "Idle Hurt",
           "file": "human/animations/idle-hurt.glb",
-          "hash": "8d65809618e6fa92",
+          "hash": "61f4364b3673d762",
           "tags": [
             "idles"
           ],
@@ -2935,7 +3007,7 @@
         {
           "name": "Idle_Lantern",
           "file": "human/animations/idle-lantern.glb",
-          "hash": "6f0f14bbda2a9ae8",
+          "hash": "110770192466c50c",
           "tags": [
             "idles",
             "quaternius"
@@ -2949,7 +3021,7 @@
         {
           "name": "Idle Listening",
           "file": "human/animations/idle-listening.glb",
-          "hash": "569cd994221f5e30",
+          "hash": "baf99e376c145322",
           "tags": [
             "idles"
           ],
@@ -2962,7 +3034,7 @@
         {
           "name": "Idle_Rail_Call",
           "file": "human/animations/idle-rail-call.glb",
-          "hash": "33c854595906f25b",
+          "hash": "602c573b5464657b",
           "tags": [
             "idles",
             "quaternius"
@@ -2976,7 +3048,7 @@
         {
           "name": "Idle_Rail",
           "file": "human/animations/idle-rail.glb",
-          "hash": "9494232a4609eb40",
+          "hash": "3d28b57091bfb945",
           "tags": [
             "idles",
             "quaternius"
@@ -2990,7 +3062,7 @@
         {
           "name": "Idle_ShakeOff",
           "file": "human/animations/idle-shakeoff.glb",
-          "hash": "a7e6b033ca56543c",
+          "hash": "c264e147a4f0b4b5",
           "tags": [
             "idles",
             "quaternius"
@@ -3004,7 +3076,7 @@
         {
           "name": "Idle_Subtle",
           "file": "human/animations/idle-subtle.glb",
-          "hash": "d426c8ca24bb889b",
+          "hash": "847e794048950496",
           "tags": [
             "idles"
           ],
@@ -3017,7 +3089,7 @@
         {
           "name": "Idle_Talking",
           "file": "human/animations/idle-talking.glb",
-          "hash": "570fed4ac85e983b",
+          "hash": "d955f598b772c2de",
           "tags": [
             "idles",
             "quaternius"
@@ -3031,21 +3103,21 @@
         {
           "name": "Idle_TalkingPhone",
           "file": "human/animations/idle-talkingphone.glb",
-          "hash": "9bdcae38e37f3e23",
+          "hash": "68468ec2fa992517",
           "tags": [
             "idles",
             "quaternius"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 71,
-          "duration": 2.9167,
+          "frame_count": 70,
+          "duration": 2.875,
           "source": "rigs/human/idles/animation-human-idle-talkingphone.blend"
         },
         {
           "name": "Idle_Torch",
           "file": "human/animations/idle-torch.glb",
-          "hash": "0fa5131069e5d9ed",
+          "hash": "2aa21f331d9186d2",
           "tags": [
             "idles",
             "quaternius"
@@ -3057,9 +3129,22 @@
           "source": "rigs/human/idles/animation-human-idle-torch.blend"
         },
         {
+          "name": "Kneel",
+          "file": "human/animations/kneel.glb",
+          "hash": "2457c362480533e9",
+          "tags": [
+            "idles"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 71,
+          "duration": 2.9167,
+          "source": "rigs/human/idles/animation-human-kneel.blend"
+        },
+        {
           "name": "Meditate",
           "file": "human/animations/meditate.glb",
-          "hash": "89bb6b59d42c8bd0",
+          "hash": "d9102b6851bc15f5",
           "tags": [
             "idles"
           ],
@@ -3072,20 +3157,33 @@
         {
           "name": "Mount_Idle",
           "file": "human/animations/mount-idle.glb",
-          "hash": "11ad61a462108058",
+          "hash": "5cc672f7e7e5bf1f",
           "tags": [
             "idles"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 71,
-          "duration": 2.9167,
+          "frame_count": 90,
+          "duration": 3.7083,
           "source": "rigs/human/idles/animation-human-mount-idle.blend"
+        },
+        {
+          "name": "Pray",
+          "file": "human/animations/pray.glb",
+          "hash": "56227211af98020c",
+          "tags": [
+            "idles"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 96,
+          "duration": 3.9583,
+          "source": "rigs/human/idles/animation-human-pray.blend"
         },
         {
           "name": "Sit_Ground_Idle",
           "file": "human/animations/sit-ground-idle.glb",
-          "hash": "447f84f7df15ba1b",
+          "hash": "4fd660495f41d22f",
           "tags": [
             "idles"
           ],
@@ -3098,7 +3196,7 @@
         {
           "name": "Sitting_Enter",
           "file": "human/animations/sitting-enter.glb",
-          "hash": "8037aa3df70edc76",
+          "hash": "7a149a9b939b53e2",
           "tags": [
             "idles",
             "quaternius"
@@ -3112,7 +3210,7 @@
         {
           "name": "Sitting_Exit",
           "file": "human/animations/sitting-exit.glb",
-          "hash": "1a39785783ad0715",
+          "hash": "0f4472c389cec362",
           "tags": [
             "idles",
             "quaternius"
@@ -3126,7 +3224,7 @@
         {
           "name": "Sitting_Idle",
           "file": "human/animations/sitting-idle.glb",
-          "hash": "1e4af0d5d565e6e4",
+          "hash": "f727f07d89165bba",
           "tags": [
             "idles",
             "quaternius"
@@ -3140,7 +3238,7 @@
         {
           "name": "Sitting_Talking",
           "file": "human/animations/sitting-talking.glb",
-          "hash": "131880fd93da0944",
+          "hash": "281c7bef4e563862",
           "tags": [
             "idles",
             "quaternius"
@@ -3154,7 +3252,7 @@
         {
           "name": "Sleeping",
           "file": "human/animations/sleeping.glb",
-          "hash": "b65726f89c03348f",
+          "hash": "8da3191f387ca1c8",
           "tags": [
             "idles"
           ],
@@ -3167,7 +3265,7 @@
         {
           "name": "Backflip",
           "file": "human/animations/backflip.glb",
-          "hash": "93ce1ec92fd854b2",
+          "hash": "5096de0f828756a2",
           "tags": [
             "locomotion"
           ],
@@ -3180,7 +3278,7 @@
         {
           "name": "Climb Ladder",
           "file": "human/animations/climb-ladder.glb",
-          "hash": "44d282d07bdb867a",
+          "hash": "8670c655c2122ab9",
           "tags": [
             "locomotion"
           ],
@@ -3193,7 +3291,7 @@
         {
           "name": "Pipe Climb",
           "file": "human/animations/climb-pipe.glb",
-          "hash": "b0fff9ff3b50c98e",
+          "hash": "39979b8ed6a1cb24",
           "tags": [
             "locomotion"
           ],
@@ -3206,7 +3304,7 @@
         {
           "name": "Climb Wall",
           "file": "human/animations/climb-wall.glb",
-          "hash": "c03f8710c735a5e3",
+          "hash": "2b12e8d24b772cf4",
           "tags": [
             "locomotion"
           ],
@@ -3219,7 +3317,7 @@
         {
           "name": "ClimbUp_1m_RM",
           "file": "human/animations/climbup-1m-rm.glb",
-          "hash": "f0bc212cedbc5d64",
+          "hash": "ab1df2b8dc7b3389",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3233,7 +3331,7 @@
         {
           "name": "Crawl RM",
           "file": "human/animations/crawl-rm.glb",
-          "hash": "6602bebad86ae554",
+          "hash": "de2c21976e5cc902",
           "tags": [
             "locomotion"
           ],
@@ -3246,7 +3344,7 @@
         {
           "name": "Crawl",
           "file": "human/animations/crawl.glb",
-          "hash": "2fba691a0cc424ee",
+          "hash": "e8aa32a3796ff709",
           "tags": [
             "locomotion"
           ],
@@ -3259,7 +3357,7 @@
         {
           "name": "Crouch_Walk",
           "file": "human/animations/crouch-walk.glb",
-          "hash": "b5fa72a511c32605",
+          "hash": "2586c27cc4bc67b5",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3273,7 +3371,7 @@
         {
           "name": "Drunk Walk",
           "file": "human/animations/drunk-walk.glb",
-          "hash": "4cbae9eaf33957e2",
+          "hash": "0638a89bcb857be4",
           "tags": [
             "locomotion"
           ],
@@ -3286,7 +3384,7 @@
         {
           "name": "Freefall",
           "file": "human/animations/freefall.glb",
-          "hash": "ec586572ec1c0d44",
+          "hash": "af892d3b93bdaa93",
           "tags": [
             "locomotion"
           ],
@@ -3299,7 +3397,7 @@
         {
           "name": "Jog",
           "file": "human/animations/jog.glb",
-          "hash": "169cbdf107fd127f",
+          "hash": "8262507f43549549",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3313,33 +3411,33 @@
         {
           "name": "Jump_2",
           "file": "human/animations/jump-2.glb",
-          "hash": "d441ada3e32abf01",
+          "hash": "a76a0842d3f55e9d",
           "tags": [
             "locomotion"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 40,
-          "duration": 1.625,
+          "frame_count": 41,
+          "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-jump-2.blend"
         },
         {
           "name": "Jump_2_RM",
           "file": "human/animations/jump-2-rm.glb",
-          "hash": "402cbfe089cf93ba",
+          "hash": "dfb2010ac9e4a2a9",
           "tags": [
             "locomotion"
           ],
           "loop": false,
           "root_motion": true,
-          "frame_count": 40,
-          "duration": 1.625,
+          "frame_count": 41,
+          "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-jump-2_RM.blend"
         },
         {
           "name": "Jump_air",
           "file": "human/animations/jump-air.glb",
-          "hash": "23dd6afc81d83dbd",
+          "hash": "666e9f7afec6e853",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3353,7 +3451,7 @@
         {
           "name": "Jump_Land",
           "file": "human/animations/jump-land.glb",
-          "hash": "a673b814e48252ee",
+          "hash": "38a417280d96aa01",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3367,7 +3465,7 @@
         {
           "name": "Run Jump",
           "file": "human/animations/jump-running.glb",
-          "hash": "d4e8869ec768eb06",
+          "hash": "cb589939d4eb6324",
           "tags": [
             "locomotion"
           ],
@@ -3380,7 +3478,7 @@
         {
           "name": "Jump_Start",
           "file": "human/animations/jump-start.glb",
-          "hash": "a56641e1ba7fa1bb",
+          "hash": "3a560b390cd4732f",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3394,7 +3492,7 @@
         {
           "name": "Ladder_Idle",
           "file": "human/animations/ladder-idle.glb",
-          "hash": "772fb7f391b06402",
+          "hash": "dac0d251044f7c5a",
           "tags": [
             "locomotion"
           ],
@@ -3407,33 +3505,33 @@
         {
           "name": "Land_Three_Point",
           "file": "human/animations/land-three-point.glb",
-          "hash": "a1ed2bcf1d3944d2",
+          "hash": "a69e0a003e653571",
           "tags": [
             "locomotion"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 34,
-          "duration": 1.375,
+          "frame_count": 36,
+          "duration": 1.4583,
           "source": "rigs/human/locomotion/animation-human-land-three-point.blend"
         },
         {
           "name": "Ledge Climb Up",
           "file": "human/animations/ledge-climb-up.glb",
-          "hash": "9cf732a718112f84",
+          "hash": "83cf0561c16640cb",
           "tags": [
             "locomotion"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 53,
-          "duration": 2.1667,
+          "frame_count": 84,
+          "duration": 3.4583,
           "source": "rigs/human/locomotion/animation-human-ledge-climb-up.blend"
         },
         {
           "name": "Ledge Hang",
           "file": "human/animations/ledge-hang.glb",
-          "hash": "490c1bf573e7035e",
+          "hash": "b5c82bae80a02e74",
           "tags": [
             "locomotion"
           ],
@@ -3446,7 +3544,7 @@
         {
           "name": "NinjaJump_Idle",
           "file": "human/animations/ninjajump-idle.glb",
-          "hash": "06bdc86a60afab7e",
+          "hash": "57d773b8f1f5440b",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3460,7 +3558,7 @@
         {
           "name": "NinjaJump_Land",
           "file": "human/animations/ninjajump-land.glb",
-          "hash": "d944cea617aae9ef",
+          "hash": "34a2d9e08172e2f6",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3474,7 +3572,7 @@
         {
           "name": "NinjaJump_Start",
           "file": "human/animations/ninjajump-start.glb",
-          "hash": "45868f893b7d289a",
+          "hash": "a8619b0be2eaa757",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3488,7 +3586,7 @@
         {
           "name": "Roll",
           "file": "human/animations/roll.glb",
-          "hash": "b068228f2e1c944e",
+          "hash": "b9ce779532b05bfc",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3502,7 +3600,7 @@
         {
           "name": "Roll_RM",
           "file": "human/animations/roll-rm.glb",
-          "hash": "27e0fb3a756bbc7c",
+          "hash": "60a0037457eb3d02",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3516,7 +3614,7 @@
         {
           "name": "Rope_Hang",
           "file": "human/animations/rope-hang.glb",
-          "hash": "7230f6e0d223dc32",
+          "hash": "445ae50ccb039d32",
           "tags": [
             "locomotion"
           ],
@@ -3529,7 +3627,7 @@
         {
           "name": "Rope Swing",
           "file": "human/animations/rope-swing.glb",
-          "hash": "f2587d73abba5eea",
+          "hash": "9625889fb1133219",
           "tags": [
             "locomotion"
           ],
@@ -3542,7 +3640,7 @@
         {
           "name": "Run_Anime",
           "file": "human/animations/run-anime.glb",
-          "hash": "e88595b1e50cdcb7",
+          "hash": "9a4009a6133fdb30",
           "tags": [
             "locomotion"
           ],
@@ -3555,7 +3653,7 @@
         {
           "name": "Run_Female",
           "file": "human/animations/run-female.glb",
-          "hash": "a93cd3cba03e1c86",
+          "hash": "24f4fbe93f6be857",
           "tags": [
             "locomotion"
           ],
@@ -3568,7 +3666,7 @@
         {
           "name": "Run_Stealth",
           "file": "human/animations/run-stealth.glb",
-          "hash": "03d1bac44ad5bdd5",
+          "hash": "9dc8458c5623285b",
           "tags": [
             "locomotion"
           ],
@@ -3581,7 +3679,7 @@
         {
           "name": "Slide_Exit",
           "file": "human/animations/slide-exit.glb",
-          "hash": "e2636130f68c088d",
+          "hash": "f6df79af6feb8d3e",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3595,7 +3693,7 @@
         {
           "name": "Slide_Start",
           "file": "human/animations/slide-start.glb",
-          "hash": "d4825eca836091b3",
+          "hash": "48d43755958f5204",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3609,7 +3707,7 @@
         {
           "name": "Slide",
           "file": "human/animations/slide.glb",
-          "hash": "a80053411d4cd600",
+          "hash": "3f413d02181f8340",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3623,7 +3721,7 @@
         {
           "name": "Sprint",
           "file": "human/animations/sprint.glb",
-          "hash": "6d1fe7a46ef6e1be",
+          "hash": "58b43e607111b018",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3637,7 +3735,7 @@
         {
           "name": "Strafe_left",
           "file": "human/animations/strafe-left.glb",
-          "hash": "a94c3c4c4cd3dcd1",
+          "hash": "e71951fcfe62e967",
           "tags": [
             "locomotion"
           ],
@@ -3650,7 +3748,7 @@
         {
           "name": "Strafe_right",
           "file": "human/animations/strafe-right.glb",
-          "hash": "334d42f8f5c93de7",
+          "hash": "a08aeaf5f88916b7",
           "tags": [
             "locomotion"
           ],
@@ -3663,7 +3761,7 @@
         {
           "name": "Swim_2",
           "file": "human/animations/swim-2.glb",
-          "hash": "99e125abff1df916",
+          "hash": "b955888a494c965e",
           "tags": [
             "locomotion"
           ],
@@ -3676,7 +3774,7 @@
         {
           "name": "Swim_Fwd",
           "file": "human/animations/swim-fwd.glb",
-          "hash": "99328dfac3c9cc30",
+          "hash": "a61864311f120320",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3690,7 +3788,7 @@
         {
           "name": "Swim_Idle",
           "file": "human/animations/swim-idle.glb",
-          "hash": "31cdddb157143b94",
+          "hash": "4543942babf6bf43",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3702,9 +3800,35 @@
           "source": "rigs/human/locomotion/animation-human-swim-idle.blend"
         },
         {
+          "name": "Walk_Texting",
+          "file": "human/animations/texting-walk.glb",
+          "hash": "719cc79635097b82",
+          "tags": [
+            "locomotion"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 28,
+          "duration": 1.125,
+          "source": "rigs/human/locomotion/animation-human-texting-walk.blend"
+        },
+        {
+          "name": "Walk_Tightrope",
+          "file": "human/animations/tightrope-walk.glb",
+          "hash": "7d2af9fc60330764",
+          "tags": [
+            "locomotion"
+          ],
+          "loop": true,
+          "root_motion": false,
+          "frame_count": 56,
+          "duration": 2.2917,
+          "source": "rigs/human/locomotion/animation-human-tightrope-walk.blend"
+        },
+        {
           "name": "Fall_Tumbling",
           "file": "human/animations/tumbling.glb",
-          "hash": "625e91815532795d",
+          "hash": "df9fcbe63490e39b",
           "tags": [
             "locomotion"
           ],
@@ -3717,7 +3841,7 @@
         {
           "name": "Walk_Backwards",
           "file": "human/animations/walk-backwards.glb",
-          "hash": "02826fd3462dbdb2",
+          "hash": "8bda5df89c58b1cd",
           "tags": [
             "locomotion"
           ],
@@ -3730,7 +3854,7 @@
         {
           "name": "Walk_Carry",
           "file": "human/animations/walk-carry.glb",
-          "hash": "1c4cc1a710693635",
+          "hash": "6e1c3261d8655016",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3744,7 +3868,7 @@
         {
           "name": "Walk_Cautious",
           "file": "human/animations/walk-cautious.glb",
-          "hash": "d99af92dc2721676",
+          "hash": "f9c476c2f5342b95",
           "tags": [
             "locomotion"
           ],
@@ -3757,7 +3881,7 @@
         {
           "name": "Walk_Female",
           "file": "human/animations/walk-female.glb",
-          "hash": "8341ece080d64914",
+          "hash": "af85db7f3cc5889c",
           "tags": [
             "locomotion"
           ],
@@ -3770,7 +3894,7 @@
         {
           "name": "Walk_Formal",
           "file": "human/animations/walk-formal.glb",
-          "hash": "7f9a3c21df1b52ed",
+          "hash": "ce6aafaf7fe2014f",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3784,7 +3908,7 @@
         {
           "name": "Walk_Happy",
           "file": "human/animations/walk-happy.glb",
-          "hash": "16cdc6e5a9db05d5",
+          "hash": "22053daa9ec83e0a",
           "tags": [
             "locomotion"
           ],
@@ -3797,20 +3921,20 @@
         {
           "name": "Walk Injured",
           "file": "human/animations/walk-injured.glb",
-          "hash": "cb7d3ca36e613283",
+          "hash": "f8d5b2e79f0d50ee",
           "tags": [
             "locomotion"
           ],
           "loop": true,
           "root_motion": false,
-          "frame_count": 41,
-          "duration": 1.6667,
+          "frame_count": 40,
+          "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-walk-injured.blend"
         },
         {
           "name": "Walk_Large",
           "file": "human/animations/walk-large.glb",
-          "hash": "b3067f423c486d8f",
+          "hash": "434ff69d42b67a1e",
           "tags": [
             "locomotion"
           ],
@@ -3823,7 +3947,7 @@
         {
           "name": "Walk_Relaxed",
           "file": "human/animations/walk-relaxed.glb",
-          "hash": "cbe15420abe5be21",
+          "hash": "3c4faf439c45d808",
           "tags": [
             "locomotion"
           ],
@@ -3836,7 +3960,7 @@
         {
           "name": "Walk_Stealth",
           "file": "human/animations/walk-stealth.glb",
-          "hash": "4f09cdef66422793",
+          "hash": "ba4e0eff99f9bd80",
           "tags": [
             "locomotion"
           ],
@@ -3849,7 +3973,7 @@
         {
           "name": "Walk",
           "file": "human/animations/walk.glb",
-          "hash": "de7e6241ff8e036c",
+          "hash": "c961d6dd99856f59",
           "tags": [
             "locomotion",
             "quaternius"
@@ -3863,7 +3987,7 @@
         {
           "name": "Wall_Run",
           "file": "human/animations/wall-run.glb",
-          "hash": "e97a7251ae516f53",
+          "hash": "253c55e24b2d9e70",
           "tags": [
             "locomotion"
           ],
@@ -3876,7 +4000,7 @@
         {
           "name": "Zombie_Idle",
           "file": "human/animations/zombie-idle-2.glb",
-          "hash": "f0e111ab5d0a5a3e",
+          "hash": "829938db29691419",
           "tags": [
             "zombie",
             "quaternius"
@@ -3890,7 +4014,7 @@
         {
           "name": "Zombie_Idle_Crouch",
           "file": "human/animations/zombie-idle.glb",
-          "hash": "6a017e0494d2ba53",
+          "hash": "301a0877b339ff62",
           "tags": [
             "zombie"
           ],
@@ -3903,20 +4027,20 @@
         {
           "name": "Zombie_Rise",
           "file": "human/animations/zombie-rise.glb",
-          "hash": "74c7d4e64b4c85de",
+          "hash": "529be972c672db9e",
           "tags": [
             "zombie"
           ],
           "loop": false,
           "root_motion": false,
-          "frame_count": 82,
-          "duration": 3.375,
+          "frame_count": 91,
+          "duration": 3.75,
           "source": "rigs/human/zombie/animation-human-zombie-rise.blend"
         },
         {
           "name": "Zombie Run",
           "file": "human/animations/zombie-run.glb",
-          "hash": "8c4b719595ae5cb7",
+          "hash": "bdf3dcd3a1d9aca6",
           "tags": [
             "zombie"
           ],
@@ -3929,7 +4053,7 @@
         {
           "name": "Zombie_Scratch",
           "file": "human/animations/zombie-scratch.glb",
-          "hash": "abc26d2c00c19860",
+          "hash": "58a72d808ed835d2",
           "tags": [
             "zombie",
             "quaternius"
@@ -3943,7 +4067,7 @@
         {
           "name": "Zombie_Walk_2",
           "file": "human/animations/zombie-walk-2.glb",
-          "hash": "edbaf64d28389125",
+          "hash": "4c7de1001cf76f04",
           "tags": [
             "zombie"
           ],
@@ -3956,7 +4080,7 @@
         {
           "name": "Zombie_Walk_3",
           "file": "human/animations/zombie-walk-3.glb",
-          "hash": "6349af91669bf3ae",
+          "hash": "07050a1496c1e8ee",
           "tags": [
             "zombie"
           ],
@@ -3969,7 +4093,7 @@
         {
           "name": "Zombie_Walk",
           "file": "human/animations/zombie-walk.glb",
-          "hash": "ac03ccb875a6e027",
+          "hash": "954af888226e8b85",
           "tags": [
             "zombie",
             "quaternius"
@@ -3983,7 +4107,7 @@
         {
           "name": "Zombie Yell",
           "file": "human/animations/zombie-yell.glb",
-          "hash": "57c8a3f7cd84cbec",
+          "hash": "e8ddcd9f0e851e26",
           "tags": [
             "zombie"
           ],
@@ -3999,23 +4123,23 @@
       "fps": 30,
       "model": {
         "file": "kaiju/model.glb",
-        "hash": "7ec1141ec9334329"
+        "hash": "63dfb588899be26d"
       },
       "skeleton": {
         "file": "kaiju/skeleton.glb",
-        "hash": "364e5309e6fe013c"
+        "hash": "3eb7888242c2eada"
       },
       "variations": [
         {
           "name": "base",
           "file": "kaiju/variations/base.glb",
-          "hash": "41d6bab76edf0064",
+          "hash": "e4789ffa51bc8adf",
           "source": "rig-variations/kaiju-base.blend"
         },
         {
           "name": "trex",
           "file": "kaiju/variations/trex.glb",
-          "hash": "3f3aba9e1532e378",
+          "hash": "d2e82cc285447bb7",
           "source": "rig-variations/kaiju-trex.blend"
         }
       ],
@@ -4023,7 +4147,7 @@
         {
           "name": "Attack",
           "file": "kaiju/animations/attack.glb",
-          "hash": "38856541eb2eae76",
+          "hash": "e3541a249c559727",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4034,7 +4158,7 @@
         {
           "name": "Death",
           "file": "kaiju/animations/death.glb",
-          "hash": "0991e64d061fbe7d",
+          "hash": "84a64ea296a3dc0e",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4045,18 +4169,18 @@
         {
           "name": "Hit",
           "file": "kaiju/animations/hit.glb",
-          "hash": "80a657bb95555682",
+          "hash": "6d9f9d77a791f285",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 27,
-          "duration": 0.8667,
+          "frame_count": 30,
+          "duration": 0.9667,
           "source": "rigs/kaiju/animation-kaiju-hit.blend"
         },
         {
           "name": "Idle",
           "file": "kaiju/animations/idle.glb",
-          "hash": "c7c6010775594e65",
+          "hash": "ab52e19c4e78fd0f",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4067,18 +4191,18 @@
         {
           "name": "Rest Pose",
           "file": "kaiju/animations/rest-pose.glb",
-          "hash": "9cfba6e007ab41b8",
+          "hash": "0ae9ff4db61b419c",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 10,
-          "duration": 0.3,
+          "frame_count": 15,
+          "duration": 0.4667,
           "source": "rigs/kaiju/animation-kaiju-rest-pose.blend"
         },
         {
           "name": "Roar",
           "file": "kaiju/animations/roar.glb",
-          "hash": "581eb31960bb7cd0",
+          "hash": "620c88c33a7fe1a9",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4089,7 +4213,7 @@
         {
           "name": "Swim",
           "file": "kaiju/animations/swim.glb",
-          "hash": "3d11fc97e337c1c3",
+          "hash": "af538f2938b6ecd1",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4100,18 +4224,18 @@
         {
           "name": "Tail Attack",
           "file": "kaiju/animations/tail-attack.glb",
-          "hash": "b2386319bae1e35c",
+          "hash": "7cade22575ad0185",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 82,
-          "duration": 2.7,
+          "frame_count": 83,
+          "duration": 2.7333,
           "source": "rigs/kaiju/animation-kaiju-tail-attack.blend"
         },
         {
           "name": "Walk RM",
           "file": "kaiju/animations/walk-rm.glb",
-          "hash": "f9cbe26727c3dc8b",
+          "hash": "6916fc94e3f56682",
           "tags": [],
           "loop": false,
           "root_motion": true,
@@ -4122,7 +4246,7 @@
         {
           "name": "Walk",
           "file": "kaiju/animations/walk.glb",
-          "hash": "16acf44690ce76a4",
+          "hash": "f51dce2aadec741e",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4136,23 +4260,23 @@
       "fps": 24,
       "model": {
         "file": "shark/model.glb",
-        "hash": "4374711fec7544bf"
+        "hash": "7cd1436b8927fd6e"
       },
       "skeleton": {
         "file": "shark/skeleton.glb",
-        "hash": "b4c3f5f4d1e4b77b"
+        "hash": "ecec9ab1c5f13137"
       },
       "variations": [
         {
           "name": "shark",
           "file": "shark/variations/shark.glb",
-          "hash": "4374711fec7544bf",
+          "hash": "7cd1436b8927fd6e",
           "source": "rig-variations/fish-shark.blend"
         },
         {
           "name": "whale",
           "file": "shark/variations/whale.glb",
-          "hash": "05458d5fc6da09ca",
+          "hash": "968a63ead6ae92c9",
           "source": "rig-variations/fish-whale.blend"
         }
       ],
@@ -4160,7 +4284,7 @@
         {
           "name": "Bite",
           "file": "shark/animations/bite.glb",
-          "hash": "07f3ca93d8204b7f",
+          "hash": "e39710ebf7e6b383",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4171,7 +4295,7 @@
         {
           "name": "Dead Floating",
           "file": "shark/animations/dead-floating.glb",
-          "hash": "0043c2176dcf50e8",
+          "hash": "db83609c438d8744",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4182,7 +4306,7 @@
         {
           "name": "Hit",
           "file": "shark/animations/hit.glb",
-          "hash": "f0b4e0874720d592",
+          "hash": "6711090041a01561",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4193,40 +4317,40 @@
         {
           "name": "Idle",
           "file": "shark/animations/idle.glb",
-          "hash": "7cb4b1cf006264ec",
+          "hash": "2a5af58dfca8160e",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 62,
-          "duration": 2.5417,
+          "frame_count": 61,
+          "duration": 2.5,
           "source": "rigs/shark/animation-shark-idle.blend"
         },
         {
           "name": "Rest Pose",
           "file": "shark/animations/rest-pose.glb",
-          "hash": "314c53785ee15f48",
+          "hash": "96996bdaa04451c9",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 5,
-          "duration": 0.1667,
+          "frame_count": 36,
+          "duration": 1.4583,
           "source": "rigs/shark/animation-shark-rest-pose.blend"
         },
         {
           "name": "Swim Horizontal",
           "file": "shark/animations/swim-horizontal.glb",
-          "hash": "c4bc591b874ef0d9",
+          "hash": "9854cc2dc272b6f0",
           "tags": [],
           "loop": true,
           "root_motion": false,
-          "frame_count": 34,
-          "duration": 1.375,
+          "frame_count": 33,
+          "duration": 1.3333,
           "source": "rigs/shark/animation-shark-swim-horizontal.blend"
         },
         {
           "name": "Swim Vertical",
           "file": "shark/animations/swim-vertical.glb",
-          "hash": "3259d01bc2ae8878",
+          "hash": "5878c4e606669c00",
           "tags": [],
           "loop": true,
           "root_motion": false,
@@ -4240,7 +4364,7 @@
       "fps": 24,
       "model": {
         "file": "snake/model.glb",
-        "hash": "3047afcda71c20eb"
+        "hash": "265ee01b665e2165"
       },
       "skeleton": {
         "file": "snake/skeleton.glb",
@@ -4342,62 +4466,62 @@
       "fps": 24,
       "model": {
         "file": "spider/model.glb",
-        "hash": "9e8a1a65acf8d7c7"
+        "hash": "568d6284001bab00"
       },
       "skeleton": {
         "file": "spider/skeleton.glb",
-        "hash": "862acc20a512a08a"
+        "hash": "4e24af4e495ece11"
       },
       "variations": [],
       "animations": [
         {
           "name": "Attack",
           "file": "spider/animations/attack.glb",
-          "hash": "17d498885ad01a37",
+          "hash": "ecffe9e2bb7fc052",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 26,
-          "duration": 1.0417,
+          "frame_count": 30,
+          "duration": 1.2083,
           "source": "rigs/spider/animation-spider-attack.blend"
         },
         {
           "name": "Bite",
           "file": "spider/animations/bite.glb",
-          "hash": "2bdba2e977bdb0b6",
+          "hash": "bac360279a80be3a",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 26,
-          "duration": 1.0417,
+          "frame_count": 30,
+          "duration": 1.2083,
           "source": "rigs/spider/animation-spider-bite.blend"
         },
         {
           "name": "Death 2",
           "file": "spider/animations/death-2.glb",
-          "hash": "68cdfbf1bbddbc80",
+          "hash": "d406af3f4a1e414f",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 25,
-          "duration": 1,
+          "frame_count": 30,
+          "duration": 1.2083,
           "source": "rigs/spider/animation-spider-death-2.blend"
         },
         {
           "name": "Death",
           "file": "spider/animations/death.glb",
-          "hash": "67e40e51546bc66c",
+          "hash": "a5cd2a0bb9709e2b",
           "tags": [],
           "loop": false,
           "root_motion": false,
-          "frame_count": 32,
-          "duration": 1.2917,
+          "frame_count": 36,
+          "duration": 1.4583,
           "source": "rigs/spider/animation-spider-death.blend"
         },
         {
           "name": "Eating",
           "file": "spider/animations/eating.glb",
-          "hash": "19e0f965d47821c3",
+          "hash": "0fb07cfc5c7e5909",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4408,7 +4532,7 @@
         {
           "name": "Hit",
           "file": "spider/animations/hit.glb",
-          "hash": "be7b6036782d31d9",
+          "hash": "5f69803406a322af",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4419,7 +4543,7 @@
         {
           "name": "Idle",
           "file": "spider/animations/idle.glb",
-          "hash": "bfcd0e2f80623935",
+          "hash": "1dc955819529cc76",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4430,7 +4554,7 @@
         {
           "name": "Jump",
           "file": "spider/animations/jump.glb",
-          "hash": "a48fc0f9d085b7dd",
+          "hash": "a45a332b565e119f",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4441,7 +4565,7 @@
         {
           "name": "Rest Pose",
           "file": "spider/animations/rest-pose.glb",
-          "hash": "939ced0aae0b5a58",
+          "hash": "7784c471d970df71",
           "tags": [],
           "loop": false,
           "root_motion": false,
@@ -4450,9 +4574,20 @@
           "source": "rigs/spider/animation-spider-rest-pose.blend"
         },
         {
+          "name": "Threat",
+          "file": "spider/animations/threat-display.glb",
+          "hash": "c3e2c754fd5c9942",
+          "tags": [],
+          "loop": false,
+          "root_motion": false,
+          "frame_count": 72,
+          "duration": 2.9583,
+          "source": "rigs/spider/animation-spider-threat-display.blend"
+        },
+        {
           "name": "Walk",
           "file": "spider/animations/walk.glb",
-          "hash": "cc3421c63d78b1d6",
+          "hash": "98ad8a38d1e399c6",
           "tags": [],
           "loop": false,
           "root_motion": false,

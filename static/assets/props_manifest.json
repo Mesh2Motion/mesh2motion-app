@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-31T17:56:36.713Z",
+  "generated": "2026-11-06T20:41:56.035Z",
   "categories": [
     "arrow",
     "axe",
@@ -24,7 +24,7 @@
       "hash": "1cd4daef62f2d3af",
       "preview": {
         "file": "props/preview/arrow_A.png",
-        "hash": "f68e55d56aba5ba1"
+        "hash": "73be494bab8c3b5a"
       },
       "category": "arrow",
       "tags": [
@@ -48,7 +48,7 @@
       "hash": "cddc0acdac595cc2",
       "preview": {
         "file": "props/preview/arrow_B.png",
-        "hash": "996ddbb94d995fc3"
+        "hash": "7b1224a06c0083b0"
       },
       "category": "arrow",
       "tags": [
@@ -72,7 +72,7 @@
       "hash": "13b89844f462551c",
       "preview": {
         "file": "props/preview/axe_A.png",
-        "hash": "e819bed95959f23d"
+        "hash": "23b1902a29cab490"
       },
       "category": "axe",
       "tags": [
@@ -96,7 +96,7 @@
       "hash": "f46c8d79f690df3b",
       "preview": {
         "file": "props/preview/axe_B.png",
-        "hash": "a39ce8ca325db449"
+        "hash": "211d7b23a4797f7a"
       },
       "category": "axe",
       "tags": [
@@ -120,7 +120,7 @@
       "hash": "b1913d82545fd16b",
       "preview": {
         "file": "props/preview/axe_C.png",
-        "hash": "cdd93a420be351a7"
+        "hash": "515c5fa96924a7ee"
       },
       "category": "axe",
       "tags": [
@@ -144,7 +144,7 @@
       "hash": "858400b0c52e57cf",
       "preview": {
         "file": "props/preview/bow_A.png",
-        "hash": "c29ae9ff701eff52"
+        "hash": "589c26371282cffd"
       },
       "category": "bow",
       "tags": [
@@ -168,7 +168,7 @@
       "hash": "bc7ca7dcccdc2b43",
       "preview": {
         "file": "props/preview/bow_A_withString.png",
-        "hash": "76101f3d69028de1"
+        "hash": "66976d37ee302c39"
       },
       "category": "bow",
       "tags": [
@@ -192,7 +192,7 @@
       "hash": "b0b60ef9804071bf",
       "preview": {
         "file": "props/preview/bow_B.png",
-        "hash": "bbec5bfd140aedfb"
+        "hash": "7fb6150c0e9e2ddc"
       },
       "category": "bow",
       "tags": [
@@ -216,7 +216,7 @@
       "hash": "372db3c52e332d27",
       "preview": {
         "file": "props/preview/bow_B_withString.png",
-        "hash": "1a707712110d87ce"
+        "hash": "e5c143bbd3750ca7"
       },
       "category": "bow",
       "tags": [
@@ -240,7 +240,7 @@
       "hash": "41b96e662b994893",
       "preview": {
         "file": "props/preview/dagger_A.png",
-        "hash": "192a4443f2768c04"
+        "hash": "4f69093edf85b1c5"
       },
       "category": "dagger",
       "tags": [
@@ -264,7 +264,7 @@
       "hash": "a5ec1bbf54608d6f",
       "preview": {
         "file": "props/preview/dagger_B.png",
-        "hash": "f1d25537b26e09dc"
+        "hash": "956d0b82e7b2f70b"
       },
       "category": "dagger",
       "tags": [
@@ -288,7 +288,7 @@
       "hash": "62143af61296173d",
       "preview": {
         "file": "props/preview/fistweapon_A.png",
-        "hash": "9db1bf00e13cd06b"
+        "hash": "64c6715469bc62ca"
       },
       "category": "fistweapon",
       "tags": [
@@ -312,7 +312,7 @@
       "hash": "d67b053c7b6e413c",
       "preview": {
         "file": "props/preview/fistweapon_A_stacked.png",
-        "hash": "4b30c96800a802e7"
+        "hash": "f4dec98a059dfe93"
       },
       "category": "fistweapon",
       "tags": [
@@ -336,7 +336,7 @@
       "hash": "821a7c602c710299",
       "preview": {
         "file": "props/preview/fistweapon_B.png",
-        "hash": "5dfa509bd3f2926f"
+        "hash": "3ccd2cd827890522"
       },
       "category": "fistweapon",
       "tags": [
@@ -360,7 +360,7 @@
       "hash": "80d21bffaddcba8f",
       "preview": {
         "file": "props/preview/fistweapon_B_stacked.png",
-        "hash": "7a14a6c720c65c87"
+        "hash": "9afc383e486b8bbf"
       },
       "category": "fistweapon",
       "tags": [
@@ -384,7 +384,7 @@
       "hash": "de513c13b9fd7ded",
       "preview": {
         "file": "props/preview/halberd.png",
-        "hash": "08efc426be728e49"
+        "hash": "107cdcbabdc14220"
       },
       "category": "halberd",
       "tags": [
@@ -408,7 +408,7 @@
       "hash": "87ec8602dfdfc11d",
       "preview": {
         "file": "props/preview/hammer_A.png",
-        "hash": "d32e7adc2b3cc9f9"
+        "hash": "4f20fbf55916964a"
       },
       "category": "hammer",
       "tags": [
@@ -432,7 +432,7 @@
       "hash": "a31dc51134662955",
       "preview": {
         "file": "props/preview/hammer_B.png",
-        "hash": "229aa405c59e8b7e"
+        "hash": "b9222d9ee0f09942"
       },
       "category": "hammer",
       "tags": [
@@ -456,7 +456,7 @@
       "hash": "53cd61e56ab398f5",
       "preview": {
         "file": "props/preview/hammer_C.png",
-        "hash": "702887a497c1df56"
+        "hash": "45f410d4ee952d39"
       },
       "category": "hammer",
       "tags": [
@@ -480,7 +480,7 @@
       "hash": "3d9f1467dfebf821",
       "preview": {
         "file": "props/preview/shield_A.png",
-        "hash": "08248b589a7cae3e"
+        "hash": "6d5ca09d2813da60"
       },
       "category": "shield",
       "tags": [
@@ -504,7 +504,7 @@
       "hash": "f84a3675355221c4",
       "preview": {
         "file": "props/preview/shield_B.png",
-        "hash": "e88e5a1f92355ff2"
+        "hash": "3dbb4238bebf5192"
       },
       "category": "shield",
       "tags": [
@@ -528,7 +528,7 @@
       "hash": "a24b03ab31f158bd",
       "preview": {
         "file": "props/preview/shield_C.png",
-        "hash": "d55b08a93438d78c"
+        "hash": "f968985425402347"
       },
       "category": "shield",
       "tags": [
@@ -552,7 +552,7 @@
       "hash": "0cbb15fc5751c754",
       "preview": {
         "file": "props/preview/spear_A.png",
-        "hash": "2efe9a94a142e939"
+        "hash": "4ae9137d5cd29797"
       },
       "category": "spear",
       "tags": [
@@ -576,7 +576,7 @@
       "hash": "2fc81376fdc4c366",
       "preview": {
         "file": "props/preview/staff_A.png",
-        "hash": "d923ae5ccd2204ed"
+        "hash": "b021f2d334104902"
       },
       "category": "staff",
       "tags": [
@@ -600,7 +600,7 @@
       "hash": "51dfa321b63a7ac5",
       "preview": {
         "file": "props/preview/staff_B.png",
-        "hash": "870b00dcaf0d2bcf"
+        "hash": "5b9dee56a09cdc0c"
       },
       "category": "staff",
       "tags": [
@@ -624,7 +624,7 @@
       "hash": "ffe9ce1812ee269b",
       "preview": {
         "file": "props/preview/sword_A.png",
-        "hash": "9fd0e0f317fd84a9"
+        "hash": "9ea18c8157959c53"
       },
       "category": "sword",
       "tags": [
@@ -648,7 +648,7 @@
       "hash": "9a9aad850cd819a3",
       "preview": {
         "file": "props/preview/sword_B.png",
-        "hash": "25be5143f404a8ff"
+        "hash": "b146979d6f1bdb39"
       },
       "category": "sword",
       "tags": [
@@ -672,7 +672,7 @@
       "hash": "828b88a9f9c1c9ad",
       "preview": {
         "file": "props/preview/sword_C.png",
-        "hash": "287ef7afc31474a6"
+        "hash": "539440682f33e033"
       },
       "category": "sword",
       "tags": [
@@ -696,7 +696,7 @@
       "hash": "89116cfef0a2fbf6",
       "preview": {
         "file": "props/preview/sword_D.png",
-        "hash": "0d7ab649c7c4e189"
+        "hash": "18836d751f9e4053"
       },
       "category": "sword",
       "tags": [
@@ -720,7 +720,7 @@
       "hash": "755e6327d054b161",
       "preview": {
         "file": "props/preview/sword_E.png",
-        "hash": "f7f41ffa4cfe29db"
+        "hash": "4d8309b7968c5b09"
       },
       "category": "sword",
       "tags": [
@@ -738,13 +738,61 @@
       ]
     },
     {
+      "name": "odache",
+      "display_name": "odache",
+      "file": "props/odache.glb",
+      "hash": "abfa6e88e7f4232e",
+      "preview": {
+        "file": "props/preview/odache.png",
+        "hash": "ac1033da7eec5747"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.1977,
+        "depth": 0.0768,
+        "height": 1.9713
+      },
+      "vertices": 403,
+      "triangles": 447,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
+      "name": "sword_F",
+      "display_name": "sword_F",
+      "file": "props/sword_F.glb",
+      "hash": "340e393a2cbb6d51",
+      "preview": {
+        "file": "props/preview/sword_F.png",
+        "hash": "2e89c9dd429c5300"
+      },
+      "category": "sword",
+      "tags": [
+        "sword"
+      ],
+      "dimensions": {
+        "width": 0.3366,
+        "depth": 0.0893,
+        "height": 1.43
+      },
+      "vertices": 142,
+      "triangles": 247,
+      "materials": [
+        "weapons"
+      ]
+    },
+    {
       "name": "wand_A",
       "display_name": "wand_A",
       "file": "props/wand_A.glb",
       "hash": "1297389931625ed6",
       "preview": {
         "file": "props/preview/wand_A.png",
-        "hash": "db49f1aeb6bfb3de"
+        "hash": "a2b639974a95d700"
       },
       "category": "wand",
       "tags": [
@@ -768,7 +816,7 @@
       "hash": "3a59449c51c60e1d",
       "preview": {
         "file": "props/preview/Sniper.png",
-        "hash": "392a0f8974729731"
+        "hash": "beda545a189d136a"
       },
       "category": "guns",
       "tags": [
@@ -794,7 +842,7 @@
       "hash": "840c012915c614e1",
       "preview": {
         "file": "props/preview/SMG.png",
-        "hash": "89f08a1eedf2b8ec"
+        "hash": "3b2b0bb695437114"
       },
       "category": "guns",
       "tags": [
@@ -821,7 +869,7 @@
       "hash": "eb59f07e31f00878",
       "preview": {
         "file": "props/preview/Sniper_2.png",
-        "hash": "c610d4e653c8bb81"
+        "hash": "c143308d168e0faf"
       },
       "category": "guns",
       "tags": [
@@ -847,7 +895,7 @@
       "hash": "3957c9a79fb9c4ad",
       "preview": {
         "file": "props/preview/Shotgun.png",
-        "hash": "4031dd0b90d12383"
+        "hash": "8306f9d32e54fd15"
       },
       "category": "guns",
       "tags": [
@@ -874,7 +922,7 @@
       "hash": "eb80dd439b8e06dc",
       "preview": {
         "file": "props/preview/ShortCannon.png",
-        "hash": "198373a9879bc481"
+        "hash": "66d3101d05e2b4f5"
       },
       "category": "guns",
       "tags": [
@@ -900,7 +948,7 @@
       "hash": "45e51cbab5ad906f",
       "preview": {
         "file": "props/preview/RocketLauncher.png",
-        "hash": "200ccfbdcb57a8e0"
+        "hash": "de106614c8a68362"
       },
       "category": "guns",
       "tags": [
@@ -927,7 +975,7 @@
       "hash": "aa1f347eec63eee7",
       "preview": {
         "file": "props/preview/Pistol.png",
-        "hash": "4062667a685a3397"
+        "hash": "47228be0303ee962"
       },
       "category": "guns",
       "tags": [
@@ -953,7 +1001,7 @@
       "hash": "49e8a411c5832aff",
       "preview": {
         "file": "props/preview/Knife_1.png",
-        "hash": "96b5597f1f90b41d"
+        "hash": "eb446d304b0900c0"
       },
       "category": "guns",
       "tags": [
@@ -980,7 +1028,7 @@
       "hash": "2f58993e9507de3b",
       "preview": {
         "file": "props/preview/Knife_2.png",
-        "hash": "8824e6204fa33804"
+        "hash": "6bf29fb3f511958d"
       },
       "category": "guns",
       "tags": [
@@ -1006,7 +1054,7 @@
       "hash": "c579eaef7ab0513a",
       "preview": {
         "file": "props/preview/AK.png",
-        "hash": "8c6e25e2bcc05dd3"
+        "hash": "c3d0a005a2d2b626"
       },
       "category": "guns",
       "tags": [
@@ -1033,7 +1081,7 @@
       "hash": "7386facaee9f217c",
       "preview": {
         "file": "props/preview/Shovel.png",
-        "hash": "e810a8aa0191ff0b"
+        "hash": "423eccdb809c68a0"
       },
       "category": "guns",
       "tags": [
@@ -1059,7 +1107,7 @@
       "hash": "de7540898ef85cc1",
       "preview": {
         "file": "props/preview/Revolver_Small.png",
-        "hash": "80415a2a52e8d5d8"
+        "hash": "94cf6073cff6a4e9"
       },
       "category": "guns",
       "tags": [
@@ -1086,7 +1134,7 @@
       "hash": "f25f790a83bf1b1d",
       "preview": {
         "file": "props/preview/Revolver.png",
-        "hash": "2db296378fe6d7d5"
+        "hash": "7ae93a8e8aed6d9f"
       },
       "category": "guns",
       "tags": [
@@ -1113,7 +1161,7 @@
       "hash": "0a50724b9654e872",
       "preview": {
         "file": "props/preview/GrenadeLauncher.png",
-        "hash": "5baaa256eb3f95d7"
+        "hash": "b704f74ecc2d8e00"
       },
       "category": "guns",
       "tags": [
@@ -1140,7 +1188,7 @@
       "hash": "3c17bc7ce8cfbc44",
       "preview": {
         "file": "props/preview/Sickle.png",
-        "hash": "42ec7286c57019be"
+        "hash": "7f2e4259cc94ef0b"
       },
       "category": "guns",
       "tags": [
