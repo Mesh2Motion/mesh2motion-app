@@ -28,8 +28,16 @@ interface RigSettings {
   // The bone used for position tracking (e.g., 'hips' or 'head').
   // we only have one bone per rig that we allow position keyframes (besides root)
   position_tracking_bone_name: string
+  // Camera used by the preview generator for this rig's animation preview videos. Set by hand from the
+  // camera position readout on the preview generator page. Without it, the camera is fit to the animations
+  preview_camera?: PreviewCamera
   // keyed by the variation name in the asset manifest. Variations listed here are shown first, in this order
   variations?: Record<string, VariationSettings>
+}
+
+export interface PreviewCamera {
+  position: [number, number, number] // where the camera sits
+  target: [number, number, number] // the point the camera looks at
 }
 
 export interface ModelVariation {
@@ -69,6 +77,7 @@ const rig_settings: RigSettings[] = [
     animation_preview_folder: 'human',
     position_tracking_bone_name: 'pelvis',
     skeleton_template_image_url: 'rig-reference/human.png',
+    preview_camera: { position: [5.367, 3.298, 13.687], target: [-0.12, 1.104, -0.197] },
     variations: {
       base: { display_name: 'Male', attribution: 'Quaternius' },
       zombie: { display_name: 'Zombie', attribution: 'Kenney.nl' },
@@ -107,6 +116,7 @@ const rig_settings: RigSettings[] = [
     animation_preview_folder: 'fox',
     position_tracking_bone_name: 'hips',
     skeleton_template_image_url: 'rig-reference/fox.png',
+    preview_camera: { position: [7.395, 5.274, 14.832], target: [-0.279, 1.112, -0.187] },
     variations: {
       base: { display_name: 'Fox' },
       dog: { display_name: 'Dog' },
@@ -132,7 +142,8 @@ const rig_settings: RigSettings[] = [
     rig_display_name: 'Dragon',
     animation_preview_folder: 'dragon',
     position_tracking_bone_name: 'hips',
-    skeleton_template_image_url: 'rig-reference/dragon.png'
+    skeleton_template_image_url: 'rig-reference/dragon.png',
+    preview_camera: { position: [17.216, 7.122, 23.386], target: [-0.452, 1.362, -0.873] }
   },
   {
     skeleton_type: SkeletonType.Kaiju,
@@ -239,6 +250,7 @@ function create_entry (settings: RigSettings): RigConfigEntry | undefined {
     animation_preview_folder: settings.animation_preview_folder,
     skeleton_template_image_url: settings.skeleton_template_image_url,
     position_tracking_bone_name: settings.position_tracking_bone_name,
+    preview_camera: settings.preview_camera,
     model_file: asset_path(manifest_rig.model.file),
     rig_file: asset_path(manifest_rig.skeleton.file),
     fps: manifest_rig.fps,

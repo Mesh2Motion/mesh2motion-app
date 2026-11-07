@@ -14,7 +14,7 @@ import { ThemeManager } from '../lib/ThemeManager.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import { DOMUtilities } from '../lib/DOMUtilities.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { RigConfig, type RigAnimation } from '../lib/RigConfig.ts'
+import { RigConfig, type PreviewCamera, type RigAnimation } from '../lib/RigConfig.ts'
 
 type ThemeName = 'light' | 'dark'
 
@@ -88,7 +88,34 @@ class PreviewGenerator {
     this.controls_.maxDistance = 100
     this.controls_.update()
 
+    // show the camera position while orbiting so it can be copied into a per-rig setting
+    this.controls_.addEventListener('change', () => { this.update_camera_position_output() })
+    this.update_camera_position_output()
+    document.getElementById('copy-camera-position-button')?.addEventListener('click', () => {
+      void navigator.clipboard.writeText(this.camera_position_text())
+    })
+
     this.clock_ = new THREE.Clock()
+  }
+
+  private apply_camera (camera: PreviewCamera): void {
+    this.camera_.position.fromArray(camera.position)
+    this.controls_.target.fromArray(camera.target)
+    this.controls_.update()
+    this.update_camera_position_output()
+  }
+
+  private camera_position_text (): string {
+    const format = (vector: THREE.Vector3): string =>
+      `[${vector.toArray().map((value) => Number(value.toFixed(3))).join(', ')}]`
+    return `position: ${format(this.camera_.position)}\ntarget: ${format(this.controls_.target)}`
+  }
+
+  private update_camera_position_output (): void {
+    const output = document.getElementById('camera-position-output')
+    if (output !== null) {
+      output.textContent = this.camera_position_text()
+    }
   }
 
   private create_theme_environment (theme: ThemeName): ThemeEnvironment {
@@ -174,10 +201,16 @@ class PreviewGenerator {
           AnimationUtility.clean_track_data(this.preview_clips.map(entry => entry.clip), rig.position_tracking_bone_name)
         }
 
-        this.fit_camera_to_animations()
+        // use the rig's saved camera so previews stay consistent between runs. Rigs without one get fit automatically
+        const camera_source = rig.preview_camera !== undefined ? 'saved camera from RigConfig' : 'auto-fit camera'
+        if (rig.preview_camera !== undefined) {
+          this.apply_camera(rig.preview_camera)
+        } else {
+          this.fit_camera_to_animations()
+        }
         this.play_display_clip()
         this.animate_()
-        this.set_status(`${this.preview_clips.length} animations loaded. Adjust the camera, then press Record.`)
+        this.set_status(`${this.preview_clips.length} animations loaded, using the ${camera_source}. Adjust the camera if needed, then press Record.`)
       })()
     })
 
@@ -233,6 +266,7 @@ class PreviewGenerator {
     this.controls_.target.copy(bounding_sphere.center)
     this.camera_.position.copy(bounding_sphere.center).addScaledVector(view_direction, distance)
     this.controls_.update()
+    this.update_camera_position_output()
   }
 
   private async start_recording (): Promise<void> {
