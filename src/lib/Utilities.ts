@@ -1,5 +1,5 @@
 import {
-  Vector3, Vector2, type Object3D, Mesh, Group, Bone, type Skeleton, Euler, Raycaster,
+  Vector3, Vector2, type Object3D, Mesh, Group, Bone, type Skeleton, type SkinnedMesh, Euler, Raycaster,
   type PerspectiveCamera, type Scene, type Object3DEventMap, type BufferAttribute, type BufferGeometry, type InterleavedBufferAttribute
 } from 'three'
 import BoneTransformState from './interfaces/BoneTransformState'
@@ -66,6 +66,25 @@ export class Utility {
         obj.remove(obj)
       }
     })
+  }
+
+  /**
+   * Re-parents each skeleton's root bone to be a child of its skinned mesh.
+   * Pre-rigged model GLBs (like model variations) keep their bones beside the mesh. This matches
+   * the structure created by StepWeightSkin, so the export path can treat both cases identically.
+   */
+  static parent_root_bones_to_skinned_meshes (skinned_meshes: SkinnedMesh[]): void {
+    const processed_skeletons = new Set<Skeleton>()
+
+    for (const mesh of skinned_meshes) {
+      if (processed_skeletons.has(mesh.skeleton)) continue
+      processed_skeletons.add(mesh.skeleton)
+
+      const root_bone = mesh.skeleton.bones[0]
+      if (root_bone !== undefined) {
+        mesh.add(root_bone)
+      }
+    }
   }
 
   static remove_object_with_children (obj: Object3D): void {

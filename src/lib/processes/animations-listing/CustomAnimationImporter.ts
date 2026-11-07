@@ -1,4 +1,3 @@
-import { UI } from '../../UI.ts'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { type AnimationClip, type SkinnedMesh } from 'three'
 import { type AnimationLoader, type LoadedAnimationSource } from './AnimationLoader.ts'
@@ -15,27 +14,23 @@ export interface AnimationImportContext {
 }
 
 /**
- * Handles the importing of custom animations from GLB and FBX files.
- * This class encapsulates the UI and logic for the import process.
+ * Imports custom animations from GLB and FBX files.
+ * This is only the import logic: it doesn't touch the DOM. Whatever page owns the import
+ * button wires it up (see ImportAnimationsButton) and hands the chosen files to import_files().
  *
  * Animations authored on the Mesh2Motion rig are used as they are. Animations authored on
  * another humanoid rig (Mixamo, etc) are retargeted onto the human skeleton.
  */
 export class CustomAnimationImporter extends EventTarget {
-  private readonly ui: UI
   private readonly animation_loader: AnimationLoader
   private skinned_meshes_to_animate: SkinnedMesh[] = []
   private skeleton_scale: number = 1.0
   private skeleton_type: SkeletonType = SkeletonType.None
   private import_context_provider: (() => AnimationImportContext) | null = null
-  private enabled: boolean = true
-  private has_added_event_listeners: boolean = false
 
   constructor (animation_loader: AnimationLoader) {
     super()
-    this.ui = UI.getInstance()
     this.animation_loader = animation_loader
-    this.add_event_listeners()
   }
 
   public set_import_context (context: AnimationImportContext): void {
@@ -48,65 +43,20 @@ export class CustomAnimationImporter extends EventTarget {
     this.import_context_provider = provider
   }
 
-  public set_enabled (enabled: boolean): void {
-    this.enabled = enabled
-    if (this.ui.dom_import_animations_button != null) {
-      this.ui.dom_import_animations_button.disabled = !enabled
-    }
-  }
-
-  public is_enabled (): boolean {
-    return this.enabled
-  }
-
-  private add_event_listeners (): void {
-    if (this.has_added_event_listeners) {
-      return
-    }
-
-    this.ui.dom_import_animations_button?.addEventListener('click', () => {
-      if (!this.is_enabled()) {
-        return
-      }
-      this.sync_import_context_from_provider()
-      this.ui.dom_import_animations_input?.click()
-    })
-
-    this.ui.dom_import_animations_input?.addEventListener('change', (event) => {
-      void this.handle_import_animations_input_change(event)
-    })
-
-    this.has_added_event_listeners = true
-  }
-
-  private async handle_import_animations_input_change (event: Event): Promise<void> {
-    if (!this.is_enabled()) {
-      return
-    }
-
+  /**
+   * Imports each file in turn. Results are shown in dialogs, and every successful file
+   * dispatches an 'import-success' event with its clips.
+   */
+  public async import_files (files: File[]): Promise<void> {
     this.sync_import_context_from_provider()
 
-    // potentially allow multiple files
-    const input = event.target as HTMLInputElement
-    const files = input.files
-    if (files === null || files.length === 0) {
-      return
-    }
-
-    this.set_enabled(false) // disable to prevent double-clicks during processing
-
-    try {
-      for (const file of Array.from(files)) {
-        const file_name = file.name.toLowerCase()
-        if (!file_name.endsWith('.glb') && !file_name.endsWith('.fbx')) {
-          new ModalDialog('Unsupported file type. Please select a GLB or FBX file.', 'Error').show()
-          continue
-        }
-        await this.import_animation_file(file)
+    for (const file of files) {
+      const file_name = file.name.toLowerCase()
+      if (!file_name.endsWith('.glb') && !file_name.endsWith('.fbx')) {
+        new ModalDialog('Unsupported file type. Please select a GLB or FBX file.', 'Error').show()
+        continue
       }
-    } finally {
-      input.value = ''
-      this.set_enabled(true)
+      await this.import_animation_file(file)
     }
   }
 

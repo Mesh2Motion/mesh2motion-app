@@ -1,4 +1,5 @@
-import { Skeleton, SkinnedMesh } from 'three'
+import { SkinnedMesh } from 'three'
+import { Utility } from '../../Utilities'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import tippy from 'tippy.js'
 import { RigConfig, type ModelVariation, type RigConfigEntry } from '../../RigConfig'
@@ -250,7 +251,7 @@ export class ModelVariationSwitcher extends EventTarget {
           }
         })
 
-        this.normalize_skinned_meshes(skinned_meshes)
+        Utility.parent_root_bones_to_skinned_meshes(skinned_meshes)
 
         this.dispatchEvent(new CustomEvent('variation-changed', {
           detail: { model_file, skinned_meshes, expandArms: expand_arms, pelvis_position_scale }
@@ -269,25 +270,6 @@ export class ModelVariationSwitcher extends EventTarget {
         if (this.dom_dialog_confirm_button !== null) this.dom_dialog_confirm_button.disabled = false
       }
     )
-  }
-
-  /**
-   * Re-parents each skeleton's root bone to be a child of its skinned mesh.
-   * This matches the structure created by StepWeightSkin in the normal pipeline,
-   * so the export path can treat both cases identically.
-   */
-  private normalize_skinned_meshes (skinned_meshes: SkinnedMesh[]): void {
-    const processed_skeletons = new Set<Skeleton>()
-
-    for (const mesh of skinned_meshes) {
-      if (processed_skeletons.has(mesh.skeleton)) continue
-      processed_skeletons.add(mesh.skeleton)
-
-      const root_bone = mesh.skeleton.bones[0]
-      if (root_bone !== undefined) {
-        mesh.add(root_bone)
-      }
-    }
   }
 
   private add_event_listeners (): void {

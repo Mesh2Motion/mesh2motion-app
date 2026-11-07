@@ -1,0 +1,349 @@
+:root {
+    --composer-accent: var(--button-primary-bg);
+}
+
+#composer-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* 24rem fit three tiles per row before the library list got its 0.75rem inner padding and 0.5rem tile gap.
+       the extra 2rem covers that padding on both sides plus the wider gaps, keeping three tiles per row */
+    width: 26rem;
+    max-width: 100%;
+    /* styles.css pads every div. override it with side padding only; content-box keeps the content width */
+    box-sizing: content-box;
+    padding: 0 1rem;
+    /* fill the panel height so only the library grid scrolls */
+    height: calc(100dvh - var(--navigation-height) - 1.5rem);
+}
+
+#composer-panel h1 {
+    font-size: 1.7rem;
+    margin: 0;
+}
+
+#composer-panel h2 {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.composer-intro {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+#composer-status {
+    color: var(--text-primary);
+    font-style: italic;
+}
+
+/* ---------- slots ---------- */
+
+#composer-slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.composer-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    padding: 0.75rem 0.85rem;
+    border: 2px dashed var(--bg-tertiary);
+    border-radius: 8px;
+    background: var(--bg-alternate);
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.composer-slot-figure {
+    flex-shrink: 0;
+    width: 20px;
+    height: 32px;
+}
+
+.composer-slot-figure rect,
+.composer-slot-figure circle {
+    fill: var(--bg-tertiary);
+    opacity: 0.45;
+}
+
+/* highlight the half of the body each slot controls */
+.composer-slot[data-slot="upper"] .figure-upper,
+.composer-slot[data-slot="lower"] .figure-lower {
+    fill: var(--text-primary);
+    opacity: 1;
+}
+
+.composer-slot-animation-name {
+    flex-grow: 1;
+    min-width: 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.25;
+    /* long names wrap to a second line, then clamp with an ellipsis */
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.composer-slot.is-loading .composer-slot-animation-name::after {
+    content: ' …';
+    color: var(--text-primary);
+}
+
+/* while a tile is being dragged, every slot pulses to show it accepts drops */
+body.composer-is-dragging .composer-slot {
+    border-color: var(--composer-accent);
+    animation: composer-slot-pulse 1.2s ease-in-out infinite;
+}
+
+/* the slot under the cursor */
+.composer-slot.is-drag-over,
+body.composer-is-dragging .composer-slot.is-drag-over {
+    border-style: solid;
+    border-color: var(--composer-accent);
+    background: color-mix(in srgb, var(--composer-accent) 30%, var(--bg-alternate));
+    transform: scale(1.02);
+    animation: none;
+}
+
+@keyframes composer-slot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--composer-accent) 0%, transparent); }
+    50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--composer-accent) 45%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.composer-is-dragging .composer-slot {
+        animation: none;
+    }
+}
+
+/* ---------- library ---------- */
+
+#composer-library {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-grow: 1;
+    min-height: 0;
+    padding: 0;
+}
+
+/* filter input with the animation count overlaid on its right edge */
+.composer-library-filter-wrap {
+    position: relative;
+}
+
+#composer-library-filter {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 0;
+    padding-right: 7.5rem; /* keep typed text clear of the count overlay */
+}
+
+#composer-library-count {
+    position: absolute;
+    top: 50%;
+    right: 1.25rem;
+    transform: translateY(-50%);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    pointer-events: none; /* clicks fall through to the input */
+}
+
+/*
+ * The list and tiles use the same sizes and colors as the Explore animation listing (#animations-items in styles.css).
+ * Only the drag cues (grip, hover outline, slot badges) are specific to the Composer.
+ */
+#composer-library-items {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 0.5rem;
+    flex-grow: 1;
+    min-height: 10rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.75rem;
+    background: var(--bg-alternate);
+    border: 1px solid var(--bg-tertiary);
+}
+
+/* styles.css pads every div. the Explore listing turns that off for its tiles too */
+#composer-library-items div {
+    padding: 0;
+}
+
+.composer-library-empty {
+    width: 100%;
+    color: var(--text-primary);
+}
+
+#composer-library-items .composer-library-empty {
+    padding: 1rem;
+}
+
+.composer-library-item {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    width: 103px;
+    height: 160px;
+    background: transparent;
+    cursor: grab;
+    user-select: none;
+    transition: opacity 0.15s ease;
+}
+
+/* frame around the preview video. matches the play button around Explore previews (button.secondary-button.play) */
+#composer-library-items .composer-library-item-preview {
+    display: flex;
+    flex: 0 0 auto;
+    height: 123px; /* same height as the Explore preview button */
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--bg-tertiary);
+    background: linear-gradient(0deg, var(--bg-alternate) 0%, var(--bg-tertiary) 100%);
+}
+
+/* same hover as the Explore previews */
+#composer-library-items .composer-library-item:hover .composer-library-item-preview {
+    border-color: var(--text-primary);
+    background: var(--bg-alternate);
+    transition: all 0.4s ease;
+}
+
+.composer-library-item:active {
+    cursor: grabbing;
+}
+
+/* the tile being dragged stays in place as a faded ghost */
+.composer-library-item.is-dragging {
+    opacity: 0.4;
+}
+
+.composer-library-item .anim-preview-placeholder,
+.composer-library-item .anim-preview {
+    display: block;
+    width: 100px;
+    height: 120px;
+    margin: 0;
+    border-radius: 0;
+    background: var(--bg-primary);
+    object-fit: cover;
+    /* videos are draggable on their own, so let the tile handle the drag */
+    pointer-events: none;
+}
+
+/* imported animations have no preview video. a chip in the middle of the frame marks them.
+   declared after the placeholder rule above so its flex display wins over display: block */
+.composer-library-item .anim-preview-placeholder.composer-custom-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* same colors and pill shape as the custom animation badge on the Explore listing (.anim-custom-badge) */
+.composer-imported-chip {
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: var(--button-alternate-bg);
+    color: #ffffff;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.composer-library-item-name {
+    width: 100px;
+    margin: 0.2rem auto;
+    font-size: 88%;
+    line-height: 120%;
+    text-align: left;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow-wrap: anywhere;
+}
+
+/* dotted grip, the usual sign that something can be dragged */
+.composer-drag-grip {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 10px;
+    height: 16px;
+    background-image: radial-gradient(circle, var(--text-alternate) 1.5px, transparent 1.6px);
+    background-size: 5px 5px;
+}
+
+.composer-library-item .composer-drag-grip {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    opacity: 0.7;
+    background-image: radial-gradient(circle, var(--text-primary) 1.5px, transparent 1.6px);
+    filter: drop-shadow(0 0 1px var(--bg-primary));
+}
+
+.composer-library-item:hover .composer-drag-grip {
+    opacity: 1;
+}
+
+/* badges show which tiles are in a slot */
+.composer-slot-badge {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: white;
+    background: var(--composer-accent);
+}
+
+.composer-library-item.in-upper-slot .composer-slot-badge-upper,
+.composer-library-item.in-lower-slot .composer-slot-badge-lower {
+    display: inline-block;
+}
+
+/* both badges on one tile: stack the lower badge under the upper one */
+.composer-library-item.in-upper-slot .composer-slot-badge-lower {
+    top: 24px;
+}
+
+/* ---------- export ---------- */
+
+#composer-export {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#composer-export #export-composer-button {
+    white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+    #composer-panel {
+        box-sizing: border-box;
+        width: 100%;
+        height: auto;
+    }
+
+    #composer-library-items {
+        max-height: 50vh;
+    }
+}

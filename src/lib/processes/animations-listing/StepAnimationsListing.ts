@@ -11,6 +11,7 @@ import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.t
 import { AnimationLibrary, type AnimationLibraryLoadProgress } from './AnimationLibrary.ts'
 import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
+import { ImportAnimationsButton } from './ImportAnimationsButton.ts'
 import { type ModelVariationSwitcher } from './ModelVariationSwitcher.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
@@ -47,6 +48,8 @@ export class StepAnimationsListing extends EventTarget {
   private model_variation_pelvis_position_scale: number = 1.0
 
   private readonly custom_animation_importer: CustomAnimationImporter
+  // wired up in begin() so pages that never show this step don't listen to the import button
+  private import_animations_button: ImportAnimationsButton | null = null
   private readonly props_manager: PropsManager = new PropsManager()
 
   private _added_event_listeners: boolean = false
@@ -125,7 +128,12 @@ export class StepAnimationsListing extends EventTarget {
     }
 
     this.reset_step_data()
-    this.custom_animation_importer.set_enabled(true)
+    this.import_animations_button?.dispose()
+    this.import_animations_button = new ImportAnimationsButton(
+      this.custom_animation_importer,
+      this.ui.dom_import_animations_button,
+      this.ui.dom_import_animations_input
+    )
 
     this.skeleton_type = skeleton_type
     this.props_manager.begin(skeleton_type, skeleton_scale)

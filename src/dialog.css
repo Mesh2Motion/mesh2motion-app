@@ -186,7 +186,7 @@
 }
 
 .variation-loading-text {
-  color: var(--text-alternate);
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
 }

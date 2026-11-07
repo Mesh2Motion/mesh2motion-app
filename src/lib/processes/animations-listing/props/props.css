@@ -56,7 +56,7 @@
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-    color: var(--text-alternate);
+    color: var(--text-primary);
 }
 
 .prop-picker-label {

@@ -278,7 +278,7 @@ export class EventListeners {
 
     this.bootstrap.ui.dom_wireframe_checkbox?.addEventListener('change', (event: Event) => {
       const is_wireframe = (event.target as HTMLInputElement).checked
-      const skinned_meshes = this.bootstrap.animations_listing_step.active_skinned_meshes()
+      const skinned_meshes = this.bootstrap.active_skinned_meshes()
       skinned_meshes.forEach((mesh) => {
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
         materials.forEach((mat: Material) => {

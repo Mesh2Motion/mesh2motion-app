@@ -50,6 +50,11 @@ export class SettingsDropdownManager {
       }
     })
 
+    // close the menu when one of its links (Learn, Contributors) opens a dialog
+    dropdown_content.querySelectorAll('.settings-dropdown-link').forEach((link) => {
+      link.addEventListener('click', () => { this.close_dropdown() })
+    })
+
     document.addEventListener('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         this.close_dropdown()

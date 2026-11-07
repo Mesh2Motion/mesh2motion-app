@@ -80,8 +80,6 @@ export class DOMUtilities {
     mount.style.alignItems = 'center'
 
     mount.innerHTML = `
-      <a href="#" id="learn-link">Learn</a>
-      <a href="#" id="attribution-link">Contributors</a>
       <a href="${nav_links.support_href}" id="nav-support-mesh2motion" target="_blank">💗</a>
       <a href="${nav_links.github_href}" id="nav-github" target="_blank">
         <img src="${nav_links.github_icon_src}" width="24" height="24" alt="GitHub" />
@@ -266,6 +264,16 @@ export class DOMUtilities {
   private static get_download_control_config (): DownloadControlConfig {
     const defaults = DOMUtilities.download_control_defaults
 
+    // the composer exports one animation it builds itself, so it needs its own button id
+    // to stay clear of the Explore export handler that listens for 'export-button'
+    if (DOMUtilities.is_composer_page()) {
+      return {
+        export_button_id: 'export-composer-button',
+        download_icon_src: '../images/icons/download.svg',
+        tooltip: 'Download the composed animation as a single file.'
+      }
+    }
+
     if (DOMUtilities.is_retarget_page()) {
       return {
         export_button_id: 'export-retargeting-button',
@@ -278,7 +286,7 @@ export class DOMUtilities {
   }
 
   private static get_download_settings_icon_src (): string {
-    if (DOMUtilities.is_retarget_page()) {
+    if (DOMUtilities.is_retarget_page() || DOMUtilities.is_composer_page()) {
       return '../images/icons/arrow-dropdown.svg'
     }
 
@@ -394,6 +402,11 @@ export class DOMUtilities {
     return path_name.includes('/retarget/')
   }
 
+  private static is_composer_page (): boolean {
+    const path_name = window.location.pathname.toLowerCase()
+    return path_name.includes('/composer/')
+  }
+
   /**
    * Render shared nav settings dropdown markup into the provided mount element.
    */
@@ -442,6 +455,11 @@ export class DOMUtilities {
             <label for="solid-background-toggle">Solid background</label>
             <input type="checkbox" id="solid-background-toggle" ${defaults.solid_background_enabled ? 'checked' : ''} />
           </div>
+
+          <hr class="settings-dropdown-divider" />
+
+          <a href="#" id="learn-link" class="settings-dropdown-row settings-dropdown-link">Learn</a>
+          <a href="#" id="attribution-link" class="settings-dropdown-row settings-dropdown-link">Contributors</a>
         </div>
       </div>
     `

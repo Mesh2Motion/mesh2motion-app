@@ -151,7 +151,7 @@ div, p {
 }
 
 #animation-listing-count {
-    color: var(--text-alternate)
+    color: var(--text-primary)
 }
 
 /* indicator on download buton with how many are selected */
@@ -216,6 +216,7 @@ input[type="text"] {
     background-color: var(--bg-primary);
     border: 1px solid var(--bg-tertiary);
     color: var(--text-primary);
+    font-size: 1rem;
 }
 input[type="text"]::placeholder {
     color: var(--text-primary);
@@ -351,7 +352,8 @@ button:disabled {
 }
 
 .download-combo #export-button,
-.download-combo #export-retargeting-button {
+.download-combo #export-retargeting-button,
+.download-combo #export-composer-button {
     margin-right: 0;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
@@ -396,6 +398,20 @@ button:disabled {
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
 }
 
+/* light theme: white panel, selected options keep the normal text color */
+[data-theme="light"] .download-settings-panel {
+    background: white;
+}
+
+[data-theme="light"] .download-settings-panel .toggle input:checked + label {
+    background-color: color-mix(in srgb, var(--radio-button-group-bg) 45%, white);
+}
+
+[data-theme="light"] .download-settings-panel .toggle input:checked + label,
+[data-theme="light"] .download-settings-panel .toggle input:checked + label::before {
+    color: var(--text-primary);
+}
+
 .download-settings-panel[hidden] {
     display: none;
 }
@@ -408,7 +424,7 @@ button:disabled {
 }
 
 .download-settings-label {
-    color: var(--text-alternate);
+    color: var(--text-primary);
     font-size: 1.0rem;
     white-space: pre; /* no line breaks */
 }
@@ -536,7 +552,7 @@ option {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    color: var(--text-alternate);
+    color: var(--text-primary);
 }
 
 #model-pose-instructions {
@@ -909,7 +925,7 @@ input[type="file"] {
 }
 
 .pill-switch-label {
-    color: var(--text-alternate);
+    color: var(--text-primary);
     font-size: 0.95rem;
     padding: 0;
 }
@@ -978,7 +994,7 @@ input[type="file"] {
 
 #selected-bone-overlay .selected-bone-overlay-label {
     font-size: 70%;
-    color: var(--text-alternate);
+    color: var(--text-primary);
     margin:0;
     padding:0;
 }
@@ -1094,7 +1110,7 @@ div.modal-dialog-body p.survey-thank-you {
     left: 0;
     padding: 0.5rem 0.7rem;
     font-size: 0.8rem;
-    color: var(--text-alternate);
+    color: var(--text-primary);
 }
 
 /* loading progress bar for animations */

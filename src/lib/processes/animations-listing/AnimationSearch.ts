@@ -1,6 +1,6 @@
 import { type ThemeManager } from '../../ThemeManager'
 import { SkeletonType } from '../../enums/SkeletonType'
-import { RigConfig } from '../../RigConfig'
+import { AnimationPreviewVideos } from './AnimationPreviewVideos'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
 import { type AnimationEntry } from './interfaces/AnimationEntry'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'
@@ -28,7 +28,7 @@ export class AnimationSearch extends EventTarget {
   private readonly row_elements = new Map<string, HTMLElement>()
   private no_animations_message: HTMLElement | null = null
   private request_animation_tile: HTMLElement | null = null
-  private lazy_video_observer: IntersectionObserver | null = null
+  private readonly preview_videos: AnimationPreviewVideos = new AnimationPreviewVideos()
 
   private static readonly mirror_mode_cycle: AnimationMirrorExportMode[] = ['none', 'mirrored', 'both']
 
@@ -411,28 +411,23 @@ export class AnimationSearch extends EventTarget {
       return
     }
 
-    this.lazy_video_observer?.disconnect()
+    this.preview_videos.disconnect()
     this.row_elements.clear()
+
+    const theme_name: string = this.theme_manager.get_current_theme()
 
     const rows_html = this.all_animations.map((animation_clip) => {
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
       const checked_attribute = was_checked ? 'checked' : ''
 
-      // build out where the video previews will be stored
-      // each skeleton type has its own folder
-      const preview_folder: string = RigConfig.by_skeleton_type(this.skeleton_type)?.animation_preview_folder ?? 'error'
-      if (preview_folder === 'error') {
-        console.error('Unknown skeleton type for animation previews. Add the rig to RigConfig.ts.')
-      }
-
-      const anim_name: string = animation_clip.name
-      const theme_name: string = this.theme_manager.get_current_theme()
       const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
 
-      const preview_data_src_attribute = is_custom_animation
-        ? ''
-        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.mp4"`
+      // each skeleton type has its own folder of preview videos. custom imports have none
+      const preview_src: string | null = is_custom_animation
+        ? null
+        : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
+      const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
 
       const custom_animation_badge_html = is_custom_animation
         ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
@@ -487,54 +482,9 @@ export class AnimationSearch extends EventTarget {
 
     this.render_filtered_animations(this.filter_input?.value.toLowerCase() ?? '')
 
-    // only so many WebM videos can be playing at the same time
+    // only so many videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
-    this.setup_lazy_video_loading()
-  }
-
-  /**
-   * Sets up lazy loading for video previews using Intersection Observer.
-   * Only loads video elements when their placeholders are visible in the viewport.
-   */
-  private setup_lazy_video_loading (): void {
-    // Only set up IntersectionObserver if the container exists
-    // any animation entry that is in view will run this code to convert it to a video element
-    this.lazy_video_observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
-      entries.forEach(entry => {
-        const placeholder = entry.target as HTMLElement
-
-        // abort if animation entry is outside active viewing area (but don't unload - causes popping)
-        if (!entry.isIntersecting) {
-          return
-        }
-
-        // if element is already a video, and it is in view, don't convert
-        // it to a video again, it is ok so abort any further work
-        const existing_video = placeholder.querySelector('video')
-        if (existing_video != null) {
-          return
-        }
-
-        // element that just came into view and needs to be converted
-        // to a video element
-        const video = document.createElement('video')
-        video.className = 'anim-preview'
-        const src = placeholder.getAttribute('data-src') ?? ''
-        video.src = src
-        video.width = 100
-        video.height = 120
-        video.loop = true
-        video.muted = true
-        video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
-        video.autoplay = true
-        placeholder.innerHTML = ''
-        placeholder.appendChild(video)
-      })
-    }, { rootMargin: '300px' }) // rootMargin pre-loads videos before they scroll into view to reduce popping
-
-    // grabs all the animation list elements and tells the observer to start watching them for processing
-    const placeholders = this.animation_list_container?.querySelectorAll('.anim-preview-placeholder')
-    placeholders?.forEach(ph => { this.lazy_video_observer?.observe(ph) })
+    this.preview_videos.observe_placeholders(this.animation_list_container)
   }
 
   public animation_name_clean (input: string): string {

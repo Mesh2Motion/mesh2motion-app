@@ -77,6 +77,10 @@ export class Mesh2MotionEngine {
   public transform_space_type: TransformSpace = TransformSpace.Global
 
   private readonly clock = new THREE.Clock()
+  private readonly frame_listeners: Array<(delta_time: number) => void> = []
+
+  // pages that animate their own model (like the Composer) provide it here, so shared controls like wireframe find it
+  private active_skinned_meshes_provider: (() => THREE.SkinnedMesh[]) | null = null
   private readonly scene_environment: SceneEnvironmentManager
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
@@ -175,6 +179,28 @@ export class Mesh2MotionEngine {
 
   public set_fog_enabled (enabled: boolean): void {
     this.scene_environment.set_fog_enabled(enabled)
+  }
+
+  /**
+   * Registers a callback that runs every frame before the scene renders.
+   * Pages that drive their own animation (like the Composer) use this instead of a separate render loop.
+   */
+  public add_frame_listener (listener: (delta_time: number) => void): void {
+    this.frame_listeners.push(listener)
+  }
+
+  public set_active_skinned_meshes_provider (provider: () => THREE.SkinnedMesh[]): void {
+    this.active_skinned_meshes_provider = provider
+  }
+
+  /**
+   * Skinned meshes currently shown and animated in the viewport.
+   */
+  public active_skinned_meshes (): THREE.SkinnedMesh[] {
+    if (this.active_skinned_meshes_provider !== null) {
+      return this.active_skinned_meshes_provider()
+    }
+    return this.animations_listing_step.active_skinned_meshes()
   }
 
   public enable_orbit_controls (enabled: boolean): void {
@@ -479,6 +505,8 @@ export class Mesh2MotionEngine {
     if (this.process_step === ProcessStep.AnimationsListing) {
       this.animations_listing_step.frame_change(delta_time)
     }
+
+    this.frame_listeners.forEach((listener) => { listener(delta_time) })
 
     this.renderer.render(this.scene, this.camera)
 

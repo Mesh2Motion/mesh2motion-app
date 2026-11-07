@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Remix - Mesh2Motion</title>
+        <link rel="icon" type="image/png" href="../images/favicon.png"/>
+
+        <!-- Stylesheets-->
+        <link href="../styles.css" rel="stylesheet" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../radio-button-group.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../animation-player.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../settings-dropdown.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../dialog.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../offline.css" crossorigin="anonymous" />        <link rel="stylesheet" href="./composer.css" crossorigin="anonymous" />
+    </head>
+
+    <body style="margin: 0">
+
+        <nav>
+            <div style="display: inline-flex; align-items: center;">
+                <a id="logo-branding" href="https://mesh2motion.org">
+                    <img src="../images/mesh2motion.svg" width="130" alt="Mesh2Motion logo" />
+                </a>
+                <a href="/">Explore</a>
+                <a href="/create.html">Use Your Model</a>
+                <a href="/retarget/index.html">Use Your Rigged Model</a>
+                <span class="active-nav-item">Remix</span>
+            </div>
+
+            <div style="display: inline-flex; align-items: center;">
+                <div id="top-nav-links-mount"></div>
+            </div>
+        </nav>
+
+        <div id="header-ui-mount"></div>
+
+        <!-- Tool Options Panel -->
+        <div id="tool-panel">
+            <div id="composer-panel">
+                <h1>Remix Animations</h1>
+                <p class="composer-intro">Create a new animation by dragging animations to the upper and lower animation slots.</p>
+
+                <div id="composer-status" style="display: none"></div>
+
+                <!-- slots that hold the animation for each half of the body. library tiles are dropped here -->
+                <div id="composer-slots">
+                    <div id="composer-upper-slot" class="composer-slot" data-slot="upper" title="Drop an animation here">
+                        <svg class="composer-slot-figure" viewBox="0 0 40 64" aria-hidden="true">
+                            <circle class="figure-upper" cx="20" cy="7" r="6" />
+                            <rect class="figure-upper" x="13" y="14" width="14" height="17" rx="3" />
+                            <rect class="figure-upper" x="6" y="15" width="5" height="17" rx="2.5" />
+                            <rect class="figure-upper" x="29" y="15" width="5" height="17" rx="2.5" />
+                            <rect class="figure-lower" x="13" y="32" width="14" height="6" rx="2" />
+                            <rect class="figure-lower" x="13" y="39" width="6" height="22" rx="3" />
+                            <rect class="figure-lower" x="21" y="39" width="6" height="22" rx="3" />
+                        </svg>
+                        <span class="composer-slot-animation-name">—</span>
+                    </div>
+
+                    <div id="composer-lower-slot" class="composer-slot" data-slot="lower" title="Drop an animation here">
+                        <svg class="composer-slot-figure" viewBox="0 0 40 64" aria-hidden="true">
+                            <circle class="figure-upper" cx="20" cy="7" r="6" />
+                            <rect class="figure-upper" x="13" y="14" width="14" height="17" rx="3" />
+                            <rect class="figure-upper" x="6" y="15" width="5" height="17" rx="2.5" />
+                            <rect class="figure-upper" x="29" y="15" width="5" height="17" rx="2.5" />
+                            <rect class="figure-lower" x="13" y="32" width="14" height="6" rx="2" />
+                            <rect class="figure-lower" x="13" y="39" width="6" height="22" rx="3" />
+                            <rect class="figure-lower" x="21" y="39" width="6" height="22" rx="3" />
+                        </svg>
+                        <span class="composer-slot-animation-name">—</span>
+                    </div>
+                </div>
+
+                <!-- animation library. tiles are dragged onto the slots above -->
+                <div id="composer-library">
+                    <div class="composer-library-filter-wrap">
+                        <input type="text" id="composer-library-filter" placeholder="Filter animations" aria-label="Filter animations">
+                        <span id="composer-library-count" aria-live="polite">0 results</span>
+                    </div>
+                    <div id="composer-library-items"></div>
+                </div>
+
+                <!-- download the result with the shared download options -->
+                <!-- same layout as the Explore page: import button to the left of the download control.
+                     CustomAnimationImporter binds to these ids -->
+                <div id="composer-export" class="download-actions-row">
+                    <button class="secondary-button" id="import-animations-button" disabled data-tippy-content="Import GLB or FBX animations. Mesh2Motion rigs are supported, and Mixamo animations can be retargeted onto the Human rig." aria-label="Import GLB or FBX animations. Mesh2Motion rigs are supported, and Mixamo animations can be retargeted onto the Human rig.">
+                        <img src="../images/icons/upload.svg" alt="Upload" width="20" height="20" />
+                    </button>
+                    <input id="import-animations-input" type="file" accept=".glb,.fbx" multiple style="display:none" />
+
+                    <div id="download-control-mount"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="animation-player-mount"></div>
+
+        <!-- 3d view controls shown on bottom right. This helps with click events -->
+        <div id="view-control-hitbox"></div>
+
+        <!-- build version information-->
+        <span id="build-version"></span>
+
+        <script type="module" src="./composer.ts"></script>
+    </body>
+</html>
