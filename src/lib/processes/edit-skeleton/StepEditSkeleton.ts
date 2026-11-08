@@ -308,14 +308,19 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   private update_bind_button_text (): void {
-    if (this.show_debug && this.ui.dom_bind_pose_button !== null) {
+    if (this.ui.dom_bind_pose_button === null) { return }
+
+    if (this.ui.dom_enable_weight_paint_step?.checked === true) {
+      this.ui.dom_bind_pose_button.innerHTML = 'Weight painting &nbsp;&#x203a;'
+      return
+    }
+
+    if (this.show_debug) {
       this.ui.dom_bind_pose_button.innerHTML = 'Test Skinning Algorithm &nbsp;&#x203a;'
       return
     }
 
-    if (this.ui.dom_bind_pose_button !== null) {
-      this.ui.dom_bind_pose_button.innerHTML = 'Finish &nbsp;&#x203a;'
-    }
+    this.ui.dom_bind_pose_button.innerHTML = 'Finish &nbsp;&#x203a;'
   }
 
   public show_debugging (): boolean {
@@ -705,6 +710,10 @@ export class StepEditSkeleton extends EventTarget {
       }
 
       this.show_debug = target.checked
+      this.update_bind_button_text()
+    })
+
+    this.ui.dom_enable_weight_paint_step?.addEventListener('change', () => {
       this.update_bind_button_text()
     })
 

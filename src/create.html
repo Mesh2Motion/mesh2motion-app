@@ -320,7 +320,12 @@
             </div>
           </details>
 
+          <div class="styled-checkbox">
+            <input type="checkbox" id="enable-weight-paint-step" />
+            <label for="enable-weight-paint-step">Add weight painting step</label>
 
+            <img data-tippy-content="Adds an optional step after posing the bones where you can paint weights while testing a couple of animations." src="images/icons/help.svg" alt="Help" width="20" height="20" />
+          </div>
 
           <div class="styled-checkbox">
             <input type="checkbox" id="mirror-skeleton" name="mirror-skeleton" value="mirror" checked>
@@ -373,47 +378,70 @@
                 <p class="step-instructions">Select animations you want to export by checking them by animation</p>
             </span> -->
 
-        <span id="skinned-step-animation-export-options">
-          <details id="animation-weight-paint-tools" style="max-width: 320px;" hidden>
-            <summary>Weight painting</summary>
-            <p><small>Paint weights directly on the posed mesh. Starting paint mode pauses the animation. Scrub to a frame, paint, and the mesh updates immediately. Strokes made here are kept for binding and export. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
-            <button id="animation-weight-paint-toggle" type="button" aria-pressed="false">Start painting</button>
-            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-              <label for="animation-weight-paint-bone">Bone</label>
-              <select id="animation-weight-paint-bone"></select>
+        <span id="weight-paint-step-tools" style="display: none; flex-direction: column; max-width: 320px;">
+          <p><small>Paint weights on the animated mesh. Starting paint mode pauses the animation so the brush works on a still pose. Strokes are kept when binding and exporting. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
 
-              <div class="styled-checkbox">
-                <input type="checkbox" id="animation-weight-paint-show" checked />
-                <label for="animation-weight-paint-show">Show weights</label>
-              </div>
-              <div class="styled-checkbox">
-                <input type="checkbox" id="animation-weight-paint-mirror" checked />
-                <label for="animation-weight-paint-mirror">Mirror L/R</label>
-              </div>
-              <p><small>Color shows the selected bone's weight: blue = low, yellow = 0.5, red = 1.</small></p>
+          <div class="alternate-background-section">
+            <label for="weight-paint-step-animation">Test animation</label>
+            <select id="weight-paint-step-animation"></select>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+              <label for="weight-paint-step-speed">Speed</label>
+              <select id="weight-paint-step-speed" style="flex: 1;">
+                <option value="0.1">0.1x</option>
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+            </div>
+            <span id="weight-paint-step-animation-status" style="font-size: 0.85rem;"></span>
+          </div>
 
-              <div class="pill-switch-group" aria-label="Animation weight paint mode" style="margin: 0;">
-                <span class="pill-switch-label">Brush</span>
-                <div class="pill-switch">
-                  <input type="radio" id="animation-weight-paint-add" name="animation-weight-paint-mode" value="add" checked />
-                  <label for="animation-weight-paint-add">Add</label>
-                  <input type="radio" id="animation-weight-paint-subtract" name="animation-weight-paint-mode" value="subtract" />
-                  <label for="animation-weight-paint-subtract">Subtract</label>
-                </div>
-              </div>
+          <button id="weight-paint-step-toggle" type="button" aria-pressed="false">Start painting</button>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+            <label for="weight-paint-step-bone">Bone</label>
+            <select id="weight-paint-step-bone"></select>
 
-              <label for="animation-weight-paint-radius">Brush size</label>
-              <input id="animation-weight-paint-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
-              <label for="animation-weight-paint-strength">Strength</label>
-              <input id="animation-weight-paint-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
-
-              <div style="display: flex; gap: 0.5rem;">
-                <button id="animation-weight-paint-undo" type="button" disabled>Undo stroke</button>
-                <button id="animation-weight-paint-clear" type="button" disabled>Clear this step</button>
+            <div class="pill-switch-group" aria-label="Weight paint mode" style="margin: 0;">
+              <span class="pill-switch-label">Brush</span>
+              <div class="pill-switch">
+                <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />
+                <label for="weight-paint-step-add">Add</label>
+                <input type="radio" id="weight-paint-step-subtract" name="weight-paint-step-mode" value="subtract" />
+                <label for="weight-paint-step-subtract">Subtract</label>
               </div>
             </div>
-          </details>
 
+            <div class="styled-checkbox">
+              <input type="checkbox" id="weight-paint-step-show" checked />
+              <label for="weight-paint-step-show">Show weights</label>
+            </div>
+            <div class="styled-checkbox">
+              <input type="checkbox" id="weight-paint-step-mirror" checked />
+              <label for="weight-paint-step-mirror">Mirror L/R</label>
+            </div>
+
+            <p><small>Color shows the selected bone's weight: yellow = 0.5, red = 1.</small></p>
+
+            <label for="weight-paint-step-radius">Brush size</label>
+            <input id="weight-paint-step-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
+            <label for="weight-paint-step-strength">Strength</label>
+            <input id="weight-paint-step-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
+
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="weight-paint-step-undo" type="button" disabled>Undo stroke</button>
+              <button id="weight-paint-step-clear" type="button" disabled>Clear this step</button>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button class="no-style-button" id="action_back_to_edit_skeleton_from_weight_paint">&#x2039; Back</button>
+            <button id="action_continue_to_animations">Continue &nbsp;&#x203a;</button>
+          </div>
+        </span>
+
+        <span id="skinned-step-animation-export-options">
           <div id="animations-listing">
             <!-- Filter textbox and tab switcher side by side -->
             <div style="display: flex; gap: 1rem; align-items: flex-start;">

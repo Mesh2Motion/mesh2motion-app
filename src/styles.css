@@ -513,7 +513,7 @@ option {
     font-size: 20px;
 }
 
-#load-model-tools, #load-skeleton-tools, #transform-controls, #skeleton-step-actions {
+#load-model-tools, #load-skeleton-tools, #transform-controls, #skeleton-step-actions, #weight-paint-step-tools {
     display: flex;
     flex-direction: column;
     row-gap: 0.4rem;

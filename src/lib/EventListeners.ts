@@ -18,7 +18,7 @@ export class EventListeners {
 
   private is_any_weight_painting_enabled (): boolean {
     return this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
-      this.bootstrap.animations_listing_step.is_weight_painting_enabled()
+      this.bootstrap.weight_painting_step.is_weight_painting_enabled()
   }
 
   public addEventListeners (): void {
@@ -49,7 +49,7 @@ export class EventListeners {
         this.bootstrap.regenerate_weight_painted_preview_mesh()
       }
     })
-    this.bootstrap.animations_listing_step.addEventListener('animationWeightPaintModeChanged', (event: Event) => {
+    this.bootstrap.weight_painting_step.addEventListener('weightPaintModeChanged', (event: Event) => {
       const enabled = (event as CustomEvent<{ enabled: boolean }>).detail.enabled
       this.bootstrap.ui.hide_selected_bone_overlay()
       this.bootstrap.renderer.domElement.style.cursor = enabled ? 'crosshair' : ''
@@ -107,10 +107,10 @@ export class EventListeners {
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
       const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
-      const animation_step_painting = this.bootstrap.process_step === ProcessStep.AnimationsListing &&
-        this.bootstrap.animations_listing_step.is_weight_painting_enabled()
+      const weight_painting_step_painting = this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_weight_painting_enabled()
 
-      if (event.button !== 0 || (!edit_step_painting && !animation_step_painting)) {
+      if (event.button !== 0 || (!edit_step_painting && !weight_painting_step_painting)) {
         return
       }
 
@@ -133,8 +133,8 @@ export class EventListeners {
         return
       }
 
-      if (this.bootstrap.process_step === ProcessStep.AnimationsListing &&
-        this.bootstrap.animations_listing_step.is_weight_painting_enabled()) {
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_weight_painting_enabled()) {
         event.preventDefault()
         this.bootstrap.handle_weight_paint_pointer_move(event)
         return
@@ -294,7 +294,20 @@ export class EventListeners {
 
     this.bootstrap.ui.dom_bind_pose_button?.addEventListener('click', () => {
       this.bootstrap.setup_weight_skinning_config()
-      this.bootstrap.process_step_changed(ProcessStep.BindPose)
+
+      // the weight painting step is optional, so skip it unless the user
+      // enabled it while positioning the bones
+      const weight_paint_step_enabled = this.bootstrap.ui.dom_enable_weight_paint_step?.checked ?? false
+      this.bootstrap.process_step_changed(
+        weight_paint_step_enabled ? ProcessStep.WeightPainting : ProcessStep.BindPose)
+    })
+
+    this.bootstrap.ui.dom_back_to_edit_skeleton_from_weight_paint_button?.addEventListener('click', () => {
+      this.bootstrap.back_to_edit_skeleton()
+    })
+
+    this.bootstrap.ui.dom_continue_to_animations_button?.addEventListener('click', () => {
+      this.bootstrap.process_step_changed(ProcessStep.AnimationsListing)
     })
 
     // rotate model after loading it in to orient it correctly
@@ -373,18 +386,16 @@ export class EventListeners {
         })
     })
 
-    // going back to edit skeleton step after skinning
-    // this will do a lot of resetting
+    // going back from the animation listing returns to weight painting when
+    // that optional step is enabled, otherwise it goes straight back to the bones
     this.bootstrap.ui.dom_back_to_edit_skeleton_button?.addEventListener('click', () => {
-      this.bootstrap.remove_skinned_meshes_from_scene() // clear any existing skinned meshes
-      this.bootstrap.debugging_visual_object = Utility.regenerate_debugging_scene(this.bootstrap.scene)
-      this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
+      const weight_paint_step_enabled = this.bootstrap.ui.dom_enable_weight_paint_step?.checked ?? false
+      if (weight_paint_step_enabled) {
+        this.bootstrap.process_step_changed(ProcessStep.WeightPainting)
+        return
+      }
 
-      // reset current bone selection for edit skeleton step
-      this.bootstrap.edit_skeleton_step.set_currently_selected_bone(null)
-
-      // reset the undo/redo system
-      this.bootstrap.edit_skeleton_step.clear_undo_history()
+      this.bootstrap.back_to_edit_skeleton()
     })
 
     // going back to load skeleton step from edit skeleton step
@@ -439,10 +450,10 @@ export class EventListeners {
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
       const is_edit_step = this.bootstrap.process_step === ProcessStep.EditSkeleton
-      const is_animation_step = this.bootstrap.process_step === ProcessStep.AnimationsListing
+      const is_weight_painting_step = this.bootstrap.process_step === ProcessStep.WeightPainting
 
       // Only handle keyboard shortcuts in these steps
-      if (!is_edit_step && !is_animation_step) {
+      if (!is_edit_step && !is_weight_painting_step) {
         return
       }
 
@@ -461,9 +472,10 @@ export class EventListeners {
           } else {
             this.bootstrap.edit_skeleton_step.undo_bone_transformation()
           }
-        } else {
-          this.bootstrap.animations_listing_step.undo_weight_paint_stroke()
-        }      }
+        } else if (is_weight_painting_step) {
+          this.bootstrap.weight_painting_step.undo_weight_paint_stroke()
+        }
+      }
 
       if (is_redo_shortcut_pressed && is_edit_step) {
         event.preventDefault()
