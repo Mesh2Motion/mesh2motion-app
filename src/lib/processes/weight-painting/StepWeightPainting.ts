@@ -5,7 +5,8 @@ import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from '../e
 import { RigConfig, type RigAnimation } from '../../RigConfig.ts'
 import { Utility } from '../../Utilities.ts'
 import {
-  AnimationMixer, BufferGeometry, Float32BufferAttribute, LoopRepeat, MeshBasicMaterial, Object3D, SkinnedMesh, Vector3,
+  AnimationMixer, BufferGeometry, DoubleSide, Float32BufferAttribute, LoopRepeat, Matrix3, Mesh, MeshBasicMaterial,
+  Object3D, RingGeometry, SkinnedMesh, Vector3,
   type AnimationAction, type AnimationClip, type Intersection, type PerspectiveCamera
 } from 'three'
 import { type SkeletonType } from '../../enums/SkeletonType.ts'
@@ -43,7 +44,11 @@ export class StepWeightPainting extends EventTarget {
   private weight_paint_manager: WeightPaintManager | null = null
 
   private weight_painting_enabled = false
+  private shift_painting_enabled = false
+  private brush_cursor_ring: Mesh | null = null
   private weight_paint_bone_name: string | null = null
+  private bone_names: string[] = []
+  private bone_picking_enabled = false
   private weight_paint_radius = 0.03
   private weight_paint_strength = 0.5
   private weight_paint_mode: WeightPaintMode = 'add'
@@ -53,6 +58,8 @@ export class StepWeightPainting extends EventTarget {
   private readonly weight_paint_stroke_vertices = new Set<string>()
   private readonly weight_paint_overlays = new Map<SkinnedMesh, SkinnedMesh>()
   private readonly geometry_center_cache = new WeakMap<BufferGeometry, number>()
+  private readonly original_materials = new Map<SkinnedMesh, SkinnedMesh['material']>()
+  private readonly black_material = new MeshBasicMaterial({ color: 0x000000 })
 
   private _added_event_listeners = false
 
@@ -84,10 +91,18 @@ export class StepWeightPainting extends EventTarget {
       this.ui.dom_show_skeleton_container.style.display = 'inline-flex'
     }
 
+    this.set_bone_picking_enabled(false)
+    this.set_shift_painting_enabled(false)
     this.set_weight_painting_enabled(false)
     this.animations = this.skinning_animations(skeleton_type)
     this.populate_animation_options()
     this.update_weight_paint_bone_options()
+
+    // show the black surface and weight colors right away; the paint toggle
+    // only controls whether the brush is active
+    this.weight_paint_show_weights = true
+    this.darken_skinned_meshes()
+    this.create_weight_paint_overlays()
     this.update_weight_paint_ui()
 
     this.play_animation_at(0)
@@ -109,7 +124,11 @@ export class StepWeightPainting extends EventTarget {
 
   /** Called when the app leaves the weight painting step. */
   public cleanup_on_exit_step (): void {
+    this.set_bone_picking_enabled(false)
+    this.set_shift_painting_enabled(false)
     this.set_weight_painting_enabled(false)
+    this.dispose_brush_cursor()
+    this.restore_skinned_mesh_materials()
     this.dispose_weight_paint_overlays()
     this.weight_paint_stroke_vertices.clear()
     this.animation_mixer.stopAllAction()
@@ -121,6 +140,24 @@ export class StepWeightPainting extends EventTarget {
 
   public is_weight_painting_enabled (): boolean {
     return this.weight_painting_enabled
+  }
+
+  /** True while either the persistent paint mode or the Shift modifier is active. */
+  public is_draw_mode_active (): boolean {
+    return this.weight_painting_enabled || this.shift_painting_enabled
+  }
+
+  /** Temporary paint mode while Shift is held; releasing it returns to orbit. */
+  public set_shift_painting_enabled (enabled: boolean): void {
+    if (this.shift_painting_enabled === enabled) { return }
+
+    this.shift_painting_enabled = enabled
+    if (!this.is_draw_mode_active()) {
+      this.hide_brush_cursor()
+    }
+    this.dispatchEvent(new CustomEvent('weightPaintModeChanged', {
+      detail: { enabled: this.is_draw_mode_active() }
+    }))
   }
 
   public set_weight_painting_enabled (enabled: boolean): void {
@@ -140,11 +177,13 @@ export class StepWeightPainting extends EventTarget {
       // Painting is much easier on a still pose. The user can press Play again
       // at any time; the brush uses the pose at the moment of each dab.
       this.animation_player?.pause()
-      this.create_weight_paint_overlays()
-    } else {
-      this.dispose_weight_paint_overlays()
     }
-    this.dispatchEvent(new CustomEvent('weightPaintModeChanged', { detail: { enabled } }))
+    if (!this.is_draw_mode_active()) {
+      this.hide_brush_cursor()
+    }
+    this.dispatchEvent(new CustomEvent('weightPaintModeChanged', {
+      detail: { enabled: this.is_draw_mode_active() }
+    }))
     this.update_weight_paint_ui()
   }
 
@@ -216,6 +255,7 @@ export class StepWeightPainting extends EventTarget {
     } else {
       this.update_weight_paint_overlay_vertices(object, vertices.map(vertex => vertex.vertex_index), bone_name)
     }
+    this.update_brush_cursor(intersection)
     this.update_weight_paint_ui()
   }
 
@@ -233,6 +273,167 @@ export class StepWeightPainting extends EventTarget {
     this.weight_paint_manager.clear_strokes_since(this.weight_paint_clear_marker)
     this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
     this.update_weight_paint_ui()
+  }
+
+  public is_bone_picking_enabled (): boolean {
+    return this.bone_picking_enabled
+  }
+
+  public set_bone_picking_enabled (enabled: boolean): void {
+    if (this.bone_picking_enabled === enabled) {
+      this.update_weight_paint_ui()
+      return
+    }
+
+    this.bone_picking_enabled = enabled
+    this.dispatchEvent(new CustomEvent('bonePickModeChanged', { detail: { enabled } }))
+    this.update_weight_paint_ui()
+  }
+
+  /** Select the bone with the strongest influence at the clicked surface point. */
+  public pick_bone (intersection: Intersection): void {
+    const object = intersection.object
+    const face = intersection.face
+    if (!(object instanceof SkinnedMesh) || face === null || face === undefined) { return }
+
+    const positions = object.geometry.attributes.position
+    const skin_indices = object.geometry.attributes.skinIndex
+    const skin_weights = object.geometry.attributes.skinWeight
+    if (positions === undefined || skin_indices === undefined || skin_weights === undefined) { return }
+
+    object.updateWorldMatrix(true, false)
+    const local_point = object.worldToLocal(intersection.point.clone())
+
+    // use the nearest corner of the hit triangle so small features like
+    // fingers can still be picked
+    let closest_vertex = face.a
+    let closest_distance = Infinity
+    for (const vertex_index of [face.a, face.b, face.c]) {
+      const dx = positions.getX(vertex_index) - local_point.x
+      const dy = positions.getY(vertex_index) - local_point.y
+      const dz = positions.getZ(vertex_index) - local_point.z
+      const distance = dx * dx + dy * dy + dz * dz
+      if (distance < closest_distance) {
+        closest_distance = distance
+        closest_vertex = vertex_index
+      }
+    }
+
+    const selectable = new Set(this.bone_names)
+    let best_bone_name: string | null = null
+    let best_weight = 0
+    for (let slot = 0; slot < 4; slot++) {
+      const weight = skin_weights.array[closest_vertex * 4 + slot] as number
+      if (weight <= best_weight) { continue }
+
+      const bone = object.skeleton.bones[skin_indices.array[closest_vertex * 4 + slot] as number]
+      if (bone === undefined || !selectable.has(bone.name)) { continue }
+
+      best_bone_name = bone.name
+      best_weight = weight
+    }
+
+    if (best_bone_name === null) { return }
+
+    this.weight_paint_bone_name = best_bone_name
+    const filter_input = document.getElementById('weight-paint-step-bone-filter') as HTMLInputElement | null
+    if (filter_input !== null) { filter_input.value = '' }
+    this.rebuild_bone_options('')
+
+    this.update_weight_paint_overlay_colors(best_bone_name)
+    this.set_bone_picking_enabled(false)
+    this.update_weight_paint_ui()
+  }
+
+  /** Replaces the textures with a black material so only weight colors show. */
+  private darken_skinned_meshes (): void {
+    for (const skinned_mesh of this.skinned_meshes) {
+      if (!this.original_materials.has(skinned_mesh)) {
+        this.original_materials.set(skinned_mesh, skinned_mesh.material)
+      }
+      skinned_mesh.material = this.black_material
+    }
+  }
+
+  private restore_skinned_mesh_materials (): void {
+    for (const [skinned_mesh, material] of this.original_materials) {
+      skinned_mesh.material = material
+    }
+    this.original_materials.clear()
+  }
+
+  /** Moves the brush-size ring to the surface point under the pointer. */
+  public update_brush_cursor (intersection: Intersection | null): void {
+    if (!this.is_draw_mode_active() || intersection === null) {
+      this.hide_brush_cursor()
+      return
+    }
+
+    const object = intersection.object
+    const face = intersection.face
+    if (!(object instanceof SkinnedMesh) || face === null || face === undefined) {
+      this.hide_brush_cursor()
+      return
+    }
+
+    const ring = this.ensure_brush_cursor_ring()
+    if (ring === null) { return }
+
+    object.updateWorldMatrix(true, false)
+    const normal_matrix = new Matrix3().getNormalMatrix(object.matrixWorld)
+    const world_normal = face.normal.clone().applyMatrix3(normal_matrix).normalize()
+    const world_position = intersection.point.clone()
+      .addScaledVector(world_normal, this.weight_paint_radius * 0.02)
+
+    const parent = ring.parent
+    ring.position.copy(parent === null ? world_position : parent.worldToLocal(world_position))
+    ring.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), world_normal)
+    ring.scale.setScalar(this.weight_paint_radius)
+    ring.visible = true
+  }
+
+  public hide_brush_cursor (): void {
+    if (this.brush_cursor_ring !== null) {
+      this.brush_cursor_ring.visible = false
+    }
+  }
+
+  private ensure_brush_cursor_ring (): Mesh | null {
+    if (this.brush_cursor_ring !== null) { return this.brush_cursor_ring }
+
+    const parent = this.skinned_meshes[0]?.parent
+    if (parent === null || parent === undefined) { return null }
+
+    const material = new MeshBasicMaterial({
+      color: 0xffffff,
+      side: DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false
+    })
+    material.toneMapped = false
+    material.fog = false
+
+    const ring = new Mesh(new RingGeometry(0.8, 1, 64), material)
+    ring.name = 'Weight Paint Brush Cursor'
+    ring.renderOrder = 20
+    ring.visible = false
+    parent.add(ring)
+    this.brush_cursor_ring = ring
+    return ring
+  }
+
+  private dispose_brush_cursor (): void {
+    if (this.brush_cursor_ring === null) { return }
+
+    this.brush_cursor_ring.removeFromParent()
+    this.brush_cursor_ring.geometry.dispose()
+    const materials = Array.isArray(this.brush_cursor_ring.material)
+      ? this.brush_cursor_ring.material
+      : [this.brush_cursor_ring.material]
+    for (const material of materials) { material.dispose() }
+    this.brush_cursor_ring = null
   }
 
   private skinning_animations (skeleton_type: SkeletonType): RigAnimation[] {
@@ -335,27 +536,38 @@ export class StepWeightPainting extends EventTarget {
   }
 
   private update_weight_paint_bone_options (): void {
+    const skeleton = this.skinned_meshes[0]?.skeleton
+    this.bone_names = skeleton === undefined
+      ? []
+      : skeleton.bones
+        .filter(bone => bone.name !== 'root' && !Utility.is_leaf_bone(bone))
+        .map(bone => bone.name)
+
+    const filter_input = document.getElementById('weight-paint-step-bone-filter') as HTMLInputElement | null
+    if (filter_input !== null) { filter_input.value = '' }
+    this.rebuild_bone_options('')
+  }
+
+  private rebuild_bone_options (filter: string): void {
     const select = document.getElementById('weight-paint-step-bone') as HTMLSelectElement | null
     if (select === null) { return }
 
-    const skeleton = this.skinned_meshes[0]?.skeleton
     const previous = this.weight_paint_bone_name ?? select.value
-    select.innerHTML = ''
+    const normalized_filter = filter.trim().toLowerCase()
+    const matching_names = normalized_filter === ''
+      ? this.bone_names
+      : this.bone_names.filter(name => name.toLowerCase().includes(normalized_filter))
 
-    if (skeleton !== undefined) {
-      for (const bone of skeleton.bones) {
-        if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { continue }
-        const option = document.createElement('option')
-        option.value = bone.name
-        option.textContent = bone.name
-        select.appendChild(option)
-      }
+    select.innerHTML = ''
+    for (const name of matching_names) {
+      const option = document.createElement('option')
+      option.value = name
+      option.textContent = name
+      select.appendChild(option)
     }
 
-    const previous_still_exists = Array.from(select.options).some(option => option.value === previous)
-    select.selectedIndex = previous_still_exists
-      ? Array.from(select.options).findIndex(option => option.value === previous)
-      : (select.options.length > 0 ? 0 : -1)
+    const previous_index = matching_names.indexOf(previous)
+    select.selectedIndex = previous_index >= 0 ? previous_index : (matching_names.length > 0 ? 0 : -1)
     this.weight_paint_bone_name = select.value === '' ? null : select.value
   }
 
@@ -369,10 +581,21 @@ export class StepWeightPainting extends EventTarget {
         this.weight_paint_bone_name === null
     }
 
+    const pick_button = document.getElementById('weight-paint-step-pick-bone') as HTMLButtonElement | null
+    if (pick_button !== null) {
+      const pick_label = this.bone_picking_enabled
+        ? 'Click a bone on the model'
+        : 'Pick a bone by clicking the model'
+      pick_button.setAttribute('aria-pressed', String(this.bone_picking_enabled))
+      pick_button.setAttribute('aria-label', pick_label)
+      pick_button.title = pick_label
+      pick_button.disabled = this.skinned_meshes.length === 0 || this.bone_names.length === 0
+    }
+
     const show_weights = document.getElementById('weight-paint-step-show') as HTMLInputElement | null
     if (show_weights !== null) {
       show_weights.checked = this.weight_paint_show_weights
-      show_weights.disabled = !this.weight_painting_enabled
+      show_weights.disabled = this.weight_paint_overlays.size === 0
     }
 
     const mirror = document.getElementById('weight-paint-step-mirror') as HTMLInputElement | null
@@ -549,12 +772,18 @@ export class StepWeightPainting extends EventTarget {
     document.getElementById('weight-paint-step-toggle')?.addEventListener('click', () => {
       this.set_weight_painting_enabled(!this.weight_painting_enabled)
     })
+    document.getElementById('weight-paint-step-pick-bone')?.addEventListener('click', () => {
+      this.set_bone_picking_enabled(!this.bone_picking_enabled)
+    })
     document.getElementById('weight-paint-step-bone')?.addEventListener('change', (event) => {
       const select = event.target as HTMLSelectElement
       this.weight_paint_bone_name = select.value === '' ? null : select.value
-      if (this.weight_painting_enabled) {
-        this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
-      }
+      this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+      this.update_weight_paint_ui()
+    })
+    document.getElementById('weight-paint-step-bone-filter')?.addEventListener('input', (event) => {
+      this.rebuild_bone_options((event.target as HTMLInputElement).value)
+      this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
       this.update_weight_paint_ui()
     })
     document.getElementById('weight-paint-step-show')?.addEventListener('change', (event) => {
@@ -563,12 +792,13 @@ export class StepWeightPainting extends EventTarget {
     })
     document.getElementById('weight-paint-step-mirror')?.addEventListener('change', (event) => {
       this.weight_paint_mirror_enabled = (event.target as HTMLInputElement).checked
-      if (this.weight_painting_enabled) {
-        this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
-      }
+      this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
     })
     document.getElementById('weight-paint-step-radius')?.addEventListener('input', (event) => {
       this.weight_paint_radius = Number((event.target as HTMLInputElement).value)
+      if (this.brush_cursor_ring !== null) {
+        this.brush_cursor_ring.scale.setScalar(this.weight_paint_radius)
+      }
     })
     document.getElementById('weight-paint-step-strength')?.addEventListener('input', (event) => {
       this.weight_paint_strength = Number((event.target as HTMLInputElement).value)

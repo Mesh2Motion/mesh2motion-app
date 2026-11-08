@@ -18,7 +18,21 @@ export class EventListeners {
 
   private is_any_weight_painting_enabled (): boolean {
     return this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
-      this.bootstrap.weight_painting_step.is_weight_painting_enabled()
+      this.bootstrap.weight_painting_step.is_draw_mode_active() ||
+      this.bootstrap.weight_painting_step.is_bone_picking_enabled()
+  }
+
+  private update_weight_painting_cursor (): void {
+    const wants_crosshair = this.bootstrap.weight_painting_step.is_draw_mode_active() ||
+      this.bootstrap.weight_painting_step.is_bone_picking_enabled()
+    this.bootstrap.renderer.domElement.style.cursor = wants_crosshair ? 'crosshair' : ''
+  }
+
+  private is_typing_target (target: EventTarget | null): boolean {
+    return target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
   }
 
   public addEventListeners (): void {
@@ -49,10 +63,12 @@ export class EventListeners {
         this.bootstrap.regenerate_weight_painted_preview_mesh()
       }
     })
-    this.bootstrap.weight_painting_step.addEventListener('weightPaintModeChanged', (event: Event) => {
-      const enabled = (event as CustomEvent<{ enabled: boolean }>).detail.enabled
+    this.bootstrap.weight_painting_step.addEventListener('weightPaintModeChanged', () => {
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor = enabled ? 'crosshair' : ''
+      this.update_weight_painting_cursor()
+    })
+    this.bootstrap.weight_painting_step.addEventListener('bonePickModeChanged', () => {
+      this.update_weight_painting_cursor()
     })
 
     // Listen for skeleton transformation events to update UI and visuals
@@ -105,12 +121,20 @@ export class EventListeners {
     // Capture left-button presses in weight paint mode before OrbitControls sees
     // them. Middle/right mouse and the wheel still orbit, pan, and zoom.
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
+        // keep the temporary Shift mode in sync with the actual pointer event
+        this.bootstrap.weight_painting_step.set_shift_painting_enabled(event.shiftKey)
+      }
+
       const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
       const weight_painting_step_painting = this.bootstrap.process_step === ProcessStep.WeightPainting &&
-        this.bootstrap.weight_painting_step.is_weight_painting_enabled()
+        this.bootstrap.weight_painting_step.is_draw_mode_active()
+      const weight_painting_step_picking = this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_bone_picking_enabled()
 
-      if (event.button !== 0 || (!edit_step_painting && !weight_painting_step_painting)) {
+      if (event.button !== 0 ||
+        (!edit_step_painting && !weight_painting_step_painting && !weight_painting_step_picking)) {
         return
       }
 
@@ -126,6 +150,11 @@ export class EventListeners {
         return
       }
 
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
+        // also handles the case where Shift was already held when the step opened
+        this.bootstrap.weight_painting_step.set_shift_painting_enabled(event.shiftKey)
+      }
+
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()) {
         event.preventDefault()
@@ -133,10 +162,17 @@ export class EventListeners {
         return
       }
 
+      // keep the picker cursor while waiting for the user to click a bone
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
-        this.bootstrap.weight_painting_step.is_weight_painting_enabled()) {
+        this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+        return
+      }
+
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_draw_mode_active()) {
         event.preventDefault()
         this.bootstrap.handle_weight_paint_pointer_move(event)
+        this.bootstrap.update_weight_paint_brush_cursor(event)
         return
       }
 
@@ -169,6 +205,10 @@ export class EventListeners {
         // reset cursor when leaving the edit skeleton step
         this.bootstrap.renderer.domElement.style.cursor = ''
       }
+    })
+
+    this.bootstrap.renderer.domElement.addEventListener('pointerleave', () => {
+      this.bootstrap.weight_painting_step.hide_brush_cursor()
     })
 
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
@@ -445,6 +485,25 @@ export class EventListeners {
       } else {
         console.warn(`Unknown mesh preview type selected: ${radio_button_selected}`)
       }
+    })
+
+    // Hold Shift in the weight painting step to temporarily paint with the
+    // left mouse button; releasing it returns the left button to orbiting.
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key !== 'Shift') { return }
+      if (this.bootstrap.process_step !== ProcessStep.WeightPainting) { return }
+      if (this.is_typing_target(event.target)) { return }
+      this.bootstrap.weight_painting_step.set_shift_painting_enabled(true)
+    })
+
+    document.addEventListener('keyup', (event: KeyboardEvent) => {
+      if (event.key !== 'Shift') { return }
+      if (this.bootstrap.process_step !== ProcessStep.WeightPainting) { return }
+      this.bootstrap.weight_painting_step.set_shift_painting_enabled(false)
+    })
+
+    window.addEventListener('blur', () => {
+      this.bootstrap.weight_painting_step.set_shift_painting_enabled(false)
     })
 
     // Keyboard shortcuts for undo/redo

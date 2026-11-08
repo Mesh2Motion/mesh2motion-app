@@ -348,7 +348,19 @@ export class Mesh2MotionEngine {
     const edit_step_painting = this.process_step === ProcessStep.EditSkeleton &&
       this.edit_skeleton_step.is_weight_painting_enabled()
     const weight_painting_step_painting = this.process_step === ProcessStep.WeightPainting &&
-      this.weight_painting_step.is_weight_painting_enabled()
+      this.weight_painting_step.is_draw_mode_active()
+    const weight_painting_step_picking = this.process_step === ProcessStep.WeightPainting &&
+      this.weight_painting_step.is_bone_picking_enabled()
+
+    // the bone picker takes priority over the brush
+    if (weight_painting_step_picking) {
+      const picked_intersection = this.weight_paint_intersection(event,
+        this.weight_painting_step.active_skinned_meshes())
+      if (picked_intersection !== null) {
+        this.weight_painting_step.pick_bone(picked_intersection)
+      }
+      return
+    }
 
     let intersection: THREE.Intersection | null
     if (edit_step_painting) {
@@ -394,6 +406,15 @@ export class Mesh2MotionEngine {
     } else {
       this.weight_painting_step.paint_weights(intersection, this.camera)
     }
+  }
+
+  /** Positions the brush-size ring on the skinned mesh under the pointer. */
+  public update_weight_paint_brush_cursor (event: PointerEvent): void {
+    if (this.process_step !== ProcessStep.WeightPainting) { return }
+
+    const intersection = this.weight_paint_intersection(event,
+      this.weight_painting_step.active_skinned_meshes())
+    this.weight_painting_step.update_brush_cursor(intersection)
   }
 
   public handle_weight_paint_pointer_up (event: PointerEvent): void {
@@ -554,13 +575,13 @@ export class Mesh2MotionEngine {
       }
       this.sync_skeleton_helper_joint_visibility()
 
-      // start with the skeleton hidden so it does not cover the painted mesh.
-      // The viewport checkbox can bring it back while painting.
+      // bones are visible by default in this step so picking and spotting
+      // deformation problems is easier; the timeline checkbox can hide them
       if (this.ui.dom_show_skeleton_checkbox !== null) {
-        this.ui.dom_show_skeleton_checkbox.checked = false
+        this.ui.dom_show_skeleton_checkbox.checked = true
       }
       if (this.skeleton_helper !== undefined) {
-        this.skeleton_helper.hide()
+        this.skeleton_helper.show()
       }
     }
     else if (this.process_step === ProcessStep.AnimationsListing) {
