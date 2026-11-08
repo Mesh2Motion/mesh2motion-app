@@ -1,5 +1,7 @@
 import { UI } from '../../UI.ts'
 import SkinningAlgorithm from '../../solvers/SkinningAlgorithm.ts'
+import { Utility } from '../../Utilities.ts'
+import { WeightPaintManager, type ManualWeightOverrides } from '../edit-skeleton/WeightPaintManager.ts'
 
 import { Generators } from '../../Generators.ts'
 
@@ -13,6 +15,7 @@ export class StepWeightSkin extends EventTarget {
   private bone_skinning_formula: SkinningAlgorithm | undefined
   private binding_skeleton: Skeleton | undefined
   private skinned_meshes: SkinnedMesh[] = []
+  private manual_weight_overrides: ManualWeightOverrides | null = null
 
   // stores the geometry data for meshes we will skin
   private all_mesh_geometry: BufferGeometry[] = []
@@ -122,6 +125,7 @@ export class StepWeightSkin extends EventTarget {
 
     const skinned_mesh: SkinnedMesh = new SkinnedMesh(geometry, material)
     skinned_mesh.name = 'Skinned Mesh ' + idx.toString()
+    skinned_mesh.userData.geometry_index = idx
     skinned_mesh.castShadow = true // skinned mesh won't update right if this is false
 
     // do the binding for the mesh to the skeleton
@@ -161,6 +165,14 @@ export class StepWeightSkin extends EventTarget {
     this.bone_skinning_formula.set_arm_plane_offset(offset)
   }
 
+  /**
+   * Manual weights painted in the edit skeleton step. They override the
+   * automatic solver result for the vertices that were painted.
+   */
+  public set_manual_weight_overrides (overrides: ManualWeightOverrides | null): void {
+    this.manual_weight_overrides = overrides
+  }
+
   public calculate_weights (): number[][] {
     if (this.bone_skinning_formula === undefined) return [[], []]
     return this.bone_skinning_formula.calculate_indexes_and_weights()
@@ -179,6 +191,13 @@ export class StepWeightSkin extends EventTarget {
       this.bone_skinning_formula!.set_geometry(geometry_data)
       const [final_skin_indices, final_skin_weights]: number[][] = this.calculate_weights()
 
+      // Painted weights replace the automatic result for the affected vertices.
+      if (this.manual_weight_overrides !== null && this.skinning_armature !== undefined) {
+        const bones = Utility.bone_list_from_hierarchy(this.skinning_armature.children[0])
+        WeightPaintManager.apply_overrides(this.manual_weight_overrides, idx, bones,
+          final_skin_indices, final_skin_weights)
+      }
+
       geometry_data.setAttribute('skinIndex', new Uint16BufferAttribute(final_skin_indices, 4))
       geometry_data.setAttribute('skinWeight', new Float32BufferAttribute(final_skin_weights, 4))
 
@@ -191,6 +210,9 @@ export class StepWeightSkin extends EventTarget {
       // re-generate the weight painted mesh display if needed
       if (regenerate_weight_painted_mesh) {
         const weight_painted_mesh = Generators.create_weight_painted_mesh(final_skin_indices, geometry_data)
+        weight_painted_mesh.userData.geometry_index = idx
+        weight_painted_mesh.userData.weight_painted = true
+        weight_painted_mesh.name = `Weight Painted Mesh ${idx}`
         const wireframe_mesh = Generators.create_wireframe_mesh_from_geometry(geometry_data)
         this.weight_painted_mesh_preview?.add(weight_painted_mesh, wireframe_mesh)
       }

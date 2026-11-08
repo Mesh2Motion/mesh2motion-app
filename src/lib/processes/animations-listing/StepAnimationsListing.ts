@@ -2,7 +2,8 @@ import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
 
 import {
-  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Scene
+  type AnimationClip, AnimationMixer, BufferGeometry, Float32BufferAttribute, MeshBasicMaterial, SkinnedMesh, Vector3,
+  type AnimationAction, Object3D, type Scene, type Intersection, type PerspectiveCamera
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
@@ -22,6 +23,7 @@ import { AnimationSearch } from './AnimationSearch.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { type AnimationClipExportSelection } from './interfaces/AnimationExportSelection.ts'
 import { PropsManager } from './props/PropsManager.ts'
+import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from '../edit-skeleton/WeightPaintManager.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -36,6 +38,20 @@ export class StepAnimationsListing extends EventTarget {
   private model_variation_switcher: ModelVariationSwitcher | null = null
   private current_playing_id: string | null = null
   private skeleton_type: SkeletonType = SkeletonType.Human
+
+  // weight painting directly on the posed skinned meshes
+  private weight_paint_manager: WeightPaintManager | null = null
+  private weight_painting_enabled = false
+  private weight_paint_bone_name: string | null = null
+  private weight_paint_radius = 0.03
+  private weight_paint_strength = 0.5
+  private weight_paint_mode: WeightPaintMode = 'add'
+  private weight_paint_mirror_enabled = true
+  private weight_paint_clear_marker = 0
+  private readonly weight_paint_stroke_vertices = new Set<string>()
+  private readonly weight_paint_overlays = new Map<SkinnedMesh, SkinnedMesh>()
+  private readonly geometry_center_cache = new WeakMap<BufferGeometry, number>()
+  private weight_paint_show_weights = true
 
   // prefix that points from the current page to the static root, e.g. '../' for pages in a sub-folder
   private static_root_path: string = ''
@@ -157,8 +173,21 @@ export class StepAnimationsListing extends EventTarget {
     this.current_playing_id = null
     this.animation_search = null
     this.model_variation_pelvis_position_scale = 1.0
+    this.reset_weight_paint_state()
     this.reset_ui_elements()
     this.animation_player.clear_animation()
+  }
+
+  private reset_weight_paint_state (): void {
+    this.dispose_weight_paint_overlays()
+    if (this.weight_painting_enabled) {
+      this.weight_painting_enabled = false
+      this.dispatchEvent(new CustomEvent('animationWeightPaintModeChanged', { detail: { enabled: false } }))
+    }
+    this.weight_paint_stroke_vertices.clear()
+    this.weight_paint_bone_name = null
+    this.weight_paint_clear_marker = this.weight_paint_manager?.undo_stack_marker() ?? 0
+    this.update_weight_paint_ui()
   }
 
   // If we change skeleton types, we need to reset some of the state 
@@ -200,6 +229,342 @@ export class StepAnimationsListing extends EventTarget {
     return this.skinned_meshes_to_animate
   }
 
+  public set_weight_paint_manager (manager: WeightPaintManager | null): void {
+    this.weight_paint_manager = manager
+  }
+
+  public is_weight_painting_enabled (): boolean {
+    return this.weight_painting_enabled
+  }
+
+  public set_weight_painting_enabled (enabled: boolean): void {
+    if (enabled && (this.weight_paint_manager === null ||
+      this.skinned_meshes_to_animate.length === 0 ||
+      this.weight_paint_bone_name === null)) {
+      return
+    }
+
+    if (this.weight_painting_enabled === enabled) {
+      this.update_weight_paint_ui()
+      return
+    }
+
+    this.weight_painting_enabled = enabled
+    if (enabled) {
+      // Painting is much easier on a still pose. The user can press play again
+      // at any time; the brush uses the pose at the moment of each dab.
+      this.animation_player.pause()
+      this.create_weight_paint_overlays()
+    } else {
+      this.dispose_weight_paint_overlays()
+    }
+    this.dispatchEvent(new CustomEvent('animationWeightPaintModeChanged', { detail: { enabled } }))
+    this.update_weight_paint_ui()
+  }
+
+  public begin_weight_paint_stroke (): void {
+    this.weight_paint_stroke_vertices.clear()
+    this.weight_paint_manager?.begin_stroke()
+    this.update_weight_paint_ui()
+  }
+
+  public end_weight_paint_stroke (): void {
+    this.weight_paint_stroke_vertices.clear()
+    this.update_weight_paint_ui()
+  }
+
+  /** Paints the selected bone onto the posed skinned mesh under the brush. */
+  public paint_weights (intersection: Intersection, camera: PerspectiveCamera): void {
+    const manager = this.weight_paint_manager
+    const object = intersection.object
+    if (manager === null || !(object instanceof SkinnedMesh)) { return }
+
+    const bone_name = this.weight_paint_bone_name
+    if (bone_name === null) { return }
+
+    const geometry_index = typeof object.userData.geometry_index === 'number'
+      ? object.userData.geometry_index as number
+      : -object.id
+
+    object.updateWorldMatrix(true, false)
+    const positions = object.geometry.attributes.position
+    const center = intersection.point.clone()
+    const ray_direction = center.clone().sub(camera.position).normalize()
+    const point = new Vector3()
+    const vertices: BrushVertex[] = []
+
+    for (let i = 0; i < positions.count; i++) {
+      const key = `${geometry_index}:${i}`
+      if (this.weight_paint_stroke_vertices.has(key)) { continue }
+
+      object.getVertexPosition(i, point)
+      point.applyMatrix4(object.matrixWorld)
+      const distance = point.distanceTo(center)
+      if (distance > this.weight_paint_radius) { continue }
+
+      // Ignore vertices behind the surface the brush is touching, so the
+      // brush cannot paint through the mesh to the far side.
+      const depth = point.sub(center).dot(ray_direction)
+      if (depth > this.weight_paint_radius * 0.5) { continue }
+
+      const t = 1 - distance / this.weight_paint_radius
+      vertices.push({ vertex_index: i, falloff: t * t * (3 - 2 * t) })
+      this.weight_paint_stroke_vertices.add(key)
+    }
+
+    if (vertices.length === 0) { return }
+
+    manager.paint_vertices(
+      object,
+      geometry_index,
+      vertices,
+      bone_name,
+      object.skeleton.bones,
+      this.weight_paint_strength,
+      this.weight_paint_mode,
+      this.weight_paint_mirror_enabled
+    )
+    if (this.weight_paint_mirror_enabled) {
+      // The mirrored side was painted too, so refresh the whole heatmap.
+      this.update_weight_paint_overlay_colors(bone_name)
+    } else {
+      this.update_weight_paint_overlay_vertices(object, vertices.map(vertex => vertex.vertex_index), bone_name)
+    }
+    this.update_weight_paint_ui()
+  }
+
+  public undo_weight_paint_stroke (): void {
+    if (this.weight_paint_manager === null) { return }
+    if (!this.weight_paint_manager.can_undo_since(this.weight_paint_clear_marker)) { return }
+    this.weight_paint_manager.undo()
+    this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+    this.update_weight_paint_ui()
+  }
+
+  /** Removes the strokes made on this animation-stage visit. */
+  public clear_weight_paint (): void {
+    if (this.weight_paint_manager === null) { return }
+    this.weight_paint_manager.clear_strokes_since(this.weight_paint_clear_marker)
+    this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+    this.update_weight_paint_ui()
+  }
+
+  /** Called when the app leaves the animation step. */
+  public cleanup_on_exit_step (): void {
+    this.set_weight_painting_enabled(false)
+    this.dispose_weight_paint_overlays()
+    this.weight_paint_stroke_vertices.clear()
+  }
+
+  private update_weight_paint_bone_options (): void {
+    const select = document.getElementById('animation-weight-paint-bone') as HTMLSelectElement | null
+    if (select === null) { return }
+
+    const skeleton = this.skinned_meshes_to_animate[0]?.skeleton
+    const previous = this.weight_paint_bone_name ?? select.value
+    select.innerHTML = ''
+
+    if (skeleton !== undefined) {
+      for (const bone of skeleton.bones) {
+        if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { continue }
+        const option = document.createElement('option')
+        option.value = bone.name
+        option.textContent = bone.name
+        select.appendChild(option)
+      }
+    }
+
+    const previous_still_exists = Array.from(select.options).some(option => option.value === previous)
+    select.selectedIndex = previous_still_exists
+      ? Array.from(select.options).findIndex(option => option.value === previous)
+      : (select.options.length > 0 ? 0 : -1)
+    this.weight_paint_bone_name = select.value === '' ? null : select.value
+  }
+
+  private update_weight_paint_ui (): void {
+    const container = document.getElementById('animation-weight-paint-tools')
+    if (container !== null) {
+      container.hidden = this.skinned_meshes_to_animate.length === 0
+    }
+
+    const toggle = document.getElementById('animation-weight-paint-toggle') as HTMLButtonElement | null
+    if (toggle !== null) {
+      toggle.textContent = this.weight_painting_enabled ? 'Stop painting' : 'Start painting'
+      toggle.setAttribute('aria-pressed', String(this.weight_painting_enabled))
+      toggle.disabled = this.weight_paint_manager === null ||
+        this.skinned_meshes_to_animate.length === 0 ||
+        this.weight_paint_bone_name === null
+    }
+
+    const show_weights = document.getElementById('animation-weight-paint-show') as HTMLInputElement | null
+    if (show_weights !== null) {
+      show_weights.checked = this.weight_paint_show_weights
+      show_weights.disabled = !this.weight_painting_enabled
+    }
+
+    const mirror = document.getElementById('animation-weight-paint-mirror') as HTMLInputElement | null
+    if (mirror !== null) {
+      mirror.checked = this.weight_paint_mirror_enabled
+    }
+
+    const can_undo = this.weight_paint_manager !== null &&
+      this.weight_paint_manager.can_undo_since(this.weight_paint_clear_marker)
+    const undo = document.getElementById('animation-weight-paint-undo') as HTMLButtonElement | null
+    if (undo !== null) { undo.disabled = !can_undo }
+    const clear = document.getElementById('animation-weight-paint-clear') as HTMLButtonElement | null
+    if (clear !== null) { clear.disabled = !can_undo }
+  }
+
+  /**
+   * Overlay a heatmap of the selected bone's weight on the posed meshes.
+   * The overlay shares the source geometry's position/skin attributes, so live
+   * weight edits show up without rebuilding any geometry.
+   */
+  private create_weight_paint_overlays (): void {
+    this.dispose_weight_paint_overlays()
+
+    for (const source of this.skinned_meshes_to_animate) {
+      const positions = source.geometry.attributes.position
+      const skin_indices = source.geometry.attributes.skinIndex
+      const skin_weights = source.geometry.attributes.skinWeight
+      if (positions === undefined || skin_indices === undefined || skin_weights === undefined) { continue }
+
+      const geometry = new BufferGeometry()
+      geometry.setAttribute('position', positions)
+      geometry.setAttribute('skinIndex', skin_indices)
+      geometry.setAttribute('skinWeight', skin_weights)
+      if (source.geometry.index !== null) {
+        geometry.setIndex(source.geometry.index)
+      }
+      geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(positions.count * 4), 4))
+
+      const material = new MeshBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false
+      })
+      material.toneMapped = false
+      material.polygonOffset = true
+      material.polygonOffsetFactor = -1
+      material.polygonOffsetUnits = -1
+
+      const overlay = new SkinnedMesh(geometry, material)
+      overlay.name = 'Weight Paint Overlay'
+      overlay.frustumCulled = false
+      overlay.renderOrder = 10
+      overlay.position.copy(source.position)
+      overlay.quaternion.copy(source.quaternion)
+      overlay.scale.copy(source.scale)
+      overlay.bindMode = source.bindMode
+      overlay.bind(source.skeleton, source.bindMatrix)
+      ;(source.parent ?? source).add(overlay)
+
+      this.weight_paint_overlays.set(source, overlay)
+    }
+
+    this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+    this.sync_weight_paint_overlay_visibility()
+  }
+
+  private dispose_weight_paint_overlays (): void {
+    for (const overlay of this.weight_paint_overlays.values()) {
+      overlay.removeFromParent()
+      const geometry = overlay.geometry
+      // These attributes are shared with the real skinned mesh, so detach them
+      // before disposing the overlay's geometry.
+      geometry.deleteAttribute('position')
+      geometry.deleteAttribute('skinIndex')
+      geometry.deleteAttribute('skinWeight')
+      geometry.setIndex(null)
+      geometry.dispose()
+      const materials = Array.isArray(overlay.material) ? overlay.material : [overlay.material]
+      for (const material of materials) { material.dispose() }
+    }
+    this.weight_paint_overlays.clear()
+  }
+
+  private sync_weight_paint_overlay_visibility (): void {
+    for (const overlay of this.weight_paint_overlays.values()) {
+      overlay.visible = this.weight_paint_show_weights
+    }
+  }
+
+  private update_weight_paint_overlay_colors (bone_name: string | null): void {
+    for (const [source, overlay] of this.weight_paint_overlays) {
+      const color = overlay.geometry.attributes.color
+      const skin_indices = source.geometry.attributes.skinIndex
+      const skin_weights = source.geometry.attributes.skinWeight
+      const positions = source.geometry.attributes.position
+      if (color === undefined || skin_indices === undefined || skin_weights === undefined || positions === undefined) {
+        continue
+      }
+
+      const side = bone_name === null ? null : WeightPaintManager.bone_side(bone_name)
+      const mirror_bone_name = bone_name === null
+        ? null
+        : WeightPaintManager.find_mirror_bone_name(bone_name, source.skeleton.bones)
+      const selected_index = bone_name === null
+        ? -1
+        : source.skeleton.bones.findIndex(bone => bone.name === bone_name)
+      const mirrored_index = mirror_bone_name === null
+        ? selected_index
+        : source.skeleton.bones.findIndex(bone => bone.name === mirror_bone_name)
+      const center_x = this.geometry_center_x(source.geometry)
+
+      const vertex_count = positions.count
+      for (let i = 0; i < vertex_count; i++) {
+        let bone_index = selected_index
+        if (this.weight_paint_mirror_enabled && side !== null) {
+          const x = positions.getX(i) - center_x
+          if ((side === 'left' && x < 0) || (side === 'right' && x > 0)) {
+            bone_index = mirrored_index
+          }
+        }
+        write_weight_color(color, i, this.vertex_weight(skin_indices, skin_weights, i, bone_index))
+      }
+      color.needsUpdate = true
+    }
+  }
+
+  private geometry_center_x (geometry: BufferGeometry): number {
+    const cached = this.geometry_center_cache.get(geometry)
+    if (cached !== undefined) { return cached }
+
+    geometry.computeBoundingBox()
+    const box = geometry.boundingBox
+    const center_x = box === null ? 0 : (box.min.x + box.max.x) / 2
+    this.geometry_center_cache.set(geometry, center_x)
+    return center_x
+  }
+
+  private update_weight_paint_overlay_vertices (source: SkinnedMesh, vertex_indices: number[], bone_name: string): void {
+    const overlay = this.weight_paint_overlays.get(source)
+    if (overlay === undefined) { return }
+
+    const color = overlay.geometry.attributes.color
+    const skin_indices = source.geometry.attributes.skinIndex
+    const skin_weights = source.geometry.attributes.skinWeight
+    if (color === undefined || skin_indices === undefined || skin_weights === undefined) { return }
+
+    const bone_index = source.skeleton.bones.findIndex(bone => bone.name === bone_name)
+    for (const vertex_index of vertex_indices) {
+      write_weight_color(color, vertex_index, this.vertex_weight(skin_indices, skin_weights, vertex_index, bone_index))
+    }
+    color.needsUpdate = true
+  }
+
+  private vertex_weight (skin_indices: { array: ArrayLike<number> },
+    skin_weights: { array: ArrayLike<number> }, vertex_index: number, bone_index: number): number {
+    if (bone_index < 0) { return 0 }
+    let weight = 0
+    for (let slot = 0; slot < 4; slot++) {
+      if (skin_indices.array[vertex_index * 4 + slot] === bone_index) {
+        weight += skin_weights.array[vertex_index * 4 + slot] as number
+      }
+    }
+    return weight
+  }
+
   public set_model_variation_switcher (switcher: ModelVariationSwitcher): void {
     this.model_variation_switcher = switcher
   }
@@ -239,6 +604,10 @@ export class StepAnimationsListing extends EventTarget {
    * and replays the current animation on them.
    */
   public swap_skinned_meshes (scene: Scene, new_skinned_meshes: SkinnedMesh[]): void {
+    if (this.weight_painting_enabled) {
+      this.set_weight_painting_enabled(false)
+    }
+    this.dispose_weight_paint_overlays()
     const is_variation_active = this.model_variation_switcher?.is_variation_active ?? false
     this.props_manager.detach_all()
     this.clear_variation_model_from_scene()
@@ -260,6 +629,8 @@ export class StepAnimationsListing extends EventTarget {
 
     this.skinned_meshes_to_animate = new_skinned_meshes
     this.props_manager.attach_to_skinned_meshes(new_skinned_meshes)
+    this.update_weight_paint_bone_options()
+    this.update_weight_paint_ui()
 
     // replay current animation on the new meshes
     this.play_animation(this.current_playing_id)
@@ -286,6 +657,8 @@ export class StepAnimationsListing extends EventTarget {
   public load_and_apply_default_animation_to_skinned_mesh (final_skinned_meshes: SkinnedMesh[]): void {
     this.skinned_meshes_to_animate = final_skinned_meshes
     this.props_manager.attach_to_skinned_meshes(final_skinned_meshes)
+    this.update_weight_paint_bone_options()
+    this.update_weight_paint_ui()
 
     // animation file paths are relative to the static root
     this.animation_loader.set_static_root_path(this.static_root_path)
@@ -534,6 +907,44 @@ export class StepAnimationsListing extends EventTarget {
       this.update_download_button_enabled()
     })
 
+    // weight painting on the posed skinned meshes
+    document.getElementById('animation-weight-paint-toggle')?.addEventListener('click', () => {
+      this.set_weight_painting_enabled(!this.weight_painting_enabled)
+    })
+    document.getElementById('animation-weight-paint-bone')?.addEventListener('change', (event) => {
+      const select = event.target as HTMLSelectElement
+      this.weight_paint_bone_name = select.value === '' ? null : select.value
+      if (this.weight_painting_enabled) {
+        this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+      }
+      this.update_weight_paint_ui()
+    })
+    document.getElementById('animation-weight-paint-show')?.addEventListener('change', (event) => {
+      this.weight_paint_show_weights = (event.target as HTMLInputElement).checked
+      this.sync_weight_paint_overlay_visibility()
+    })
+    document.getElementById('animation-weight-paint-mirror')?.addEventListener('change', (event) => {
+      this.weight_paint_mirror_enabled = (event.target as HTMLInputElement).checked
+      if (this.weight_painting_enabled) {
+        this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+      }
+    })
+    document.getElementById('animation-weight-paint-radius')?.addEventListener('input', (event) => {
+      this.weight_paint_radius = Number((event.target as HTMLInputElement).value)
+    })
+    document.getElementById('animation-weight-paint-strength')?.addEventListener('input', (event) => {
+      this.weight_paint_strength = Number((event.target as HTMLInputElement).value)
+    })
+    document.querySelectorAll<HTMLInputElement>('input[name="animation-weight-paint-mode"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        if (input.checked) {
+          this.weight_paint_mode = input.value === 'subtract' ? 'subtract' : 'add'
+        }
+      })
+    })
+    document.getElementById('animation-weight-paint-undo')?.addEventListener('click', () => this.undo_weight_paint_stroke())
+    document.getElementById('animation-weight-paint-clear')?.addEventListener('click', () => this.clear_weight_paint())
+
     // helps ensure we don't add event listeners multiple times
     this.has_added_event_listeners = true
   }
@@ -569,4 +980,34 @@ export class StepAnimationsListing extends EventTarget {
       return [{ clip: clip_pair.display_animation_clip, mirror_export_mode: selection.mirror_export_mode }]
     })
   }
+}
+
+/**
+ * Heatmap color for the selected bone's weight: blue at 0, yellow at 0.5,
+ * red at 1. Alpha ramps up so low weights stay subtle over the texture.
+ */
+function write_weight_color (
+  attribute: { setXYZW: (index: number, x: number, y: number, z: number, w: number) => unknown },
+  vertex_index: number,
+  weight: number
+): void {
+  const t = Math.min(1, Math.max(0, weight))
+
+  let red: number
+  let green: number
+  let blue: number
+  if (t < 0.5) {
+    const u = t / 0.5
+    red = 0.1 + 0.9 * u
+    green = 0.35 + 0.55 * u
+    blue = 1.0 - 0.9 * u
+  } else {
+    const u = (t - 0.5) / 0.5
+    red = 1.0
+    green = 0.9 - 0.8 * u
+    blue = 0.1 * (1 - u)
+  }
+
+  const alpha = 0.9 * t
+  attribute.setXYZW(vertex_index, red, green, blue, alpha)
 }

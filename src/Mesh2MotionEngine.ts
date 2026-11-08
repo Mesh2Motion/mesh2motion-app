@@ -335,6 +335,81 @@ export class Mesh2MotionEngine {
     }
   }
 
+  private weight_paint_pointer_id: number | null = null
+  private weight_paint_source: 'edit' | 'animations' | null = null
+
+  public handle_weight_paint_pointer_down (event: PointerEvent): void {
+    const edit_step_painting = this.process_step === ProcessStep.EditSkeleton &&
+      this.edit_skeleton_step.is_weight_painting_enabled()
+    const animation_step_painting = this.process_step === ProcessStep.AnimationsListing &&
+      this.animations_listing_step.is_weight_painting_enabled()
+
+    let intersection: THREE.Intersection | null
+    if (edit_step_painting) {
+      const group = this.weight_skin_step.weight_painted_mesh_group()
+      if (group === null || !group.visible) { return }
+      this.weight_paint_source = 'edit'
+      intersection = this.weight_paint_intersection(event,
+        group.children.filter(child => child.userData.weight_painted === true))
+    } else if (animation_step_painting) {
+      this.weight_paint_source = 'animations'
+      intersection = this.weight_paint_intersection(event, this.animations_listing_step.active_skinned_meshes())
+    } else {
+      return
+    }
+
+    if (intersection === null) {
+      this.weight_paint_source = null
+      return
+    }
+
+    this.weight_paint_pointer_id = event.pointerId
+    if (this.weight_paint_source === 'edit') {
+      this.edit_skeleton_step.begin_weight_paint_stroke()
+      this.edit_skeleton_step.paint_weights(intersection, this.camera)
+    } else {
+      this.animations_listing_step.begin_weight_paint_stroke()
+      this.animations_listing_step.paint_weights(intersection, this.camera)
+    }
+  }
+
+  public handle_weight_paint_pointer_move (event: PointerEvent): void {
+    if (this.weight_paint_pointer_id !== event.pointerId || this.weight_paint_source === null) { return }
+
+    const targets = this.weight_paint_source === 'edit'
+      ? this.weight_skin_step.weight_painted_mesh_group()?.children.filter(child => child.userData.weight_painted === true) ?? []
+      : this.animations_listing_step.active_skinned_meshes()
+
+    const intersection = this.weight_paint_intersection(event, targets)
+    if (intersection === null) { return }
+
+    if (this.weight_paint_source === 'edit') {
+      this.edit_skeleton_step.paint_weights(intersection, this.camera)
+    } else {
+      this.animations_listing_step.paint_weights(intersection, this.camera)
+    }
+  }
+
+  public handle_weight_paint_pointer_up (event: PointerEvent): void {
+    if (this.weight_paint_pointer_id !== event.pointerId) { return }
+    if (this.weight_paint_source === 'edit') {
+      this.edit_skeleton_step.end_weight_paint_stroke()
+    } else if (this.weight_paint_source === 'animations') {
+      this.animations_listing_step.end_weight_paint_stroke()
+    }
+    this.weight_paint_pointer_id = null
+    this.weight_paint_source = null
+  }
+
+  private weight_paint_intersection (event: MouseEvent | PointerEvent,
+    targets: THREE.Object3D[]): THREE.Intersection | null {
+    if (targets.length === 0) { return null }
+
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(Utility.normalized_mouse_position(event), this.camera)
+    return raycaster.intersectObjects(targets, false)[0] ?? null
+  }
+
   public update_edit_bone_interaction_mode (): void {
     this.mesh_drag_bone_placement.sync_interaction_mode(this.process_step, this.transform_controls)
     this.is_transform_controls_dragging = false
@@ -388,6 +463,7 @@ export class Mesh2MotionEngine {
 
     // clean up things related to steps in since we can navigate back and forth
     this.edit_skeleton_step.cleanup_on_exit_step()
+    this.animations_listing_step.cleanup_on_exit_step()
     this.load_skeleton_step.dispose()
 
     // only show animation player on the animation listing page
@@ -461,6 +537,7 @@ export class Mesh2MotionEngine {
     else if (this.process_step === ProcessStep.AnimationsListing) {
       this.process_step = ProcessStep.AnimationsListing
 
+      this.animations_listing_step.set_weight_paint_manager(this.edit_skeleton_step.weight_paint_manager)
       const active_skeleton_type: SkeletonType = this.load_skeleton_step.skeleton_type()
       this.animations_listing_step.begin(active_skeleton_type, this.load_skeleton_step.skeleton_scale())
 
@@ -530,6 +607,9 @@ export class Mesh2MotionEngine {
     // show/hide weight painted mesh depending on view
     this.weight_skin_step.weight_painted_mesh_group().visible =
       this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted
+
+    this.edit_skeleton_step.set_weight_paint_available(
+      this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted)
   }
 
   public changed_transform_controls_mode (radio_button_selected: string): void {
@@ -649,6 +729,7 @@ export class Mesh2MotionEngine {
 
     // needed for skinning process if we change modes
     this.weight_skin_step.create_bone_formula_object(this.edit_skeleton_step.armature(), this.load_skeleton_step.skeleton_type())
+    this.weight_skin_step.set_manual_weight_overrides(this.edit_skeleton_step.manual_weight_overrides())
 
     // Pass head weight correction settings to the weight skin step
     this.weight_skin_step.set_head_weight_correction_settings(
@@ -692,6 +773,7 @@ export class Mesh2MotionEngine {
 
   public setup_weight_skinning_config (): void {
     this.weight_skin_step.create_bone_formula_object(this.edit_skeleton_step.armature(), this.load_skeleton_step.skeleton_type())
+    this.weight_skin_step.set_manual_weight_overrides(this.edit_skeleton_step.manual_weight_overrides())
 
     // Pass head weight correction settings to the weight skin step
     this.weight_skin_step.set_head_weight_correction_settings(

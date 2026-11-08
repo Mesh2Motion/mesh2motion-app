@@ -285,6 +285,41 @@
             </div>
           </div>
 
+          <details id="weight-painting-tools" style="max-width: 280px;" hidden>
+            <summary>Weight painting</summary>
+            <p><small>Paint weights on the colored mesh. Painted vertices override the automatic weights and are kept when binding and exporting. Use Add to strengthen a bone, Subtract to remove it. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
+            <button id="weight-paint-toggle" type="button" aria-pressed="false">Start painting</button>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+              <label for="weight-paint-bone">Bone</label>
+              <select id="weight-paint-bone"></select>
+
+              <div class="pill-switch-group" aria-label="Weight paint mode" style="margin: 0;">
+                <span class="pill-switch-label">Brush</span>
+                <div class="pill-switch">
+                  <input type="radio" id="weight-paint-add" name="weight-paint-mode" value="add" checked />
+                  <label for="weight-paint-add">Add</label>
+                  <input type="radio" id="weight-paint-subtract" name="weight-paint-mode" value="subtract" />
+                  <label for="weight-paint-subtract">Subtract</label>
+                </div>
+              </div>
+
+              <div class="styled-checkbox">
+                <input type="checkbox" id="weight-paint-mirror" checked />
+                <label for="weight-paint-mirror">Mirror L/R</label>
+              </div>
+
+              <label for="weight-paint-radius">Brush size</label>
+              <input id="weight-paint-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
+              <label for="weight-paint-strength">Strength</label>
+              <input id="weight-paint-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
+
+              <div style="display: flex; gap: 0.5rem;">
+                <button id="weight-paint-undo" type="button" disabled>Undo stroke</button>
+                <button id="weight-paint-clear" type="button" disabled>Clear all</button>
+              </div>
+            </div>
+          </details>
+
 
 
           <div class="styled-checkbox">
@@ -339,6 +374,46 @@
             </span> -->
 
         <span id="skinned-step-animation-export-options">
+          <details id="animation-weight-paint-tools" style="max-width: 320px;" hidden>
+            <summary>Weight painting</summary>
+            <p><small>Paint weights directly on the posed mesh. Starting paint mode pauses the animation. Scrub to a frame, paint, and the mesh updates immediately. Strokes made here are kept for binding and export. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
+            <button id="animation-weight-paint-toggle" type="button" aria-pressed="false">Start painting</button>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+              <label for="animation-weight-paint-bone">Bone</label>
+              <select id="animation-weight-paint-bone"></select>
+
+              <div class="styled-checkbox">
+                <input type="checkbox" id="animation-weight-paint-show" checked />
+                <label for="animation-weight-paint-show">Show weights</label>
+              </div>
+              <div class="styled-checkbox">
+                <input type="checkbox" id="animation-weight-paint-mirror" checked />
+                <label for="animation-weight-paint-mirror">Mirror L/R</label>
+              </div>
+              <p><small>Color shows the selected bone's weight: blue = low, yellow = 0.5, red = 1.</small></p>
+
+              <div class="pill-switch-group" aria-label="Animation weight paint mode" style="margin: 0;">
+                <span class="pill-switch-label">Brush</span>
+                <div class="pill-switch">
+                  <input type="radio" id="animation-weight-paint-add" name="animation-weight-paint-mode" value="add" checked />
+                  <label for="animation-weight-paint-add">Add</label>
+                  <input type="radio" id="animation-weight-paint-subtract" name="animation-weight-paint-mode" value="subtract" />
+                  <label for="animation-weight-paint-subtract">Subtract</label>
+                </div>
+              </div>
+
+              <label for="animation-weight-paint-radius">Brush size</label>
+              <input id="animation-weight-paint-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
+              <label for="animation-weight-paint-strength">Strength</label>
+              <input id="animation-weight-paint-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
+
+              <div style="display: flex; gap: 0.5rem;">
+                <button id="animation-weight-paint-undo" type="button" disabled>Undo stroke</button>
+                <button id="animation-weight-paint-clear" type="button" disabled>Clear this step</button>
+              </div>
+            </div>
+          </details>
+
           <div id="animations-listing">
             <!-- Filter textbox and tab switcher side by side -->
             <div style="display: flex; gap: 1rem; align-items: flex-start;">

@@ -1,3 +1,4 @@
+import { WeightPaintManager, type BrushVertex, type ManualWeightOverrides, type WeightPaintMode } from './WeightPaintManager.ts'
 import { UI } from '../../UI.ts'
 import { Generators } from '../../Generators.ts'
 import { Utility } from '../../Utilities.ts'
@@ -10,10 +11,13 @@ import { ModalDialog } from '../../ModalDialog.ts'
 import {
   Vector3,
   Euler,
+  Matrix3,
+  Mesh,
   Object3D,
   Skeleton,
   type Scene,
   type Bone,
+  type Intersection,
   BufferGeometry,
   PointsMaterial,
   Points,
@@ -45,6 +49,16 @@ export class StepEditSkeleton extends EventTarget {
   private mesh_drag_placement_enabled: boolean = true
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
+
+  public readonly weight_paint_manager = new WeightPaintManager()
+  private weight_paint_available = false
+  private weight_painting_enabled = false
+  private weight_paint_bone_name: string | null = null
+  private weight_paint_radius = 0.03
+  private weight_paint_strength = 0.5
+  private weight_paint_mode: WeightPaintMode = 'add'
+  private weight_paint_mirror_enabled = true
+  private readonly weight_paint_stroke_vertices = new Set<string>()
 
   private currently_selected_bone: Bone | null = null
 
@@ -168,6 +182,9 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
+    this._current_skeleton_type = skeleton_type
+    this.update_weight_paint_bone_options()
+    this.update_weight_paint_ui()
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elements for editing mesh
@@ -442,7 +459,208 @@ export class StepEditSkeleton extends EventTarget {
     return this.arm_plane_offset
   }
 
+  public manual_weight_overrides (): ManualWeightOverrides {
+    return this.weight_paint_manager.overrides_for_skin()
+  }
+
+  public set_weight_paint_available (available: boolean): void {
+    this.weight_paint_available = available
+    if (!available) {
+      this.set_weight_painting_enabled(false)
+    }
+    this.update_weight_paint_ui()
+  }
+
+  public is_weight_painting_enabled (): boolean {
+    return this.weight_painting_enabled
+  }
+
+  public set_weight_painting_enabled (enabled: boolean): void {
+    if (enabled && (!this.weight_paint_available || this.weight_paint_bone_name === null)) {
+      return
+    }
+    if (this.weight_painting_enabled === enabled) {
+      this.update_weight_paint_ui()
+      return
+    }
+
+    this.weight_painting_enabled = enabled
+    if (enabled) {
+      this.set_currently_selected_bone(null)
+    }
+    this.dispatchEvent(new CustomEvent('weightPaintModeChanged', { detail: { enabled } }))
+    this.update_weight_paint_ui()
+  }
+
+  public begin_weight_paint_stroke (): void {
+    this.weight_paint_stroke_vertices.clear()
+    this.weight_paint_manager.begin_stroke()
+    this.update_weight_paint_ui()
+  }
+
+  public end_weight_paint_stroke (): void {
+    this.weight_paint_stroke_vertices.clear()
+    this.update_weight_paint_ui()
+  }
+
+  /**
+   * Paints the currently selected bone onto the vertices under the brush.
+   * Whole strokes are sampled once per vertex so holding still does not keep
+   * stacking weight onto the same spot.
+   */
+  public paint_weights (intersection: Intersection, camera: PerspectiveCamera): void {
+    const object = intersection.object
+    if (!(object instanceof Mesh)) { return }
+
+    const geometry_index = object.userData.geometry_index
+    if (typeof geometry_index !== 'number') { return }
+
+    const bone_name = this.weight_paint_bone_name
+    if (bone_name === null) { return }
+
+    object.updateWorldMatrix(true, false)
+    const geometry = object.geometry
+    const positions = geometry.attributes.position
+    const normals = geometry.attributes.normal
+    const normal_matrix = new Matrix3().getNormalMatrix(object.matrixWorld)
+    const center = intersection.point.clone()
+    const ray_direction = center.clone().sub(camera.position).normalize()
+    const point = new Vector3()
+    const normal = new Vector3()
+    const vertices: BrushVertex[] = []
+
+    for (let i = 0; i < positions.count; i++) {
+      const key = `${geometry_index}:${i}`
+      if (this.weight_paint_stroke_vertices.has(key)) { continue }
+
+      point.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld)
+      const distance = point.distanceTo(center)
+      if (distance > this.weight_paint_radius) { continue }
+
+      // Skip the back side of the model so a brush cannot paint through the head.
+      if (normals !== undefined) {
+        normal.fromBufferAttribute(normals, i).applyMatrix3(normal_matrix).normalize()
+        if (normal.dot(ray_direction) > -0.05) { continue }
+      }
+
+      const t = 1 - distance / this.weight_paint_radius
+      vertices.push({ vertex_index: i, falloff: t * t * (3 - 2 * t) })
+      this.weight_paint_stroke_vertices.add(key)
+    }
+
+    if (vertices.length === 0) { return }
+
+    this.weight_paint_manager.paint_vertices(
+      object,
+      geometry_index,
+      vertices,
+      bone_name,
+      this.threejs_skeleton.bones,
+      this.weight_paint_strength,
+      this.weight_paint_mode,
+      this.weight_paint_mirror_enabled
+    )
+    this.update_weight_paint_ui()
+  }
+
+  public undo_weight_paint_stroke (): void {
+    if (!this.weight_paint_manager.undo()) { return }
+    this.dispatchEvent(new CustomEvent('weightPaintChanged'))
+    this.update_weight_paint_ui()
+  }
+
+  public clear_weight_paint (): void {
+    this.weight_paint_manager.clear()
+    this.dispatchEvent(new CustomEvent('weightPaintChanged'))
+    this.update_weight_paint_ui()
+  }
+
+  /** Used when a different model is loaded, since vertex indices no longer match. */
+  public reset_weight_paint_overrides (): void {
+    this.weight_paint_manager.clear()
+    this.update_weight_paint_ui()
+  }
+
+  private update_weight_paint_bone_options (): void {
+    const select = document.getElementById('weight-paint-bone') as HTMLSelectElement | null
+    if (select === null) { return }
+
+    const previous = this.weight_paint_bone_name ?? select.value
+    select.innerHTML = ''
+    for (const bone of this.threejs_skeleton.bones) {
+      if (bone.name === 'root' || Utility.is_leaf_bone(bone)) { continue }
+      const option = document.createElement('option')
+      option.value = bone.name
+      option.textContent = bone.name
+      select.appendChild(option)
+    }
+
+    const previous_still_exists = Array.from(select.options).some(option => option.value === previous)
+    select.selectedIndex = previous_still_exists
+      ? Array.from(select.options).findIndex(option => option.value === previous)
+      : (select.options.length > 0 ? 0 : -1)
+    this.weight_paint_bone_name = select.value === '' ? null : select.value
+  }
+
+  private update_weight_paint_ui (): void {
+    const container = document.getElementById('weight-painting-tools')
+    if (container !== null) {
+      container.hidden = !this.weight_paint_available
+    }
+
+    const toggle = document.getElementById('weight-paint-toggle') as HTMLButtonElement | null
+    if (toggle !== null) {
+      toggle.textContent = this.weight_painting_enabled ? 'Stop painting' : 'Start painting'
+      toggle.setAttribute('aria-pressed', String(this.weight_painting_enabled))
+      toggle.disabled = !this.weight_paint_available || this.weight_paint_bone_name === null
+    }
+
+    const undo = document.getElementById('weight-paint-undo') as HTMLButtonElement | null
+    if (undo !== null) {
+      undo.disabled = !this.weight_paint_manager.can_undo()
+    }
+
+    const mirror = document.getElementById('weight-paint-mirror') as HTMLInputElement | null
+    if (mirror !== null) {
+      mirror.checked = this.weight_paint_mirror_enabled
+    }
+
+    const clear = document.getElementById('weight-paint-clear') as HTMLButtonElement | null
+    if (clear !== null) {
+      clear.disabled = !this.weight_paint_manager.has_overrides()
+    }
+  }
+
   public add_event_listeners (): void {
+
+    document.getElementById('weight-paint-toggle')?.addEventListener('click', () => {
+      this.set_weight_painting_enabled(!this.weight_painting_enabled)
+    })
+    document.getElementById('weight-paint-bone')?.addEventListener('change', (event) => {
+      const select = event.target as HTMLSelectElement
+      this.weight_paint_bone_name = select.value === '' ? null : select.value
+      this.update_weight_paint_ui()
+    })
+    document.getElementById('weight-paint-radius')?.addEventListener('input', (event) => {
+      this.weight_paint_radius = Number((event.target as HTMLInputElement).value)
+    })
+    document.getElementById('weight-paint-strength')?.addEventListener('input', (event) => {
+      this.weight_paint_strength = Number((event.target as HTMLInputElement).value)
+    })
+    document.getElementById('weight-paint-mirror')?.addEventListener('change', (event) => {
+      this.weight_paint_mirror_enabled = (event.target as HTMLInputElement).checked
+      this.update_weight_paint_ui()
+    })
+    document.querySelectorAll<HTMLInputElement>('input[name="weight-paint-mode"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        if (input.checked) {
+          this.weight_paint_mode = input.value === 'subtract' ? 'subtract' : 'add'
+        }
+      })
+    })
+    document.getElementById('weight-paint-undo')?.addEventListener('click', () => this.undo_weight_paint_stroke())
+    document.getElementById('weight-paint-clear')?.addEventListener('click', () => this.clear_weight_paint())
+
     if (this.ui.dom_move_to_origin_button !== null) {
       this.ui.dom_move_to_origin_button.addEventListener('click', () => {
         // the base bone itself is not at the origin, but the parent is the armature object
@@ -625,6 +843,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public cleanup_on_exit_step (): void {
+    this.set_weight_painting_enabled(false)
     this.remove_event_listeners()
     this.clear_hover_point_if_exists()
     this.remove_preview_plane()

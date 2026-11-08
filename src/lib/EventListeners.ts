@@ -16,6 +16,11 @@ export class EventListeners {
 
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
 
+  private is_any_weight_painting_enabled (): boolean {
+    return this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
+      this.bootstrap.animations_listing_step.is_weight_painting_enabled()
+  }
+
   public addEventListeners (): void {
     // monitor theme changes
     this.bootstrap.theme_manager.addEventListener('theme-changed', (event: any) => {
@@ -25,6 +30,29 @@ export class EventListeners {
     this.bootstrap.load_skeleton_step.addEventListener('skeletonLoaded', () => {
       this.bootstrap.edit_skeleton_step.load_original_armature_from_model(this.bootstrap.load_skeleton_step.armature())
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('weightPaintModeChanged', (event: Event) => {
+      const enabled = (event as CustomEvent<{ enabled: boolean }>).detail.enabled
+      if (enabled) {
+        this.bootstrap.transform_controls.detach()
+        this.bootstrap.transform_controls.enabled = false
+        this.bootstrap.ui.hide_selected_bone_overlay()
+      } else {
+        this.bootstrap.update_edit_bone_interaction_mode()
+      }
+      this.bootstrap.renderer.domElement.style.cursor = enabled ? 'crosshair' : ''
+    })
+    this.bootstrap.edit_skeleton_step.addEventListener('weightPaintChanged', () => {
+      if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
+        this.bootstrap.regenerate_weight_painted_preview_mesh()
+      }
+    })
+    this.bootstrap.animations_listing_step.addEventListener('animationWeightPaintModeChanged', (event: Event) => {
+      const enabled = (event as CustomEvent<{ enabled: boolean }>).detail.enabled
+      this.bootstrap.ui.hide_selected_bone_overlay()
+      this.bootstrap.renderer.domElement.style.cursor = enabled ? 'crosshair' : ''
     })
 
     // Listen for skeleton transformation events to update UI and visuals
@@ -74,8 +102,41 @@ export class EventListeners {
     // it will scroll the webpage instead of dragging the transform controls or the camera.
     this.bootstrap.renderer.domElement.style.touchAction = 'none'
 
+    // Capture left-button presses in weight paint mode before OrbitControls sees
+    // them. Middle/right mouse and the wheel still orbit, pan, and zoom.
+    this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+      const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
+      const animation_step_painting = this.bootstrap.process_step === ProcessStep.AnimationsListing &&
+        this.bootstrap.animations_listing_step.is_weight_painting_enabled()
+
+      if (event.button !== 0 || (!edit_step_painting && !animation_step_painting)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      this.active_canvas_pointer_id = event.pointerId
+      this.bootstrap.renderer.domElement.setPointerCapture(event.pointerId)
+      this.bootstrap.handle_weight_paint_pointer_down(event)
+    }, { capture: true })
+
     this.bootstrap.renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
       if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
+        return
+      }
+
+      if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()) {
+        event.preventDefault()
+        this.bootstrap.handle_weight_paint_pointer_move(event)
+        return
+      }
+
+      if (this.bootstrap.process_step === ProcessStep.AnimationsListing &&
+        this.bootstrap.animations_listing_step.is_weight_painting_enabled()) {
+        event.preventDefault()
+        this.bootstrap.handle_weight_paint_pointer_move(event)
         return
       }
 
@@ -138,6 +199,7 @@ export class EventListeners {
         return
       }
 
+      this.bootstrap.handle_weight_paint_pointer_up(event)
       this.bootstrap.handle_mesh_drag_mode_mouse_up()
 
       if (this.active_canvas_pointer_id !== null &&
@@ -147,7 +209,8 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor = ''
+      this.bootstrap.renderer.domElement.style.cursor =
+        this.is_any_weight_painting_enabled() ? 'crosshair' : ''
     })
 
     document.addEventListener('pointercancel', (event: PointerEvent) => {
@@ -155,6 +218,7 @@ export class EventListeners {
         return
       }
 
+      this.bootstrap.handle_weight_paint_pointer_up(event)
       this.bootstrap.handle_mesh_drag_mode_mouse_up()
 
       if (this.active_canvas_pointer_id !== null &&
@@ -164,7 +228,8 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor = ''
+      this.bootstrap.renderer.domElement.style.cursor =
+        this.is_any_weight_painting_enabled() ? 'crosshair' : ''
     })
 
     // custom event listeners for the transform controls.
@@ -223,6 +288,7 @@ export class EventListeners {
     })
 
     this.bootstrap.load_model_step.addEventListener('modelLoaded', () => {
+      this.bootstrap.edit_skeleton_step.reset_weight_paint_overrides()
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.LoadSkeleton)
     })
 
@@ -372,8 +438,11 @@ export class EventListeners {
 
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
-      // Only handle keyboard shortcuts when in EditSkeleton step
-      if (this.bootstrap.process_step !== ProcessStep.EditSkeleton) {
+      const is_edit_step = this.bootstrap.process_step === ProcessStep.EditSkeleton
+      const is_animation_step = this.bootstrap.process_step === ProcessStep.AnimationsListing
+
+      // Only handle keyboard shortcuts in these steps
+      if (!is_edit_step && !is_animation_step) {
         return
       }
 
@@ -385,10 +454,18 @@ export class EventListeners {
 
       if (is_undo_shortcut_pressed) {
         event.preventDefault()
-        this.bootstrap.edit_skeleton_step.undo_bone_transformation()
-      }
+        if (is_edit_step) {
+          if (this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() &&
+            this.bootstrap.edit_skeleton_step.weight_paint_manager.can_undo()) {
+            this.bootstrap.edit_skeleton_step.undo_weight_paint_stroke()
+          } else {
+            this.bootstrap.edit_skeleton_step.undo_bone_transformation()
+          }
+        } else {
+          this.bootstrap.animations_listing_step.undo_weight_paint_stroke()
+        }      }
 
-      if (is_redo_shortcut_pressed) {
+      if (is_redo_shortcut_pressed && is_edit_step) {
         event.preventDefault()
         this.bootstrap.edit_skeleton_step.redo_bone_transformation()
       }
