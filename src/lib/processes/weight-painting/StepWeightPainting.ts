@@ -52,6 +52,7 @@ export class StepWeightPainting extends EventTarget {
   private weight_paint_radius = 0.03
   private weight_paint_strength = 0.5
   private weight_paint_mode: WeightPaintMode = 'add'
+  private active_paint_mode: WeightPaintMode = 'add'
   private weight_paint_mirror_enabled = true
   private weight_paint_show_weights = true
   private weight_paint_clear_marker = 0
@@ -187,7 +188,12 @@ export class StepWeightPainting extends EventTarget {
     this.update_weight_paint_ui()
   }
 
-  public begin_weight_paint_stroke (): void {
+  public begin_weight_paint_stroke (button: number = 0, shift_pressed: boolean = false): void {
+    // Shift + left paints weight, Shift + right removes weight. The add /
+    // subtract control remains the fallback for a non-Shift stroke.
+    this.active_paint_mode = button === 2
+      ? 'subtract'
+      : (shift_pressed ? 'add' : this.weight_paint_mode)
     this.weight_paint_stroke_vertices.clear()
     this.weight_paint_manager?.begin_stroke()
     this.update_weight_paint_ui()
@@ -246,7 +252,7 @@ export class StepWeightPainting extends EventTarget {
       bone_name,
       object.skeleton.bones,
       this.weight_paint_strength,
-      this.weight_paint_mode,
+      this.active_paint_mode,
       this.weight_paint_mirror_enabled
     )
     if (this.weight_paint_mirror_enabled) {

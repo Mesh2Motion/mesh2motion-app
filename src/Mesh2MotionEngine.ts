@@ -386,7 +386,7 @@ export class Mesh2MotionEngine {
       this.edit_skeleton_step.begin_weight_paint_stroke()
       this.edit_skeleton_step.paint_weights(intersection, this.camera)
     } else {
-      this.weight_painting_step.begin_weight_paint_stroke()
+      this.weight_painting_step.begin_weight_paint_stroke(event.button, event.shiftKey)
       this.weight_painting_step.paint_weights(intersection, this.camera)
     }
   }

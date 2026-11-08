@@ -379,7 +379,7 @@
             </span> -->
 
         <span id="weight-paint-step-tools" style="display: none; flex-direction: column; max-width: 320px;">
-          <p><small>Paint weights on the animated mesh. Hold Shift and drag on the model to paint; releasing Shift returns left-drag to orbiting. Use the timeline to pause or slow the animation while inspecting deformation. A ring on the surface shows the brush size. Strokes are kept when binding and exporting. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
+          <p><small>Paint weights on the animated mesh. Hold Shift and drag on the model to paint: left adds weight, right removes it. Releasing Shift returns left-drag to orbiting. Use the timeline to pause or slow the animation while inspecting deformation. A ring on the surface shows the brush size. Strokes are kept when binding and exporting. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
 
           <div class="alternate-background-section">
             <label for="weight-paint-step-animation">Test animation</label>
@@ -399,7 +399,7 @@
           </div>
 
           <button id="weight-paint-step-toggle" type="button" aria-pressed="false" hidden>Start painting</button>
-          <p><small><strong>Hold Shift and drag on the model to paint.</strong> Release Shift to orbit.</small></p>
+          <p><small><strong>Hold Shift: left-drag adds weight, right-drag removes it.</strong> Release Shift to orbit.</small></p>
           <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
             <label for="weight-paint-step-bone">Bone</label>
             <div style="display: flex; gap: 0.5rem;">
@@ -410,7 +410,7 @@
             </div>
             <input type="text" id="weight-paint-step-bone-filter" placeholder="Filter bones" />
 
-            <div class="pill-switch-group" aria-label="Weight paint mode" style="margin: 0;">
+            <div class="pill-switch-group" aria-label="Weight paint mode" style="margin: 0;" hidden>
               <span class="pill-switch-label">Brush</span>
               <div class="pill-switch">
                 <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />

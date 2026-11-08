@@ -133,8 +133,12 @@ export class EventListeners {
       const weight_painting_step_picking = this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_bone_picking_enabled()
 
-      if (event.button !== 0 ||
-        (!edit_step_painting && !weight_painting_step_painting && !weight_painting_step_picking)) {
+      // left paints/picks; right only paints (remove) in weight paint draw mode
+      const should_capture = event.button === 0
+        ? (edit_step_painting || weight_painting_step_painting || weight_painting_step_picking)
+        : event.button === 2 && weight_painting_step_painting
+
+      if (!should_capture) {
         return
       }
 
@@ -209,6 +213,14 @@ export class EventListeners {
 
     this.bootstrap.renderer.domElement.addEventListener('pointerleave', () => {
       this.bootstrap.weight_painting_step.hide_brush_cursor()
+    })
+
+    // right mouse removes weight while painting instead of opening the menu
+    this.bootstrap.renderer.domElement.addEventListener('contextmenu', (event: MouseEvent) => {
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_draw_mode_active()) {
+        event.preventDefault()
+      }
     })
 
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
