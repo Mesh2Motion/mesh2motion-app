@@ -126,6 +126,42 @@ describe('WeightPaintManager', () => {
     expect(mesh.geometry.attributes.skinWeight.array[1]).toBeCloseTo(0.5)
   })
 
+  it('redo restores the whole stroke', () => {
+    const bones = rig()
+    const mesh = painted_mesh()
+    const manager = new WeightPaintManager()
+
+    manager.begin_stroke()
+    manager.paint_vertices(mesh, 0, [{ vertex_index: 0, falloff: 1 }], 'face_jaw', bones, 1, 'add')
+    manager.finish_stroke()
+    const painted_weight = mesh.geometry.attributes.skinWeight.array[0]
+
+    manager.undo()
+    expect(mesh.geometry.attributes.skinWeight.array[0]).toBeCloseTo(0.5)
+    expect(manager.can_redo()).toBe(true)
+
+    manager.redo()
+    expect(mesh.geometry.attributes.skinWeight.array[0]).toBeCloseTo(painted_weight)
+    expect(manager.can_redo()).toBe(false)
+  })
+
+  it('normalizes every vertex so the weights add up to one', () => {
+    const mesh = painted_mesh(0.2, 0.2)
+    const manager = new WeightPaintManager()
+
+    expect(manager.normalize_all_weights([mesh])).toBe(true)
+    expect(mesh.geometry.attributes.skinWeight.array[0]).toBeCloseTo(0.5)
+    expect(mesh.geometry.attributes.skinWeight.array[1]).toBeCloseTo(0.5)
+
+    // a vertex with no influences would collapse; keep one full influence
+    const weights = mesh.geometry.attributes.skinWeight
+    weights.array[4] = 0
+    weights.array[5] = 0
+    manager.normalize_all_weights([mesh])
+    expect(weights.array[4]).toBeCloseTo(1)
+    expect(weights.array[5]).toBeCloseTo(0)
+  })
+
   it('clears only strokes made after a marker', () => {
     const bones = rig()
     const mesh = painted_mesh()

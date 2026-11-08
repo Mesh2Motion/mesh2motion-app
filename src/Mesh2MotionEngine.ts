@@ -109,7 +109,7 @@ export class Mesh2MotionEngine {
     this.load_skeleton_step = new StepLoadSkeleton(this.scene)
     this.edit_skeleton_step = new StepEditSkeleton()
     this.weight_skin_step = new StepWeightSkin()
-    this.weight_painting_step = new StepWeightPainting()
+    this.weight_painting_step = new StepWeightPainting(this)
     this.animations_listing_step = new StepAnimationsListing(this.theme_manager)
     this.download_settings = new DownloadSettings()
     this.file_export_step = new StepExportToFile()
@@ -211,6 +211,11 @@ export class Mesh2MotionEngine {
 
   public enable_orbit_controls (enabled: boolean): void {
     this.scene_environment.enable_orbit_controls(enabled)
+  }
+
+  /** Orbit the camera around its target, used by the weight painting trackball. */
+  public rotate_camera (azimuth_delta: number, polar_delta: number): void {
+    this.scene_environment.rotate_camera(azimuth_delta, polar_delta)
   }
 
   private setup_environment (): void {
@@ -386,7 +391,7 @@ export class Mesh2MotionEngine {
       this.edit_skeleton_step.begin_weight_paint_stroke()
       this.edit_skeleton_step.paint_weights(intersection, this.camera)
     } else {
-      this.weight_painting_step.begin_weight_paint_stroke(event.button, event.shiftKey)
+      this.weight_painting_step.begin_weight_paint_stroke()
       this.weight_painting_step.paint_weights(intersection, this.camera)
     }
   }

@@ -379,12 +379,77 @@
             </span> -->
 
         <span id="weight-paint-step-tools" style="display: none; flex-direction: column; max-width: 320px;">
-          <p><small>Paint weights on the animated mesh. Hold Shift and drag on the model to paint: left adds weight, right removes it. Releasing Shift returns left-drag to orbiting. Use the timeline to pause or slow the animation while inspecting deformation. A ring on the surface shows the brush size. Strokes are kept when binding and exporting. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
+          <div class="pill-switch-group" aria-label="Weight painting mode" style="margin: 0 0 0.75rem;">
+            <div class="pill-switch">
+              <input type="radio" id="weight-paint-mode-paint" name="weight-paint-mode" value="paint" checked />
+              <label for="weight-paint-mode-paint">Paint</label>
 
-          <div class="alternate-background-section">
-            <label for="weight-paint-step-animation">Test animation</label>
-            <select id="weight-paint-step-animation"></select>
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+              <input type="radio" id="weight-paint-mode-test" name="weight-paint-mode" value="test" />
+              <label for="weight-paint-mode-test">Test</label>
+            </div>
+          </div>
+
+          <span id="weight-paint-paint-tools" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <fieldset style="position: fixed; right: 300px; top: 52px;">
+              <div style="display: flex; gap: 2px;">
+                <button id="weight-paint-step-undo" class="secondary-button" title="Undo (Ctrl+Z)" disabled>
+                  <img src="images/icons/undo.png" alt="Undo" width="16" height="16" />
+                </button>
+                <button id="weight-paint-step-redo" class="secondary-button" title="Redo (Ctrl+Y)" disabled>
+                  <img src="images/icons/redo.png" alt="Redo" width="16" height="16" />
+                </button>
+              </div>
+            </fieldset>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+              <div id="weight-paint-trackball" role="slider" tabindex="0" aria-label="Rotate the view"
+                data-tippy-content="Drag to rotate the view. Shortcut: hold Alt and drag on the model.">
+                <div id="weight-paint-trackball-knob"></div>
+              </div>
+
+              <div style="display: flex; flex: 1; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <button id="weight-paint-step-pick-bone" class="secondary-button" type="button" aria-pressed="false" aria-label="Pick a bone by clicking the model" title="Pick a bone by clicking the model">
+                    <img src="images/icons/color-picker.svg" alt="" width="20" height="20" />
+                  </button>
+                  <span id="weight-paint-step-bone-name" class="weight-paint-bone-name">&mdash;</span>
+                </div>
+
+                <div class="pill-switch-group" aria-label="Weight brush mode" style="margin: 0;"
+                  data-tippy-content="Brush mode. Shortcut: X">
+                  <div class="pill-switch">
+                    <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />
+                    <label for="weight-paint-step-add">Add</label>
+
+                    <input type="radio" id="weight-paint-step-subtract" name="weight-paint-step-mode" value="subtract" />
+                    <label for="weight-paint-step-subtract">Remove</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="styled-checkbox">
+              <input type="checkbox" id="weight-paint-step-mirror" checked />
+              <label for="weight-paint-step-mirror">Mirror L/R</label>
+            </div>
+
+            <div class="weight-paint-slider-row">
+              <label for="weight-paint-step-radius">Brush size</label>
+              <input id="weight-paint-step-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
+              <span id="weight-paint-step-radius-value">0.030</span>
+            </div>
+
+            <div class="weight-paint-slider-row">
+              <label for="weight-paint-step-strength">Strength</label>
+              <input id="weight-paint-step-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
+              <span id="weight-paint-step-strength-value">50%</span>
+            </div>
+          </span>
+
+          <span id="weight-paint-test-tools" style="display: none; flex-direction: column; gap: 0.75rem;">
+            <div id="weight-paint-step-animation-list" class="weight-paint-animation-list"></div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
               <label for="weight-paint-step-speed">Speed</label>
               <select id="weight-paint-step-speed" style="flex: 1;">
                 <option value="0.1">0.1x</option>
@@ -396,51 +461,7 @@
               </select>
             </div>
             <span id="weight-paint-step-animation-status" style="font-size: 0.85rem;"></span>
-          </div>
-
-          <button id="weight-paint-step-toggle" type="button" aria-pressed="false" hidden>Start painting</button>
-          <p><small><strong>Hold Shift: left-drag adds weight, right-drag removes it.</strong> Release Shift to orbit.</small></p>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-            <label for="weight-paint-step-bone">Bone</label>
-            <div style="display: flex; gap: 0.5rem;">
-              <select id="weight-paint-step-bone" style="flex: 1;"></select>
-              <button id="weight-paint-step-pick-bone" class="secondary-button" type="button" aria-pressed="false" aria-label="Pick a bone by clicking the model" title="Pick a bone by clicking the model">
-                <img src="images/icons/color-picker.svg" alt="" width="20" height="20" />
-              </button>
-            </div>
-            <input type="text" id="weight-paint-step-bone-filter" placeholder="Filter bones" />
-
-            <div class="pill-switch-group" aria-label="Weight paint mode" style="margin: 0;" hidden>
-              <span class="pill-switch-label">Brush</span>
-              <div class="pill-switch">
-                <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />
-                <label for="weight-paint-step-add">Add</label>
-                <input type="radio" id="weight-paint-step-subtract" name="weight-paint-step-mode" value="subtract" />
-                <label for="weight-paint-step-subtract">Subtract</label>
-              </div>
-            </div>
-
-            <div class="styled-checkbox">
-              <input type="checkbox" id="weight-paint-step-show" checked />
-              <label for="weight-paint-step-show">Show weights</label>
-            </div>
-            <div class="styled-checkbox">
-              <input type="checkbox" id="weight-paint-step-mirror" checked />
-              <label for="weight-paint-step-mirror">Mirror L/R</label>
-            </div>
-
-            <p><small>Color shows the selected bone's weight: yellow = 0.5, red = 1.</small></p>
-
-            <label for="weight-paint-step-radius">Brush size</label>
-            <input id="weight-paint-step-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
-            <label for="weight-paint-step-strength">Strength</label>
-            <input id="weight-paint-step-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
-
-            <div style="display: flex; gap: 0.5rem;">
-              <button id="weight-paint-step-undo" type="button" disabled>Undo stroke</button>
-              <button id="weight-paint-step-clear" type="button" disabled>Clear this step</button>
-            </div>
-          </div>
+          </span>
 
           <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
             <button class="no-style-button" id="action_back_to_edit_skeleton_from_weight_paint">&#x2039; Back</button>

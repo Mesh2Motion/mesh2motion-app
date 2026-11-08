@@ -283,6 +283,92 @@ button.secondary-button.play:hover {
     outline-offset: 1px;
 }
 
+/* trackball that rotates the camera while painting */
+#weight-paint-trackball {
+    position: relative;
+    flex: 0 0 76px;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: 1px solid var(--bg-tertiary);
+    background: radial-gradient(circle at 35% 30%, var(--bg-alternate), var(--bg-primary) 70%);
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35);
+    cursor: grab;
+    touch-action: none;
+}
+
+#weight-paint-trackball:active {
+    cursor: grabbing;
+}
+
+#weight-paint-trackball:focus-visible {
+    outline: 2px solid var(--button-primary-bg);
+    outline-offset: 2px;
+}
+
+#weight-paint-trackball-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+    transform: translate(-50%, -50%);
+}
+
+.weight-paint-bone-name {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+}
+
+.weight-paint-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.weight-paint-slider-row label {
+    flex: 0 0 auto;
+}
+
+.weight-paint-slider-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.weight-paint-slider-row span {
+    width: 3.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.weight-paint-animation-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.weight-paint-animation-button {
+    background: var(--bg-alternate);
+    color: var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 0.25rem;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.weight-paint-animation-button:hover {
+    border-color: var(--text-primary);
+}
+
+.weight-paint-animation-button.active {
+    background: var(--button-primary-bg);
+    border-color: var(--button-primary-bg);
+}
+
 button.no-style-button {
     background: none;
     box-shadow: none;

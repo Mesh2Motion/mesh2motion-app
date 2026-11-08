@@ -504,6 +504,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public end_weight_paint_stroke (): void {
+    this.weight_paint_manager.finish_stroke()
     this.weight_paint_stroke_vertices.clear()
     this.update_weight_paint_ui()
   }

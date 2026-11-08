@@ -121,11 +121,6 @@ export class EventListeners {
     // Capture left-button presses in weight paint mode before OrbitControls sees
     // them. Middle/right mouse and the wheel still orbit, pan, and zoom.
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
-        // keep the temporary Shift mode in sync with the actual pointer event
-        this.bootstrap.weight_painting_step.set_shift_painting_enabled(event.shiftKey)
-      }
-
       const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
       const weight_painting_step_painting = this.bootstrap.process_step === ProcessStep.WeightPainting &&
@@ -133,10 +128,9 @@ export class EventListeners {
       const weight_painting_step_picking = this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_bone_picking_enabled()
 
-      // left paints/picks; right only paints (remove) in weight paint draw mode
-      const should_capture = event.button === 0
-        ? (edit_step_painting || weight_painting_step_painting || weight_painting_step_picking)
-        : event.button === 2 && weight_painting_step_painting
+      // left paints/picks. The right button stays free for panning the camera.
+      const should_capture = event.button === 0 &&
+        (edit_step_painting || weight_painting_step_painting || weight_painting_step_picking)
 
       if (!should_capture) {
         return
@@ -152,11 +146,6 @@ export class EventListeners {
     this.bootstrap.renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
       if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
         return
-      }
-
-      if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
-        // also handles the case where Shift was already held when the step opened
-        this.bootstrap.weight_painting_step.set_shift_painting_enabled(event.shiftKey)
       }
 
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
@@ -215,10 +204,11 @@ export class EventListeners {
       this.bootstrap.weight_painting_step.hide_brush_cursor()
     })
 
-    // right mouse removes weight while painting instead of opening the menu
+    // keep the context menu out of the way while the paint tools are open, so
+    // right-drag can still pan the camera
     this.bootstrap.renderer.domElement.addEventListener('contextmenu', (event: MouseEvent) => {
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
-        this.bootstrap.weight_painting_step.is_draw_mode_active()) {
+        this.bootstrap.weight_painting_step.is_paint_mode_active()) {
         event.preventDefault()
       }
     })
@@ -499,25 +489,6 @@ export class EventListeners {
       }
     })
 
-    // Hold Shift in the weight painting step to temporarily paint with the
-    // left mouse button; releasing it returns the left button to orbiting.
-    document.addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key !== 'Shift') { return }
-      if (this.bootstrap.process_step !== ProcessStep.WeightPainting) { return }
-      if (this.is_typing_target(event.target)) { return }
-      this.bootstrap.weight_painting_step.set_shift_painting_enabled(true)
-    })
-
-    document.addEventListener('keyup', (event: KeyboardEvent) => {
-      if (event.key !== 'Shift') { return }
-      if (this.bootstrap.process_step !== ProcessStep.WeightPainting) { return }
-      this.bootstrap.weight_painting_step.set_shift_painting_enabled(false)
-    })
-
-    window.addEventListener('blur', () => {
-      this.bootstrap.weight_painting_step.set_shift_painting_enabled(false)
-    })
-
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
       const is_edit_step = this.bootstrap.process_step === ProcessStep.EditSkeleton
@@ -548,9 +519,13 @@ export class EventListeners {
         }
       }
 
-      if (is_redo_shortcut_pressed && is_edit_step) {
+      if (is_redo_shortcut_pressed) {
         event.preventDefault()
-        this.bootstrap.edit_skeleton_step.redo_bone_transformation()
+        if (is_edit_step) {
+          this.bootstrap.edit_skeleton_step.redo_bone_transformation()
+        } else if (is_weight_painting_step) {
+          this.bootstrap.weight_painting_step.redo_weight_paint_stroke()
+        }
       }
     })
   }

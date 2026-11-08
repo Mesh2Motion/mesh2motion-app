@@ -32,9 +32,12 @@ interface MirrorData {
 
 interface UndoRecord {
   stroke_id: number
-  overrides: ManualWeightOverrides
+  before_overrides: ManualWeightOverrides
+  after_overrides: ManualWeightOverrides
   // mesh -> vertex -> skin attributes before this stroke touched the vertex
-  backups: Map<Mesh, Map<number, SkinBackup>>
+  before_backups: Map<Mesh, Map<number, SkinBackup>>
+  // the same vertices after the stroke and normalization, used for redo
+  after_backups: Map<Mesh, Map<number, SkinBackup>>
 }
 
 /**
@@ -55,7 +58,9 @@ interface UndoRecord {
 export class WeightPaintManager {
   private overrides: ManualWeightOverrides = new Map()
   private undo_stack: UndoRecord[] = []
+  private redo_stack: UndoRecord[] = []
   private stroke_counter = 0
+  private current_stroke: UndoRecord | null = null
   private current_stroke_backups: Map<Mesh, Map<number, SkinBackup>> | null = null
   private readonly bone_colors = Generators.generate_deterministic_bone_colors(120)
   private readonly mirror_cache = new WeakMap<BufferGeometry, MirrorData | null>()
@@ -112,6 +117,10 @@ export class WeightPaintManager {
     return this.undo_stack.length > 0
   }
 
+  public can_redo (): boolean {
+    return this.redo_stack.length > 0
+  }
+
   /** Monotonic marker that survives the undo-history size cap. */
   public undo_stack_marker (): number {
     return this.stroke_counter
@@ -122,26 +131,72 @@ export class WeightPaintManager {
     return latest !== undefined && latest.stroke_id > marker
   }
 
+  public can_redo_since (marker: number): boolean {
+    const latest = this.redo_stack[this.redo_stack.length - 1]
+    return latest !== undefined && latest.stroke_id > marker
+  }
+
   /** Call once at the start of a brush stroke so undo rolls back the whole stroke. */
   public begin_stroke (): void {
+    this.finish_stroke() // in case a stroke was never ended
+
     const backups = new Map<Mesh, Map<number, SkinBackup>>()
-    this.current_stroke_backups = backups
     this.stroke_counter++
-    this.undo_stack.push({
+    const record: UndoRecord = {
       stroke_id: this.stroke_counter,
-      overrides: this.clone_overrides(this.overrides),
-      backups
-    })
+      before_overrides: this.clone_overrides(this.overrides),
+      after_overrides: this.clone_overrides(this.overrides),
+      before_backups: backups,
+      after_backups: new Map()
+    }
+    this.current_stroke = record
+    this.current_stroke_backups = backups
+    this.undo_stack.push(record)
+
     if (this.undo_stack.length > 20) {
       this.undo_stack.shift()
     }
+
+    // a new stroke invalidates any redo history
+    this.redo_stack = []
+  }
+
+  /** Capture the post-stroke skin state so redo can replay the whole stroke. */
+  public finish_stroke (): void {
+    const record = this.current_stroke
+    if (record === null) { return }
+
+    this.current_stroke = null
+    this.current_stroke_backups = null
+
+    // nothing was painted, so don't leave a no-op undo step behind
+    if (record.before_backups.size === 0) {
+      const index = this.undo_stack.indexOf(record)
+      if (index >= 0) { this.undo_stack.splice(index, 1) }
+      return
+    }
+
+    record.after_overrides = this.clone_overrides(this.overrides)
+    record.after_backups = this.capture_skin_backups(record.before_backups)
   }
 
   public undo (): boolean {
     const previous = this.undo_stack.pop()
     if (previous === undefined) { return false }
-    this.overrides = previous.overrides
-    this.restore_skin_backups(previous.backups)
+
+    this.overrides = this.clone_overrides(previous.before_overrides)
+    this.restore_skin_backups(previous.before_backups)
+    this.redo_stack.push(previous)
+    return true
+  }
+
+  public redo (): boolean {
+    const next = this.redo_stack.pop()
+    if (next === undefined) { return false }
+
+    this.overrides = this.clone_overrides(next.after_overrides)
+    this.restore_skin_backups(next.after_backups)
+    this.undo_stack.push(next)
     return true
   }
 
@@ -155,13 +210,67 @@ export class WeightPaintManager {
       if (!this.undo()) { break }
       changed = true
     }
+
+    // clearing should not be undone by a later redo
+    if (changed) { this.redo_stack = [] }
     return changed
   }
 
   public clear (): void {
     this.overrides.clear()
     this.undo_stack = []
+    this.redo_stack = []
+    this.current_stroke = null
     this.current_stroke_backups = null
+  }
+
+  /**
+   * Makes every vertex's influences add up to 1.0. Called after each brush
+   * stroke so exported weights are always normalized.
+   */
+  public normalize_all_weights (meshes: Mesh[]): boolean {
+    let any_changed = false
+
+    for (const mesh of meshes) {
+      const skin_indices = mesh.geometry.attributes.skinIndex
+      const skin_weights = mesh.geometry.attributes.skinWeight
+      if (skin_indices === undefined || skin_weights === undefined) { continue }
+
+      let mesh_changed = false
+      const vertex_count = skin_weights.count
+      for (let vertex_index = 0; vertex_index < vertex_count; vertex_index++) {
+        const offset = vertex_index * 4
+        let total = 0
+        for (let slot = 0; slot < 4; slot++) {
+          total += skin_weights.array[offset + slot] as number
+        }
+
+        if (total > 0) {
+          if (Math.abs(total - 1) <= 1e-6) { continue }
+          for (let slot = 0; slot < 4; slot++) {
+            skin_weights.array[offset + slot] = (skin_weights.array[offset + slot] as number) / total
+          }
+          mesh_changed = true
+          continue
+        }
+
+        // A vertex with no influences would collapse; keep its first bone
+        // influence so every vertex still sums to 1.0.
+        skin_indices.array[offset] = skin_indices.array[offset] ?? 0
+        skin_weights.array[offset] = 1
+        for (let slot = 1; slot < 4; slot++) {
+          skin_weights.array[offset + slot] = 0
+        }
+        mesh_changed = true
+      }
+
+      if (mesh_changed) {
+        this.mark_skin_attributes_dirty(mesh)
+        any_changed = true
+      }
+    }
+
+    return any_changed
   }
 
   /**
@@ -471,6 +580,24 @@ export class WeightPaintManager {
     }
     if (mesh_backups.has(vertex_index)) { return }
 
+    mesh_backups.set(vertex_index, this.capture_skin_backup(mesh, vertex_index))
+  }
+
+  private capture_skin_backups (vertices: Map<Mesh, Map<number, SkinBackup>>): Map<Mesh, Map<number, SkinBackup>> {
+    const result = new Map<Mesh, Map<number, SkinBackup>>()
+
+    for (const [mesh, mesh_vertices] of vertices) {
+      const backups = new Map<number, SkinBackup>()
+      for (const vertex_index of mesh_vertices.keys()) {
+        backups.set(vertex_index, this.capture_skin_backup(mesh, vertex_index))
+      }
+      result.set(mesh, backups)
+    }
+
+    return result
+  }
+
+  private capture_skin_backup (mesh: Mesh, vertex_index: number): SkinBackup {
     const skin_indices = mesh.geometry.attributes.skinIndex
     const skin_weights = mesh.geometry.attributes.skinWeight
     const backup: SkinBackup = { indices: [0, 0, 0, 0], weights: [0, 0, 0, 0] }
@@ -480,7 +607,7 @@ export class WeightPaintManager {
         backup.weights[slot] = skin_weights.array[vertex_index * 4 + slot] as number
       }
     }
-    mesh_backups.set(vertex_index, backup)
+    return backup
   }
 
   private restore_skin_backups (backups: Map<Mesh, Map<number, SkinBackup>>): void {
