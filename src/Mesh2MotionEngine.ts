@@ -422,6 +422,15 @@ export class Mesh2MotionEngine {
     this.weight_painting_step.update_brush_cursor(intersection)
   }
 
+  /** Shows the bone the picker would select under the pointer. */
+  public update_weight_paint_picker_hover (event: PointerEvent): void {
+    if (this.process_step !== ProcessStep.WeightPainting) { return }
+
+    const intersection = this.weight_paint_intersection(event,
+      this.weight_painting_step.active_skinned_meshes())
+    this.weight_painting_step.update_picker_hover(intersection)
+  }
+
   public handle_weight_paint_pointer_up (event: PointerEvent): void {
     if (this.weight_paint_pointer_id !== event.pointerId) { return }
     if (this.weight_paint_source === 'edit') {

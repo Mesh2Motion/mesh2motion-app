@@ -358,20 +358,62 @@ export class StepWeightPainting extends EventTarget {
     }
 
     this.bone_picking_enabled = enabled
+    if (!enabled) {
+      this.hide_picker_hover()
+    }
     this.dispatchEvent(new CustomEvent('bonePickModeChanged', { detail: { enabled } }))
     this.update_weight_paint_ui()
   }
 
+  /**
+   * While the picker is armed, show which bone is under the pointer before the
+   * user clicks. The engine feeds this with the current ray intersection.
+   */
+  public update_picker_hover (intersection: Intersection | null): void {
+    if (!this.is_active || this.active_mode !== 'paint' || !this.bone_picking_enabled) { return }
+    if (intersection === null) {
+      this.hide_picker_hover()
+      return
+    }
+
+    const bone_name = this.bone_name_at_intersection(intersection)
+    if (bone_name === null) {
+      this.hide_picker_hover()
+      return
+    }
+
+    this.clear_bone_overlay_timeout()
+    this.ui.show_selected_bone_overlay(bone_name)
+  }
+
+  public hide_picker_hover (): void {
+    this.clear_bone_overlay_timeout()
+    this.ui.hide_selected_bone_overlay()
+  }
+
   /** Select the bone with the strongest influence at the clicked surface point. */
   public pick_bone (intersection: Intersection): void {
+    const best_bone_name = this.bone_name_at_intersection(intersection)
+    if (best_bone_name === null) { return }
+
+    this.weight_paint_bone_name = best_bone_name
+    this.update_bone_name_display()
+    this.update_weight_paint_overlay_colors(best_bone_name)
+    this.set_bone_picking_enabled(false)
+    this.show_picked_bone_overlay(best_bone_name)
+    this.update_weight_paint_ui()
+  }
+
+  /** Strongest selectable bone influence at the surface point under the pointer. */
+  private bone_name_at_intersection (intersection: Intersection): string | null {
     const object = intersection.object
     const face = intersection.face
-    if (!(object instanceof SkinnedMesh) || face === null || face === undefined) { return }
+    if (!(object instanceof SkinnedMesh) || face === null || face === undefined) { return null }
 
     const positions = object.geometry.attributes.position
     const skin_indices = object.geometry.attributes.skinIndex
     const skin_weights = object.geometry.attributes.skinWeight
-    if (positions === undefined || skin_indices === undefined || skin_weights === undefined) { return }
+    if (positions === undefined || skin_indices === undefined || skin_weights === undefined) { return null }
 
     object.updateWorldMatrix(true, false)
     const local_point = object.worldToLocal(intersection.point.clone())
@@ -405,14 +447,7 @@ export class StepWeightPainting extends EventTarget {
       best_weight = weight
     }
 
-    if (best_bone_name === null) { return }
-
-    this.weight_paint_bone_name = best_bone_name
-    this.update_bone_name_display()
-    this.show_picked_bone_overlay(best_bone_name)
-    this.update_weight_paint_overlay_colors(best_bone_name)
-    this.set_bone_picking_enabled(false)
-    this.update_weight_paint_ui()
+    return best_bone_name
   }
 
   /** Replaces the textures with a black material so only weight colors show. */

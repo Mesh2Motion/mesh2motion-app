@@ -155,9 +155,11 @@ export class EventListeners {
         return
       }
 
-      // keep the picker cursor while waiting for the user to click a bone
+      // while the picker is armed, preview the bone under the pointer before the click
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+        event.preventDefault()
+        this.bootstrap.update_weight_paint_picker_hover(event)
         return
       }
 
@@ -202,6 +204,7 @@ export class EventListeners {
 
     this.bootstrap.renderer.domElement.addEventListener('pointerleave', () => {
       this.bootstrap.weight_painting_step.hide_brush_cursor()
+      this.bootstrap.weight_painting_step.hide_picker_hover()
     })
 
     // keep the context menu out of the way while the paint tools are open, so
