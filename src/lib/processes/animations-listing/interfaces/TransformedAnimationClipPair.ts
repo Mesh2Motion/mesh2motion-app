@@ -1,6 +1,6 @@
 import { type AnimationClip } from 'three'
 
-export type AnimationSourceType = 'default-library' | 'custom-import'
+export type AnimationSourceType = 'default-library' | 'custom-import' | 'generated'
 
 export interface AnimationClipMetadata {
   source_type: AnimationSourceType

@@ -90,6 +90,40 @@ export class SceneEnvironmentManager {
     this.controls.enabled = enabled
   }
 
+  private previous_view: { position: THREE.Vector3, target: THREE.Vector3, min: number, near: number, autoRotate: boolean } | null = null
+
+  public focus_bounds (bounds: THREE.Box3): void {
+    if (this.controls === undefined || bounds.isEmpty()) { return }
+    this.previous_view ??= {
+      position: this.camera.position.clone(), target: this.controls.target.clone(),
+      min: this.controls.minDistance, near: this.camera.near, autoRotate: this.controls.autoRotate
+    }
+    const center = bounds.getCenter(new THREE.Vector3())
+    const size = bounds.getSize(new THREE.Vector3())
+    const half_fov = THREE.MathUtils.degToRad(this.camera.fov / 2)
+    const distance = Math.max(size.y, size.x / this.camera.aspect, 0.1) * 1.1 / Math.tan(half_fov) + size.z
+    this.controls.autoRotate = false
+    this.controls.minDistance = 0.05
+    this.camera.near = Math.min(this.camera.near, 0.01)
+    this.camera.updateProjectionMatrix()
+    this.controls.target.copy(center)
+    this.camera.position.copy(center).add(new THREE.Vector3(0, 0, distance))
+    this.controls.update()
+  }
+
+  public restore_body_view (): void {
+    if (this.controls === undefined || this.previous_view === null) { return }
+    const previous = this.previous_view
+    this.camera.position.copy(previous.position)
+    this.camera.near = previous.near
+    this.camera.updateProjectionMatrix()
+    this.controls.target.copy(previous.target)
+    this.controls.minDistance = previous.min
+    this.controls.autoRotate = previous.autoRotate
+    this.previous_view = null
+    this.controls.update()
+  }
+
   public set_camera_position (position: Vector3): void {
     this.camera.position.copy(position)
     this.controls?.update()

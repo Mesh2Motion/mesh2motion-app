@@ -422,16 +422,20 @@ export class AnimationSearch extends EventTarget {
       const checked_attribute = was_checked ? 'checked' : ''
 
       const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
+      const is_generated_animation = animation_clip.metadata?.source_type === 'generated'
 
-      // each skeleton type has its own folder of preview videos. custom imports have none
-      const preview_src: string | null = is_custom_animation
+      // each skeleton type has its own folder of preview videos. custom imports
+      // and generated facial clips have none
+      const preview_src: string | null = is_custom_animation || is_generated_animation
         ? null
         : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
       const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
 
       const custom_animation_badge_html = is_custom_animation
         ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
-        : ''
+        : is_generated_animation
+          ? '<span class="anim-custom-badge" title="Generated facial animation" aria-label="Generated facial animation">F</span>'
+          : ''
 
       const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
       const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)

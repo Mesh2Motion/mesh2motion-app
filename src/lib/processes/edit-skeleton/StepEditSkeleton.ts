@@ -1,3 +1,5 @@
+import { FacialSkeleton } from './FacialSkeleton.ts'
+import { BreastSkeleton } from './BreastSkeleton.ts'
 import { UI } from '../../UI.ts'
 import { Generators } from '../../Generators.ts'
 import { Utility } from '../../Utilities.ts'
@@ -9,6 +11,7 @@ import { IndependentBoneMovement } from './IndependentBoneMovement.ts'
 import { ModalDialog } from '../../ModalDialog.ts'
 import {
   Vector3,
+  Box3,
   Euler,
   Object3D,
   Skeleton,
@@ -45,6 +48,9 @@ export class StepEditSkeleton extends EventTarget {
   private mesh_drag_placement_enabled: boolean = true
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
+
+  private facial_head_bounds = new Box3()
+  private breast_chest_bounds = new Box3()
 
   private currently_selected_bone: Bone | null = null
 
@@ -167,7 +173,15 @@ export class StepEditSkeleton extends EventTarget {
     }
   }
 
-  public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
+  public begin (main_scene: Scene, skeleton_type: SkeletonType, model?: Object3D): void {
+    this.facial_head_bounds = model === undefined ? new Box3() : FacialSkeleton.model_head_bounds(model)
+    const chest = model === undefined ? undefined : BreastSkeleton.chest(this.threejs_skeleton)
+    this.breast_chest_bounds = model === undefined || chest === undefined
+      ? new Box3()
+      : BreastSkeleton.model_chest_bounds(model, chest)
+    this._current_skeleton_type = skeleton_type
+    this.update_facial_skeleton_ui()
+    this.update_breast_skeleton_ui()
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elements for editing mesh
@@ -442,7 +456,82 @@ export class StepEditSkeleton extends EventTarget {
     return this.arm_plane_offset
   }
 
+  private update_facial_skeleton_ui (): void {
+    const container = document.getElementById('facial-skeleton-options')
+    if (container !== null) { container.hidden = this._current_skeleton_type !== SkeletonType.Human }
+    const added = FacialSkeleton.bones(this.threejs_skeleton).length > 0
+    const toggle = document.getElementById('add-facial-skeleton') as HTMLButtonElement | null
+    if (toggle !== null) {
+      toggle.textContent = added ? 'Remove facial skeleton' : 'Add facial skeleton'
+      toggle.setAttribute('aria-pressed', String(added))
+      toggle.disabled = FacialSkeleton.head(this.threejs_skeleton) === undefined
+    }
+    const zoom = document.getElementById('zoom-to-face') as HTMLButtonElement | null
+    if (zoom !== null) { zoom.disabled = !added }
+  }
+
+  public toggle_facial_skeleton (): void {
+    if (this._current_skeleton_type !== SkeletonType.Human) { return }
+    if (FacialSkeleton.bones(this.threejs_skeleton).length > 0) {
+      this.set_currently_selected_bone(null)
+      this.dispatchEvent(new CustomEvent('facialSkeletonRemoving'))
+      FacialSkeleton.remove(this.threejs_skeleton)
+      this.dispatchEvent(new CustomEvent('fullBodyViewRequested'))
+    } else if (!FacialSkeleton.add(this.threejs_skeleton, this.facial_head_bounds)) {
+      return
+    }
+    // Transform history cannot restore changes to the bone hierarchy.
+    this.undo_redo_system.set_skeleton(this.threejs_skeleton)
+    this.independent_bone_movement.set_rest_pose(this.threejs_skeleton)
+    this.update_facial_skeleton_ui()
+    this.dispatchEvent(new CustomEvent('skeletonTransformed'))
+    if (FacialSkeleton.bones(this.threejs_skeleton).length > 0) {
+      this.dispatchEvent(new CustomEvent('faceViewRequested'))
+    }
+  }
+
+  private update_breast_skeleton_ui (): void {
+    const container = document.getElementById('breast-skeleton-options')
+    if (container !== null) { container.hidden = this._current_skeleton_type !== SkeletonType.Human }
+    const added = BreastSkeleton.bones(this.threejs_skeleton).length > 0
+    const toggle = document.getElementById('add-breast-skeleton') as HTMLButtonElement | null
+    if (toggle !== null) {
+      toggle.textContent = added ? 'Remove breast bones' : 'Add breast bones'
+      toggle.setAttribute('aria-pressed', String(added))
+      toggle.disabled = BreastSkeleton.chest(this.threejs_skeleton) === undefined
+    }
+    const zoom = document.getElementById('zoom-to-chest') as HTMLButtonElement | null
+    if (zoom !== null) { zoom.disabled = !added }
+  }
+
+  public toggle_breast_skeleton (): void {
+    if (this._current_skeleton_type !== SkeletonType.Human) { return }
+    if (BreastSkeleton.bones(this.threejs_skeleton).length > 0) {
+      this.set_currently_selected_bone(null)
+      this.dispatchEvent(new CustomEvent('breastSkeletonRemoving'))
+      BreastSkeleton.remove(this.threejs_skeleton)
+      this.dispatchEvent(new CustomEvent('fullBodyViewRequested'))
+    } else if (!BreastSkeleton.add(this.threejs_skeleton, this.breast_chest_bounds)) {
+      return
+    }
+    // Transform history cannot restore changes to the bone hierarchy.
+    this.undo_redo_system.set_skeleton(this.threejs_skeleton)
+    this.independent_bone_movement.set_rest_pose(this.threejs_skeleton)
+    this.update_breast_skeleton_ui()
+    this.dispatchEvent(new CustomEvent('skeletonTransformed'))
+    if (BreastSkeleton.bones(this.threejs_skeleton).length > 0) {
+      this.dispatchEvent(new CustomEvent('chestViewRequested'))
+    }
+  }
+
   public add_event_listeners (): void {
+    document.getElementById('add-facial-skeleton')?.addEventListener('click', () => this.toggle_facial_skeleton())
+    document.getElementById('zoom-to-face')?.addEventListener('click', () => this.dispatchEvent(new CustomEvent('faceViewRequested')))
+    document.getElementById('face-full-body')?.addEventListener('click', () => this.dispatchEvent(new CustomEvent('fullBodyViewRequested')))
+    document.getElementById('add-breast-skeleton')?.addEventListener('click', () => this.toggle_breast_skeleton())
+    document.getElementById('zoom-to-chest')?.addEventListener('click', () => this.dispatchEvent(new CustomEvent('chestViewRequested')))
+    document.getElementById('chest-full-body')?.addEventListener('click', () => this.dispatchEvent(new CustomEvent('fullBodyViewRequested')))
+
     if (this.ui.dom_move_to_origin_button !== null) {
       this.ui.dom_move_to_origin_button.addEventListener('click', () => {
         // the base bone itself is not at the origin, but the parent is the armature object
@@ -625,6 +714,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public cleanup_on_exit_step (): void {
+    this.dispatchEvent(new CustomEvent('fullBodyViewRequested'))
     this.remove_event_listeners()
     this.clear_hover_point_if_exists()
     this.remove_preview_plane()

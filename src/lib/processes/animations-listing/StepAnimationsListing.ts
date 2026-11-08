@@ -12,6 +12,7 @@ import { AnimationLibrary, type AnimationLibraryLoadProgress } from './Animation
 import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
 import { ImportAnimationsButton } from './ImportAnimationsButton.ts'
+import { FacialAnimations } from './FacialAnimations.ts'
 import { type ModelVariationSwitcher } from './ModelVariationSwitcher.ts'
 
 import { SkeletonType } from '../../enums/SkeletonType.ts'
@@ -161,7 +162,7 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_player.clear_animation()
   }
 
-  // If we change skeleton types, we need to reset some of the state 
+  // If we change skeleton types, we need to reset some of the state
   // in the case we selected animations. This clears the UI state associated with that.
   private reset_ui_elements (): void {
     if (this.ui.dom_animation_clip_list !== null) {
@@ -295,7 +296,19 @@ export class StepAnimationsListing extends EventTarget {
 
     // lists every animation for the rig right away. Each GLB downloads the first time it is played or exported
     this.animation_library.reset(this.skeleton_type, this.skeleton_scale)
+    this.add_generated_facial_animations(final_skinned_meshes)
     this.on_animation_library_ready()
+  }
+
+  /**
+   * The face rig is optional and added by the user, so its clips are generated here
+   * instead of coming from the asset library. They are only listed when the bound
+   * skeleton actually has face bones.
+   */
+  private add_generated_facial_animations (skinned_meshes: SkinnedMesh[]): void {
+    const skeleton = skinned_meshes.find(mesh => FacialAnimations.has_face_bones(mesh.skeleton))?.skeleton
+    if (skeleton === undefined) { return }
+    this.animation_library.add_loaded_clips(FacialAnimations.create_clip_pairs(skeleton))
   }
 
   private on_animation_library_ready (): void {

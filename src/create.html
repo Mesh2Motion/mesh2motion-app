@@ -211,6 +211,28 @@
               <img class="skeleton-template-image-preview ignore-filters" src="images/icons/zoom.svg" alt="" width="16" height="16" />
           </div>
 
+          <div id="facial-skeleton-options" style="max-width: 260px;" hidden>
+            <h3>Facial skeleton</h3>
+            <p>Position the head joint first, then add a starter face rig. Adjust the jaw, eyes, brows, cheeks, and mouth to fit your model.</p>
+            <button id="add-facial-skeleton" type="button" aria-pressed="false">Add facial skeleton</button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+              <button id="zoom-to-face" type="button" disabled>Zoom to face</button>
+              <button id="face-full-body" type="button">Full body</button>
+            </div>
+            <p><small>Use the Transform Widget for precise depth placement. Adding or removing the face rig clears joint undo history. Generated facial animations appear in the Test animations step.</small></p>
+          </div>
+
+          <div id="breast-skeleton-options" style="max-width: 260px;" hidden>
+            <h3>Breast bones</h3>
+            <p>Add a pair of breast joints for secondary motion. They are parented to the chest joint; use the Transform Widget to adjust their position.</p>
+            <button id="add-breast-skeleton" type="button" aria-pressed="false">Add breast bones</button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+              <button id="zoom-to-chest" type="button" disabled>Zoom to chest</button>
+              <button id="chest-full-body" type="button">Full body</button>
+            </div>
+            <p><small>Adding or removing the breast bones clears joint undo history. Breast animations are not included.</small></p>
+          </div>
+
           <!-- posing tips. only shown for the human skeleton -->
           <details id="model-pose-instructions">
             <summary class="model-pose-instructions-heading">Using A-Pose Character?</summary>
@@ -339,6 +361,7 @@
             </span> -->
 
         <span id="skinned-step-animation-export-options">
+
           <div id="animations-listing">
             <!-- Filter textbox and tab switcher side by side -->
             <div style="display: flex; gap: 1rem; align-items: flex-start;">

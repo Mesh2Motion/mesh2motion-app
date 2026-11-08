@@ -27,6 +27,16 @@ export class EventListeners {
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
     })
 
+    this.bootstrap.edit_skeleton_step.addEventListener('faceViewRequested', () => this.bootstrap.focus_face())
+    this.bootstrap.edit_skeleton_step.addEventListener('chestViewRequested', () => this.bootstrap.focus_chest())
+    this.bootstrap.edit_skeleton_step.addEventListener('fullBodyViewRequested', () => this.bootstrap.restore_body_view())
+    this.bootstrap.edit_skeleton_step.addEventListener('facialSkeletonRemoving', () => {
+      this.bootstrap.transform_controls.detach()
+    })
+    this.bootstrap.edit_skeleton_step.addEventListener('breastSkeletonRemoving', () => {
+      this.bootstrap.transform_controls.detach()
+    })
+
     // Listen for skeleton transformation events to update UI and visuals
     // this can happen with undo/redo system
     this.bootstrap.edit_skeleton_step.addEventListener('skeletonTransformed', () => {

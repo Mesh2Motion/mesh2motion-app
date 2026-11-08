@@ -1,3 +1,5 @@
+import { FacialSkeleton } from './lib/processes/edit-skeleton/FacialSkeleton.ts'
+import { BreastSkeleton } from './lib/processes/edit-skeleton/BreastSkeleton.ts'
 import * as THREE from 'three'
 import { CustomTransformControls } from './lib/components/CustomTransformControls.ts'
 import type { CustomViewHelper } from './lib/CustomViewHelper.ts'
@@ -162,6 +164,18 @@ export class Mesh2MotionEngine {
 
       this.ui.dom_build_version.innerHTML = `git:${commit_sha}-${branch}`
     }
+  }
+
+  public focus_face (): void {
+    this.scene_environment.focus_bounds(FacialSkeleton.bounds(this.edit_skeleton_step.skeleton()))
+  }
+
+  public focus_chest (): void {
+    this.scene_environment.focus_bounds(BreastSkeleton.bounds(this.edit_skeleton_step.skeleton()))
+  }
+
+  public restore_body_view (): void {
+    this.scene_environment.restore_body_view()
   }
 
   public set_camera_position (position: Vector3): void {
@@ -440,7 +454,7 @@ export class Mesh2MotionEngine {
 
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton())
       process_step = ProcessStep.EditSkeleton
-      this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
+      this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type(), this.load_model_step.model_meshes())
       this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
 
