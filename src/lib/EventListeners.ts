@@ -16,15 +16,24 @@ export class EventListeners {
 
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
 
-  private is_any_weight_painting_enabled (): boolean {
-    return this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
-      this.bootstrap.weight_painting_step.is_draw_mode_active() ||
-      this.bootstrap.weight_painting_step.is_bone_picking_enabled()
-  }
-
   private update_weight_painting_cursor (): void {
-    const wants_crosshair = this.bootstrap.weight_painting_step.is_draw_mode_active() ||
-      this.bootstrap.weight_painting_step.is_bone_picking_enabled()
+    if (this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+      const icon = document.querySelector<HTMLImageElement>('#weight-paint-step-pick-bone img')
+      let icon_url = 'images/icons/color-picker-cursor.svg'
+      if (icon !== null) {
+        const replaced_url = icon.src.replace('color-picker.svg', 'color-picker-cursor.svg')
+        if (replaced_url.includes('color-picker-cursor.svg')) {
+          icon_url = replaced_url
+        }
+      }
+
+      // tip of the pipette is the hotspot; crosshair is the fallback
+      this.bootstrap.renderer.domElement.style.cursor = `url("${icon_url}") 2 22, crosshair`
+      return
+    }
+
+    const wants_crosshair = this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
+      this.bootstrap.weight_painting_step.is_draw_mode_active()
     this.bootstrap.renderer.domElement.style.cursor = wants_crosshair ? 'crosshair' : ''
   }
 
@@ -254,8 +263,7 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor =
-        this.is_any_weight_painting_enabled() ? 'crosshair' : ''
+      this.update_weight_painting_cursor()
     })
 
     document.addEventListener('pointercancel', (event: PointerEvent) => {
@@ -273,8 +281,7 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor =
-        this.is_any_weight_painting_enabled() ? 'crosshair' : ''
+      this.update_weight_painting_cursor()
     })
 
     // custom event listeners for the transform controls.
