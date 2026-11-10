@@ -182,8 +182,8 @@ export class StepWeightPainting extends EventTarget {
   }
 
   /**
-   * Paint mode paints with the left mouse button. The Alt shortcut and the
-   * trackball temporarily return the camera to the user.
+   * Paint mode paints with the left mouse button. Starting the drag on empty
+   * space, the Alt shortcut, and the trackball return the camera to the user.
    */
   public is_draw_mode_active (): boolean {
     return this.is_active && this.active_mode === 'paint' && !this.alt_rotate_active

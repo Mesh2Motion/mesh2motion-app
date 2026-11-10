@@ -349,7 +349,14 @@ export class Mesh2MotionEngine {
   private weight_paint_pointer_id: number | null = null
   private weight_paint_source: 'edit' | 'weight_painting' | null = null
 
-  public handle_weight_paint_pointer_down (event: PointerEvent): void {
+  /**
+   * Handles a left-button press in a weight paint mode, painting or picking at
+   * the initial raycast hit.
+   * @returns true when the press hit the mesh and was claimed for painting or
+   * picking. Returning false leaves the press to OrbitControls, so a drag that
+   * started on empty space rotates the camera instead of painting.
+   */
+  public handle_weight_paint_pointer_down (event: PointerEvent): boolean {
     const edit_step_painting = this.process_step === ProcessStep.EditSkeleton &&
       this.edit_skeleton_step.is_weight_painting_enabled()
     const weight_painting_step_painting = this.process_step === ProcessStep.WeightPainting &&
@@ -364,13 +371,13 @@ export class Mesh2MotionEngine {
       if (picked_intersection !== null) {
         this.weight_painting_step.pick_bone(picked_intersection)
       }
-      return
+      return picked_intersection !== null
     }
 
     let intersection: THREE.Intersection | null
     if (edit_step_painting) {
       const group = this.weight_skin_step.weight_painted_mesh_group()
-      if (group === null || !group.visible) { return }
+      if (group === null || !group.visible) { return false }
       this.weight_paint_source = 'edit'
       intersection = this.weight_paint_intersection(event,
         group.children.filter(child => child.userData.weight_painted === true))
@@ -378,12 +385,12 @@ export class Mesh2MotionEngine {
       this.weight_paint_source = 'weight_painting'
       intersection = this.weight_paint_intersection(event, this.weight_painting_step.active_skinned_meshes())
     } else {
-      return
+      return false
     }
 
     if (intersection === null) {
       this.weight_paint_source = null
-      return
+      return false
     }
 
     this.weight_paint_pointer_id = event.pointerId
@@ -394,6 +401,7 @@ export class Mesh2MotionEngine {
       this.weight_painting_step.begin_weight_paint_stroke()
       this.weight_painting_step.paint_weights(intersection, this.camera)
     }
+    return true
   }
 
   public handle_weight_paint_pointer_move (event: PointerEvent): void {

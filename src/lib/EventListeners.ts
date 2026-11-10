@@ -44,6 +44,14 @@ export class EventListeners {
       (target instanceof HTMLElement && target.isContentEditable)
   }
 
+  /**
+   * True while a press that missed the mesh is dragging the camera. The press
+   * is left to OrbitControls, so paint previews should not follow the pointer.
+   */
+  private is_camera_rotation_drag (event: PointerEvent): boolean {
+    return event.buttons !== 0 && this.active_canvas_pointer_id === null
+  }
+
   public addEventListeners (): void {
     // monitor theme changes
     this.bootstrap.theme_manager.addEventListener('theme-changed', (event: any) => {
@@ -127,8 +135,10 @@ export class EventListeners {
     // it will scroll the webpage instead of dragging the transform controls or the camera.
     this.bootstrap.renderer.domElement.style.touchAction = 'none'
 
-    // Capture left-button presses in weight paint mode before OrbitControls sees
-    // them. Middle/right mouse and the wheel still orbit, pan, and zoom.
+    // Weight paint modes claim left-button presses only when the initial
+    // raycast hits the mesh. A press on empty space is left to OrbitControls,
+    // so dragging after it rotates the camera instead of painting. Middle/right
+    // mouse and the wheel keep orbiting, panning, and zooming either way.
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
       const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
@@ -145,11 +155,17 @@ export class EventListeners {
         return
       }
 
+      // the initial raycast decides whether this press paints or rotates
+      if (!this.bootstrap.handle_weight_paint_pointer_down(event)) {
+        this.bootstrap.weight_painting_step.hide_brush_cursor()
+        this.bootstrap.weight_painting_step.hide_picker_hover()
+        return
+      }
+
       event.preventDefault()
       event.stopImmediatePropagation()
       this.active_canvas_pointer_id = event.pointerId
       this.bootstrap.renderer.domElement.setPointerCapture(event.pointerId)
-      this.bootstrap.handle_weight_paint_pointer_down(event)
     }, { capture: true })
 
     this.bootstrap.renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
@@ -167,6 +183,7 @@ export class EventListeners {
       // while the picker is armed, preview the bone under the pointer before the click
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+        if (this.is_camera_rotation_drag(event)) { return }
         event.preventDefault()
         this.bootstrap.update_weight_paint_picker_hover(event)
         return
@@ -174,6 +191,7 @@ export class EventListeners {
 
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_draw_mode_active()) {
+        if (this.is_camera_rotation_drag(event)) { return }
         event.preventDefault()
         this.bootstrap.handle_weight_paint_pointer_move(event)
         this.bootstrap.update_weight_paint_brush_cursor(event)
