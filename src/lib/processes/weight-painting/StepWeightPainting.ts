@@ -63,9 +63,17 @@ export class StepWeightPainting extends EventTarget {
   private bone_picking_enabled = false
   private weight_paint_clear_marker = 0
   private readonly weight_paint_overlays = new Map<SkinnedMesh, SkinnedMesh>()
+  private readonly weight_paint_wireframes: SkinnedMesh[] = []
+  private show_wireframe = true
   private readonly geometry_center_cache = new WeakMap<BufferGeometry, number>()
   private readonly original_materials = new Map<SkinnedMesh, SkinnedMesh['material']>()
-  private readonly black_material = new MeshBasicMaterial({ color: 0x000000 })
+  // Pushed back in depth so the wireframe lines, which polygon offset can't move, win the depth test.
+  private readonly black_material = new MeshBasicMaterial({
+    color: 0x000000,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1
+  })
   private rest_bone_transforms: Array<{
     bone: Bone
     position: Vector3
@@ -786,13 +794,47 @@ export class StepWeightPainting extends EventTarget {
       ;(source.parent ?? source).add(overlay)
 
       this.weight_paint_overlays.set(source, overlay)
+      this.weight_paint_wireframes.push(this.create_weight_paint_wireframe(overlay))
     }
 
     this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
     this.sync_weight_paint_overlay_visibility()
   }
 
+  /**
+   * Shows the mesh topology over the black material. Shares the overlay's
+   * geometry, so it deforms with the pose and is disposed with the overlay.
+   */
+  private create_weight_paint_wireframe (overlay: SkinnedMesh): SkinnedMesh {
+    const material = new MeshBasicMaterial({
+      color: 0x8a8a8a,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false
+    })
+    material.toneMapped = false
+
+    const wireframe = new SkinnedMesh(overlay.geometry, material)
+    wireframe.name = 'Weight Paint Wireframe'
+    wireframe.frustumCulled = false
+    wireframe.renderOrder = overlay.renderOrder + 1
+    wireframe.position.copy(overlay.position)
+    wireframe.quaternion.copy(overlay.quaternion)
+    wireframe.scale.copy(overlay.scale)
+    wireframe.bindMode = overlay.bindMode
+    wireframe.bind(overlay.skeleton, overlay.bindMatrix)
+    overlay.parent?.add(wireframe)
+    return wireframe
+  }
+
   private dispose_weight_paint_overlays (): void {
+    for (const wireframe of this.weight_paint_wireframes) {
+      wireframe.removeFromParent()
+      ;(wireframe.material as MeshBasicMaterial).dispose()
+    }
+    this.weight_paint_wireframes.length = 0
+
     for (const overlay of this.weight_paint_overlays.values()) {
       overlay.removeFromParent()
       const geometry = overlay.geometry
@@ -813,6 +855,9 @@ export class StepWeightPainting extends EventTarget {
     // paint mode always shows the weights; test mode has no overlays at all
     for (const overlay of this.weight_paint_overlays.values()) {
       overlay.visible = true
+    }
+    for (const wireframe of this.weight_paint_wireframes) {
+      wireframe.visible = this.show_wireframe
     }
   }
 
@@ -891,6 +936,10 @@ export class StepWeightPainting extends EventTarget {
       if (this.weight_paint_brush === null) { return }
       this.weight_paint_brush.mirror_enabled = (event.target as HTMLInputElement).checked
       this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
+    })
+    document.getElementById('weight-paint-step-wireframe')?.addEventListener('change', (event) => {
+      this.show_wireframe = (event.target as HTMLInputElement).checked
+      this.sync_weight_paint_overlay_visibility()
     })
     document.getElementById('weight-paint-step-radius')?.addEventListener('input', (event) => {
       if (this.weight_paint_brush === null) { return }
