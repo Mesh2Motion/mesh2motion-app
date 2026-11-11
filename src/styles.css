@@ -301,16 +301,13 @@ button.secondary-button.play:hover {
 }
 
 .weight-paint-tools-heading {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+
     color: var(--text-secondary);
 }
 
 .weight-paint-bone-name {
-    font-weight: bold;
-    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
 }
 
 .weight-paint-slider-row {

@@ -466,12 +466,12 @@ export class Mesh2MotionEngine {
   }
 
   /** Shows the bone the picker would select under the pointer. */
-  public update_weight_paint_picker_hover (event: PointerEvent): void {
+  public update_weight_paint_picker_hover (event: PointerEvent, shift_pick_active: boolean = false): void {
     if (this.process_step !== ProcessStep.WeightPainting) { return }
 
     const intersection = this.weight_paint_intersection(event,
       this.weight_painting_step.active_skinned_meshes())
-    this.weight_painting_step.update_picker_hover(intersection)
+    this.weight_painting_step.update_picker_hover(intersection, shift_pick_active)
   }
 
   public handle_weight_paint_pointer_up (event: PointerEvent): void {

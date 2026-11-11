@@ -327,9 +327,11 @@ export class StepWeightPainting extends EventTarget {
   /**
    * While the picker is armed, show which bone is under the pointer before the
    * user clicks. The engine feeds this with the current ray intersection.
+   * @param shift_pick_active true while Shift is held to pick without arming the picker
    */
-  public update_picker_hover (intersection: Intersection | null): void {
-    if (!this.is_active || this.active_mode !== 'paint' || !this.bone_picking_enabled) { return }
+  public update_picker_hover (intersection: Intersection | null, shift_pick_active: boolean = false): void {
+    if (!this.is_active || this.active_mode !== 'paint') { return }
+    if (!this.bone_picking_enabled && !shift_pick_active) { return }
     if (intersection === null) {
       this.hide_picker_hover()
       return
@@ -355,11 +357,16 @@ export class StepWeightPainting extends EventTarget {
     const best_bone_name = this.bone_name_at_intersection(intersection)
     if (best_bone_name === null) { return }
 
-    this.weight_paint_bone_name = best_bone_name
-    this.update_bone_name_display()
-    this.update_weight_paint_overlay_colors(best_bone_name)
+    this.select_bone(best_bone_name)
     this.set_bone_picking_enabled(false)
-    this.show_picked_bone_overlay(best_bone_name)
+  }
+
+  /** Make a bone the paint target, whether picked on the model or chosen from the list. */
+  private select_bone (bone_name: string): void {
+    this.weight_paint_bone_name = bone_name
+    this.update_bone_name_display()
+    this.update_weight_paint_overlay_colors(bone_name)
+    this.show_picked_bone_overlay(bone_name)
     this.update_weight_paint_ui()
   }
 
@@ -623,13 +630,19 @@ export class StepWeightPainting extends EventTarget {
         : (this.bone_names[0] ?? null)
     }
 
+    const select = document.getElementById('weight-paint-step-bone-name') as HTMLSelectElement | null
+    if (select !== null) {
+      select.replaceChildren(...this.bone_names.map(name => new Option(name, name)))
+      select.disabled = this.bone_names.length === 0
+    }
+
     this.update_bone_name_display()
   }
 
   private update_bone_name_display (): void {
-    const element = document.getElementById('weight-paint-step-bone-name')
-    if (element !== null) {
-      element.textContent = this.weight_paint_bone_name ?? '—'
+    const select = document.getElementById('weight-paint-step-bone-name') as HTMLSelectElement | null
+    if (select !== null) {
+      select.value = this.weight_paint_bone_name ?? ''
     }
   }
 
@@ -667,12 +680,7 @@ export class StepWeightPainting extends EventTarget {
   private update_weight_paint_ui (): void {
     const pick_button = document.getElementById('weight-paint-step-pick-bone') as HTMLButtonElement | null
     if (pick_button !== null) {
-      const pick_label = this.bone_picking_enabled
-        ? 'Click a bone on the model'
-        : 'Pick a bone by clicking the model (Shift + click for a quick switch)'
-      pick_button.setAttribute('aria-pressed', String(this.bone_picking_enabled))
-      pick_button.setAttribute('aria-label', pick_label)
-      pick_button.title = pick_label
+
       pick_button.disabled = this.skinned_meshes.length === 0 || this.bone_names.length === 0
     }
 
@@ -810,7 +818,7 @@ export class StepWeightPainting extends EventTarget {
       color: 0x8a8a8a,
       wireframe: true,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.25,
       depthWrite: false
     })
     material.toneMapped = false
@@ -931,6 +939,11 @@ export class StepWeightPainting extends EventTarget {
     })
     document.getElementById('weight-paint-step-pick-bone')?.addEventListener('click', () => {
       this.set_bone_picking_enabled(!this.bone_picking_enabled)
+    })
+    // the picker can't reach bones without weights (e.g. pelvis), so the list covers every selectable bone
+    document.getElementById('weight-paint-step-bone-name')?.addEventListener('change', (event) => {
+      const bone_name = (event.target as HTMLSelectElement).value
+      if (this.bone_names.includes(bone_name)) { this.select_bone(bone_name) }
     })
     document.getElementById('weight-paint-step-mirror')?.addEventListener('change', (event) => {
       if (this.weight_paint_brush === null) { return }

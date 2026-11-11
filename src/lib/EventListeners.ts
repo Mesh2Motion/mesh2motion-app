@@ -16,8 +16,18 @@ export class EventListeners {
 
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
 
-  private update_weight_painting_cursor (): void {
-    if (this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+  /**
+   * Shift + click picks a bone while the brush is active, so holding Shift
+   * should look like the picker. Ignored mid-stroke so the stroke keeps painting.
+   */
+  private is_shift_pick_available (): boolean {
+    return this.bootstrap.process_step === ProcessStep.WeightPainting &&
+      this.bootstrap.weight_painting_step.is_draw_mode_active() &&
+      this.active_canvas_pointer_id === null
+  }
+
+  private update_weight_painting_cursor (shift_pick_active: boolean = false): void {
+    if (this.bootstrap.weight_painting_step.is_bone_picking_enabled() || shift_pick_active) {
       const icon = document.querySelector<HTMLImageElement>('#weight-paint-step-pick-bone img')
       let icon_url = 'images/icons/color-picker-cursor.svg'
       if (icon !== null) {
@@ -170,7 +180,10 @@ export class EventListeners {
 
       event.preventDefault()
       event.stopImmediatePropagation()
-      if (!weight_painting_step_picking) {
+      if (weight_painting_step_painting && event.shiftKey) {
+        // Shift + click picked a bone; keep the picker cursor until Shift is released
+        this.update_weight_painting_cursor(true)
+      } else if (!weight_painting_step_picking) {
         this.bootstrap.renderer.domElement.style.cursor = 'crosshair'
       }
       this.active_canvas_pointer_id = event.pointerId
@@ -219,6 +232,12 @@ export class EventListeners {
           return
         }
         event.preventDefault()
+        if (event.shiftKey && this.is_shift_pick_available()) {
+          this.bootstrap.weight_painting_step.hide_brush_cursor()
+          this.update_weight_painting_cursor(true)
+          this.bootstrap.update_weight_paint_picker_hover(event, true)
+          return
+        }
         const over_mesh = this.active_canvas_pointer_id !== null
           ? this.bootstrap.handle_weight_paint_pointer_move(event)
           : this.bootstrap.update_weight_paint_brush_cursor(event)
@@ -310,7 +329,7 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.update_weight_painting_cursor()
+      this.update_weight_painting_cursor(event.shiftKey && this.is_shift_pick_available())
     })
 
     document.addEventListener('pointercancel', (event: PointerEvent) => {
@@ -545,6 +564,23 @@ export class EventListeners {
         console.warn(`Unknown mesh preview type selected: ${radio_button_selected}`)
       }
     })
+
+    // swap to/from the picker cursor as Shift is pressed, without waiting for a pointer move
+    const sync_shift_pick_cursor = (event: KeyboardEvent): void => {
+      if (event.key !== 'Shift' || this.is_typing_target(event.target)) { return }
+      if (!this.is_shift_pick_available() || !this.bootstrap.renderer.domElement.matches(':hover')) { return }
+
+      if (event.shiftKey) {
+        this.bootstrap.weight_painting_step.hide_brush_cursor()
+        this.update_weight_painting_cursor(true)
+      } else {
+        // the brush ring and crosshair come back on the next pointer move
+        this.bootstrap.weight_painting_step.hide_picker_hover()
+        this.update_weight_painting_cursor()
+      }
+    }
+    document.addEventListener('keydown', sync_shift_pick_cursor)
+    document.addEventListener('keyup', sync_shift_pick_cursor)
 
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
