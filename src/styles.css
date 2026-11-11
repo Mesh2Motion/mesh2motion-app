@@ -290,9 +290,9 @@ button.secondary-button.play:hover {
     top: 0;
     width: 48px;
     height: 48px;
-    border: 1px solid rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.95);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
     transform: translate(-50%, -50%);
     pointer-events: none;
