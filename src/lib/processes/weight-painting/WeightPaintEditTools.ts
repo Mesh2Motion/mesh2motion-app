@@ -69,6 +69,11 @@ export class WeightPaintEditTools extends EventTarget {
     this.update_ui()
   }
 
+  /** Breaks the drag sweep when the pointer leaves the mesh. */
+  public reset_dab_path (): void {
+    this.brush.reset_dab_path()
+  }
+
   public paint (intersection: Intersection, camera: PerspectiveCamera): void {
     if (!this.enabled || this.bone_name === null) { return }
 

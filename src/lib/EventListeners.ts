@@ -189,8 +189,10 @@ export class EventListeners {
           return
         }
         event.preventDefault()
-        this.bootstrap.handle_weight_paint_pointer_move(event)
-        if (this.active_canvas_pointer_id === null) {
+        const over_mesh = this.bootstrap.handle_weight_paint_pointer_move(event)
+        if (this.active_canvas_pointer_id !== null) {
+          this.bootstrap.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
+        } else {
           this.bootstrap.update_edit_weight_paint_cursor(event)
         }
         return
@@ -217,8 +219,9 @@ export class EventListeners {
           return
         }
         event.preventDefault()
-        this.bootstrap.handle_weight_paint_pointer_move(event)
-        const over_mesh = this.bootstrap.update_weight_paint_brush_cursor(event)
+        const over_mesh = this.active_canvas_pointer_id !== null
+          ? this.bootstrap.handle_weight_paint_pointer_move(event)
+          : this.bootstrap.update_weight_paint_brush_cursor(event)
         this.bootstrap.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
         return
       }

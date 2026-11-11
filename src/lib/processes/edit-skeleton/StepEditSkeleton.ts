@@ -496,6 +496,11 @@ export class StepEditSkeleton extends EventTarget {
     this.weight_paint_tools.end_stroke()
   }
 
+  /** Breaks the drag sweep when the pointer leaves the mesh. */
+  public reset_weight_paint_dab_path (): void {
+    this.weight_paint_tools.reset_dab_path()
+  }
+
   /** Paints (or smooths) the selected bone under the brush. */
   public paint_weights (intersection: Intersection, camera: PerspectiveCamera): void {
     this.weight_paint_tools.paint(intersection, camera)

@@ -15,7 +15,15 @@ export class WeightPaintBrush {
   public mirror_enabled = true
 
   private active_mode: WeightPaintMode = 'add'
-  private readonly touched_vertices = new Set<string>()
+  // highest falloff reached per vertex during this stroke; only the increase
+  // is applied so a drag builds up weight without stacking at the same spot
+  private readonly stroke_falloffs = new Map<string, number>()
+  // where the previous dab landed, so fast pointer moves leave no gaps
+  private has_last_dab = false
+  private readonly last_dab_center = new Vector3()
+  private readonly sweep = new Vector3()
+  private readonly sweep_offset = new Vector3()
+  private readonly sweep_closest = new Vector3()
 
   constructor (private readonly manager: WeightPaintManager) {}
 
@@ -25,7 +33,8 @@ export class WeightPaintBrush {
 
   public begin_stroke (): void {
     this.active_mode = this.mode
-    this.touched_vertices.clear()
+    this.stroke_falloffs.clear()
+    this.has_last_dab = false
     this.manager.begin_stroke()
   }
 
@@ -35,7 +44,13 @@ export class WeightPaintBrush {
       this.manager.normalize_all_weights(meshes)
     }
     this.manager.finish_stroke()
-    this.touched_vertices.clear()
+    this.stroke_falloffs.clear()
+    this.has_last_dab = false
+  }
+
+  /** Stops the next dab from sweeping across a gap where the pointer left the mesh. */
+  public reset_dab_path (): void {
+    this.has_last_dab = false
   }
 
   /**
@@ -80,19 +95,35 @@ export class WeightPaintBrush {
     const normal = new Vector3()
     const vertices: BrushVertex[] = []
 
+    // Sweep from the previous dab's hit point so fast pointer moves paint a
+    // continuous stroke instead of leaving gaps between discrete samples.
+    const previous_center = this.has_last_dab ? this.last_dab_center : null
+    if (previous_center !== null) {
+      this.sweep.subVectors(center, previous_center)
+    }
+    const sweep_length_sq = previous_center === null ? 0 : this.sweep.lengthSq()
+    const has_sweep = sweep_length_sq > 1e-12
+
     for (let i = 0; i < positions.count; i++) {
       const key = `${geometry_index}:${i}`
-      if (this.touched_vertices.has(key)) { continue }
-
       object.getVertexPosition(i, point)
       point.applyMatrix4(object.matrixWorld)
-      const distance = point.distanceTo(center)
+
+      if (has_sweep && previous_center !== null) {
+        this.sweep_offset.copy(point).sub(previous_center)
+        const t = Math.min(1, Math.max(0, this.sweep_offset.dot(this.sweep) / sweep_length_sq))
+        this.sweep_closest.copy(previous_center).addScaledVector(this.sweep, t)
+      } else {
+        this.sweep_closest.copy(center)
+      }
+
+      const distance = point.distanceTo(this.sweep_closest)
       if (distance > radius) { continue }
 
       if (is_skinned) {
         // Ignore vertices behind the surface the brush is touching, so the
         // brush cannot paint through the mesh to the far side.
-        const depth = point.sub(center).dot(ray_direction)
+        const depth = point.sub(this.sweep_closest).dot(ray_direction)
         if (depth > radius * 0.5) { continue }
       } else if (normals !== undefined && normal_matrix !== null) {
         // The preview meshes are not deformed, so the surface normal is enough
@@ -102,11 +133,19 @@ export class WeightPaintBrush {
       }
 
       const t = 1 - distance / radius
-      vertices.push({ vertex_index: i, falloff: t * t * (3 - 2 * t) })
-      this.touched_vertices.add(key)
+      const falloff = t * t * (3 - 2 * t)
+      // The first dab that reaches a vertex is usually at the brush edge. Only
+      // applying the increase lets the stroke keep strengthening that vertex
+      // as the brush center passes over it.
+      const previous_falloff = this.stroke_falloffs.get(key) ?? 0
+      if (falloff <= previous_falloff + 1e-4) { continue }
+      this.stroke_falloffs.set(key, falloff)
+      vertices.push({ vertex_index: i, falloff: falloff - previous_falloff })
     }
 
     if (vertices.length === 0) { return false }
+    this.has_last_dab = true
+    this.last_dab_center.copy(center)
 
     const painted_count = this.manager.paint_vertices(
       object,

@@ -405,25 +405,39 @@ export class Mesh2MotionEngine {
     } else {
       this.weight_painting_step.begin_weight_paint_stroke()
       this.weight_painting_step.paint_weights(intersection, this.camera)
+      this.weight_painting_step.update_brush_cursor(event, intersection)
     }
     return true
   }
 
-  public handle_weight_paint_pointer_move (event: PointerEvent): void {
-    if (this.weight_paint_pointer_id !== event.pointerId || this.weight_paint_source === null) { return }
+  /** @returns true when the pointer is over a paintable mesh */
+  public handle_weight_paint_pointer_move (event: PointerEvent): boolean {
+    if (this.weight_paint_pointer_id !== event.pointerId || this.weight_paint_source === null) { return false }
 
     const targets = this.weight_paint_source === 'edit'
       ? this.weight_skin_step.weight_painted_mesh_group()?.children.filter(child => child.userData.weight_painted === true) ?? []
       : this.weight_painting_step.active_skinned_meshes()
 
     const intersection = this.weight_paint_intersection(event, targets)
-    if (intersection === null) { return }
+    if (intersection === null) {
+      // re-entering the mesh should not sweep a stroke across the gap
+      if (this.weight_paint_source === 'edit') {
+        this.edit_skeleton_step.reset_weight_paint_dab_path()
+      } else {
+        this.weight_painting_step.reset_paint_dab_path()
+        this.weight_painting_step.update_brush_cursor(event, null)
+      }
+      return false
+    }
 
     if (this.weight_paint_source === 'edit') {
       this.edit_skeleton_step.paint_weights(intersection, this.camera)
     } else {
       this.weight_painting_step.paint_weights(intersection, this.camera)
+      // reuse this raycast for the outline instead of casting again
+      this.weight_painting_step.update_brush_cursor(event, intersection)
     }
+    return true
   }
 
   /**

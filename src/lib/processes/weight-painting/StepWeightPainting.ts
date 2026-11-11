@@ -271,6 +271,11 @@ export class StepWeightPainting extends EventTarget {
     this.update_weight_paint_ui()
   }
 
+  /** Breaks the drag sweep when the pointer leaves the mesh. */
+  public reset_paint_dab_path (): void {
+    this.weight_paint_brush?.reset_dab_path()
+  }
+
   /** Re-runs skinning without the manual overrides and re-enters this step. */
   public reset_weights_to_auto (): void {
     if (!this.is_active) { return }
