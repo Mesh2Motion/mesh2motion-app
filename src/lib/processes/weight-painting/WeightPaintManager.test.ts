@@ -239,6 +239,36 @@ describe('WeightPaintManager', () => {
     expect(mesh.geometry.attributes.skinWeight.array[4]).toBeCloseTo(1)
   })
 
+  it('smooths a vertex towards the average of its neighbours', () => {
+    const bones = rig()
+    const geometry = new BufferGeometry()
+    // a triangle where vertex 0 is fully jaw and both neighbours are fully head
+    geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
+    geometry.setAttribute('skinIndex', new Uint16BufferAttribute([
+      2, 0, 0, 0,
+      1, 0, 0, 0,
+      1, 0, 0, 0
+    ], 4))
+    geometry.setAttribute('skinWeight', new Float32BufferAttribute([
+      1, 0, 0, 0,
+      1, 0, 0, 0,
+      1, 0, 0, 0
+    ], 4))
+    geometry.setAttribute('color', new Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3))
+    geometry.setIndex(new Uint16BufferAttribute([0, 1, 2], 1))
+    const mesh = new Mesh(geometry, new MeshBasicMaterial())
+    const manager = new WeightPaintManager()
+
+    manager.begin_stroke()
+    const painted = manager.paint_vertices(mesh, 0, [{ vertex_index: 0, falloff: 1 }], 'face_jaw', bones, 0.5, 'smooth')
+
+    expect(painted).toBe(1)
+    const influences = override(manager, 0)
+    expect(influences.get('face_jaw')).toBeCloseTo(0.5)
+    expect(influences.get('head')).toBeCloseTo(0.5)
+    expect(manager.is_vertex_painted(0, 1)).toBe(false)
+  })
+
   it('does not mirror when the option is off', () => {
     const bones = mirror_rig()
     const mesh = mirror_mesh()

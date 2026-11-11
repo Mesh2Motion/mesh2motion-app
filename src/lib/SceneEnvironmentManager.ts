@@ -95,26 +95,6 @@ export class SceneEnvironmentManager {
     this.controls?.update()
   }
 
-  /**
-   * Orbit the camera around the current controls target. Used by the weight
-   * painting trackball so the model can be rotated without leaving paint mode.
-   */
-  public rotate_camera (azimuth_delta: number, polar_delta: number): void {
-    if (this.controls === undefined) { return }
-
-    const target = this.controls.target
-    const offset = this.camera.position.clone().sub(target)
-    const spherical = new THREE.Spherical().setFromVector3(offset)
-
-    spherical.theta -= azimuth_delta
-    spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi - polar_delta))
-
-    offset.setFromSpherical(spherical)
-    this.camera.position.copy(target).add(offset)
-    this.camera.lookAt(target)
-    this.controls.update()
-  }
-
   public frame_change (): void {
     if (this.controls === undefined) {
       return

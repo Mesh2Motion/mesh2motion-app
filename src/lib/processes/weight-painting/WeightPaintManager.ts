@@ -9,7 +9,7 @@ export interface PaintedInfluence {
 
 export type GeometryWeightOverrides = Map<number, PaintedInfluence[]>
 export type ManualWeightOverrides = Map<number, GeometryWeightOverrides>
-export type WeightPaintMode = 'add' | 'subtract'
+export type WeightPaintMode = 'add' | 'subtract' | 'smooth'
 
 /** One vertex touched by a brush, with the brush falloff at that vertex. */
 export interface BrushVertex {
@@ -64,6 +64,7 @@ export class WeightPaintManager {
   private current_stroke_backups: Map<Mesh, Map<number, SkinBackup>> | null = null
   private readonly bone_colors = Generators.generate_deterministic_bone_colors(120)
   private readonly mirror_cache = new WeakMap<BufferGeometry, MirrorData | null>()
+  private readonly adjacency_cache = new WeakMap<BufferGeometry, number[][]>()
 
   /** Which side of the body a bone belongs to, based on common naming patterns. */
   public static bone_side (bone_name: string): BoneSide {
@@ -299,6 +300,16 @@ export class WeightPaintManager {
     }
 
     const mirror_data = mirror_enabled ? this.mirror_data(mesh) : null
+
+    // Smoothing blends each vertex with its neighbours regardless of which bone
+    // is selected, and the mirrored brush region is smoothed the same way.
+    if (mode === 'smooth') {
+      const smooth_vertices = mirror_data === null
+        ? vertices
+        : this.mirror_brush_vertices(vertices, mirror_data)
+      return this.smooth_vertices(mesh, geometry_overrides, smooth_vertices, strength, bones)
+    }
+
     if (mirror_data === null) {
       return this.apply_brush(mesh, geometry_overrides, vertices, bone_name, bones, strength, mode)
     }
@@ -306,18 +317,8 @@ export class WeightPaintManager {
     const side = WeightPaintManager.bone_side(bone_name)
     if (side === null) {
       // Center-line bone: paint the union of the brush and its mirror once.
-      const combined = new Map<number, number>()
-      for (const vertex of vertices) {
-        combined.set(vertex.vertex_index,
-          Math.max(combined.get(vertex.vertex_index) ?? 0, vertex.falloff))
-        const mirrored_index = mirror_data.map.get(vertex.vertex_index)
-        if (mirrored_index !== undefined) {
-          combined.set(mirrored_index, Math.max(combined.get(mirrored_index) ?? 0, vertex.falloff))
-        }
-      }
-      const combined_vertices: BrushVertex[] = [...combined].map(([vertex_index, falloff]) =>
-        ({ vertex_index, falloff }))
-      return this.apply_brush(mesh, geometry_overrides, combined_vertices, bone_name, bones, strength, mode)
+      return this.apply_brush(mesh, geometry_overrides,
+        this.mirror_brush_vertices(vertices, mirror_data), bone_name, bones, strength, mode)
     }
 
     // Side bone: direct-paint only the matching side and mirror the other side
@@ -382,6 +383,135 @@ export class WeightPaintManager {
       color_attribute.needsUpdate = true
     }
     return painted_count
+  }
+
+  /** The brush vertices plus their counterparts across the symmetry plane. */
+  private mirror_brush_vertices (vertices: BrushVertex[], mirror_data: MirrorData): BrushVertex[] {
+    const combined = new Map<number, number>()
+    for (const vertex of vertices) {
+      combined.set(vertex.vertex_index,
+        Math.max(combined.get(vertex.vertex_index) ?? 0, vertex.falloff))
+      const mirrored_index = mirror_data.map.get(vertex.vertex_index)
+      if (mirrored_index !== undefined) {
+        combined.set(mirrored_index, Math.max(combined.get(mirrored_index) ?? 0, vertex.falloff))
+      }
+    }
+    return [...combined].map(([vertex_index, falloff]) => ({ vertex_index, falloff }))
+  }
+
+  /**
+   * Averages each brushed vertex's influences with its connected neighbours.
+   * The brush strength and falloff decide how far the vertex moves towards the
+   * average, which softens the stepping that automatic weights leave around
+   * elbows, knees and shoulders.
+   */
+  private smooth_vertices (
+    mesh: Mesh,
+    geometry_overrides: GeometryWeightOverrides,
+    vertices: BrushVertex[],
+    strength: number,
+    bones: Bone[]
+  ): number {
+    const adjacency = this.adjacency_for(mesh.geometry)
+    const influence_cache = new Map<number, Map<string, number>>()
+    const influences_at = (vertex_index: number): Map<string, number> => {
+      const cached = influence_cache.get(vertex_index)
+      if (cached !== undefined) { return cached }
+      const influences = this.current_influences(mesh, geometry_overrides, vertex_index, bones)
+      influence_cache.set(vertex_index, influences)
+      return influences
+    }
+
+    // Compute every target from the same snapshot so the result does not depend
+    // on the order the brush vertices are processed in.
+    const smoothed = new Map<number, PaintedInfluence[]>()
+    for (const vertex of vertices) {
+      const amount = Math.min(1, Math.max(0, strength * vertex.falloff))
+      if (amount <= 1e-6) { continue }
+
+      const neighbors = adjacency[vertex.vertex_index] ?? []
+      if (neighbors.length === 0) { continue }
+
+      const average = new Map<string, number>()
+      for (const neighbor of neighbors) {
+        for (const [bone_name, weight] of influences_at(neighbor)) {
+          average.set(bone_name, (average.get(bone_name) ?? 0) + weight)
+        }
+      }
+      for (const [bone_name, weight] of average) {
+        average.set(bone_name, weight / neighbors.length)
+      }
+
+      const blended = new Map<string, number>()
+      for (const [bone_name, weight] of influences_at(vertex.vertex_index)) {
+        blended.set(bone_name, weight * (1 - amount))
+      }
+      for (const [bone_name, weight] of average) {
+        blended.set(bone_name, (blended.get(bone_name) ?? 0) + weight * amount)
+      }
+
+      const total = [...blended.values()].reduce((sum, weight) => sum + weight, 0)
+      if (total <= 1e-6) { continue }
+
+      const influences = [...blended.entries()]
+        .filter(([, weight]) => weight > 1e-6)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([bone_name, weight]) => ({ bone_name, weight: weight / total }))
+      if (influences.length === 0) { continue }
+      smoothed.set(vertex.vertex_index, influences)
+    }
+
+    for (const [vertex_index, influences] of smoothed) {
+      this.record_stroke_backup(mesh, vertex_index)
+      geometry_overrides.set(vertex_index, influences)
+      this.write_skin_influences(mesh, vertex_index, influences, bones)
+      this.recolor_vertex(mesh, vertex_index, influences, bones)
+    }
+
+    if (smoothed.size > 0) {
+      this.mark_skin_attributes_dirty(mesh)
+      const color_attribute = mesh.geometry.attributes.color
+      if (color_attribute !== undefined) { color_attribute.needsUpdate = true }
+    }
+    return smoothed.size
+  }
+
+  /** Connected vertex indices, built lazily from the geometry's triangles. */
+  private adjacency_for (geometry: BufferGeometry): number[][] {
+    const cached = this.adjacency_cache.get(geometry)
+    if (cached !== undefined) { return cached }
+
+    const vertex_count = geometry.attributes.position?.count ?? 0
+    const neighbors: Array<Set<number>> = Array.from({ length: vertex_count }, () => new Set<number>())
+    const connect = (a: number, b: number): void => {
+      if (a === b || a < 0 || b < 0 || a >= vertex_count || b >= vertex_count) { return }
+      neighbors[a].add(b)
+      neighbors[b].add(a)
+    }
+
+    const index = geometry.index
+    if (index !== null) {
+      for (let i = 0; i + 2 < index.count; i += 3) {
+        const a = index.getX(i)
+        const b = index.getX(i + 1)
+        const c = index.getX(i + 2)
+        connect(a, b)
+        connect(b, c)
+        connect(c, a)
+      }
+    } else {
+      // Non-indexed geometry: vertices in the same triangle are neighbours.
+      for (let i = 0; i + 2 < vertex_count; i += 3) {
+        connect(i, i + 1)
+        connect(i + 1, i + 2)
+        connect(i + 2, i)
+      }
+    }
+
+    const result = neighbors.map(set => [...set])
+    this.adjacency_cache.set(geometry, result)
+    return result
   }
 
   /**

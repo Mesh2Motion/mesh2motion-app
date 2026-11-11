@@ -1,12 +1,13 @@
 import { UI } from '../../UI.ts'
 import { AnimationLoader } from '../animations-listing/AnimationLoader.ts'
 import { type AnimationPlayer } from '../animations-listing/AnimationPlayer.ts'
-import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from '../edit-skeleton/WeightPaintManager.ts'
+import { WeightPaintManager, type WeightPaintMode } from './WeightPaintManager.ts'
+import { WeightPaintBrush } from './WeightPaintBrush.ts'
 import { RigConfig, type RigAnimation } from '../../RigConfig.ts'
 import { Utility } from '../../Utilities.ts'
 import {
-  AnimationMixer, BufferGeometry, DoubleSide, Float32BufferAttribute, LoopRepeat, Matrix3, Mesh, MeshBasicMaterial,
-  Object3D, RingGeometry, SkinnedMesh, Vector3,
+  AnimationMixer, BufferGeometry, Float32BufferAttribute, LoopRepeat, MeshBasicMaterial,
+  Object3D, SkinnedMesh, Vector3,
   type AnimationAction, type AnimationClip, type Bone, type Intersection, type PerspectiveCamera,
   type Quaternion
 } from 'three'
@@ -55,17 +56,12 @@ export class StepWeightPainting extends EventTarget {
   private active_mode: WeightPaintStepMode = 'paint'
   private is_active = false
   private alt_rotate_active = false
-  private brush_cursor_ring: Mesh | null = null
+  private weight_paint_brush: WeightPaintBrush | null = null
+  private brush_cursor: HTMLElement | null = null
   private weight_paint_bone_name: string | null = null
   private bone_names: string[] = []
   private bone_picking_enabled = false
-  private weight_paint_radius = 0.03
-  private weight_paint_strength = 0.5
-  private weight_paint_mode: WeightPaintMode = 'add'
-  private active_paint_mode: WeightPaintMode = 'add'
-  private weight_paint_mirror_enabled = true
   private weight_paint_clear_marker = 0
-  private readonly weight_paint_stroke_vertices = new Set<string>()
   private readonly weight_paint_overlays = new Map<SkinnedMesh, SkinnedMesh>()
   private readonly geometry_center_cache = new WeakMap<BufferGeometry, number>()
   private readonly original_materials = new Map<SkinnedMesh, SkinnedMesh['material']>()
@@ -77,9 +73,6 @@ export class StepWeightPainting extends EventTarget {
     scale: Vector3
   }> = []
   private bone_overlay_timeout: number | null = null
-  private trackball_dragging = false
-  private trackball_last_x = 0
-  private trackball_last_y = 0
 
   private _added_event_listeners = false
 
@@ -104,9 +97,11 @@ export class StepWeightPainting extends EventTarget {
 
     this.is_active = true
     this.alt_rotate_active = false
-    this.active_paint_mode = 'add'
-    this.weight_paint_mode = 'add'
-    this.weight_paint_mirror_enabled = true
+    if (this.weight_paint_brush === null) {
+      this.weight_paint_brush = new WeightPaintBrush(weight_paint_manager)
+    }
+    this.weight_paint_brush.mode = 'add'
+    this.weight_paint_brush.mirror_enabled = true
 
     this.animation_loader.set_skeleton_type(skeleton_type)
     // the create page serves animation assets from the site root
@@ -155,11 +150,10 @@ export class StepWeightPainting extends EventTarget {
     this.alt_rotate_active = false
     this.set_bone_picking_enabled(false)
     this.clear_bone_overlay()
-    this.dispose_brush_cursor()
+    this.hide_brush_cursor()
     this.weight_paint_manager?.finish_stroke()
     this.restore_skinned_mesh_materials()
     this.dispose_weight_paint_overlays()
-    this.weight_paint_stroke_vertices.clear()
     this.animation_mixer.stopAllAction()
     this.animation_mixer = new AnimationMixer(new Object3D())
     this.animation_player?.clear_animation()
@@ -183,7 +177,7 @@ export class StepWeightPainting extends EventTarget {
 
   /**
    * Paint mode paints with the left mouse button. Starting the drag on empty
-   * space, the Alt shortcut, and the trackball return the camera to the user.
+   * space or holding Alt returns the camera to the user.
    */
   public is_draw_mode_active (): boolean {
     return this.is_active && this.active_mode === 'paint' && !this.alt_rotate_active
@@ -255,80 +249,32 @@ export class StepWeightPainting extends EventTarget {
   }
 
   public begin_weight_paint_stroke (): void {
-    this.active_paint_mode = this.weight_paint_mode
-    this.weight_paint_stroke_vertices.clear()
-    this.weight_paint_manager?.begin_stroke()
+    this.weight_paint_brush?.begin_stroke()
     this.update_weight_paint_ui()
   }
 
   public end_weight_paint_stroke (): void {
     // normalize first so the redo snapshot captures the final weights
-    this.weight_paint_manager?.normalize_all_weights(this.skinned_meshes)
-    this.weight_paint_manager?.finish_stroke()
-    this.weight_paint_stroke_vertices.clear()
+    this.weight_paint_brush?.finish_stroke(this.skinned_meshes)
     this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
     this.update_weight_paint_ui()
   }
 
-  /** Paints the selected bone onto the posed skinned mesh under the brush. */
+  /** Paints (or smooths) the selected bone on the posed skinned mesh under the brush. */
   public paint_weights (intersection: Intersection, camera: PerspectiveCamera): void {
-    const manager = this.weight_paint_manager
-    const object = intersection.object
-    if (manager === null || !(object instanceof SkinnedMesh)) { return }
-
     const bone_name = this.weight_paint_bone_name
-    if (bone_name === null) { return }
+    if (this.weight_paint_brush === null || bone_name === null) { return }
 
-    const geometry_index = typeof object.userData.geometry_index === 'number'
-      ? object.userData.geometry_index as number
-      : -object.id
-
-    object.updateWorldMatrix(true, false)
-    const positions = object.geometry.attributes.position
-    const center = intersection.point.clone()
-    const ray_direction = center.clone().sub(camera.position).normalize()
-    const point = new Vector3()
-    const vertices: BrushVertex[] = []
-
-    for (let i = 0; i < positions.count; i++) {
-      const key = `${geometry_index}:${i}`
-      if (this.weight_paint_stroke_vertices.has(key)) { continue }
-
-      object.getVertexPosition(i, point)
-      point.applyMatrix4(object.matrixWorld)
-      const distance = point.distanceTo(center)
-      if (distance > this.weight_paint_radius) { continue }
-
-      // Ignore vertices behind the surface the brush is touching, so the
-      // brush cannot paint through the mesh to the far side.
-      const depth = point.sub(center).dot(ray_direction)
-      if (depth > this.weight_paint_radius * 0.5) { continue }
-
-      const t = 1 - distance / this.weight_paint_radius
-      vertices.push({ vertex_index: i, falloff: t * t * (3 - 2 * t) })
-      this.weight_paint_stroke_vertices.add(key)
-    }
-
-    if (vertices.length === 0) { return }
-
-    manager.paint_vertices(
-      object,
-      geometry_index,
-      vertices,
-      bone_name,
-      object.skeleton.bones,
-      this.weight_paint_strength,
-      this.active_paint_mode,
-      this.weight_paint_mirror_enabled
-    )
-    if (this.weight_paint_mirror_enabled) {
-      // The mirrored side was painted too, so refresh the whole heatmap.
-      this.update_weight_paint_overlay_colors(bone_name)
-    } else {
-      this.update_weight_paint_overlay_vertices(object, vertices.map(vertex => vertex.vertex_index), bone_name)
-    }
-    this.update_brush_cursor(intersection)
+    this.weight_paint_brush.paint(intersection, camera, bone_name)
+    // Mirroring and smoothing can change any vertex, so refresh the whole heatmap.
+    this.update_weight_paint_overlay_colors(bone_name)
     this.update_weight_paint_ui()
+  }
+
+  /** Re-runs skinning without the manual overrides and re-enters this step. */
+  public reset_weights_to_auto (): void {
+    if (!this.is_active) { return }
+    this.engine.reset_weights_to_auto()
   }
 
   public undo_weight_paint_stroke (): void {
@@ -491,78 +437,41 @@ export class StepWeightPainting extends EventTarget {
     }
   }
 
-  /** Moves the brush-size ring to the surface point under the pointer. */
-  public update_brush_cursor (intersection: Intersection | null): void {
-    if (!this.is_draw_mode_active() || intersection === null) {
+  /**
+   * Shows the brush outline at the pointer. It is a fixed-size HTML circle
+   * rather than a world-space ring, so it stays thin and keeps the same screen
+   * size at every zoom level.
+   */
+  public update_brush_cursor (event: PointerEvent, intersection: Intersection | null): void {
+    if (!this.is_draw_mode_active() || intersection === null ||
+      !(intersection.object instanceof SkinnedMesh) || this.weight_paint_brush === null) {
       this.hide_brush_cursor()
       return
     }
 
-    const object = intersection.object
-    const face = intersection.face
-    if (!(object instanceof SkinnedMesh) || face === null || face === undefined) {
-      this.hide_brush_cursor()
-      return
-    }
+    const cursor = this.brush_cursor_element()
+    if (cursor === null) { return }
 
-    const ring = this.ensure_brush_cursor_ring()
-    if (ring === null) { return }
-
-    object.updateWorldMatrix(true, false)
-    const normal_matrix = new Matrix3().getNormalMatrix(object.matrixWorld)
-    const world_normal = face.normal.clone().applyMatrix3(normal_matrix).normalize()
-    const world_position = intersection.point.clone()
-      .addScaledVector(world_normal, this.weight_paint_radius * 0.02)
-
-    const parent = ring.parent
-    ring.position.copy(parent === null ? world_position : parent.worldToLocal(world_position))
-    ring.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), world_normal)
-    ring.scale.setScalar(this.weight_paint_radius)
-    ring.visible = true
+    const width = this.weight_paint_brush.width_px()
+    cursor.style.width = `${width}px`
+    cursor.style.height = `${width}px`
+    cursor.style.left = `${event.clientX}px`
+    cursor.style.top = `${event.clientY}px`
+    cursor.style.display = 'block'
   }
 
   public hide_brush_cursor (): void {
-    if (this.brush_cursor_ring !== null) {
-      this.brush_cursor_ring.visible = false
+    const cursor = this.brush_cursor_element()
+    if (cursor !== null) {
+      cursor.style.display = 'none'
     }
   }
 
-  private ensure_brush_cursor_ring (): Mesh | null {
-    if (this.brush_cursor_ring !== null) { return this.brush_cursor_ring }
-
-    const parent = this.skinned_meshes[0]?.parent
-    if (parent === null || parent === undefined) { return null }
-
-    const material = new MeshBasicMaterial({
-      color: 0xffffff,
-      side: DoubleSide,
-      transparent: true,
-      opacity: 0.95,
-      depthTest: false,
-      depthWrite: false
-    })
-    material.toneMapped = false
-    material.fog = false
-
-    const ring = new Mesh(new RingGeometry(0.8, 1, 64), material)
-    ring.name = 'Weight Paint Brush Cursor'
-    ring.renderOrder = 20
-    ring.visible = false
-    parent.add(ring)
-    this.brush_cursor_ring = ring
-    return ring
-  }
-
-  private dispose_brush_cursor (): void {
-    if (this.brush_cursor_ring === null) { return }
-
-    this.brush_cursor_ring.removeFromParent()
-    this.brush_cursor_ring.geometry.dispose()
-    const materials = Array.isArray(this.brush_cursor_ring.material)
-      ? this.brush_cursor_ring.material
-      : [this.brush_cursor_ring.material]
-    for (const material of materials) { material.dispose() }
-    this.brush_cursor_ring = null
+  private brush_cursor_element (): HTMLElement | null {
+    if (this.brush_cursor === null) {
+      this.brush_cursor = document.getElementById('weight-paint-brush-cursor')
+    }
+    return this.brush_cursor
   }
 
   private skinning_animations (skeleton_type: SkeletonType): RigAnimation[] {
@@ -747,7 +656,7 @@ export class StepWeightPainting extends EventTarget {
     if (pick_button !== null) {
       const pick_label = this.bone_picking_enabled
         ? 'Click a bone on the model'
-        : 'Pick a bone by clicking the model'
+        : 'Pick a bone by clicking the model (Shift + click for a quick switch)'
       pick_button.setAttribute('aria-pressed', String(this.bone_picking_enabled))
       pick_button.setAttribute('aria-label', pick_label)
       pick_button.title = pick_label
@@ -756,24 +665,35 @@ export class StepWeightPainting extends EventTarget {
 
     this.update_bone_name_display()
 
+    const brush = this.weight_paint_brush
     const mirror = document.getElementById('weight-paint-step-mirror') as HTMLInputElement | null
     if (mirror !== null) {
-      mirror.checked = this.weight_paint_mirror_enabled
+      mirror.checked = brush?.mirror_enabled ?? true
     }
 
     const add = document.getElementById('weight-paint-step-add') as HTMLInputElement | null
     const subtract = document.getElementById('weight-paint-step-subtract') as HTMLInputElement | null
-    if (add !== null) { add.checked = this.weight_paint_mode === 'add' }
-    if (subtract !== null) { subtract.checked = this.weight_paint_mode === 'subtract' }
+    const smooth = document.getElementById('weight-paint-step-smooth') as HTMLInputElement | null
+    if (add !== null) { add.checked = brush?.mode === 'add' }
+    if (subtract !== null) { subtract.checked = brush?.mode === 'subtract' }
+    if (smooth !== null) { smooth.checked = brush?.mode === 'smooth' }
 
+    const radius_input = document.getElementById('weight-paint-step-radius') as HTMLInputElement | null
+    if (radius_input !== null && brush !== null) {
+      radius_input.value = String(brush.radius_px)
+    }
     const radius_value = document.getElementById('weight-paint-step-radius-value')
-    if (radius_value !== null) {
-      radius_value.textContent = this.weight_paint_radius.toFixed(3)
+    if (radius_value !== null && brush !== null) {
+      radius_value.textContent = `${Math.round(brush.radius_px)} px`
     }
 
+    const strength_input = document.getElementById('weight-paint-step-strength') as HTMLInputElement | null
+    if (strength_input !== null && brush !== null) {
+      strength_input.value = String(brush.strength)
+    }
     const strength_value = document.getElementById('weight-paint-step-strength-value')
-    if (strength_value !== null) {
-      strength_value.textContent = `${Math.round(this.weight_paint_strength * 100)}%`
+    if (strength_value !== null && brush !== null) {
+      strength_value.textContent = `${Math.round(brush.strength * 100)}%`
     }
 
     const can_undo = this.weight_paint_manager !== null &&
@@ -784,6 +704,10 @@ export class StepWeightPainting extends EventTarget {
     if (undo !== null) { undo.disabled = !can_undo }
     const redo = document.getElementById('weight-paint-step-redo') as HTMLButtonElement | null
     if (redo !== null) { redo.disabled = !can_redo }
+    const reset = document.getElementById('weight-paint-step-reset') as HTMLButtonElement | null
+    if (reset !== null) {
+      reset.disabled = this.weight_paint_manager === null || !this.weight_paint_manager.has_overrides()
+    }
 
     this.update_mode_radios()
     this.update_animation_buttons()
@@ -908,11 +832,12 @@ export class StepWeightPainting extends EventTarget {
         ? selected_index
         : source.skeleton.bones.findIndex(bone => bone.name === mirror_bone_name)
       const center_x = this.geometry_center_x(source.geometry)
+      const mirror_enabled = this.weight_paint_brush?.mirror_enabled ?? true
 
       const vertex_count = positions.count
       for (let i = 0; i < vertex_count; i++) {
         let bone_index = selected_index
-        if (this.weight_paint_mirror_enabled && side !== null) {
+        if (mirror_enabled && side !== null) {
           const x = positions.getX(i) - center_x
           if ((side === 'left' && x < 0) || (side === 'right' && x > 0)) {
             bone_index = mirrored_index
@@ -933,22 +858,6 @@ export class StepWeightPainting extends EventTarget {
     const center_x = box === null ? 0 : (box.min.x + box.max.x) / 2
     this.geometry_center_cache.set(geometry, center_x)
     return center_x
-  }
-
-  private update_weight_paint_overlay_vertices (source: SkinnedMesh, vertex_indices: number[], bone_name: string): void {
-    const overlay = this.weight_paint_overlays.get(source)
-    if (overlay === undefined) { return }
-
-    const color = overlay.geometry.attributes.color
-    const skin_indices = source.geometry.attributes.skinIndex
-    const skin_weights = source.geometry.attributes.skinWeight
-    if (color === undefined || skin_indices === undefined || skin_weights === undefined) { return }
-
-    const bone_index = source.skeleton.bones.findIndex(bone => bone.name === bone_name)
-    for (const vertex_index of vertex_indices) {
-      write_weight_color(color, vertex_index, this.vertex_weight(skin_indices, skin_weights, vertex_index, bone_index))
-    }
-    color.needsUpdate = true
   }
 
   private vertex_weight (skin_indices: { array: ArrayLike<number> },
@@ -974,96 +883,36 @@ export class StepWeightPainting extends EventTarget {
       this.set_bone_picking_enabled(!this.bone_picking_enabled)
     })
     document.getElementById('weight-paint-step-mirror')?.addEventListener('change', (event) => {
-      this.weight_paint_mirror_enabled = (event.target as HTMLInputElement).checked
+      if (this.weight_paint_brush === null) { return }
+      this.weight_paint_brush.mirror_enabled = (event.target as HTMLInputElement).checked
       this.update_weight_paint_overlay_colors(this.weight_paint_bone_name)
     })
     document.getElementById('weight-paint-step-radius')?.addEventListener('input', (event) => {
-      this.weight_paint_radius = Number((event.target as HTMLInputElement).value)
+      if (this.weight_paint_brush === null) { return }
+      this.weight_paint_brush.radius_px = Number((event.target as HTMLInputElement).value)
       this.update_weight_paint_ui()
-      if (this.brush_cursor_ring !== null) {
-        this.brush_cursor_ring.scale.setScalar(this.weight_paint_radius)
-      }
     })
     document.getElementById('weight-paint-step-strength')?.addEventListener('input', (event) => {
-      this.weight_paint_strength = Number((event.target as HTMLInputElement).value)
+      if (this.weight_paint_brush === null) { return }
+      this.weight_paint_brush.strength = Number((event.target as HTMLInputElement).value)
       this.update_weight_paint_ui()
     })
     document.querySelectorAll<HTMLInputElement>('input[name="weight-paint-step-mode"]').forEach((input) => {
       input.addEventListener('change', () => {
-        if (input.checked) {
-          this.weight_paint_mode = input.value === 'subtract' ? 'subtract' : 'add'
+        if (input.checked && this.weight_paint_brush !== null) {
+          this.weight_paint_brush.mode = input.value as WeightPaintMode
         }
       })
     })
     document.getElementById('weight-paint-step-undo')?.addEventListener('click', () => this.undo_weight_paint_stroke())
     document.getElementById('weight-paint-step-redo')?.addEventListener('click', () => this.redo_weight_paint_stroke())
+    document.getElementById('weight-paint-step-reset')?.addEventListener('click', () => this.reset_weights_to_auto())
     document.getElementById('weight-paint-step-speed')?.addEventListener('change', (event) => {
       this.animation_speed = Number((event.target as HTMLSelectElement).value)
       this.animation_mixer.timeScale = this.animation_speed
     })
 
-    this.add_trackball_listeners()
     this.add_keyboard_listeners()
-  }
-
-  private add_trackball_listeners (): void {
-    const trackball = document.getElementById('weight-paint-trackball')
-    if (trackball === null) { return }
-
-    trackball.addEventListener('pointerdown', (event) => {
-      if (!this.is_active || this.active_mode !== 'paint') { return }
-      this.trackball_dragging = true
-      this.trackball_last_x = event.clientX
-      this.trackball_last_y = event.clientY
-      trackball.setPointerCapture(event.pointerId)
-      event.preventDefault()
-    })
-
-    trackball.addEventListener('pointermove', (event) => {
-      if (!this.trackball_dragging) { return }
-
-      const delta_x = event.clientX - this.trackball_last_x
-      const delta_y = event.clientY - this.trackball_last_y
-      this.trackball_last_x = event.clientX
-      this.trackball_last_y = event.clientY
-
-      if (delta_x !== 0 || delta_y !== 0) {
-        this.engine.rotate_camera(delta_x * 0.008, -delta_y * 0.008)
-        this.move_trackball_knob(trackball, event.clientX, event.clientY)
-      }
-
-      event.preventDefault()
-    })
-
-    const stop_drag = (event: PointerEvent): void => {
-      if (!this.trackball_dragging) { return }
-      this.trackball_dragging = false
-      if (trackball.hasPointerCapture(event.pointerId)) {
-        trackball.releasePointerCapture(event.pointerId)
-      }
-      this.reset_trackball_knob()
-    }
-
-    trackball.addEventListener('pointerup', stop_drag)
-    trackball.addEventListener('pointercancel', stop_drag)
-  }
-
-  private move_trackball_knob (trackball: HTMLElement, client_x: number, client_y: number): void {
-    const knob = document.getElementById('weight-paint-trackball-knob')
-    if (knob === null) { return }
-
-    const rect = trackball.getBoundingClientRect()
-    const radius = rect.width / 2 - 10
-    const offset_x = Math.max(-radius, Math.min(radius, client_x - (rect.left + rect.width / 2)))
-    const offset_y = Math.max(-radius, Math.min(radius, client_y - (rect.top + rect.height / 2)))
-    knob.style.transform = `translate(calc(-50% + ${offset_x}px), calc(-50% + ${offset_y}px))`
-  }
-
-  private reset_trackball_knob (): void {
-    const knob = document.getElementById('weight-paint-trackball-knob')
-    if (knob !== null) {
-      knob.style.transform = 'translate(-50%, -50%)'
-    }
   }
 
   private add_keyboard_listeners (): void {
@@ -1095,7 +944,14 @@ export class StepWeightPainting extends EventTarget {
   }
 
   private toggle_brush_mode (): void {
-    this.weight_paint_mode = this.weight_paint_mode === 'add' ? 'subtract' : 'add'
+    if (this.weight_paint_brush === null) { return }
+
+    const next_mode: Record<WeightPaintMode, WeightPaintMode> = {
+      add: 'subtract',
+      subtract: 'smooth',
+      smooth: 'add'
+    }
+    this.weight_paint_brush.mode = next_mode[this.weight_paint_brush.mode]
     this.update_weight_paint_ui()
   }
 

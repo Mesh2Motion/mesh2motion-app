@@ -213,11 +213,6 @@ export class Mesh2MotionEngine {
     this.scene_environment.enable_orbit_controls(enabled)
   }
 
-  /** Orbit the camera around its target, used by the weight painting trackball. */
-  public rotate_camera (azimuth_delta: number, polar_delta: number): void {
-    this.scene_environment.rotate_camera(azimuth_delta, polar_delta)
-  }
-
   private setup_environment (): void {
     this.scene_environment.setup_environment()
     this.view_helper = this.scene_environment.get_view_helper()
@@ -374,6 +369,16 @@ export class Mesh2MotionEngine {
       return picked_intersection !== null
     }
 
+    // Shift + click switches bones without arming the picker first
+    if (weight_painting_step_painting && event.shiftKey) {
+      const picked_intersection = this.weight_paint_intersection(event,
+        this.weight_painting_step.active_skinned_meshes())
+      if (picked_intersection !== null) {
+        this.weight_painting_step.pick_bone(picked_intersection)
+      }
+      return picked_intersection !== null
+    }
+
     let intersection: THREE.Intersection | null
     if (edit_step_painting) {
       const group = this.weight_skin_step.weight_painted_mesh_group()
@@ -421,13 +426,29 @@ export class Mesh2MotionEngine {
     }
   }
 
-  /** Positions the brush-size ring on the skinned mesh under the pointer. */
-  public update_weight_paint_brush_cursor (event: PointerEvent): void {
-    if (this.process_step !== ProcessStep.WeightPainting) { return }
+  /**
+   * Positions the brush outline on the skinned mesh under the pointer.
+   * @returns true when the pointer is over a paintable mesh
+   */
+  public update_weight_paint_brush_cursor (event: PointerEvent): boolean {
+    if (this.process_step !== ProcessStep.WeightPainting) { return false }
 
     const intersection = this.weight_paint_intersection(event,
       this.weight_painting_step.active_skinned_meshes())
-    this.weight_painting_step.update_brush_cursor(intersection)
+    this.weight_painting_step.update_brush_cursor(event, intersection)
+    return intersection !== null && intersection.object instanceof THREE.SkinnedMesh
+  }
+
+  /** Shows the paint crosshair only while hovering the weight preview mesh. */
+  public update_edit_weight_paint_cursor (event: PointerEvent): void {
+    if (this.process_step !== ProcessStep.EditSkeleton) { return }
+
+    const group = this.weight_skin_step.weight_painted_mesh_group()
+    const targets = group !== null && group.visible
+      ? group.children.filter(child => child.userData.weight_painted === true)
+      : []
+    const over_mesh = this.weight_paint_intersection(event, targets) !== null
+    this.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
   }
 
   /** Shows the bone the picker would select under the pointer. */
@@ -805,6 +826,15 @@ export class Mesh2MotionEngine {
     this.scene.add(...this.weight_skin_step.final_skinned_meshes()) // add final skinned mesh to scene
 
     this.weight_skin_step.weight_painted_mesh_group().visible = false // hide weight painted mesh
+  }
+
+  /**
+   * Discard the manual weight overrides and re-run skinning so the meshes get
+   * the automatic solver weights again.
+   */
+  public reset_weights_to_auto (): void {
+    this.edit_skeleton_step.reset_weight_paint_overrides()
+    this.process_step_changed(ProcessStep.WeightPainting)
   }
 
   /** Leave the skinned preview steps and return to positioning the skeleton. */

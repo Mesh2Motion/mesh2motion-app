@@ -32,9 +32,9 @@ export class EventListeners {
       return
     }
 
-    const wants_crosshair = this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() ||
-      this.bootstrap.weight_painting_step.is_draw_mode_active()
-    this.bootstrap.renderer.domElement.style.cursor = wants_crosshair ? 'crosshair' : ''
+    // the crosshair is only shown while hovering a paintable mesh; empty space
+    // keeps the normal pointer so rotating the canvas matches the other steps
+    this.bootstrap.renderer.domElement.style.cursor = ''
   }
 
   private is_typing_target (target: EventTarget | null): boolean {
@@ -72,7 +72,7 @@ export class EventListeners {
       } else {
         this.bootstrap.update_edit_bone_interaction_mode()
       }
-      this.bootstrap.renderer.domElement.style.cursor = enabled ? 'crosshair' : ''
+      this.bootstrap.renderer.domElement.style.cursor = ''
     })
     this.bootstrap.edit_skeleton_step.addEventListener('weightPaintChanged', () => {
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
@@ -152,6 +152,11 @@ export class EventListeners {
         (edit_step_painting || weight_painting_step_painting || weight_painting_step_picking)
 
       if (!should_capture) {
+        // middle/right drags orbit and pan; keep the normal pointer for them
+        if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
+          this.bootstrap.weight_painting_step.hide_brush_cursor()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+        }
         return
       }
 
@@ -159,11 +164,15 @@ export class EventListeners {
       if (!this.bootstrap.handle_weight_paint_pointer_down(event)) {
         this.bootstrap.weight_painting_step.hide_brush_cursor()
         this.bootstrap.weight_painting_step.hide_picker_hover()
+        this.update_weight_painting_cursor()
         return
       }
 
       event.preventDefault()
       event.stopImmediatePropagation()
+      if (!weight_painting_step_picking) {
+        this.bootstrap.renderer.domElement.style.cursor = 'crosshair'
+      }
       this.active_canvas_pointer_id = event.pointerId
       this.bootstrap.renderer.domElement.setPointerCapture(event.pointerId)
     }, { capture: true })
@@ -175,15 +184,26 @@ export class EventListeners {
 
       if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
         this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()) {
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
         event.preventDefault()
         this.bootstrap.handle_weight_paint_pointer_move(event)
+        if (this.active_canvas_pointer_id === null) {
+          this.bootstrap.update_edit_weight_paint_cursor(event)
+        }
         return
       }
 
       // while the picker is armed, preview the bone under the pointer before the click
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
-        if (this.is_camera_rotation_drag(event)) { return }
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.weight_painting_step.hide_picker_hover()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
         event.preventDefault()
         this.bootstrap.update_weight_paint_picker_hover(event)
         return
@@ -191,10 +211,15 @@ export class EventListeners {
 
       if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
         this.bootstrap.weight_painting_step.is_draw_mode_active()) {
-        if (this.is_camera_rotation_drag(event)) { return }
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.weight_painting_step.hide_brush_cursor()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
         event.preventDefault()
         this.bootstrap.handle_weight_paint_pointer_move(event)
-        this.bootstrap.update_weight_paint_brush_cursor(event)
+        const over_mesh = this.bootstrap.update_weight_paint_brush_cursor(event)
+        this.bootstrap.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
         return
       }
 
@@ -232,6 +257,7 @@ export class EventListeners {
     this.bootstrap.renderer.domElement.addEventListener('pointerleave', () => {
       this.bootstrap.weight_painting_step.hide_brush_cursor()
       this.bootstrap.weight_painting_step.hide_picker_hover()
+      this.bootstrap.renderer.domElement.style.cursor = ''
     })
 
     // keep the context menu out of the way while the paint tools are open, so

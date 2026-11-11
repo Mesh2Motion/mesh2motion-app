@@ -287,7 +287,7 @@
 
           <details id="weight-painting-tools" style="max-width: 280px;" hidden>
             <summary>Weight painting</summary>
-            <p><small>Paint weights on the colored mesh. Painted vertices override the automatic weights and are kept when binding and exporting. Use Add to strengthen a bone, Subtract to remove it. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
+            <p><small>Paint weights on the colored mesh. Painted vertices override the automatic weights and are kept when binding and exporting. Use Add to strengthen a bone, Subtract to remove it, and Smooth to blend a vertex with its neighbours and soften steps around joints. Mirror L/R applies the stroke to the matching bone on the opposite side.</small></p>
             <button id="weight-paint-toggle" type="button" aria-pressed="false">Start painting</button>
             <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
               <label for="weight-paint-bone">Bone</label>
@@ -300,22 +300,24 @@
                   <label for="weight-paint-add">Add</label>
                   <input type="radio" id="weight-paint-subtract" name="weight-paint-mode" value="subtract" />
                   <label for="weight-paint-subtract">Subtract</label>
+                  <input type="radio" id="weight-paint-smooth" name="weight-paint-mode" value="smooth" />
+                  <label for="weight-paint-smooth">Smooth</label>
                 </div>
               </div>
 
-              <div class="styled-checkbox">
-                <input type="checkbox" id="weight-paint-mirror" checked />
-                <label for="weight-paint-mirror">Mirror L/R</label>
-              </div>
-
               <label for="weight-paint-radius">Brush size</label>
-              <input id="weight-paint-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
+              <input id="weight-paint-radius" type="range" min="4" max="160" step="1" value="24" />
               <label for="weight-paint-strength">Strength</label>
               <input id="weight-paint-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
 
               <div style="display: flex; gap: 0.5rem;">
                 <button id="weight-paint-undo" type="button" disabled>Undo stroke</button>
                 <button id="weight-paint-clear" type="button" disabled>Clear all</button>
+              </div>
+
+              <div class="styled-checkbox">
+                <input type="checkbox" id="weight-paint-mirror" checked />
+                <label for="weight-paint-mirror">Mirror L/R</label>
               </div>
             </div>
           </details>
@@ -381,10 +383,10 @@
         <span id="weight-paint-step-tools" style="display: none; flex-direction: column; max-width: 320px;">
           <div class="pill-switch-group" aria-label="Weight painting mode" style="margin: 0 0 0.75rem;">
             <div class="pill-switch">
-              <input type="radio" id="weight-paint-mode-paint" name="weight-paint-mode" value="paint" checked />
+              <input type="radio" id="weight-paint-mode-paint" name="weight-paint-step-view-mode" value="paint" checked />
               <label for="weight-paint-mode-paint">Paint</label>
 
-              <input type="radio" id="weight-paint-mode-test" name="weight-paint-mode" value="test" />
+              <input type="radio" id="weight-paint-mode-test" name="weight-paint-step-view-mode" value="test" />
               <label for="weight-paint-mode-test">Test</label>
             </div>
           </div>
@@ -401,48 +403,53 @@
               </div>
             </fieldset>
 
-            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-              <div id="weight-paint-trackball" role="slider" tabindex="0" aria-label="Rotate the view"
-                data-tippy-content="Drag to rotate the view. Shortcut: hold Alt and drag on the model.">
-                <div id="weight-paint-trackball-knob"></div>
-              </div>
-
-              <div style="display: flex; flex: 1; flex-direction: column; gap: 0.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <button id="weight-paint-step-pick-bone" class="secondary-button" type="button" aria-pressed="false" aria-label="Pick a bone by clicking the model" title="Pick a bone by clicking the model">
-                    <img src="images/icons/color-picker.svg" alt="" width="20" height="20" />
-                  </button>
-                  <span id="weight-paint-step-bone-name" class="weight-paint-bone-name">&mdash;</span>
-                </div>
-
-                <div class="pill-switch-group" aria-label="Weight brush mode" style="margin: 0;"
-                  data-tippy-content="Brush mode. Shortcut: X">
-                  <div class="pill-switch">
-                    <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />
-                    <label for="weight-paint-step-add">Add</label>
-
-                    <input type="radio" id="weight-paint-step-subtract" name="weight-paint-step-mode" value="subtract" />
-                    <label for="weight-paint-step-subtract">Remove</label>
-                  </div>
-                </div>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <span class="weight-paint-tools-heading">Select Bone</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button id="weight-paint-step-pick-bone" class="secondary-button" type="button" aria-pressed="false"
+                  aria-label="Pick a bone by clicking the model"
+                  title="Pick a bone by clicking the model. Shortcut: Shift + click on the model."
+                  data-tippy-content="Pick a bone by clicking the model. Shortcut: Shift + click on the model.">
+                  <img src="images/icons/color-picker.svg" alt="" width="20" height="20" />
+                </button>
+                <span id="weight-paint-step-bone-name" class="weight-paint-bone-name">&mdash;</span>
               </div>
             </div>
 
-            <div class="styled-checkbox">
-              <input type="checkbox" id="weight-paint-step-mirror" checked />
-              <label for="weight-paint-step-mirror">Mirror L/R</label>
+            <div class="pill-switch-group" aria-label="Weight brush mode" style="margin: 0;"
+              data-tippy-content="Brush mode. Shortcut: X">
+              <div class="pill-switch">
+                <input type="radio" id="weight-paint-step-add" name="weight-paint-step-mode" value="add" checked />
+                <label for="weight-paint-step-add">Add</label>
+
+                <input type="radio" id="weight-paint-step-subtract" name="weight-paint-step-mode" value="subtract" />
+                <label for="weight-paint-step-subtract">Remove</label>
+
+                <input type="radio" id="weight-paint-step-smooth" name="weight-paint-step-mode" value="smooth" />
+                <label for="weight-paint-step-smooth">Smooth</label>
+              </div>
             </div>
 
             <div class="weight-paint-slider-row">
               <label for="weight-paint-step-radius">Brush size</label>
-              <input id="weight-paint-step-radius" type="range" min="0.005" max="0.15" step="0.005" value="0.03" />
-              <span id="weight-paint-step-radius-value">0.030</span>
+              <input id="weight-paint-step-radius" type="range" min="4" max="160" step="1" value="24" />
+              <span id="weight-paint-step-radius-value">24 px</span>
             </div>
 
             <div class="weight-paint-slider-row">
               <label for="weight-paint-step-strength">Strength</label>
               <input id="weight-paint-step-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
               <span id="weight-paint-step-strength-value">50%</span>
+            </div>
+
+            <button id="weight-paint-step-reset" class="secondary-button" type="button" disabled
+              data-tippy-content="Restore the automatic weights from skinning and remove all manual painting">
+              Reset weights to auto
+            </button>
+
+            <div class="styled-checkbox">
+              <input type="checkbox" id="weight-paint-step-mirror" checked />
+              <label for="weight-paint-step-mirror">Mirror L/R</label>
             </div>
           </span>
 
@@ -607,6 +614,9 @@
         <span id="selected-bone-overlay-text"></span>
       </span>
     </div>
+
+    <!-- fixed-size outline that follows the pointer while painting weights -->
+    <div id="weight-paint-brush-cursor" aria-hidden="true"></div>
 
     <!-- build version information-->
     <span id="build-version"></span>
