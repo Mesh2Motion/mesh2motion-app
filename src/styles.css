@@ -14,9 +14,9 @@
   --nav-background: #1c3445;
   --nav-active-item-bg: #4f6074;
   
-  --button-primary-bg: rgb(175, 58, 190);
-  --button-alternate-bg: rgba(175, 58, 190, 0.521);
-  --button-shadow-color: rgba(65, 48, 124, 0.705);
+  --button-primary-bg: rgb(78, 132, 225);
+  --button-alternate-bg: rgba(78, 132, 225, 0.521);
+  --button-shadow-color: rgba(40, 64, 140, 0.705);
 
   --current-step-indicator: rgb(20, 43, 59);
 
@@ -635,7 +635,7 @@ option {
     pointer-events: none;
 }
 
-#model-drop-zone .model-drop-zone-title {
+#model-drop-zone {
     font-size: 1.15rem;
 }
 
@@ -1255,6 +1255,10 @@ div.modal-dialog-body p.survey-thank-you {
 .nav-icon {
     width: var(--navigation-icon-size);
     height: var(--navigation-icon-size);
+}
+
+#nav-support-mesh2motion {
+    font-size: 1.5rem;
 }
 
 
