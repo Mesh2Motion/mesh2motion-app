@@ -5,8 +5,6 @@ import { Generators } from '../../Generators.ts'
 import { Utility } from '../../Utilities.ts'
 import { UndoRedoSystem } from './UndoRedoSystem.ts'
 import { PreviewPlaneManager } from './PreviewPlaneManager.ts'
-import { ArmPlaneManager } from './ArmPlaneManager.ts'
-import { ArmWeightCorrector } from '../../solvers/ArmWeightCorrector.ts'
 import { IndependentBoneMovement } from './IndependentBoneMovement.ts'
 import { ModalDialog } from '../../ModalDialog.ts'
 import {
@@ -65,16 +63,10 @@ export class StepEditSkeleton extends EventTarget {
   private enable_head_weight_correction: boolean = false
   private head_weight_correction_height: number = 1.4 // default
 
-  // Arm plane state. The offset is relative to the shoulder joint's X position,
-  // so it has to match the default in create.html's slider.
-  private enable_arm_plane_correction: boolean = false
-  private arm_plane_offset: number = 0.0
-
   private readonly joint_texture = new TextureLoader().load('/images/skeleton-joint-point.png')
 
   private _added_event_listeners: boolean = false
   private readonly preview_plane_manager: PreviewPlaneManager = PreviewPlaneManager.getInstance()
-  private readonly arm_plane_manager: ArmPlaneManager = new ArmPlaneManager()
   public readonly independent_bone_movement: IndependentBoneMovement = new IndependentBoneMovement()
 
   // UI elements specific for this area
@@ -149,21 +141,10 @@ export class StepEditSkeleton extends EventTarget {
       this.ui.dom_model_pose_instructions.style.display = skeleton_type === SkeletonType.Human ? 'block' : 'none'
     }
 
-    // only human skeletons have the arm plane correction option
-    if (this.ui.dom_use_arm_plane_container != null) {
-      if (skeleton_type === SkeletonType.Human) {
-        this.ui.dom_use_arm_plane_container.style.display = 'block'
-      } else {
-        this.ui.dom_use_arm_plane_container.style.display = 'none'
-        this.enable_arm_plane_correction = false // force setting to false in case it was enabled before
-      }
-    }
-
     this.update_skeleton_template_image(skeleton_type)
 
     // show/hide settings for the head correct depending on if it is checked
     this.show_preview_plane_options()
-    this.show_arm_plane_options()
   }
 
   private update_skeleton_template_image(skeleton_type: SkeletonType): void {
@@ -240,56 +221,6 @@ export class StepEditSkeleton extends EventTarget {
     )
 
     this.initialize_preview_plane(main_scene)
-    this.initialize_arm_plane(main_scene)
-  }
-
-  private initialize_arm_plane (main_scene: Scene): void {
-    this.arm_plane_manager.initialize(main_scene)
-
-    // off by default, but can be enabled if we navigate back to the step
-    this.arm_plane_manager.set_visibility(this.enable_arm_plane_correction)
-    this.refresh_arm_plane_position()
-
-    // set default value (and label) for arm plane offset on UI
-    if (this.ui.dom_arm_plane_offset_input !== null && this.ui.dom_arm_plane_offset_label !== null) {
-      this.ui.dom_arm_plane_offset_input.value = this.arm_plane_offset.toString()
-      this.ui.dom_arm_plane_offset_label.textContent = this.format_arm_plane_offset_label()
-    }
-
-    // the checkbox is forced off for non-human rigs, so keep the DOM in sync
-    // with our state instead of leaving a checked box next to a hidden slider
-    if (this.ui.dom_arm_plane_checkbox !== null) {
-      this.ui.dom_arm_plane_checkbox.checked = this.enable_arm_plane_correction
-    }
-  }
-
-  /**
-   * The offset is a decimal in scene units, but a percentage reads better on a
-   * range this small (-0.10 to 0.10 shows as -10.0% to 10.0%). One decimal
-   * place so the slider's 0.001 step is actually visible in the label.
-   */
-  private format_arm_plane_offset_label (): string {
-    return `${(this.arm_plane_offset * 100).toFixed(1)}%`
-  }
-
-  /**
-   * Move the arm planes to wherever the shoulder joint currently is, plus the
-   * user's offset. The solver derives its plane the same way at skin time, so
-   * what the user sees here is what actually gets applied.
-   */
-  private refresh_arm_plane_position (): void {
-    const bones = this.threejs_skeleton.bones
-    if (bones.length === 0) { return }
-
-    const anchor_x = ArmWeightCorrector.shoulder_anchor_x(bones)
-    if (anchor_x === null) { return } // no arm bones on this rig
-
-    const shoulder_bone = ArmWeightCorrector.find_shoulder_bone(bones)
-    const shoulder_position = shoulder_bone === undefined
-      ? new Vector3()
-      : Utility.world_position_from_object(shoulder_bone)
-
-    this.arm_plane_manager.update_position(anchor_x + this.arm_plane_offset, shoulder_position.y, shoulder_position.z)
   }
 
   private initialize_preview_plane (main_scene: Scene): void {
@@ -442,32 +373,6 @@ export class StepEditSkeleton extends EventTarget {
     return this.head_weight_correction_height
   }
 
-  /**
-   * Toggle the arm plane correction and the planes that visualize it
-   */
-  public set_use_arm_plane_correction (is_enabled: boolean): void {
-    this.enable_arm_plane_correction = is_enabled
-    this.arm_plane_manager.set_visibility(is_enabled)
-    this.refresh_arm_plane_position()
-  }
-
-  public use_arm_plane_correction (): boolean {
-    return this.enable_arm_plane_correction
-  }
-
-  /**
-   * Set how far the arm plane sits from the shoulder joint
-   * @param offset Distance along X to add to the shoulder joint position
-   */
-  public set_arm_plane_offset (offset: number): void {
-    this.arm_plane_offset = offset
-    this.refresh_arm_plane_position()
-  }
-
-  public get_arm_plane_offset (): number {
-    return this.arm_plane_offset
-  }
-
   public manual_weight_overrides (): ManualWeightOverrides {
     return this.weight_paint_tools.overrides_for_skin()
   }
@@ -606,41 +511,11 @@ export class StepEditSkeleton extends EventTarget {
         this.ui.dom_preview_plane_height_label.textContent = this.head_weight_correction_height.toFixed(2)
       }
     })
-
-    // Add arm plane event listeners
-    this.ui.dom_arm_plane_checkbox?.addEventListener('change', (event) => {
-      const target = event.target as HTMLInputElement
-      this.set_use_arm_plane_correction(target.checked)
-
-      this.show_arm_plane_options()
-    })
-
-    this.ui.dom_arm_plane_offset_input?.addEventListener('input', (event) => {
-      const target = event.target as HTMLInputElement
-      const offset = parseFloat(target.value)
-      this.set_arm_plane_offset(isNaN(offset) ? 0.00 : offset)
-
-      // Update the label to show current value
-      if (this.ui.dom_arm_plane_offset_label !== null) {
-        this.ui.dom_arm_plane_offset_label.textContent = this.format_arm_plane_offset_label()
-      }
-    })
-
-    // keep the arm planes anchored to the shoulder joint when bones get moved
-    this.addEventListener('skeletonTransformed', () => {
-      this.refresh_arm_plane_position()
-    })
   }
 
   private show_preview_plane_options (): void {
     if (this.ui.dom_preview_plane_setting_container !== null) {
       this.ui.dom_preview_plane_setting_container.style.display = this.use_head_weight_correction() ? 'flex' : 'none'
-    }
-  }
-
-  private show_arm_plane_options (): void {
-    if (this.ui.dom_arm_plane_setting_container !== null) {
-      this.ui.dom_arm_plane_setting_container.style.display = this.use_arm_plane_correction() ? 'flex' : 'none'
     }
   }
 
@@ -694,15 +569,6 @@ export class StepEditSkeleton extends EventTarget {
     if (this.ui.dom_preview_plane_height_input !== null) {
       this.ui.dom_preview_plane_height_input.removeEventListener('input', () => {})
     }
-
-    // Remove arm plane event listeners
-    if (this.ui.dom_arm_plane_checkbox !== null) {
-      this.ui.dom_arm_plane_checkbox.removeEventListener('change', () => {})
-    }
-
-    if (this.ui.dom_arm_plane_offset_input !== null) {
-      this.ui.dom_arm_plane_offset_input.removeEventListener('input', () => {})
-    }
   }
 
   public cleanup_on_exit_step (): void {
@@ -710,7 +576,6 @@ export class StepEditSkeleton extends EventTarget {
     this.remove_event_listeners()
     this.clear_hover_point_if_exists()
     this.remove_preview_plane()
-    this.arm_plane_manager.cleanup()
   }
 
   /**

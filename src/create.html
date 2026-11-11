@@ -353,22 +353,6 @@
 
           </div>
 
-          <!-- Arm plane controls -->
-          <div id="use-arm-plane-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
-            <div class="styled-checkbox">
-              <input type="checkbox" id="arm-plane-checkbox" />
-              <label for="arm-plane-checkbox">Use Arm Plane Correction</label>
-
-              <img data-tippy-content="If the arms are grabbing weights from the torso (common when arms point down in an A-pose), use a divider to define where the arm area starts." src="images/icons/help.svg" alt="Help" width="20" height="20" />
-
-            </div>
-            <div id="arm-plane-setting-container" style="display: flex; align-items: center; gap: 0.5rem;">
-              <label for="arm-plane-offset-input">Distance:</label>
-              <input type="range" id="arm-plane-offset-input" min="-0.10" max="0.10" step="0.001" value="0.00" />
-              <span id="arm-plane-offset-label" style="width: 3.5rem;">0.0%</span>
-            </div>
-          </div>
-
           <!-- back to load skeleton -->
           <div class="display: flex; gap: 0.5rem;">
             <button class="no-style-button" id="action_back_to_load_skeleton">&#x2039; Back</button>

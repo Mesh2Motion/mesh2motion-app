@@ -155,17 +155,6 @@ export class StepWeightSkin extends EventTarget {
   }
 
   /**
-   * Configure arm plane correction settings for the solver
-   * @param enabled Whether arm plane correction is enabled
-   * @param offset Distance along X from the shoulder joint to place the plane
-   */
-  public set_arm_plane_correction_settings (enabled: boolean, offset: number): void {
-    if (this.bone_skinning_formula === undefined) return
-    this.bone_skinning_formula.set_arm_plane_correction_enabled(enabled)
-    this.bone_skinning_formula.set_arm_plane_offset(offset)
-  }
-
-  /**
    * Manual weights painted in the edit skeleton step. They override the
    * automatic solver result for the vertices that were painted.
    */
