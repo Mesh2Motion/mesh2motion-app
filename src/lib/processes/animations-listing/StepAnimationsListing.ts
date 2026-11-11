@@ -2,7 +2,8 @@ import { UI } from '../../UI.ts'
 import { AnimationPlayer } from './AnimationPlayer.ts'
 
 import {
-  type AnimationClip, AnimationMixer, type SkinnedMesh, type AnimationAction, Object3D, type Scene
+  type AnimationClip, AnimationMixer, SkinnedMesh,
+  type AnimationAction, Object3D, type Scene
 } from 'three'
 
 import { AnimationUtility } from './AnimationUtility.ts'
@@ -161,7 +162,7 @@ export class StepAnimationsListing extends EventTarget {
     this.animation_player.clear_animation()
   }
 
-  // If we change skeleton types, we need to reset some of the state 
+  // If we change skeleton types, we need to reset some of the state
   // in the case we selected animations. This clears the UI state associated with that.
   private reset_ui_elements (): void {
     if (this.ui.dom_animation_clip_list !== null) {
@@ -183,6 +184,11 @@ export class StepAnimationsListing extends EventTarget {
 
   public mixer (): AnimationMixer {
     return this.animation_mixer
+  }
+
+  /** Shared timeline UI, also used by the optional weight painting step. */
+  public get_animation_player (): AnimationPlayer {
+    return this.animation_player
   }
 
   // setup in the bootstrap.ts file and only called if we are actively

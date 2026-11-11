@@ -16,6 +16,42 @@ export class EventListeners {
 
   constructor (private readonly bootstrap: Mesh2MotionEngine) {}
 
+  private update_weight_painting_cursor (): void {
+    if (this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+      const icon = document.querySelector<HTMLImageElement>('#weight-paint-step-pick-bone img')
+      let icon_url = 'images/icons/color-picker-cursor.svg'
+      if (icon !== null) {
+        const replaced_url = icon.src.replace('color-picker.svg', 'color-picker-cursor.svg')
+        if (replaced_url.includes('color-picker-cursor.svg')) {
+          icon_url = replaced_url
+        }
+      }
+
+      // tip of the pipette is the hotspot; crosshair is the fallback
+      this.bootstrap.renderer.domElement.style.cursor = `url("${icon_url}") 2 22, crosshair`
+      return
+    }
+
+    // the crosshair is only shown while hovering a paintable mesh; empty space
+    // keeps the normal pointer so rotating the canvas matches the other steps
+    this.bootstrap.renderer.domElement.style.cursor = ''
+  }
+
+  private is_typing_target (target: EventTarget | null): boolean {
+    return target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+  }
+
+  /**
+   * True while a press that missed the mesh is dragging the camera. The press
+   * is left to OrbitControls, so paint previews should not follow the pointer.
+   */
+  private is_camera_rotation_drag (event: PointerEvent): boolean {
+    return event.buttons !== 0 && this.active_canvas_pointer_id === null
+  }
+
   public addEventListeners (): void {
     // monitor theme changes
     this.bootstrap.theme_manager.addEventListener('theme-changed', (event: any) => {
@@ -25,6 +61,31 @@ export class EventListeners {
     this.bootstrap.load_skeleton_step.addEventListener('skeletonLoaded', () => {
       this.bootstrap.edit_skeleton_step.load_original_armature_from_model(this.bootstrap.load_skeleton_step.armature())
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
+    })
+
+    this.bootstrap.edit_skeleton_step.addEventListener('weightPaintModeChanged', (event: Event) => {
+      const enabled = (event as CustomEvent<{ enabled: boolean }>).detail.enabled
+      if (enabled) {
+        this.bootstrap.transform_controls.detach()
+        this.bootstrap.transform_controls.enabled = false
+        this.bootstrap.ui.hide_selected_bone_overlay()
+      } else {
+        this.bootstrap.update_edit_bone_interaction_mode()
+      }
+      this.bootstrap.renderer.domElement.style.cursor = ''
+    })
+    this.bootstrap.edit_skeleton_step.addEventListener('weightPaintChanged', () => {
+      if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted) {
+        this.bootstrap.regenerate_weight_painted_preview_mesh()
+      }
+    })
+    this.bootstrap.weight_painting_step.addEventListener('weightPaintModeChanged', () => {
+      this.bootstrap.ui.hide_selected_bone_overlay()
+      this.update_weight_painting_cursor()
+    })
+    this.bootstrap.weight_painting_step.addEventListener('bonePickModeChanged', () => {
+      this.update_weight_painting_cursor()
     })
 
     // Listen for skeleton transformation events to update UI and visuals
@@ -74,8 +135,94 @@ export class EventListeners {
     // it will scroll the webpage instead of dragging the transform controls or the camera.
     this.bootstrap.renderer.domElement.style.touchAction = 'none'
 
+    // Weight paint modes claim left-button presses only when the initial
+    // raycast hits the mesh. A press on empty space is left to OrbitControls,
+    // so dragging after it rotates the camera instead of painting. Middle/right
+    // mouse and the wheel keep orbiting, panning, and zooming either way.
+    this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+      const edit_step_painting = this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()
+      const weight_painting_step_painting = this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_draw_mode_active()
+      const weight_painting_step_picking = this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_bone_picking_enabled()
+
+      // left paints/picks. The right button stays free for panning the camera.
+      const should_capture = event.button === 0 &&
+        (edit_step_painting || weight_painting_step_painting || weight_painting_step_picking)
+
+      if (!should_capture) {
+        // middle/right drags orbit and pan; keep the normal pointer for them
+        if (this.bootstrap.process_step === ProcessStep.WeightPainting) {
+          this.bootstrap.weight_painting_step.hide_brush_cursor()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+        }
+        return
+      }
+
+      // the initial raycast decides whether this press paints or rotates
+      if (!this.bootstrap.handle_weight_paint_pointer_down(event)) {
+        this.bootstrap.weight_painting_step.hide_brush_cursor()
+        this.bootstrap.weight_painting_step.hide_picker_hover()
+        this.update_weight_painting_cursor()
+        return
+      }
+
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (!weight_painting_step_picking) {
+        this.bootstrap.renderer.domElement.style.cursor = 'crosshair'
+      }
+      this.active_canvas_pointer_id = event.pointerId
+      this.bootstrap.renderer.domElement.setPointerCapture(event.pointerId)
+    }, { capture: true })
+
     this.bootstrap.renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
       if (this.active_canvas_pointer_id !== null && event.pointerId !== this.active_canvas_pointer_id) {
+        return
+      }
+
+      if (this.bootstrap.process_step === ProcessStep.EditSkeleton &&
+        this.bootstrap.edit_skeleton_step.is_weight_painting_enabled()) {
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
+        event.preventDefault()
+        const over_mesh = this.bootstrap.handle_weight_paint_pointer_move(event)
+        if (this.active_canvas_pointer_id !== null) {
+          this.bootstrap.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
+        } else {
+          this.bootstrap.update_edit_weight_paint_cursor(event)
+        }
+        return
+      }
+
+      // while the picker is armed, preview the bone under the pointer before the click
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_bone_picking_enabled()) {
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.weight_painting_step.hide_picker_hover()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
+        event.preventDefault()
+        this.bootstrap.update_weight_paint_picker_hover(event)
+        return
+      }
+
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_draw_mode_active()) {
+        if (this.is_camera_rotation_drag(event)) {
+          this.bootstrap.weight_painting_step.hide_brush_cursor()
+          this.bootstrap.renderer.domElement.style.cursor = ''
+          return
+        }
+        event.preventDefault()
+        const over_mesh = this.active_canvas_pointer_id !== null
+          ? this.bootstrap.handle_weight_paint_pointer_move(event)
+          : this.bootstrap.update_weight_paint_brush_cursor(event)
+        this.bootstrap.renderer.domElement.style.cursor = over_mesh ? 'crosshair' : ''
         return
       }
 
@@ -110,6 +257,21 @@ export class EventListeners {
       }
     })
 
+    this.bootstrap.renderer.domElement.addEventListener('pointerleave', () => {
+      this.bootstrap.weight_painting_step.hide_brush_cursor()
+      this.bootstrap.weight_painting_step.hide_picker_hover()
+      this.bootstrap.renderer.domElement.style.cursor = ''
+    })
+
+    // keep the context menu out of the way while the paint tools are open, so
+    // right-drag can still pan the camera
+    this.bootstrap.renderer.domElement.addEventListener('contextmenu', (event: MouseEvent) => {
+      if (this.bootstrap.process_step === ProcessStep.WeightPainting &&
+        this.bootstrap.weight_painting_step.is_paint_mode_active()) {
+        event.preventDefault()
+      }
+    })
+
     this.bootstrap.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
       const use_mesh_drag_mode =
         this.bootstrap.process_step === ProcessStep.EditSkeleton &&
@@ -138,6 +300,7 @@ export class EventListeners {
         return
       }
 
+      this.bootstrap.handle_weight_paint_pointer_up(event)
       this.bootstrap.handle_mesh_drag_mode_mouse_up()
 
       if (this.active_canvas_pointer_id !== null &&
@@ -147,7 +310,7 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor = ''
+      this.update_weight_painting_cursor()
     })
 
     document.addEventListener('pointercancel', (event: PointerEvent) => {
@@ -155,6 +318,7 @@ export class EventListeners {
         return
       }
 
+      this.bootstrap.handle_weight_paint_pointer_up(event)
       this.bootstrap.handle_mesh_drag_mode_mouse_up()
 
       if (this.active_canvas_pointer_id !== null &&
@@ -164,7 +328,7 @@ export class EventListeners {
 
       this.active_canvas_pointer_id = null
       this.bootstrap.ui.hide_selected_bone_overlay()
-      this.bootstrap.renderer.domElement.style.cursor = ''
+      this.update_weight_painting_cursor()
     })
 
     // custom event listeners for the transform controls.
@@ -223,12 +387,26 @@ export class EventListeners {
     })
 
     this.bootstrap.load_model_step.addEventListener('modelLoaded', () => {
+      this.bootstrap.edit_skeleton_step.reset_weight_paint_overrides()
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.LoadSkeleton)
     })
 
     this.bootstrap.ui.dom_bind_pose_button?.addEventListener('click', () => {
       this.bootstrap.setup_weight_skinning_config()
-      this.bootstrap.process_step_changed(ProcessStep.BindPose)
+
+      // the weight painting step is optional, so skip it unless the user
+      // enabled it while positioning the bones
+      const weight_paint_step_enabled = this.bootstrap.ui.dom_enable_weight_paint_step?.checked ?? false
+      this.bootstrap.process_step_changed(
+        weight_paint_step_enabled ? ProcessStep.WeightPainting : ProcessStep.BindPose)
+    })
+
+    this.bootstrap.ui.dom_back_to_edit_skeleton_from_weight_paint_button?.addEventListener('click', () => {
+      this.bootstrap.back_to_edit_skeleton()
+    })
+
+    this.bootstrap.ui.dom_continue_to_animations_button?.addEventListener('click', () => {
+      this.bootstrap.process_step_changed(ProcessStep.AnimationsListing)
     })
 
     // rotate model after loading it in to orient it correctly
@@ -307,18 +485,16 @@ export class EventListeners {
         })
     })
 
-    // going back to edit skeleton step after skinning
-    // this will do a lot of resetting
+    // going back from the animation listing returns to weight painting when
+    // that optional step is enabled, otherwise it goes straight back to the bones
     this.bootstrap.ui.dom_back_to_edit_skeleton_button?.addEventListener('click', () => {
-      this.bootstrap.remove_skinned_meshes_from_scene() // clear any existing skinned meshes
-      this.bootstrap.debugging_visual_object = Utility.regenerate_debugging_scene(this.bootstrap.scene)
-      this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.EditSkeleton)
+      const weight_paint_step_enabled = this.bootstrap.ui.dom_enable_weight_paint_step?.checked ?? false
+      if (weight_paint_step_enabled) {
+        this.bootstrap.process_step_changed(ProcessStep.WeightPainting)
+        return
+      }
 
-      // reset current bone selection for edit skeleton step
-      this.bootstrap.edit_skeleton_step.set_currently_selected_bone(null)
-
-      // reset the undo/redo system
-      this.bootstrap.edit_skeleton_step.clear_undo_history()
+      this.bootstrap.back_to_edit_skeleton()
     })
 
     // going back to load skeleton step from edit skeleton step
@@ -372,8 +548,11 @@ export class EventListeners {
 
     // Keyboard shortcuts for undo/redo
     document.addEventListener('keydown', (event: KeyboardEvent) => {
-      // Only handle keyboard shortcuts when in EditSkeleton step
-      if (this.bootstrap.process_step !== ProcessStep.EditSkeleton) {
+      const is_edit_step = this.bootstrap.process_step === ProcessStep.EditSkeleton
+      const is_weight_painting_step = this.bootstrap.process_step === ProcessStep.WeightPainting
+
+      // Only handle keyboard shortcuts in these steps
+      if (!is_edit_step && !is_weight_painting_step) {
         return
       }
 
@@ -385,12 +564,25 @@ export class EventListeners {
 
       if (is_undo_shortcut_pressed) {
         event.preventDefault()
-        this.bootstrap.edit_skeleton_step.undo_bone_transformation()
+        if (is_edit_step) {
+          if (this.bootstrap.edit_skeleton_step.is_weight_painting_enabled() &&
+            this.bootstrap.edit_skeleton_step.weight_paint_manager.can_undo()) {
+            this.bootstrap.edit_skeleton_step.undo_weight_paint_stroke()
+          } else {
+            this.bootstrap.edit_skeleton_step.undo_bone_transformation()
+          }
+        } else if (is_weight_painting_step) {
+          this.bootstrap.weight_painting_step.undo_weight_paint_stroke()
+        }
       }
 
       if (is_redo_shortcut_pressed) {
         event.preventDefault()
-        this.bootstrap.edit_skeleton_step.redo_bone_transformation()
+        if (is_edit_step) {
+          this.bootstrap.edit_skeleton_step.redo_bone_transformation()
+        } else if (is_weight_painting_step) {
+          this.bootstrap.weight_painting_step.redo_weight_paint_stroke()
+        }
       }
     })
   }

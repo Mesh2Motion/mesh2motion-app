@@ -70,9 +70,13 @@ export class UI {
   dom_arm_plane_offset_label: HTMLElement | null = null
   dom_arm_plane_setting_container: HTMLElement | null = null
 
+  dom_weight_paint_step_tools: HTMLElement | null = null
+  dom_enable_weight_paint_step: HTMLInputElement | null = null
   dom_skinned_mesh_tools: HTMLElement | null = null
   dom_skinned_mesh_animation_tools: HTMLElement | null = null
   dom_back_to_edit_skeleton_button: HTMLButtonElement | null = null
+  dom_back_to_edit_skeleton_from_weight_paint_button: HTMLButtonElement | null = null
+  dom_continue_to_animations_button: HTMLButtonElement | null = null
   dom_back_to_load_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_model_button: HTMLButtonElement | null = null
   dom_enable_skin_debugging: HTMLInputElement | null = null
@@ -218,11 +222,17 @@ export class UI {
     this.dom_scale_skeleton_percentage_display = document.querySelector('#scale-skeleton-percentage-display')
     this.dom_scale_skeleton_controls = document.querySelector('#scale-skeleton-controls')
 
+    // UI controls for the optional weight painting step
+    this.dom_weight_paint_step_tools = document.querySelector('#weight-paint-step-tools')
+    this.dom_enable_weight_paint_step = document.querySelector('#enable-weight-paint-step')
+
     // UI controls for working with skinned mesh
     this.dom_skinned_mesh_tools = document.querySelector('#skinned-step-tools')
     this.dom_skinned_mesh_animation_tools = document.querySelector('#skinned-step-animation-export-options')
 
     this.dom_back_to_edit_skeleton_button = document.querySelector('#action_back_to_edit_skeleton')
+    this.dom_back_to_edit_skeleton_from_weight_paint_button = document.querySelector('#action_back_to_edit_skeleton_from_weight_paint')
+    this.dom_continue_to_animations_button = document.querySelector('#action_continue_to_animations')
     this.dom_back_to_load_skeleton_button = document.querySelector('#action_back_to_load_skeleton')
     this.dom_back_to_load_model_button = document.querySelector('#action_back_to_load_model')
 
@@ -290,6 +300,9 @@ export class UI {
     }
     if (this.dom_skeleton_edit_tools != null) {
       this.dom_skeleton_edit_tools.style.display = 'none'
+    }
+    if (this.dom_weight_paint_step_tools != null) {
+      this.dom_weight_paint_step_tools.style.display = 'none'
     }
     if (this.dom_skinned_mesh_tools != null) {
       this.dom_skinned_mesh_tools.style.display = 'none'

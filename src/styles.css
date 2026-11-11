@@ -96,13 +96,18 @@ nav .active-nav-item, nav a:hover {
 /* this was just a star (*) selector, but dark reader extension cannot parse that and crashes 
  It really just targets text related elements, so just use those instead
 */
-html, body, li, p, div, span, label, input, 
+html, body, li, p, div, span, label, input,
 h1, h2, h3, h4, h5, h6, input, button, select {
     color: var(--text-primary);
     font-family: 'Jost', sans-serif;
     font-size: 14px;
     font-weight: 400;
     display: inline-block;
+}
+
+/* the display rule above otherwise overrides the browser's [hidden] rule */
+[hidden] {
+    display: none !important;
 }
 
 div, p {
@@ -263,6 +268,95 @@ button.secondary-button.play:hover {
     border: 1px solid var(--text-primary);
     transition: all 0.4s ease;
     transform: scale(1.0);
+}
+
+/* icon-only bone picker in the weight painting step */
+#weight-paint-step-pick-bone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.75rem;
+}
+
+#weight-paint-step-pick-bone[aria-pressed="true"] {
+    outline: 2px solid var(--button-primary-bg);
+    outline-offset: 1px;
+}
+
+/* fixed-size, hairline brush outline shown while painting weights */
+#weight-paint-brush-cursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 48px;
+    height: 48px;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: none;
+    z-index: 20;
+}
+
+.weight-paint-tools-heading {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.weight-paint-bone-name {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+}
+
+.weight-paint-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.weight-paint-slider-row label {
+    flex: 0 0 auto;
+}
+
+.weight-paint-slider-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.weight-paint-slider-row span {
+    width: 3.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.weight-paint-animation-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.weight-paint-animation-button {
+    background: var(--bg-alternate);
+    color: var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 0.25rem;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.weight-paint-animation-button:hover {
+    border-color: var(--text-primary);
+}
+
+.weight-paint-animation-button.active {
+    background: var(--button-primary-bg);
+    border-color: var(--button-primary-bg);
 }
 
 button.no-style-button {
@@ -513,7 +607,7 @@ option {
     font-size: 20px;
 }
 
-#load-model-tools, #load-skeleton-tools, #transform-controls, #skeleton-step-actions {
+#load-model-tools, #load-skeleton-tools, #transform-controls, #skeleton-step-actions, #weight-paint-step-tools {
     display: flex;
     flex-direction: column;
     row-gap: 0.4rem;

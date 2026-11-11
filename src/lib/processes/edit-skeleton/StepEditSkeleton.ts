@@ -1,3 +1,5 @@
+import { type ManualWeightOverrides, type WeightPaintManager } from '../weight-painting/WeightPaintManager.ts'
+import { WeightPaintEditTools } from '../weight-painting/WeightPaintEditTools.ts'
 import { UI } from '../../UI.ts'
 import { Generators } from '../../Generators.ts'
 import { Utility } from '../../Utilities.ts'
@@ -14,6 +16,7 @@ import {
   Skeleton,
   type Scene,
   type Bone,
+  type Intersection,
   BufferGeometry,
   PointsMaterial,
   Points,
@@ -46,6 +49,13 @@ export class StepEditSkeleton extends EventTarget {
   private skinning_algorithm: string | null = null
   private show_debug: boolean = true
 
+  /** Weight painting tools shown while positioning the joints. */
+  public readonly weight_paint_tools = new WeightPaintEditTools()
+
+  public get weight_paint_manager (): WeightPaintManager {
+    return this.weight_paint_tools.manager
+  }
+
   private currently_selected_bone: Bone | null = null
 
   private joint_hover_point: Object3D | null = null
@@ -75,6 +85,15 @@ export class StepEditSkeleton extends EventTarget {
     super()
     this.ui = UI.getInstance()
     this.undo_redo_system = new UndoRedoSystem(50) // Store up to 50 undo states
+
+    // the paint tools own their state, but the engine listens on this step
+    this.weight_paint_tools.addEventListener('weightPaintModeChanged', (event) => {
+      const detail = (event as CustomEvent<{ enabled: boolean }>).detail
+      this.dispatchEvent(new CustomEvent('weightPaintModeChanged', { detail }))
+    })
+    this.weight_paint_tools.addEventListener('weightPaintChanged', () => {
+      this.dispatchEvent(new CustomEvent('weightPaintChanged'))
+    })
   }
 
   /**
@@ -168,6 +187,8 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public begin (main_scene: Scene, skeleton_type: SkeletonType): void {
+    this._current_skeleton_type = skeleton_type
+    this.weight_paint_tools.begin(this.threejs_skeleton.bones)
     this.update_ui_options_on_begin(skeleton_type)
 
     // show UI elements for editing mesh
@@ -291,14 +312,19 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   private update_bind_button_text (): void {
-    if (this.show_debug && this.ui.dom_bind_pose_button !== null) {
+    if (this.ui.dom_bind_pose_button === null) { return }
+
+    if (this.ui.dom_enable_weight_paint_step?.checked === true) {
+      this.ui.dom_bind_pose_button.innerHTML = 'Weight painting &nbsp;&#x203a;'
+      return
+    }
+
+    if (this.show_debug) {
       this.ui.dom_bind_pose_button.innerHTML = 'Test Skinning Algorithm &nbsp;&#x203a;'
       return
     }
 
-    if (this.ui.dom_bind_pose_button !== null) {
-      this.ui.dom_bind_pose_button.innerHTML = 'Finish &nbsp;&#x203a;'
-    }
+    this.ui.dom_bind_pose_button.innerHTML = 'Finish &nbsp;&#x203a;'
   }
 
   public show_debugging (): boolean {
@@ -442,6 +468,57 @@ export class StepEditSkeleton extends EventTarget {
     return this.arm_plane_offset
   }
 
+  public manual_weight_overrides (): ManualWeightOverrides {
+    return this.weight_paint_tools.overrides_for_skin()
+  }
+
+  public set_weight_paint_available (available: boolean): void {
+    this.weight_paint_tools.set_available(available)
+  }
+
+  public is_weight_painting_enabled (): boolean {
+    return this.weight_paint_tools.is_enabled()
+  }
+
+  public set_weight_painting_enabled (enabled: boolean): void {
+    const was_enabled = this.weight_paint_tools.is_enabled()
+    this.weight_paint_tools.set_enabled(enabled)
+    if (enabled && !was_enabled && this.weight_paint_tools.is_enabled()) {
+      this.set_currently_selected_bone(null)
+    }
+  }
+
+  public begin_weight_paint_stroke (): void {
+    this.weight_paint_tools.begin_stroke()
+  }
+
+  public end_weight_paint_stroke (): void {
+    this.weight_paint_tools.end_stroke()
+  }
+
+  /** Breaks the drag sweep when the pointer leaves the mesh. */
+  public reset_weight_paint_dab_path (): void {
+    this.weight_paint_tools.reset_dab_path()
+  }
+
+  /** Paints (or smooths) the selected bone under the brush. */
+  public paint_weights (intersection: Intersection, camera: PerspectiveCamera): void {
+    this.weight_paint_tools.paint(intersection, camera)
+  }
+
+  public undo_weight_paint_stroke (): void {
+    this.weight_paint_tools.undo_stroke()
+  }
+
+  public clear_weight_paint (): void {
+    this.weight_paint_tools.clear()
+  }
+
+  /** Used when a different model is loaded, since vertex indices no longer match. */
+  public reset_weight_paint_overrides (): void {
+    this.weight_paint_tools.reset()
+  }
+
   public add_event_listeners (): void {
     if (this.ui.dom_move_to_origin_button !== null) {
       this.ui.dom_move_to_origin_button.addEventListener('click', () => {
@@ -487,6 +564,10 @@ export class StepEditSkeleton extends EventTarget {
       }
 
       this.show_debug = target.checked
+      this.update_bind_button_text()
+    })
+
+    this.ui.dom_enable_weight_paint_step?.addEventListener('change', () => {
       this.update_bind_button_text()
     })
 
@@ -625,6 +706,7 @@ export class StepEditSkeleton extends EventTarget {
   }
 
   public cleanup_on_exit_step (): void {
+    this.set_weight_painting_enabled(false)
     this.remove_event_listeners()
     this.clear_hover_point_if_exists()
     this.remove_preview_plane()
