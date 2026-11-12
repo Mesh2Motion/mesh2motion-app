@@ -1,15 +1,12 @@
 import {
-  AnimationClip, QuaternionKeyframeTrack,
+  AnimationClip, Quaternion, QuaternionKeyframeTrack,
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
-  type Skeleton
+  type Skeleton, Vector3
 } from 'three'
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { HumanClipRetargeter } from './human-retargeting/HumanClipRetargeter.ts'
-import { Rig } from './human-retargeting/Rig.ts'
-import { HumanChainConfig } from './human-retargeting/HumanChainConfig.ts'
-import { RetargetDiagnostics, type RestPoseSnapshot } from './RetargetDiagnostics.ts'
+import { BindCorrectionRetargeter } from './human-retargeting/BindCorrectionRetargeter.ts'
 
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing
@@ -207,70 +204,52 @@ export class AnimationRetargetService {
   // #region PRIVATE METHODS
 
   private apply_human_swing_twist_retargeting (source_clip: AnimationClip): AnimationClip {
-    // the retargeter needs Skeleton inputs for both source and target.
-    // the source armature is a Group, so we need to convert to a THREE.Skeleton before we can continue
     const source_skeleton: Skeleton | null = RetargetUtils.create_skeleton_from_group_object(this.source_armature)
     if (source_skeleton === null) {
-      console.error('Failed to extract source skeleton from source armature for Human Retargeter.')
+      console.error('Failed to extract source skeleton from source armature.')
       return source_clip.clone()
     }
 
     if (this.target_skinned_meshes.length === 0) {
-      console.error('No target skinned meshes available for Human Retargeter.')
+      console.error('No target skinned meshes available.')
       return source_clip.clone()
     }
 
-    // snapshot the REAL target rest pose before anything clones or drives it. Every
-    // consistency check below is measured against this reference
-    const target_rest_snapshot: RestPoseSnapshot =
-      RetargetDiagnostics.capture_rest_snapshot(this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
-    const source_rest_snapshot: RestPoseSnapshot =
-      RetargetDiagnostics.capture_rest_snapshot(source_skeleton)
-
-    // we don't want to mutate/modify the original target skeleton since it is shared
-    // across the app and will create issues as we change animations for retargeting later.
     const detached_target_skeleton: Skeleton = RetargetUtils.clone_skeleton(
       this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
 
-    // create a custom "Rig" for the source and the target skeletons
-    const source_rig: Rig = new Rig(source_skeleton)
-    const target_rig: Rig = new Rig(detached_target_skeleton)
+    const corrections = BindCorrectionRetargeter.compute_bind_corrections(
+      source_skeleton, detached_target_skeleton, this.get_bone_mappings())
 
-    // Build the chain configs from the bone mapping we actually have, whatever rig
-    // type was detected. There used to be a shortcut here that fed the Mixamo rig a
-    // hardcoded config, but that config spells every bone with a "mixamorig" prefix,
-    // so a Mixamo rig exported without the prefix resolved to no joints at all and
-    // came out as an empty rig. The bone mapping already encodes the same chains
-    // using the target's real bone names, so there is nothing to shortcut.
-    // the source here is always the Mesh2Motion rig, the target is the uploaded rig
-    const { mesh2motion_config, other_rig_config } = HumanChainConfig.build_mapped_chain_configs(this.get_bone_mappings())
+    // hip height scaling
+    let hip_scale = 1
+    source_skeleton.bones[0]?.updateMatrixWorld(true)
+    const source_hip_y = source_skeleton.bones[0]?.getWorldPosition(new Vector3()).y ?? 0
+    detached_target_skeleton.bones[0]?.updateMatrixWorld(true)
+    const target_hip_y = detached_target_skeleton.bones[0]?.getWorldPosition(new Vector3()).y ?? 0
+    if (source_hip_y > 0.05 && target_hip_y > 0.05) {
+      hip_scale = Math.min(200, Math.max(0.2, target_hip_y / source_hip_y))
+    }
 
-    source_rig.fromConfig(mesh2motion_config)
-    target_rig.fromConfig(other_rig_config)
+    let root_correction_quat: Quaternion | null = null
+    if (this.root_correction_x_degrees !== 0) {
+      root_correction_quat = new Quaternion().setFromAxisAngle(
+        new Vector3(1, 0, 0), this.root_correction_x_degrees * Math.PI / 180)
+    }
 
-    // instrumentation. Runs before the retargeter drives anything, so the rigs are still
-    // holding the rest pose they captured. See RetargetDiagnostics for why each check exists
-    RetargetDiagnostics.report_skeleton_structure('TARGET', this.target_skinned_meshes[0].skeleton)
-    RetargetDiagnostics.report_skeleton_structure('SOURCE', source_skeleton)
-    RetargetDiagnostics.report_pose_fidelity('TARGET', target_rest_snapshot, target_rig)
-    RetargetDiagnostics.report_pose_fidelity('SOURCE', source_rest_snapshot, source_rig)
-    RetargetDiagnostics.report_source_consistency(source_rig, source_skeleton)
+    const position_bone_name = source_skeleton.bones.find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
+    )?.name ?? null
 
-    const retargeted_clip: AnimationClip = HumanClipRetargeter.retarget(source_clip, source_rig, target_rig, {
-      clip_name: `${source_clip.name} RT`, // RT means retargeted
-      // apply any global rig correction the user has set
-      root_correction_x_degrees: this.root_correction_x_degrees
-    })
+    const retargeted_clip = BindCorrectionRetargeter.retarget(
+      source_clip, corrections, this.get_bone_mappings(), {
+        hip_scale,
+        root_correction_quat,
+        position_bone_name
+      })
 
-    // the decisive check: any UNMAPPED bone that moves off its rest pose on frame 0 is
-    // carrying a corrupted rest pose out of the cloned skeleton
-    RetargetDiagnostics.report_baked_frame_zero(
-      retargeted_clip.tracks as Array<QuaternionKeyframeTrack | VectorKeyframeTrack>, target_rest_snapshot, target_rig)
-
-    console.log(`Swing-Twist retargeting complete: ${source_clip.name} -> ${retargeted_clip.name}`)
-    console.log('getting source clip before bone correction:', source_clip.tracks)
-    console.log('getting retargeted clip:', retargeted_clip.tracks)
-
+    retargeted_clip.name = `${source_clip.name} RT`
+    console.log(`Bind-correction retargeting complete: ${source_clip.name} -> ${retargeted_clip.name} (${corrections.size} bone corrections, hip scale ${hip_scale.toFixed(3)})`)
     return retargeted_clip
   }
 
