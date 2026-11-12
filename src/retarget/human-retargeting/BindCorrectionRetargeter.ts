@@ -17,7 +17,6 @@ export interface BindCorrectionRetargetOptions {
   position_bone_name: string | null
 }
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class BindCorrectionRetargeter {
   /**
    * Compute per-bone local and world rest quaternions by walking the skeleton hierarchy.
