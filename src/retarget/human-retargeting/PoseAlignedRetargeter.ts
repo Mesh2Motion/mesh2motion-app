@@ -21,6 +21,19 @@ export interface ProportionSettings {
    * line and to each other, so they meet instead of crossing or stopping short.
    */
   keep_limb_spacing: boolean
+  /**
+   * Keep a hand (or foot) that is close to another part of the body on the source at
+   * the same offset from that part on the target: a hand hanging by the thigh, on
+   * the hip, on the opposite arm, at the head. Stops arms swinging into the legs on
+   * a target with narrower shoulders or wider hips.
+   */
+  keep_body_clearance: boolean
+  /**
+   * Multiplies those offsets. Bone lengths say nothing about how thick a body is, so
+   * raise it (1.2, 1.5) for a bulky target whose hands still sink in, lower it for a
+   * slim one whose hands hover.
+   */
+  body_clearance_scale: number
   /** Set the body's height, and each leg, so planted feet sit on the floor. */
   ground_feet: boolean
   /** Put hands down on the floor when the source has them there (push-ups, crawling). */
@@ -49,6 +62,8 @@ export interface ProportionSettings {
 
 export const DEFAULT_PROPORTION_SETTINGS: Readonly<ProportionSettings> = {
   keep_limb_spacing: true,
+  keep_body_clearance: true,
+  body_clearance_scale: 1,
   ground_feet: true,
   ground_hands: true,
   body_height_smoothing: 0.15,
@@ -414,7 +429,8 @@ export class PoseAlignedRetargeter {
     }
 
     // Where a limb's end joint should go on the frame both skeletons are posed for
-    const limb_goal = (limb: ProportionLimb, out: Vector3): Vector3 => {
+    const last_contact = new Map(limbs.map(limb => [limb, { position: new Vector3(), frame: -2 }]))
+    const limb_goal = (limb: ProportionLimb, out: Vector3, frame: number): Vector3 => {
       // the legs take up what the body's height left over for each foot. Hands
       // only come into it when the source has them down on the floor
       const use_floor = limb.floor_known && (limb.grounded ? settings.ground_feet : settings.ground_hands)
@@ -422,7 +438,24 @@ export class PoseAlignedRetargeter {
         ? -(limb.grounded ? standing : 1) * LimbProportionCorrector.floor_weight(limb) *
           LimbProportionCorrector.height_error(limb, translation_scale)
         : 0
-      return LimbProportionCorrector.compute_goal(limb, out, lift, settings.keep_limb_spacing)
+      LimbProportionCorrector.compute_goal(limb, out, lift, settings.keep_limb_spacing)
+      // not for the limbs being stood on: where a foot goes is the floor's business,
+      // and feet passing each other are already kept apart by their spacing
+      if (settings.keep_body_clearance && !limb.grounded) {
+        // A hand whipping past the body is not resting near anything, and a clearance
+        // that cuts in for a single frame of it only shows as a twitch. So it lets go
+        // as the hand's speed against the body rises from 1.5 to 4.5 m/s on a
+        // human-sized hand (a quarter to three quarters of a hand-length per 1/30 s)
+        const position = LimbProportionCorrector.source_contact_on_body(limb, _v2)
+        const last = last_contact.get(limb)!
+        const speed = last.frame === frame - 1 ? position.distanceTo(last.position) * options.fps : 0
+        last.position.copy(position)
+        last.frame = frame
+        const hand_lengths_per_second = speed / limb.source_contact_size
+        const t = Math.min(1, Math.max(0, (hand_lengths_per_second - 7.5) / 15))
+        LimbProportionCorrector.keep_clearance(limb, out, settings.body_clearance_scale, 1 - t * t * (3 - 2 * t))
+      }
+      return out
     }
 
     // ── Sweep 2 (only with limb smoothing): average each limb end's correction ──
@@ -435,7 +468,7 @@ export class PoseAlignedRetargeter {
         copy_pose(frame)
         set_body_height(frame)
         limbs.forEach((limb, index) => {
-          limb_goal(limb, _goal).sub(limb.target_end.getWorldPosition(_v))
+          limb_goal(limb, _goal, frame).sub(limb.target_end.getWorldPosition(_v))
             .applyQuaternion(limb.target_anchor.getWorldQuaternion(_q).invert())
           offsets_by_limb[index][0][frame] = _goal.x
           offsets_by_limb[index][1][frame] = _goal.y
@@ -458,7 +491,7 @@ export class PoseAlignedRetargeter {
         set_body_height(frame)
         limbs.forEach((limb, index) => {
           if (limb_offsets === null) {
-            limb_goal(limb, _goal)
+            limb_goal(limb, _goal, frame)
           } else {
             const offset = limb_offsets[index]
             _goal.set(offset[0][frame], offset[1][frame], offset[2][frame])

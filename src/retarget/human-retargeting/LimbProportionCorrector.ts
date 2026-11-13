@@ -61,9 +61,28 @@ export interface ProportionLimb {
   floor_known: boolean
   /** World direction pointing away from the floor, worked out from the rest pose. Shared by all limbs. */
   up: Vector3
+  /**
+   * Other parts of the body this limb's contact point can come up against: the
+   * segments of the other limbs, the torso, the head. See keep_clearance.
+   */
+  nearby: BodySegment[]
   /** Contact point in world space with each skeleton standing in its own rest pose. */
   source_rest_contact: Vector3
   target_rest_contact: Vector3
+}
+
+/** A straight stretch of the body between two joints, on both skeletons. */
+export interface BodySegment {
+  source_from: Bone
+  source_to: Bone
+  target_from: Bone
+  target_to: Bone
+  /** target size / source size: how distances from this segment are rescaled */
+  scale: number
+  /** the limb it is part of, null for torso and head */
+  limb: ProportionLimb | null
+  /** true for a limb's outer half (forearm, shin) */
+  outer: boolean
 }
 
 interface Measurement {
@@ -79,6 +98,16 @@ interface Measurement {
 
 function new_measurement (): Measurement {
   return { axis: new Vector3(), source_along: 0, target_along: 0, source_across: new Vector3(), target_across: new Vector3() }
+}
+
+/** Closest point to `point` on the segment from..to, written to `out`. */
+function nearest_on_segment (point: Vector3, from: Vector3, to: Vector3, out: Vector3): Vector3 {
+  out.subVectors(to, from)
+  const length_squared = out.lengthSq()
+  const along = length_squared > 0
+    ? Math.min(1, Math.max(0, (point.dot(out) - from.dot(out)) / length_squared))
+    : 0
+  return out.multiplyScalar(along).add(from)
 }
 
 function smoothstep (x: number, from: number, to: number): number {
@@ -118,6 +147,10 @@ const _swing = new Quaternion()
 const _q = new Quaternion()
 const _own = new_measurement()
 const _twin = new_measurement()
+const _segment = new Vector3()
+const _nearest = new Vector3()
+const _wanted = new Vector3()
+const _pull = new Vector3()
 
 /**
  * Corrects limb end positions for proportion differences between two skeletons.
@@ -263,6 +296,8 @@ export class LimbProportionCorrector {
     }
 
     const limbs: ProportionLimb[] = []
+    const limb_joints = new Map<ProportionLimb, LimbJoints>()
+    const anchors: Array<{ anchor: Bone, loose: Bone[] }> = []
     const queue: Bone[] = [...top_level]
     while (queue.length > 0) {
       const anchor = queue.shift() as Bone
@@ -295,11 +330,69 @@ export class LimbProportionCorrector {
         limbs.push(...pair)
         paired.add(one.child)
         paired.add(other.child)
+        limb_joints.set(pair[0], one.joints as LimbJoints)
+        limb_joints.set(pair[1], other.joints as LimbJoints)
       }
 
       for (const candidate of candidates) {
         if (!paired.has(candidate.child)) queue.push(candidate.child)
       }
+      if (paired.size > 0) {
+        anchors.push({ anchor, loose: candidates.map(c => c.child).filter(child => !paired.has(child)) })
+      }
+    }
+
+    // ── the parts of the body a limb end can come up against ──
+    const source_bone = (bone: Bone): Bone => source_by_name.get(bone_mapping.get(bone.name) as string) as Bone
+    const segments: BodySegment[] = []
+    // How thick a body is does not show in its skeleton. Overall size is the best
+    // stand-in there is: the average of how the limbs' lengths compare.
+    const body_scale = limbs.length > 0
+      ? limbs.reduce((sum, limb) => sum + limb.length_ratio, 0) / limbs.length
+      : 1
+    const add_segment = (from: Bone, to: Bone, limb: ProportionLimb | null, outer: boolean): void => {
+      const source_length = world(source_bone(from)).distanceTo(world(source_bone(to)))
+      const target_length = world(from).distanceTo(world(to))
+      if (source_length < MIN_LENGTH || target_length < MIN_LENGTH) return
+      segments.push({
+        source_from: source_bone(from),
+        source_to: source_bone(to),
+        target_from: from,
+        target_to: to,
+        scale: body_scale,
+        limb,
+        outer
+      })
+    }
+    const is_above = (ancestor: Bone, bone: Bone): boolean => {
+      for (let current = bone.parent; current !== null; current = current.parent) {
+        if (current === ancestor) return true
+      }
+      return false
+    }
+    for (const [limb, joints] of limb_joints) {
+      add_segment(joints.root, joints.mid, limb, false)
+      add_segment(joints.mid, joints.end, limb, true)
+    }
+    for (const { anchor, loose } of anchors) {
+      // torso: from the anchor above (hips) to this one (chest)
+      const above = anchors.map(other => other.anchor).filter(other => is_above(other, anchor))
+        .sort((a, b) => world(a).distanceTo(world(anchor)) - world(b).distanceTo(world(anchor)))[0]
+      if (above !== undefined) add_segment(above, anchor, null, false)
+
+      // whatever else sticks out of it without leading to more limbs: neck and head
+      for (const child of loose) {
+        if (anchors.some(other => other.anchor === child || is_above(child, other.anchor))) continue
+        let tip = child
+        for (let next = longest_child.get(tip); next !== undefined; next = longest_child.get(next)) tip = next
+        if (tip !== child) add_segment(child, tip, null, false)
+      }
+    }
+    for (const limb of limbs) {
+      // not its own segments, and not its twin's outer half: where two hands or feet
+      // come together is already settled between the two of them in compute_goal
+      limb.nearby = segments.filter(segment =>
+        segment.limb !== limb && !(segment.limb === limb.twin && segment.outer))
     }
 
     // ── which way is up, where is the floor, who stands on it ──
@@ -403,8 +496,9 @@ export class LimbProportionCorrector {
         grounded: false,
         floor_known: false,
         source_floor: 0,
-        target_floor: 0
-      } as ProportionLimb)
+        target_floor: 0,
+        nearby: []
+      } as unknown as ProportionLimb)
     }
     pair[0].twin = pair[1]
     pair[1].twin = pair[0]
@@ -533,6 +627,93 @@ export class LimbProportionCorrector {
       out.addScaledVector(_across, 0.5 * together)
     }
     return out
+  }
+
+  /**
+   * Keep the limb's contact point clear of the rest of the body.
+   *
+   * Where the source has the contact point close to another part of the body (a hand
+   * hanging by the thigh, resting on the hip, on the opposite upper arm, at the
+   * head), what matters is how far it is from that part, not from its own shoulder:
+   * on a target with narrower shoulders and wider hips, copying the arm's direction
+   * swings the hand into the leg. So the nearer the source's contact point is to a
+   * segment, the more the target's is moved towards or away from its own matching
+   * segment, on the side the source is on, until it is the same distance off,
+   * rescaled to the target's size. Beyond one and a half hand-lengths away a segment has no say.
+   *
+   * Only the distance is carried over, not the position along the segment: where
+   * exactly two rigs put a neck or chest joint differs too much to trust.
+   *
+   * @param goal end joint goal from compute_goal, adjusted in place
+   * @param scale extra factor on the distances, for a target bulkier or slimmer than
+   *   its bone lengths suggest
+   * @param strength 0..1, how much of the move to apply
+   */
+  static keep_clearance (limb: ProportionLimb, goal: Vector3, scale: number = 1, strength: number = 1): Vector3 {
+    if (strength <= 0) return goal
+    const source_contact = limb.source_end.localToWorld(_from.copy(limb.source_contact))
+    // the end bone keeps its world rotation, so the contact point moves as the joint does
+    const end_to_contact = limb.target_end.localToWorld(_to.copy(limb.target_contact))
+      .sub(limb.target_end.getWorldPosition(_c))
+    const contact_goal = _a.copy(goal).add(end_to_contact)
+
+    const full = 0.75 * limb.source_contact_size
+    const none = 1.5 * limb.source_contact_size
+    // The part it is closest to is the one it would run into, so that one decides.
+    // Others count for less the further behind it they are (a hand by the thigh is
+    // also near the hip end of the torso, whose bone says little about hip width)
+    let closest = Infinity
+    for (const segment of limb.nearby) {
+      segment.source_from.getWorldPosition(_b)
+      segment.source_to.getWorldPosition(_segment)
+      closest = Math.min(closest, source_contact.distanceTo(nearest_on_segment(source_contact, _b, _segment, _nearest)))
+    }
+    if (closest >= none) return goal
+    const falloff = 0.3 * limb.source_contact_size
+
+    _pull.set(0, 0, 0)
+    let weights = 0
+    for (const segment of limb.nearby) {
+      // how far the source's contact point is from its segment, and in which direction
+      segment.source_from.getWorldPosition(_b)
+      segment.source_to.getWorldPosition(_segment)
+      nearest_on_segment(source_contact, _b, _segment, _nearest)
+      const source_distance = source_contact.distanceTo(_nearest)
+      const weight = (1 - smoothstep(source_distance, full, none)) * Math.exp(-(source_distance - closest) / falloff)
+      if (weight <= 1e-4) continue
+      if (source_distance < MIN_LENGTH) continue
+      // the side of the segment the source is on. Measuring the target along this,
+      // not along its own offset, stays steady when rotation copying has left the
+      // target's contact point on the bone's line or out the far side of it
+      _wanted.subVectors(source_contact, _nearest).divideScalar(source_distance)
+
+      segment.target_from.getWorldPosition(_b)
+      segment.target_to.getWorldPosition(_segment)
+      nearest_on_segment(contact_goal, _b, _segment, _nearest)
+      const target_distance = _nearest.subVectors(contact_goal, _nearest).dot(_wanted)
+
+      _pull.addScaledVector(_wanted, weight * (source_distance * segment.scale * scale - target_distance))
+      weights += weight
+    }
+    if (weights <= 0) return goal
+
+    // levels off at one hand-length: past that the two bodies differ too much for
+    // one limb's reach to make up, and trying only wrenches the arm
+    _pull.divideScalar(Math.max(1, weights))
+    const most = limb.source_contact_size * limb.contact_ratio
+    const asked = _pull.length()
+    if (asked > MIN_LENGTH) goal.addScaledVector(_pull, strength * most * Math.tanh(asked / most) / asked)
+    return goal
+  }
+
+  /**
+   * The source's contact point relative to the limb's anchor, in the anchor's own
+   * orientation and in world units. Comparing it between frames gives how fast the
+   * hand is moving against the body.
+   */
+  static source_contact_on_body (limb: ProportionLimb, out: Vector3): Vector3 {
+    limb.source_end.localToWorld(out.copy(limb.source_contact)).sub(limb.source_anchor.getWorldPosition(_b))
+    return out.applyQuaternion(limb.source_anchor.getWorldQuaternion(_q).invert())
   }
 
   /** Height of the source's contact point above its floor, as posed now. */
