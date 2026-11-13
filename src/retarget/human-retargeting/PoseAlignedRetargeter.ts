@@ -141,22 +141,32 @@ export class PoseAlignedRetargeter {
       tgt_chain_lengths.set(target_name, tgt_len)
     }
 
-    // Detect limb chains by finding the first bone in each limb that has significant
-    // lateral offset from the body center. Compute scale from the full limb measurement:
-    //   scale = (tgt_joint_offset × src_extremity_reach) / (src_joint_offset × tgt_extremity_reach)
-    // where joint_offset = distance from body center to the limb's root joint
-    // and extremity_reach = distance from root joint to the chain's end (hand/foot)
+    // Compute chain reach as sum of bone segment lengths (not world distance,
+    // which is distorted by pose angle). Segment length = child.position.length()
+    // in the rest skeleton — the geometric bone length regardless of pose.
+    const src_segment_reach = new Map<string, number>()
+    const tgt_segment_reach = new Map<string, number>()
 
-    // Find the extremity (furthest descendant) for each bone
-    const extremity_of = new Map<string, string>()
-    for (const [target_name, source_name] of sorted_mapping) {
-      let furthest_tgt = target_name
-      let cur = target_name
-      while (main_child.has(cur)) { cur = main_child.get(cur)!; furthest_tgt = cur }
-      extremity_of.set(target_name, furthest_tgt)
+    // Walk leaf-first to accumulate segment lengths upward
+    for (let i = sorted_mapping.length - 1; i >= 0; i--) {
+      const [target_name, source_name] = sorted_mapping[i]
+      const child_target = main_child.get(target_name)
+      let src_len = 0, tgt_len = 0
+      if (child_target !== undefined) {
+        const child_source = bone_mapping.get(child_target)
+        const src_child = child_source ? source_by_name.get(child_source) : undefined
+        const tgt_child = target_by_name.get(child_target)
+        if (src_child && tgt_child) {
+          src_len = src_child.position.length() + (src_segment_reach.get(child_source!) ?? 0)
+          tgt_len = tgt_child.position.length() + (tgt_segment_reach.get(child_target) ?? 0)
+        }
+      }
+      src_segment_reach.set(source_name, src_len)
+      tgt_segment_reach.set(target_name, tgt_len)
     }
 
-    // Compute scale for bones that are limb joints (offset from center > threshold)
+    // Compute proportion scale at each bone with significant lateral offset.
+    // scale = (tgt_shoulder_offset × src_chain_reach) / (src_shoulder_offset × tgt_chain_reach)
     const limb_scales = new Map<string, number>()
     const OFFSET_THRESHOLD = 0.08
 
@@ -165,25 +175,12 @@ export class PoseAlignedRetargeter {
       const tgt_bone = target_by_name.get(target_name)
       if (!src_bone || !tgt_bone) continue
 
-      const src_pos = wp(src_bone)
-      const tgt_pos = wp(tgt_bone)
-      const src_offset = Math.abs(src_pos.x - src_center.x)
-      const tgt_offset = Math.abs(tgt_pos.x - tgt_center.x)
-
-      // Only compute for bones with significant lateral offset (limb joints, not spine)
+      const src_offset = Math.abs(wp(src_bone).x - src_center.x)
+      const tgt_offset = Math.abs(wp(tgt_bone).x - tgt_center.x)
       if (src_offset < OFFSET_THRESHOLD || tgt_offset < OFFSET_THRESHOLD) continue
 
-      // Reach from this bone to its extremity
-      const extremity_tgt = extremity_of.get(target_name)
-      const extremity_src_name = extremity_tgt ? bone_mapping.get(extremity_tgt) : undefined
-      if (!extremity_tgt || !extremity_src_name) continue
-
-      const src_extremity = source_by_name.get(extremity_src_name)
-      const tgt_extremity = target_by_name.get(extremity_tgt)
-      if (!src_extremity || !tgt_extremity) continue
-
-      const src_reach = src_pos.distanceTo(wp(src_extremity))
-      const tgt_reach = tgt_pos.distanceTo(wp(tgt_extremity))
+      const src_reach = src_segment_reach.get(source_name) ?? 0
+      const tgt_reach = tgt_segment_reach.get(target_name) ?? 0
       if (src_reach < 0.01 || tgt_reach < 0.01) continue
 
       const scale = Math.min(1, (tgt_offset * src_reach) / (src_offset * tgt_reach))
