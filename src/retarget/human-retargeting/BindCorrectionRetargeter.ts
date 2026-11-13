@@ -1,5 +1,5 @@
 import {
-  type AnimationClip, type Skeleton,
+  type AnimationClip, type Bone, type Object3D, type Skeleton,
   Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack
 } from 'three'
 import { RetargetUtils, type TrackNameParts } from '../RetargetUtils.ts'
@@ -19,24 +19,20 @@ export interface BindCorrectionRetargetOptions {
 
 export class BindCorrectionRetargeter {
   /**
-   * Compute per-bone local and world rest quaternions using three.js world matrices.
-   * Uses getWorldQuaternion() to capture the full transform chain including armature
-   * nodes and unmapped ancestor bones, making both source and target consistent
-   * regardless of skeleton structure differences (e.g. M2M's extra root bone).
+   * Compute world rest quaternion for a bone by walking up only through bones that
+   * are in the provided name set. Unmapped ancestors (like M2M's root bone) are
+   * skipped — their rotation is not part of the mapped skeleton's coordinate space.
    */
-  static capture_rest_quaternions (skeleton: Skeleton): Map<string, { local: Quaternion, world: Quaternion }> {
-    skeleton.bones[0]?.parent?.updateMatrixWorld(true)
-
-    const result = new Map<string, { local: Quaternion, world: Quaternion }>()
-
-    for (const bone of skeleton.bones) {
-      const local_q = bone.quaternion.clone()
-      const world_q = new Quaternion()
-      bone.getWorldQuaternion(world_q)
-      result.set(bone.name, { local: local_q, world: world_q })
+  private static mapped_world_quat (bone: Bone, mapped_names: Set<string>): Quaternion {
+    const q = bone.quaternion.clone()
+    let current: Object3D | null = bone.parent
+    while (current !== null && (current as Bone).isBone === true) {
+      if (mapped_names.has(current.name)) {
+        q.premultiply(current.quaternion)
+      }
+      current = current.parent
     }
-
-    return result
+    return q
   }
 
   /**
@@ -47,6 +43,9 @@ export class BindCorrectionRetargeter {
    *   L = Rt × Wt⁻¹ × Ws × Rs⁻¹   (pre-multiply correction)
    *   R = Ws⁻¹ × Wt                  (post-multiply correction)
    *
+   * World quaternions are computed by walking only through mapped ancestors,
+   * excluding unmapped bones (like M2M's root bone with its 90° X rotation).
+   *
    * @param source_skeleton M2M skeleton at rest pose
    * @param target_skeleton target skeleton at rest pose
    * @param bone_mapping target bone name → source bone name
@@ -56,19 +55,27 @@ export class BindCorrectionRetargeter {
     target_skeleton: Skeleton,
     bone_mapping: Map<string, string>
   ): Map<string, BindCorrection> {
-    const source_rests = this.capture_rest_quaternions(source_skeleton)
-    const target_rests = this.capture_rest_quaternions(target_skeleton)
+    const mapped_source_names = new Set<string>(bone_mapping.values())
+    const mapped_target_names = new Set<string>(bone_mapping.keys())
+
+    const source_by_name = new Map<string, Bone>(
+      source_skeleton.bones.map(b => [b.name, b])
+    )
+    const target_by_name = new Map<string, Bone>(
+      target_skeleton.bones.map(b => [b.name, b])
+    )
+
     const corrections = new Map<string, BindCorrection>()
 
     for (const [target_bone_name, source_bone_name] of bone_mapping) {
-      const source = source_rests.get(source_bone_name)
-      const target = target_rests.get(target_bone_name)
-      if (source === undefined || target === undefined) continue
+      const source_bone = source_by_name.get(source_bone_name)
+      const target_bone = target_by_name.get(target_bone_name)
+      if (source_bone === undefined || target_bone === undefined) continue
 
-      const Rs = source.local
-      const Rt = target.local
-      const Ws = source.world
-      const Wt = target.world
+      const Rs = source_bone.quaternion.clone()
+      const Rt = target_bone.quaternion.clone()
+      const Ws = this.mapped_world_quat(source_bone, mapped_source_names)
+      const Wt = this.mapped_world_quat(target_bone, mapped_target_names)
 
       // L = Rt × Wt⁻¹ × Ws × Rs⁻¹
       const L = Rt.clone()
