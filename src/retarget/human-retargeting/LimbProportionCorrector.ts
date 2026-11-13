@@ -45,6 +45,14 @@ export interface ProportionLimb {
   source_contact_size: number
   /** Source distance from the centre line inside which hand (foot) size sets the scale. */
   near_distance: number
+  /**
+   * True if the contact point rests on the floor in the rest pose (feet). Such limbs
+   * also get their height above the floor matched to the source.
+   */
+  grounded: boolean
+  /** World height of the contact point in each skeleton's own rest pose. */
+  source_floor: number
+  target_floor: number
 }
 
 interface Measurement {
@@ -67,12 +75,22 @@ function smoothstep (x: number, from: number, to: number): number {
   return t * t * (3 - 2 * t)
 }
 
-interface Contact { source_contact: Vector3, target_contact: Vector3, source_size: number, target_size: number }
+interface Contact {
+  source_contact: Vector3
+  target_contact: Vector3
+  source_size: number
+  target_size: number
+  source_floor: number
+  target_floor: number
+  grounded: boolean
+}
 
 interface LimbJoints { root: Bone, mid: Bone, end: Bone, upper_length: number, lower_length: number }
 
 const SYMMETRY_TOLERANCE = 0.1
 const MIN_LENGTH = 1e-5
+/** A contact point this low in the rest pose, as a fraction of skeleton height, stands on the floor. */
+const GROUNDED_HEIGHT = 0.1
 /** Most the mid joint may be opened or closed in one correction. Radians. */
 const MAX_HINGE_CHANGE = Math.PI / 6
 
@@ -126,12 +144,15 @@ export class LimbProportionCorrector {
    * so fingers are never mistaken for limbs.
    *
    * Call with both skeletons in the reference pose (source rest, target aligned)
-   * and world matrices up to date.
+   * and world matrices up to date. target_rest_positions holds the target bones'
+   * world positions in the target's own rest pose, from before it was aligned. It
+   * is what tells where the target's floor is. World +Y is taken as up.
    */
   static detect_limbs (
     bone_mapping: Map<string, string>,
     source_by_name: Map<string, Bone>,
-    target_by_name: Map<string, Bone>
+    target_by_name: Map<string, Bone>,
+    target_rest_positions: Map<Bone, Vector3> = new Map()
   ): ProportionLimb[] {
     // tree of mapped target bones (unmapped bones in between are skipped over)
     const is_mapped = (bone: Bone): boolean => {
@@ -197,6 +218,17 @@ export class LimbProportionCorrector {
       return worst <= SYMMETRY_TOLERANCE ? worst : Infinity
     }
 
+    // lowest and highest joint of each skeleton standing in its rest pose
+    const rest_position = (bone: Bone): Vector3 => target_rest_positions.get(bone) ?? world(bone)
+    const extent = (heights: number[]): { low: number, high: number } =>
+      ({ low: Math.min(...heights), high: Math.max(...heights) })
+    const mapped_targets = [...children.values()].flat().concat(top_level)
+    const target_extent = extent(mapped_targets.map(bone => rest_position(bone).y))
+    const source_extent = extent(mapped_targets.map(bone =>
+      world(source_by_name.get(bone_mapping.get(bone.name) as string) as Bone).y))
+    const is_low = (height: number, range: { low: number, high: number }): boolean =>
+      height - range.low <= GROUNDED_HEIGHT * (range.high - range.low)
+
     // centre of the joints hanging off a limb's end bone, in that bone's local space
     const contact_point = (end: Bone, attached: Bone[]): Vector3 => {
       const centre = new Vector3()
@@ -213,11 +245,22 @@ export class LimbProportionCorrector {
       for (let bone = joints.end, next = longest_child.get(bone); next !== undefined; bone = next, next = longest_child.get(bone)) {
         source_size += world(source_of(bone)).distanceTo(world(source_of(next)))
       }
+
+      // height of the contact point with each skeleton standing in its own rest pose
+      const height = (bones: Bone[], position: (bone: Bone) => Vector3): number =>
+        bones.reduce((sum, bone) => sum + position(bone).y, 0) / bones.length
+      const target_bones = attached.length > 0 ? attached : [joints.end]
+      const target_floor = height(target_bones, rest_position)
+      const source_floor = height(target_bones.map(source_of), world)
+
       return {
         target_contact: contact_point(joints.end, attached),
         source_contact: contact_point(source_of(joints.end), attached.map(source_of)),
         target_size: reach.get(joints.end) ?? 0,
-        source_size
+        source_size,
+        source_floor,
+        target_floor,
+        grounded: is_low(target_floor, target_extent) && is_low(source_floor, source_extent)
       }
     }
 
@@ -314,7 +357,10 @@ export class LimbProportionCorrector {
         length_ratio: (joints.upper_length + joints.lower_length) / source_length,
         contact_ratio: target_half_width / source_half_width,
         source_contact_size: source_half_width / 2,
-        near_distance: source_half_width / 2
+        near_distance: source_half_width / 2,
+        grounded: false,
+        source_floor: 0,
+        target_floor: 0
       } as ProportionLimb)
     }
     pair[0].twin = pair[1]
@@ -326,6 +372,9 @@ export class LimbProportionCorrector {
   private static set_contact (limb: ProportionLimb, contact: Contact): void {
     limb.source_contact.copy(contact.source_contact)
     limb.target_contact.copy(contact.target_contact)
+    limb.grounded = contact.grounded
+    limb.source_floor = contact.source_floor
+    limb.target_floor = contact.target_floor
     if (contact.source_size < MIN_LENGTH || contact.target_size < MIN_LENGTH) return
 
     limb.contact_ratio = contact.target_size / contact.source_size
@@ -395,8 +444,10 @@ export class LimbProportionCorrector {
    * Across that line (up/down, front/back) the limb is only moved when its contact
    * point is close to its twin's. Then the offset between the two is set to what the
    * source has, in hand sizes, split evenly between both limbs.
+   *
+   * @param lift extra world-up movement for the end joint, see height_error
    */
-  static compute_goal (limb: ProportionLimb, out: Vector3): Vector3 {
+  static compute_goal (limb: ProportionLimb, out: Vector3, lift: number = 0): Vector3 {
     const own = this.measure(limb, _own)
     const twin = this.measure(limb.twin, _twin)
 
@@ -428,6 +479,7 @@ export class LimbProportionCorrector {
     const together = 1 - smoothstep(separation, limb.source_contact_size, 2 * limb.source_contact_size)
 
     limb.target_end.getWorldPosition(out).addScaledVector(own.axis, shift)
+    out.y += lift
     if (together > 0) {
       // half the source offset between the two contact points, in target hand sizes,
       // minus half the offset rotation copying produced
@@ -436,6 +488,48 @@ export class LimbProportionCorrector {
       out.addScaledVector(_across, 0.5 * together)
     }
     return out
+  }
+
+  /**
+   * How much too high (positive) the target's contact point is above its floor,
+   * compared with the source's height above its own floor scaled to the target's
+   * size. Only meaningful for grounded limbs.
+   */
+  static height_error (limb: ProportionLimb, scale: number): number {
+    const source_height = limb.source_end.localToWorld(_from.copy(limb.source_contact)).y - limb.source_floor
+    const target_height = limb.target_end.localToWorld(_to.copy(limb.target_contact)).y - limb.target_floor
+    return target_height - source_height * scale
+  }
+
+  /**
+   * How much a grounded limb is bearing on the floor, judged from the source: 1 with
+   * the contact point on the floor, falling towards 0 as it lifts off (about 0.2 at
+   * half a foot-length up). Heights of limbs in the air are not worth correcting.
+   */
+  static floor_weight (limb: ProportionLimb): number {
+    const source_height = limb.source_end.localToWorld(_from.copy(limb.source_contact)).y - limb.source_floor
+    const relative = Math.max(0, source_height) / (0.25 * limb.source_contact_size)
+    return 1 / (1 + relative * relative)
+  }
+
+  /**
+   * How far to raise the whole body (negative = lower) so that the grounded limbs
+   * carrying the weight sit at the right height. Each limb counts by its
+   * floor_weight, so a planted foot decides and two planted feet share. Every limb
+   * keeps a small say even in the air: the error is mostly one offset common to all
+   * of them, and dropping it mid-stride would make the body bob. What this does not
+   * settle for an individual limb is left for that limb to take up itself.
+   */
+  static body_lift (limbs: ProportionLimb[], scale: number): number {
+    let total = 0
+    let weights = 0
+    for (const limb of limbs) {
+      if (!limb.grounded) continue
+      const weight = this.floor_weight(limb) + 0.1
+      total -= weight * this.height_error(limb, scale)
+      weights += weight
+    }
+    return weights > 0 ? total / weights : 0
   }
 
   /**

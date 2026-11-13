@@ -19,6 +19,8 @@ const FPS = 30
 const NEAR_CONTACT = 0.12
 /** RPM wrist-to-fingertip length over M2M's, measured from the two files */
 const RPM_HAND_SIZE = 0.833
+/** RPM thigh + shin length over M2M's, measured from the two files */
+const LEG_LENGTH_RATIO = 1.068
 
 interface Loaded { scene: Group, animations: AnimationClip[] }
 
@@ -97,17 +99,22 @@ function rpm_mapping (source: Skeleton, target: Skeleton): Map<string, string> {
 }
 
 interface ArmNames { clavicle: string, upper: string, lower: string, hand: string }
-interface RigNames { left: ArmNames, right: ArmNames, left_thigh: string, right_thigh: string, left_foot: string, right_foot: string }
+interface RigNames {
+  left: ArmNames, right: ArmNames, hips: string
+  left_thigh: string, right_thigh: string, left_foot: string, right_foot: string, left_ball: string, right_ball: string
+}
 
 const M2M: RigNames = {
   left: { clavicle: 'clavicle_l', upper: 'upperarm_l', lower: 'lowerarm_l', hand: 'hand_l' },
   right: { clavicle: 'clavicle_r', upper: 'upperarm_r', lower: 'lowerarm_r', hand: 'hand_r' },
-  left_thigh: 'thigh_l', right_thigh: 'thigh_r', left_foot: 'foot_l', right_foot: 'foot_r'
+  hips: 'pelvis',
+  left_thigh: 'thigh_l', right_thigh: 'thigh_r', left_foot: 'foot_l', right_foot: 'foot_r', left_ball: 'ball_l', right_ball: 'ball_r'
 }
 const RPM: RigNames = {
   left: { clavicle: 'LeftShoulder', upper: 'LeftArm', lower: 'LeftForeArm', hand: 'LeftHand' },
   right: { clavicle: 'RightShoulder', upper: 'RightArm', lower: 'RightForeArm', hand: 'RightHand' },
-  left_thigh: 'LeftUpLeg', right_thigh: 'RightUpLeg', left_foot: 'LeftFoot', right_foot: 'RightFoot'
+  hips: 'Hips',
+  left_thigh: 'LeftUpLeg', right_thigh: 'RightUpLeg', left_foot: 'LeftFoot', right_foot: 'RightFoot', left_ball: 'LeftToeBase', right_ball: 'RightToeBase'
 }
 
 interface Frame {
@@ -117,6 +124,9 @@ interface Frame {
   palm_distance: number
   /** same for the feet, in hip half-widths */
   foot_gap: number
+  hips: Vector3
+  /** world positions of the two ball-of-foot joints */
+  balls: [Vector3, Vector3]
   rotations: Map<string, Quaternion>
 }
 
@@ -151,13 +161,15 @@ function sample (skeleton: Skeleton, clip: AnimationClip, names: RigNames): Fram
       hand_gap: gap(names.left.upper, names.right.upper, names.left.hand, names.right.hand),
       palm_distance: contact(names.left.hand).distanceTo(contact(names.right.hand)),
       foot_gap: gap(names.left_thigh, names.right_thigh, names.left_foot, names.right_foot),
+      hips: world(bone(skeleton, names.hips)),
+      balls: [world(bone(skeleton, names.left_ball)), world(bone(skeleton, names.right_ball))],
       rotations: new Map(skeleton.bones.map(b => [b.name, b.quaternion.clone()]))
     })
   }
   return frames
 }
 
-interface Result { source: Frame[], plain: Frame[], corrected: Frame[] }
+interface Result { source: Frame[], plain: Frame[], corrected: Frame[], hip_scale: number, rest: { source: Frame, target: Frame } }
 
 async function retarget_clip (animation_file: string): Promise<Result> {
   const source_file = await load_glb(M2M_SKELETON)
@@ -175,13 +187,25 @@ async function retarget_clip (animation_file: string): Promise<Result> {
   const new_target = (): Skeleton => RetargetUtils.clone_skeleton(target_real, target_rest)
 
   const mapping = rpm_mapping(new_source(), target_real)
+  // same figure the app passes in: ratio of rest hip heights
+  const rest_frame = (skeleton: Skeleton, names: RigNames): Frame => {
+    skeleton.bones[0].updateMatrixWorld(true)
+    return {
+      hand_gap: 0, palm_distance: 0, foot_gap: 0, rotations: new Map(),
+      hips: world(bone(skeleton, names.hips)),
+      balls: [world(bone(skeleton, names.left_ball)), world(bone(skeleton, names.right_ball))]
+    }
+  }
+  const rest = { source: rest_frame(new_source(), M2M), target: rest_frame(new_target(), RPM) }
+  const hip_scale = rest.target.hips.y / rest.source.hips.y
+
   const bake = (correct_proportions: boolean): Frame[] => {
     const retargeted = PoseAlignedRetargeter.retarget(clip, new_source(), new_target(), mapping,
-      { hip_scale: 1, fps: FPS, correct_proportions })
+      { hip_scale, fps: FPS, correct_proportions })
     return sample(new_target(), retargeted, RPM)
   }
 
-  return { source: sample(new_source(), clip, M2M), plain: bake(false), corrected: bake(true) }
+  return { source: sample(new_source(), clip, M2M), plain: bake(false), corrected: bake(true), hip_scale, rest }
 }
 
 function degrees_between (a: Quaternion, b: Quaternion): number {
@@ -257,5 +281,52 @@ describe('PoseAlignedRetargeter proportion correction (M2M -> RPM)', () => {
     const result = await retarget_clip('clapping.glb')
     const crossed = result.plain.filter((frame, i) => result.source[i].hand_gap > 0.05 && frame.hand_gap < 0)
     expect(crossed.length).toBeGreaterThan(0)
+  })
+})
+
+describe('PoseAlignedRetargeter body translation and footing (M2M -> RPM)', () => {
+  /** height of the lower ball-of-foot joint above where it is in the rest pose */
+  const lowest_foot = (frame: Frame, rest: Frame): number =>
+    Math.min(frame.balls[0].y, frame.balls[1].y) - Math.min(rest.balls[0].y, rest.balls[1].y)
+
+  it('carries the hips down into a crouch', async () => {
+    const result = await retarget_clip('crouch-idle.glb')
+    const source_drop = result.rest.source.hips.y - Math.min(...result.source.map(f => f.hips.y))
+    const target_drop = result.rest.target.hips.y - Math.min(...result.corrected.map(f => f.hips.y))
+    console.log(`crouch-idle.glb: hips drop source ${(source_drop * 100).toFixed(1)} cm, ` +
+      `target ${(target_drop * 100).toFixed(1)} cm`)
+
+    expect(source_drop).toBeGreaterThan(0.2)
+    // roughly the source's drop at the target's size, not the constant it used to be
+    expect(target_drop / source_drop).toBeGreaterThan(0.9)
+    expect(target_drop / source_drop).toBeLessThan(1.4)
+  })
+
+  for (const file of ['crouch-idle.glb', 'clapping.glb', 'walk-female.glb', 'sprint.glb', 'sitting-idle.glb']) {
+    it(`keeps the feet on the floor: ${file}`, async () => {
+      const result = await retarget_clip(file)
+      let worst = 0
+      let worst_plain = 0
+      result.source.forEach((source_frame, i) => {
+        const wanted = lowest_foot(source_frame, result.rest.source) * LEG_LENGTH_RATIO
+        worst = Math.max(worst, Math.abs(lowest_foot(result.corrected[i], result.rest.target) - wanted))
+        worst_plain = Math.max(worst_plain, Math.abs(lowest_foot(result.plain[i], result.rest.target) - wanted))
+      })
+      console.log(`${file}: worst height error of the lower foot: rotation-only ` +
+        `${(worst_plain * 100).toFixed(1)} cm, corrected ${(worst * 100).toFixed(1)} cm`)
+      expect(worst).toBeLessThan(0.025)
+    })
+  }
+
+  it('does not make the hips bob through a stride', async () => {
+    const result = await retarget_clip('sprint.glb')
+    let worst = 0
+    for (let i = 1; i < result.source.length; i++) {
+      const source_step = result.source[i].hips.clone().sub(result.source[i - 1].hips).multiplyScalar(LEG_LENGTH_RATIO)
+      const target_step = result.corrected[i].hips.clone().sub(result.corrected[i - 1].hips)
+      worst = Math.max(worst, target_step.sub(source_step).length())
+    }
+    console.log(`sprint.glb: largest per-frame hip movement not in the source: ${(worst * 100).toFixed(2)} cm`)
+    expect(worst).toBeLessThan(0.01)
   })
 })

@@ -11,7 +11,14 @@ const _v = new Vector3()
 const _v2 = new Vector3()
 const _goal = new Vector3()
 
+/** Width (standard deviation) of the smoothing applied to the body's height correction. */
+const BODY_LIFT_SMOOTHING_SECONDS = 0.15
+
 export interface PoseAlignedRetargetOptions {
+  /**
+   * Target size over source size (hip height ratio). Scales the body's translation
+   * when no legs are detected to measure a leg length ratio from.
+   */
   hip_scale: number
   fps: number
   /**
@@ -128,6 +135,10 @@ export class PoseAlignedRetargeter {
 
     const main_child = this.build_main_child_map(bone_mapping, source_by_name, target_by_name)
 
+    // Where the target's joints are in its own rest pose, before it gets re-posed
+    const target_rest_positions = new Map<Bone, Vector3>(
+      target_skeleton.bones.map(b => [b, b.getWorldPosition(new Vector3())]))
+
     for (const [target_name] of sorted_mapping) {
       const source_name = bone_mapping.get(target_name)!
       const child_target_name = main_child.get(target_name)
@@ -181,12 +192,20 @@ export class PoseAlignedRetargeter {
     // Measured now, while source (rest) and target (aligned) are in matching poses.
     const limbs = options.correct_proportions === false
       ? []
-      : LimbProportionCorrector.detect_limbs(bone_mapping, source_by_name, target_by_name)
+      : LimbProportionCorrector.detect_limbs(bone_mapping, source_by_name, target_by_name, target_rest_positions)
+    const grounded_limbs = limbs.filter(limb => limb.grounded)
+
+    // How far the body travels scales with leg length: a crouch that folds the legs
+    // to the same angles drops the hips by that much. The hip height ratio is only
+    // a stand-in for it (it also counts ankle and sole height, which do not fold).
+    const translation_scale = grounded_limbs.length > 0
+      ? grounded_limbs.reduce((sum, limb) => sum + limb.length_ratio, 0) / grounded_limbs.length
+      : options.hip_scale
     for (const limb of limbs) {
       console.log(`Proportion correction: ${limb.target_root.name} -> ${limb.target_end.name} ` +
         `(length x${limb.length_ratio.toFixed(3)}, ` +
         `width x${(limb.target_half_width / limb.source_half_width).toFixed(3)}, ` +
-        `end x${limb.contact_ratio.toFixed(3)})`)
+        `end x${limb.contact_ratio.toFixed(3)}${limb.grounded ? ', grounded' : ''})`)
     }
 
     // Bones whose local rotation depends on a corrected limb: the limb itself and
@@ -217,14 +236,33 @@ export class PoseAlignedRetargeter {
       target_bone.updateMatrixWorld(true)
     }
 
-    // Find position bone and compute hip scale
-    let position_source_name: string | null = null
-    for (const [, sn] of bone_mapping) {
-      if (sn.toLowerCase().includes('pelvis') || sn.toLowerCase().includes('hips')) {
-        position_source_name = sn
-        break
-      }
+    // ── Find the bone that carries the body's translation ──
+    // The mapped pelvis/hips by name, else the top-most mapped bone.
+    let position_target_name: string | null = sorted_mapping[0]?.[0] ?? null
+    for (const [target_name, source_name] of sorted_mapping) {
+      const lower = source_name.toLowerCase()
+      if (lower.includes('pelvis') || lower.includes('hips')) { position_target_name = target_name; break }
     }
+    const position_source = position_target_name === null
+      ? undefined
+      : source_by_name.get(bone_mapping.get(position_target_name)!)
+    const position_target = position_target_name === null ? undefined : target_by_name.get(position_target_name)
+    // Where both sit in the reference pose. Phase 1 only rotates, so these are still rest positions.
+    const source_rest_position = position_source?.getWorldPosition(new Vector3()) ?? new Vector3()
+    const target_rest_position = position_target?.getWorldPosition(new Vector3()) ?? new Vector3()
+
+    // How much the body is standing on its feet this frame, from the source's hip
+    // height: 1 from a deep crouch upwards, 0 when sitting or lying on the floor.
+    // Only then do the feet decide how high the body sits.
+    const source_floor = grounded_limbs.reduce((sum, limb) => sum + limb.source_floor, 0) /
+      Math.max(1, grounded_limbs.length)
+    const standing_amount = (source_hip_height: number): number => {
+      if (grounded_limbs.length === 0) return 1
+      const relative = (source_hip_height - source_floor) / (source_rest_position.y - source_floor)
+      const t = Math.min(1, Math.max(0, (relative - 0.2) / 0.2))
+      return t * t * (3 - 2 * t)
+    }
+    let standing = 1
 
     // ── Phase 2: Sample animation frame-by-frame ──
     const mixer = new AnimationMixer(source_skeleton.bones[0])
@@ -241,24 +279,84 @@ export class PoseAlignedRetargeter {
       bone_data.set(target_name, { times: [], quaternions: [], positions: [] })
     }
 
-    for (let frame = 0; frame < frame_count; frame++) {
+    // Pose both skeletons for a frame: source from the clip, target by rotation copy
+    const copy_pose = (frame: number): number => {
       const time = Math.min(frame * frame_time, duration)
       mixer.setTime(time)
       source_skeleton.bones[0]?.updateMatrixWorld(true)
 
-      // Pass 1: copy rotations. target_world = source_world × offset, parent-first
+      // Body translation: the source's displacement from its rest position, scaled to
+      // the target's size, applied on top of the target's own rest position.
+      if (position_source !== undefined && position_target !== undefined) {
+        position_source.getWorldPosition(_v)
+        standing = standing_amount(_v.y)
+        _v.sub(source_rest_position)
+        // off its feet, height above the floor goes by overall body size instead
+        const vertical_scale = options.hip_scale + (translation_scale - options.hip_scale) * standing
+        _v.set(_v.x * translation_scale, _v.y * vertical_scale, _v.z * translation_scale).add(target_rest_position)
+        if (position_target.parent !== null) position_target.parent.worldToLocal(_v)
+        position_target.position.copy(_v)
+      }
+
+      // target_world = source_world × offset, parent-first
       for (const [target_name] of sorted_mapping) {
         const source_bone = source_by_name.get(bone_mapping.get(target_name)!)!
         source_bone.getWorldQuaternion(_q)
         world_rotations.get(target_name)!.copy(_q).multiply(offsets.get(target_name)!)
         apply_world_rotation(target_name)
       }
+      return time
+    }
+
+    // How far the whole body is raised or lowered each frame so the planted feet sit
+    // at the height the source has them above the floor. The frame-by-frame figure
+    // wobbles through a stride as each leg's error comes and goes, and hips that
+    // followed it would bob. So the body only takes the slow part of it, and the legs
+    // take up the rest below.
+    const body_lifts = new Float32Array(frame_count)
+    if (grounded_limbs.length > 0 && position_target !== undefined) {
+      const raw = new Float32Array(frame_count)
+      for (let frame = 0; frame < frame_count; frame++) {
+        copy_pose(frame)
+        raw[frame] = standing * LimbProportionCorrector.body_lift(grounded_limbs, translation_scale)
+      }
+      const sigma = BODY_LIFT_SMOOTHING_SECONDS * options.fps
+      const reach = Math.ceil(3 * sigma)
+      for (let frame = 0; frame < frame_count; frame++) {
+        let total = 0
+        let weights = 0
+        for (let other = Math.max(0, frame - reach); other <= Math.min(frame_count - 1, frame + reach); other++) {
+          const weight = Math.exp(-0.5 * ((other - frame) / sigma) ** 2)
+          total += weight * raw[other]
+          weights += weight
+        }
+        body_lifts[frame] = total / weights
+      }
+    }
+
+    for (let frame = 0; frame < frame_count; frame++) {
+      // Pass 1: copy rotations
+      const time = copy_pose(frame)
 
       // Pass 2: move limb ends to their body-relative positions. Bones below a limb
       // keep their world rotation, so hands and feet stay oriented as the source has them.
       if (limbs.length > 0) {
+        // Feet first: set the whole body at the height that suits the planted feet ...
+        if (grounded_limbs.length > 0 && position_target !== undefined) {
+          position_target.getWorldPosition(_v)
+          _v.y += body_lifts[frame]
+          if (position_target.parent !== null) position_target.parent.worldToLocal(_v)
+          position_target.position.copy(_v)
+          position_target.updateMatrixWorld(true)
+        }
+
         for (const limb of limbs) {
-          LimbProportionCorrector.compute_goal(limb, _goal)
+          // ... and let each leg take up whatever is left for its own foot
+          const lift = limb.grounded
+            ? -standing * LimbProportionCorrector.floor_weight(limb) *
+              LimbProportionCorrector.height_error(limb, translation_scale)
+            : 0
+          LimbProportionCorrector.compute_goal(limb, _goal, lift)
           LimbProportionCorrector.solve(limb, _goal, world_rotations)
         }
         for (const [target_name] of below_limb) apply_world_rotation(target_name)
@@ -266,7 +364,6 @@ export class PoseAlignedRetargeter {
 
       // Pass 3: record keys
       for (const [target_name] of sorted_mapping) {
-        const source_name = bone_mapping.get(target_name)!
         const target_bone = target_by_name.get(target_name)!
 
         // Hemisphere continuity: flip if dot with previous key is negative
@@ -282,13 +379,8 @@ export class PoseAlignedRetargeter {
         data.times.push(time)
         data.quaternions.push(q.x, q.y, q.z, q.w)
 
-        // Position track for hips
-        if (source_name === position_source_name) {
-          data.positions.push(
-            target_bone.position.x * options.hip_scale,
-            target_bone.position.y * options.hip_scale,
-            target_bone.position.z * options.hip_scale
-          )
+        if (target_name === position_target_name) {
+          data.positions.push(target_bone.position.x, target_bone.position.y, target_bone.position.z)
         }
       }
     }
