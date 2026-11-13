@@ -168,7 +168,7 @@ export class PoseAlignedRetargeter {
     // Compute proportion scale at each bone with significant lateral offset.
     // scale = (tgt_shoulder_offset × src_chain_reach) / (src_shoulder_offset × tgt_chain_reach)
     const limb_scales = new Map<string, number>()
-    const OFFSET_THRESHOLD = 0.08
+    const OFFSET_THRESHOLD = 0.05
 
     for (const [target_name, source_name] of sorted_mapping) {
       const src_bone = source_by_name.get(source_name)
@@ -271,16 +271,15 @@ export class PoseAlignedRetargeter {
       target_child.getWorldPosition(_v2)
       const t_dir = _v2.clone().sub(_v).normalize()
 
-      // Partially align bones with proportion mismatch to prevent overshoot.
+      // Partially align bones with proportion mismatch to prevent overshoot
       const bone_scale = proportion_scales.get(target_name) ?? 1
-      let align_dir = s_dir
+      let align_target = s_dir
       if (bone_scale < 1) {
-        align_dir = t_dir.clone().lerp(s_dir, bone_scale).normalize()
+        align_target = t_dir.clone().lerp(s_dir, bone_scale).normalize()
       }
 
-      const A = new Quaternion().setFromUnitVectors(t_dir, align_dir)
+      const A = new Quaternion().setFromUnitVectors(t_dir, align_target)
 
-      // Apply swing to target bone: new world = A × old world
       target_bone.getWorldQuaternion(_q)
       const new_world = A.clone().multiply(_q)
 
@@ -295,7 +294,7 @@ export class PoseAlignedRetargeter {
       target_bone.updateMatrixWorld(true)
     }
 
-    // ── Capture offsets (should be ~pure twist now) ──
+    // ── Capture offsets ──
     const offsets = new Map<string, Quaternion>()
     for (const [target_name] of sorted_mapping) {
       const source_name = bone_mapping.get(target_name)!
