@@ -86,6 +86,11 @@ export class BindCorrectionRetargeter {
       // R = Ws⁻¹ × Wt
       const R = Ws.clone().invert().multiply(Wt.clone())
 
+      // Normalize to positive-w hemisphere to prevent 180° flips on bones
+      // where the rest-pose difference crosses the quaternion double-cover boundary
+      if (L.w < 0) { L.x = -L.x; L.y = -L.y; L.z = -L.z; L.w = -L.w }
+      if (R.w < 0) { R.x = -R.x; R.y = -R.y; R.z = -R.z; R.w = -R.w }
+
       const identity_L = (1 - Math.abs(L.w)) < BIND_EPSILON
       const identity_R = (1 - Math.abs(R.w)) < BIND_EPSILON
 
@@ -139,6 +144,7 @@ export class BindCorrectionRetargeter {
             tmp_q.set(next.values[i], next.values[i + 1], next.values[i + 2], next.values[i + 3])
             if (correction.L !== null) tmp_q.premultiply(correction.L)
             if (correction.R !== null) tmp_q.multiply(correction.R)
+            if (tmp_q.w < 0) { tmp_q.x = -tmp_q.x; tmp_q.y = -tmp_q.y; tmp_q.z = -tmp_q.z; tmp_q.w = -tmp_q.w }
             next.values[i] = tmp_q.x
             next.values[i + 1] = tmp_q.y
             next.values[i + 2] = tmp_q.z
