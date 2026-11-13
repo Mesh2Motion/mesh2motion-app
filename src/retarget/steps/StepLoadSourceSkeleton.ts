@@ -165,7 +165,10 @@ export class StepLoadSourceSkeleton extends EventTarget {
 
     this._main_scene.add(this.skeleton_helper)
 
-    console.log('Source skeleton added to scene with helper')
+    console.log('Source skeleton added to scene with helper');
+    // DEBUG: expose scene for inspection
+    (window as any).__m2m_scene = this._main_scene;
+    (window as any).__m2m_source_armature = this.loaded_source_armature;
   }
 
   private clear_previous_skeleton (): void {
