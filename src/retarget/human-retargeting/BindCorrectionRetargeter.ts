@@ -144,7 +144,6 @@ export class BindCorrectionRetargeter {
             tmp_q.set(next.values[i], next.values[i + 1], next.values[i + 2], next.values[i + 3])
             if (correction.L !== null) tmp_q.premultiply(correction.L)
             if (correction.R !== null) tmp_q.multiply(correction.R)
-            if (tmp_q.w < 0) { tmp_q.x = -tmp_q.x; tmp_q.y = -tmp_q.y; tmp_q.z = -tmp_q.z; tmp_q.w = -tmp_q.w }
             next.values[i] = tmp_q.x
             next.values[i + 1] = tmp_q.y
             next.values[i + 2] = tmp_q.z

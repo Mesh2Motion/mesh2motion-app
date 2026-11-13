@@ -221,20 +221,49 @@ export class AnimationRetargetService {
     const corrections = BindCorrectionRetargeter.compute_bind_corrections(
       source_skeleton, detached_target_skeleton, this.get_bone_mappings())
 
-    // hip height scaling
-    let hip_scale = 1
-    source_skeleton.bones[0]?.updateMatrixWorld(true)
-    const source_hip_y = source_skeleton.bones[0]?.getWorldPosition(new Vector3()).y ?? 0
-    detached_target_skeleton.bones[0]?.updateMatrixWorld(true)
-    const target_hip_y = detached_target_skeleton.bones[0]?.getWorldPosition(new Vector3()).y ?? 0
-    if (source_hip_y > 0.05 && target_hip_y > 0.05) {
-      hip_scale = Math.min(200, Math.max(0.2, target_hip_y / source_hip_y))
+    // The M2M skeleton has a root bone with -90° X rotation (Z-up to Y-up).
+    // Position keyframes are in that bone's local space — apply its rotation to
+    // convert to the target's Y-up space.
+    let root_correction_quat: Quaternion | null = null
+    const root_bone = source_skeleton.bones.find(b => b.name === 'root')
+    if (root_bone !== undefined) {
+      root_correction_quat = root_bone.quaternion.clone()
+    }
+    if (this.root_correction_x_degrees !== 0) {
+      const user_correction = new Quaternion().setFromAxisAngle(
+        new Vector3(1, 0, 0), this.root_correction_x_degrees * Math.PI / 180)
+      root_correction_quat = root_correction_quat !== null
+        ? root_correction_quat.multiply(user_correction)
+        : user_correction
     }
 
-    let root_correction_quat: Quaternion | null = null
-    if (this.root_correction_x_degrees !== 0) {
-      root_correction_quat = new Quaternion().setFromAxisAngle(
-        new Vector3(1, 0, 0), this.root_correction_x_degrees * Math.PI / 180)
+    // Hip height scaling: compare pelvis world Y heights
+    let hip_scale = 1
+    if (source_skeleton.bones[0]?.parent != null) {
+      source_skeleton.bones[0].parent.updateMatrixWorld(true)
+    }
+    const source_pelvis = source_skeleton.bones.find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
+    )
+    if (source_pelvis !== undefined && detached_target_skeleton.bones[0] !== undefined) {
+      const src_world_pos = new Vector3()
+      source_pelvis.getWorldPosition(src_world_pos)
+      const src_hip_y = src_world_pos.y
+
+      if (detached_target_skeleton.bones[0].parent != null) {
+        detached_target_skeleton.bones[0].parent.updateMatrixWorld(true)
+      }
+      const target_pelvis = detached_target_skeleton.bones.find(
+        b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
+      )
+      if (target_pelvis !== undefined) {
+        const tgt_world_pos = new Vector3()
+        target_pelvis.getWorldPosition(tgt_world_pos)
+        const tgt_hip_y = tgt_world_pos.y
+        if (src_hip_y > 0.05 && tgt_hip_y > 0.05) {
+          hip_scale = Math.min(5, Math.max(0.2, tgt_hip_y / src_hip_y))
+        }
+      }
     }
 
     const position_bone_name = source_skeleton.bones.find(
