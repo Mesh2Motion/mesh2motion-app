@@ -1,12 +1,14 @@
 import {
-  AnimationClip, Quaternion, QuaternionKeyframeTrack,
+  AnimationClip, QuaternionKeyframeTrack,
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
-  type Skeleton, Vector3
+  type Skeleton
 } from 'three'
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { BindCorrectionRetargeter } from './human-retargeting/BindCorrectionRetargeter.ts'
+import { HumanClipRetargeter } from './human-retargeting/HumanClipRetargeter.ts'
+import { Rig } from './human-retargeting/Rig.ts'
+import { HumanChainConfig } from './human-retargeting/HumanChainConfig.ts'
 
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing
@@ -218,69 +220,19 @@ export class AnimationRetargetService {
     const detached_target_skeleton: Skeleton = RetargetUtils.clone_skeleton(
       this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
 
-    const corrections = BindCorrectionRetargeter.compute_bind_corrections(
-      source_skeleton, detached_target_skeleton, this.get_bone_mappings())
+    const source_rig: Rig = new Rig(source_skeleton)
+    const target_rig: Rig = new Rig(detached_target_skeleton)
 
+    const { mesh2motion_config, other_rig_config } = HumanChainConfig.build_mapped_chain_configs(this.get_bone_mappings())
+    source_rig.fromConfig(mesh2motion_config)
+    target_rig.fromConfig(other_rig_config)
 
+    const retargeted_clip: AnimationClip = HumanClipRetargeter.retarget(source_clip, source_rig, target_rig, {
+      clip_name: `${source_clip.name} RT`,
+      root_correction_x_degrees: this.root_correction_x_degrees
+    })
 
-    // The M2M skeleton has a root bone with -90° X rotation (Z-up to Y-up).
-    // Position keyframes are in that bone's local space — apply its rotation to
-    // convert to the target's Y-up space.
-    let root_correction_quat: Quaternion | null = null
-    const root_bone = source_skeleton.bones.find(b => b.name === 'root')
-    if (root_bone !== undefined) {
-      root_correction_quat = root_bone.quaternion.clone()
-    }
-    if (this.root_correction_x_degrees !== 0) {
-      const user_correction = new Quaternion().setFromAxisAngle(
-        new Vector3(1, 0, 0), this.root_correction_x_degrees * Math.PI / 180)
-      root_correction_quat = root_correction_quat !== null
-        ? root_correction_quat.multiply(user_correction)
-        : user_correction
-    }
-
-    // Hip height scaling: compare pelvis world Y heights
-    let hip_scale = 1
-    if (source_skeleton.bones[0]?.parent != null) {
-      source_skeleton.bones[0].parent.updateMatrixWorld(true)
-    }
-    const source_pelvis = source_skeleton.bones.find(
-      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
-    )
-    if (source_pelvis !== undefined && detached_target_skeleton.bones[0] !== undefined) {
-      const src_world_pos = new Vector3()
-      source_pelvis.getWorldPosition(src_world_pos)
-      const src_hip_y = src_world_pos.y
-
-      if (detached_target_skeleton.bones[0].parent != null) {
-        detached_target_skeleton.bones[0].parent.updateMatrixWorld(true)
-      }
-      const target_pelvis = detached_target_skeleton.bones.find(
-        b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
-      )
-      if (target_pelvis !== undefined) {
-        const tgt_world_pos = new Vector3()
-        target_pelvis.getWorldPosition(tgt_world_pos)
-        const tgt_hip_y = tgt_world_pos.y
-        if (src_hip_y > 0.05 && tgt_hip_y > 0.05) {
-          hip_scale = Math.min(5, Math.max(0.2, tgt_hip_y / src_hip_y))
-        }
-      }
-    }
-
-    const position_bone_name = source_skeleton.bones.find(
-      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips')
-    )?.name ?? null
-
-    const retargeted_clip = BindCorrectionRetargeter.retarget(
-      source_clip, corrections, this.get_bone_mappings(), {
-        hip_scale,
-        root_correction_quat,
-        position_bone_name
-      })
-
-    retargeted_clip.name = `${source_clip.name} RT`
-    console.log(`Bind-correction retargeting complete: ${source_clip.name} -> ${retargeted_clip.name} (${corrections.size} bone corrections, hip scale ${hip_scale.toFixed(3)})`)
+    console.log(`Swing-twist retargeting complete: ${source_clip.name} -> ${retargeted_clip.name}`)
     return retargeted_clip
   }
 
