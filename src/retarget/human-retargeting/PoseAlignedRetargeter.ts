@@ -3,16 +3,22 @@ import {
   Quaternion, QuaternionKeyframeTrack, type Skeleton,
   Vector3, VectorKeyframeTrack
 } from 'three'
-import { RetargetUtils, type TrackNameParts } from '../RetargetUtils.ts'
+import { LimbProportionCorrector } from './LimbProportionCorrector.ts'
 
 const _q = new Quaternion()
 const _q2 = new Quaternion()
 const _v = new Vector3()
 const _v2 = new Vector3()
+const _goal = new Vector3()
 
 export interface PoseAlignedRetargetOptions {
   hip_scale: number
   fps: number
+  /**
+   * Reposition limb ends relative to the body so proportion differences between the
+   * skeletons do not push hands/feet through each other or the body. Default true.
+   */
+  correct_proportions?: boolean
 }
 
 /**
@@ -24,12 +30,23 @@ export interface PoseAlignedRetargetOptions {
  * applies: target_world = source_world × twist_offset, then converts to local
  * space using the already-retargeted parent. Bones are processed parent-first
  * so children always see the corrected parent.
+ *
+ * Rotation copying alone leaves limb ends wherever the target's proportions put
+ * them, so each frame is followed by a positional pass on the arms and legs.
+ * See LimbProportionCorrector.
  */
 export class PoseAlignedRetargeter {
 
   /**
-   * For each mapped bone, find the first mapped child bone.
-   * The bone direction is the vector from bone to its mapped child.
+   * For each mapped bone, pick the mapped child that defines its direction.
+   * The bone direction is the vector from bone to that child.
+   *
+   * Where a bone branches into a mirrored pair plus something else (chest: neck and
+   * two clavicles, hips: spine and two thighs), the child that is not half of a pair
+   * is used. Pointing the chest at one clavicle would roll the whole upper body
+   * sideways whenever the two rigs place their shoulder joints differently.
+   *
+   * Needs the source skeleton's world matrices to be up to date.
    */
   private static build_main_child_map (
     bone_mapping: Map<string, string>,
@@ -45,14 +62,23 @@ export class PoseAlignedRetargeter {
       const source_bone = source_by_name.get(source_name)
       if (source_bone === undefined) continue
 
+      const mapped_children: Bone[] = []
       for (const child of source_bone.children) {
         if ((child as Bone).isBone !== true) continue
         const child_target = reverse.get(child.name)
-        if (child_target !== undefined && target_by_name.has(child_target)) {
-          main_child.set(target_name, child_target)
-          break
-        }
+        if (child_target !== undefined && target_by_name.has(child_target)) mapped_children.push(child as Bone)
       }
+      if (mapped_children.length === 0) continue
+
+      // a child with a sibling at the same distance from the bone is half of a mirrored pair
+      const origin = source_bone.getWorldPosition(new Vector3())
+      const distances = mapped_children.map(child => child.getWorldPosition(new Vector3()).distanceTo(origin))
+      const is_paired = (index: number): boolean => distances.some((other, other_index) =>
+        other_index !== index && Math.abs(other - distances[index]) <= 0.02 * Math.max(other, distances[index]))
+      const unpaired = mapped_children.findIndex((_, index) => !is_paired(index))
+
+      const chosen = mapped_children[unpaired === -1 ? 0 : unpaired]
+      main_child.set(target_name, reverse.get(chosen.name) as string)
     }
     return main_child
   }
@@ -80,150 +106,6 @@ export class PoseAlignedRetargeter {
     return entries
   }
 
-  /**
-   * Compute per-bone proportion scales to prevent body penetration.
-   *
-   * For each bone: scale = (tgt_center_dist × src_chain_len) / (src_center_dist × tgt_chain_len)
-   *
-   * Bones near the body center (spine) get scale ≈ 1 (no correction).
-   * Limb bones with different reach/body-width ratios get scale < 1
-   * (partial alignment to prevent overshoot).
-   */
-  private static compute_proportion_scales (
-    source_by_name: Map<string, Bone>, target_by_name: Map<string, Bone>,
-    bone_mapping: Map<string, string>,
-    sorted_mapping: Array<[string, string]>,
-    main_child: Map<string, string>
-  ): Map<string, number> {
-    const scales = new Map<string, number>()
-    const wp = (bone: Bone): Vector3 => { const v = new Vector3(); bone.getWorldPosition(v); return v }
-
-    // Body center = pelvis/hips world position
-    const src_center_bone = [...source_by_name.values()].find(
-      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
-    const tgt_center_bone = [...target_by_name.values()].find(
-      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
-    if (!src_center_bone || !tgt_center_bone) return scales
-
-    const src_center = wp(src_center_bone)
-    const tgt_center = wp(tgt_center_bone)
-
-    // Compute chain length from each bone to its furthest mapped descendant
-    const src_chain_lengths = new Map<string, number>()
-    const tgt_chain_lengths = new Map<string, number>()
-
-    // Walk sorted_mapping in REVERSE (leaf-first) to accumulate chain lengths upward
-    for (let i = sorted_mapping.length - 1; i >= 0; i--) {
-      const [target_name, source_name] = sorted_mapping[i]
-      const child_target = main_child.get(target_name)
-
-      const src_bone = source_by_name.get(source_name)
-      const tgt_bone = target_by_name.get(target_name)
-      if (!src_bone || !tgt_bone) continue
-
-      let src_len = 0
-      let tgt_len = 0
-
-      if (child_target !== undefined) {
-        const child_source = bone_mapping.get(child_target)
-        const src_child = child_source ? source_by_name.get(child_source) : undefined
-        const tgt_child = target_by_name.get(child_target)
-
-        if (src_child && tgt_child) {
-          const src_segment = wp(src_bone).distanceTo(wp(src_child))
-          const tgt_segment = wp(tgt_bone).distanceTo(wp(tgt_child))
-          src_len = src_segment + (src_chain_lengths.get(child_source!) ?? 0)
-          tgt_len = tgt_segment + (tgt_chain_lengths.get(child_target) ?? 0)
-        }
-      }
-
-      src_chain_lengths.set(source_name, src_len)
-      tgt_chain_lengths.set(target_name, tgt_len)
-    }
-
-    // Compute chain reach as sum of bone segment lengths (not world distance,
-    // which is distorted by pose angle). Segment length = child.position.length()
-    // in the rest skeleton — the geometric bone length regardless of pose.
-    const src_segment_reach = new Map<string, number>()
-    const tgt_segment_reach = new Map<string, number>()
-
-    // Walk leaf-first to accumulate segment lengths upward
-    for (let i = sorted_mapping.length - 1; i >= 0; i--) {
-      const [target_name, source_name] = sorted_mapping[i]
-      const child_target = main_child.get(target_name)
-      let src_len = 0, tgt_len = 0
-      if (child_target !== undefined) {
-        const child_source = bone_mapping.get(child_target)
-        const src_child = child_source ? source_by_name.get(child_source) : undefined
-        const tgt_child = target_by_name.get(child_target)
-        if (src_child && tgt_child) {
-          src_len = src_child.position.length() + (src_segment_reach.get(child_source!) ?? 0)
-          tgt_len = tgt_child.position.length() + (tgt_segment_reach.get(child_target) ?? 0)
-        }
-      }
-      src_segment_reach.set(source_name, src_len)
-      tgt_segment_reach.set(target_name, tgt_len)
-    }
-
-    // Compute proportion scale at each bone with significant lateral offset.
-    // scale = (tgt_shoulder_offset × src_chain_reach) / (src_shoulder_offset × tgt_chain_reach)
-    const limb_scales = new Map<string, number>()
-    const OFFSET_THRESHOLD = 0.05
-
-    for (const [target_name, source_name] of sorted_mapping) {
-      const src_bone = source_by_name.get(source_name)
-      const tgt_bone = target_by_name.get(target_name)
-      if (!src_bone || !tgt_bone) continue
-
-      const src_offset = Math.abs(wp(src_bone).x - src_center.x)
-      const tgt_offset = Math.abs(wp(tgt_bone).x - tgt_center.x)
-      if (src_offset < OFFSET_THRESHOLD || tgt_offset < OFFSET_THRESHOLD) continue
-
-      const src_reach = src_segment_reach.get(source_name) ?? 0
-      const tgt_reach = tgt_segment_reach.get(target_name) ?? 0
-      if (src_reach < 0.01 || tgt_reach < 0.01) continue
-
-      const scale = Math.min(1, (tgt_offset * src_reach) / (src_offset * tgt_reach))
-      limb_scales.set(target_name, scale)
-    }
-
-    // Each bone inherits the nearest ancestor's scale (parent-first order ensures
-    // the chain root's scale propagates to all descendants uniformly).
-    for (const [target_name] of sorted_mapping) {
-      const tgt_bone = target_by_name.get(target_name)
-      let current: Bone | null = tgt_bone?.parent as Bone ?? null
-      let inherited = -1
-      while (current !== null && (current as Bone).isBone === true) {
-        if (scales.has(current.name) && scales.get(current.name)! < 1) {
-          inherited = scales.get(current.name)!
-          break
-        }
-        if (limb_scales.has(current.name)) { inherited = limb_scales.get(current.name)!; break }
-        current = current.parent as Bone
-      }
-      // Use inherited scale if available, otherwise own computed scale, otherwise 1
-      if (inherited > 0) {
-        scales.set(target_name, inherited)
-      } else if (limb_scales.has(target_name)) {
-        scales.set(target_name, limb_scales.get(target_name)!)
-      } else {
-        scales.set(target_name, 1)
-      }
-    }
-
-    // Log
-    const logged = new Set<number>()
-    for (const [name, scale] of scales) {
-      const rounded = Math.round(scale * 1000)
-      if (scale < 0.99 && !logged.has(rounded)) {
-        logged.add(rounded)
-        console.log(`Proportion scale: ${scale.toFixed(3)} (e.g. ${name})`)
-      }
-    }
-
-    return scales
-  }
-
   static retarget (
     source_clip: AnimationClip,
     source_skeleton: Skeleton,
@@ -239,17 +121,12 @@ export class PoseAlignedRetargeter {
     )
 
     const sorted_mapping = this.parent_first_order(bone_mapping, target_skeleton)
-    const main_child = this.build_main_child_map(bone_mapping, source_by_name, target_by_name)
-
     // ── Phase 1: Swing target bones to match source bone directions ──
     // Both skeletons must be at rest pose with valid world matrices.
     source_skeleton.bones[0]?.updateMatrixWorld(true)
     target_skeleton.bones[0]?.updateMatrixWorld(true)
 
-    // Per-chain proportion scales: prevents limbs overshooting into the body.
-    // Computed at the limb root (upper arm, thigh) and inherited by children.
-    const proportion_scales = this.compute_proportion_scales(
-      source_by_name, target_by_name, bone_mapping, sorted_mapping, main_child)
+    const main_child = this.build_main_child_map(bone_mapping, source_by_name, target_by_name)
 
     for (const [target_name] of sorted_mapping) {
       const source_name = bone_mapping.get(target_name)!
@@ -271,14 +148,7 @@ export class PoseAlignedRetargeter {
       target_child.getWorldPosition(_v2)
       const t_dir = _v2.clone().sub(_v).normalize()
 
-      // Partially align bones with proportion mismatch to prevent overshoot
-      const bone_scale = proportion_scales.get(target_name) ?? 1
-      let align_target = s_dir
-      if (bone_scale < 1) {
-        align_target = t_dir.clone().lerp(s_dir, bone_scale).normalize()
-      }
-
-      const A = new Quaternion().setFromUnitVectors(t_dir, align_target)
+      const A = new Quaternion().setFromUnitVectors(t_dir, s_dir)
 
       target_bone.getWorldQuaternion(_q)
       const new_world = A.clone().multiply(_q)
@@ -307,8 +177,47 @@ export class PoseAlignedRetargeter {
       offsets.set(target_name, _q.invert().multiply(_q2).clone())
     }
 
+    // ── Find the limbs that get a positional correction ──
+    // Measured now, while source (rest) and target (aligned) are in matching poses.
+    const limbs = options.correct_proportions === false
+      ? []
+      : LimbProportionCorrector.detect_limbs(bone_mapping, source_by_name, target_by_name)
+    for (const limb of limbs) {
+      console.log(`Proportion correction: ${limb.target_root.name} -> ${limb.target_end.name} ` +
+        `(length x${limb.length_ratio.toFixed(3)}, ` +
+        `width x${(limb.target_half_width / limb.source_half_width).toFixed(3)}, ` +
+        `end x${limb.contact_ratio.toFixed(3)})`)
+    }
+
+    // Bones whose local rotation depends on a corrected limb: the limb itself and
+    // everything below it, in parent-first order.
+    const below_limb = sorted_mapping.filter(([target_name]) => {
+      let current: Object3D | null = target_by_name.get(target_name) ?? null
+      while (current !== null) {
+        if (limbs.some(limb => limb.target_root === current)) return true
+        current = current.parent
+      }
+      return false
+    })
+
+    // World rotation each target bone should have on the current frame
+    const world_rotations = new Map<string, Quaternion>()
+    for (const [target_name] of sorted_mapping) world_rotations.set(target_name, new Quaternion())
+
+    const apply_world_rotation = (target_name: string): void => {
+      const target_bone = target_by_name.get(target_name)!
+      const target_world = world_rotations.get(target_name)!
+      // local = parent_world⁻¹ × target_world
+      if (target_bone.parent !== null) {
+        target_bone.parent.getWorldQuaternion(_q2)
+        target_bone.quaternion.copy(_q2.invert().multiply(target_world))
+      } else {
+        target_bone.quaternion.copy(target_world)
+      }
+      target_bone.updateMatrixWorld(true)
+    }
+
     // Find position bone and compute hip scale
-    const reverse_mapping = RetargetUtils.reverse_bone_mapping_one_to_one(bone_mapping)
     let position_source_name: string | null = null
     for (const [, sn] of bone_mapping) {
       if (sn.toLowerCase().includes('pelvis') || sn.toLowerCase().includes('hips')) {
@@ -337,25 +246,28 @@ export class PoseAlignedRetargeter {
       mixer.setTime(time)
       source_skeleton.bones[0]?.updateMatrixWorld(true)
 
-      // Process bones parent-first
+      // Pass 1: copy rotations. target_world = source_world × offset, parent-first
+      for (const [target_name] of sorted_mapping) {
+        const source_bone = source_by_name.get(bone_mapping.get(target_name)!)!
+        source_bone.getWorldQuaternion(_q)
+        world_rotations.get(target_name)!.copy(_q).multiply(offsets.get(target_name)!)
+        apply_world_rotation(target_name)
+      }
+
+      // Pass 2: move limb ends to their body-relative positions. Bones below a limb
+      // keep their world rotation, so hands and feet stay oriented as the source has them.
+      if (limbs.length > 0) {
+        for (const limb of limbs) {
+          LimbProportionCorrector.compute_goal(limb, _goal)
+          LimbProportionCorrector.solve(limb, _goal, world_rotations)
+        }
+        for (const [target_name] of below_limb) apply_world_rotation(target_name)
+      }
+
+      // Pass 3: record keys
       for (const [target_name] of sorted_mapping) {
         const source_name = bone_mapping.get(target_name)!
-        const source_bone = source_by_name.get(source_name)!
         const target_bone = target_by_name.get(target_name)!
-        const offset = offsets.get(target_name)!
-
-        // target_world = source_world × offset
-        source_bone.getWorldQuaternion(_q)
-        const target_world = _q.multiply(offset)
-
-        // Convert to local: local = parent_world⁻¹ × target_world
-        if (target_bone.parent !== null) {
-          target_bone.parent.getWorldQuaternion(_q2)
-          target_bone.quaternion.copy(_q2.invert().multiply(target_world))
-        } else {
-          target_bone.quaternion.copy(target_world)
-        }
-        target_bone.updateMatrixWorld(true)
 
         // Hemisphere continuity: flip if dot with previous key is negative
         const data = bone_data.get(target_name)!
