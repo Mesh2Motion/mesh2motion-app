@@ -6,7 +6,7 @@ import {
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { PoseAlignedRetargeter } from './human-retargeting/PoseAlignedRetargeter.ts'
+import { PoseAlignedRetargeter, type ProportionSettings } from './human-retargeting/PoseAlignedRetargeter.ts'
 
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing
@@ -30,6 +30,12 @@ export class AnimationRetargetService {
 
   private target_mapping_type: TargetBoneMappingType = TargetBoneMappingType.Custom
   private bone_mappings: Map<string, string> = new Map<string, string>()
+
+  /**
+   * Overrides for the human retargeter's proportion correction (hand spacing, feet
+   * and hands on the floor, smoothing). Empty uses the defaults.
+   */
+  public proportion_settings: Partial<ProportionSettings> = {}
 
   // corrective X-axis rotation (degrees) applied to the whole target rig during
   // human swing-twist retargeting. Helps rigs that have no root bone and whose
@@ -234,7 +240,7 @@ export class AnimationRetargetService {
 
     const retargeted = PoseAlignedRetargeter.retarget(
       source_clip, source_skeleton, detached_target_skeleton,
-      this.get_bone_mappings(), { hip_scale, fps: 30 })
+      this.get_bone_mappings(), { hip_scale, fps: 30, proportion_settings: this.proportion_settings })
 
     console.log(`Pose-aligned retargeting complete: ${source_clip.name} -> ${retargeted.name} (hip scale ${hip_scale.toFixed(3)})`)
     return retargeted

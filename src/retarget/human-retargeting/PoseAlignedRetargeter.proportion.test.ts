@@ -10,7 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RetargetUtils } from '../RetargetUtils.ts'
 import { MixamoMapper } from '../bone-automap/MixamoMapper.ts'
-import { PoseAlignedRetargeter } from './PoseAlignedRetargeter.ts'
+import { PoseAlignedRetargeter, type ProportionSettings } from './PoseAlignedRetargeter.ts'
 
 const M2M_SKELETON = 'static/assets/human/skeleton.glb'
 const RPM_AVATAR = 'static/test-files/retarget testing/rpm-avatar.glb'
@@ -182,7 +182,9 @@ interface Result {
  * @param up which world axis is up. 'z' stands both rigs up in a Z-up world by turning
  *   their armature nodes, the way a Z-up scene would hold them.
  */
-async function retarget_clip (animation_file: string, up: 'y' | 'z' = 'y'): Promise<Result> {
+async function retarget_clip (
+  animation_file: string, up: 'y' | 'z' = 'y', proportion_settings: Partial<ProportionSettings> = {}
+): Promise<Result> {
   const source_file = await load_glb(M2M_SKELETON)
   const clip = (await load_glb(`static/assets/human/animations/${animation_file}`)).animations[0]
   const target_file = await load_glb(RPM_AVATAR)
@@ -220,7 +222,7 @@ async function retarget_clip (animation_file: string, up: 'y' | 'z' = 'y'): Prom
   let corrected_clip: AnimationClip | null = null
   const bake = (correct_proportions: boolean): Frame[] => {
     const retargeted = PoseAlignedRetargeter.retarget(clip, new_source(), new_target(), mapping,
-      { hip_scale, fps: FPS, correct_proportions })
+      { hip_scale, fps: FPS, correct_proportions, proportion_settings })
     if (correct_proportions) corrected_clip = retargeted
     return sample(new_target(), retargeted, RPM)
   }
@@ -398,5 +400,97 @@ describe('PoseAlignedRetargeter body translation and footing (M2M -> RPM)', () =
     }
     console.log(`sprint.glb: largest per-frame hip movement not in the source: ${(worst * 100).toFixed(2)} cm`)
     expect(worst).toBeLessThan(0.01)
+  })
+})
+
+describe('PoseAlignedRetargeter proportion settings (M2M -> RPM)', () => {
+  const crossed_frames = (result: Result): number =>
+    result.corrected.filter((frame, i) => result.source[i].hand_gap > 0.05 && frame.hand_gap < 0).length
+  const floor = (rest: Frame): number => Math.min(rest.balls[0].y, rest.balls[1].y)
+  const worst_foot_error = (result: Result): number => Math.max(...result.source.map((source_frame, i) => {
+    const lowest = (frame: Frame, rest: Frame): number => Math.min(frame.balls[0].y, frame.balls[1].y) - floor(rest)
+    return Math.abs(lowest(result.corrected[i], result.rest.target) -
+      lowest(source_frame, result.rest.source) * LEG_LENGTH_RATIO)
+  }))
+  const worst_palm_error = (result: Result): number => Math.max(...result.source.map((source_frame, i) =>
+    Math.max(...[0, 1].map((side) => {
+      const source_height = source_frame.palms[side].y - floor(result.rest.source)
+      if (source_height > 0.06) return 0
+      return Math.abs(result.corrected[i].palms[side].y - floor(result.rest.target) - source_height * LEG_LENGTH_RATIO)
+    }))))
+
+  it('keep_limb_spacing off lets the hands cross again', async () => {
+    expect(crossed_frames(await retarget_clip('clapping.glb'))).toBe(0)
+    expect(crossed_frames(await retarget_clip('clapping.glb', 'y', { keep_limb_spacing: false }))).toBeGreaterThan(0)
+  })
+
+  it('ground_feet off leaves the feet where rotation copying puts them', async () => {
+    expect(worst_foot_error(await retarget_clip('crouch-idle.glb'))).toBeLessThan(0.005)
+    expect(worst_foot_error(await retarget_clip('crouch-idle.glb', 'y', { ground_feet: false }))).toBeGreaterThan(0.02)
+  })
+
+  it('ground_hands off stops the hands being put down on the floor', async () => {
+    const on = worst_palm_error(await retarget_clip('pushup.glb'))
+    const off = worst_palm_error(await retarget_clip('pushup.glb', 'y', { ground_hands: false }))
+    console.log(`pushup.glb palm height error: ground_hands on ${(on * 100).toFixed(1)} cm, off ${(off * 100).toFixed(1)} cm`)
+    expect(on).toBeLessThan(0.01)
+    expect(off).toBeGreaterThan(on + 0.005)
+  })
+
+  it('max_joint_change limits how far an elbow is moved', async () => {
+    const elbow_change = (result: Result): number => Math.max(...result.corrected.map((frame, i) =>
+      degrees_between(frame.rotations.get('LeftForeArm') as Quaternion,
+        result.plain[i].rotations.get('LeftForeArm') as Quaternion)))
+    const free = elbow_change(await retarget_clip('pray.glb'))
+    const limited = elbow_change(await retarget_clip('pray.glb', 'y', { max_joint_change: 0 }))
+    // with no hinge change allowed, what is left is the elbow following the shoulder's swing
+    expect(free).toBeGreaterThan(2)
+    expect(limited).toBeLessThan(free)
+  })
+
+  it('limb_smoothing trades contact for smoothness', async () => {
+    const report = async (limb_smoothing: number): Promise<{ jump: number, palm_ratio: number }> => {
+      const fast = await retarget_clip('kick-spin.glb', 'y', { limb_smoothing })
+      let jump = 0
+      for (let i = 1; i < fast.corrected.length; i++) {
+        for (const [name, rotation] of fast.corrected[i].rotations) {
+          jump = Math.max(jump, degrees_between(rotation, fast.corrected[i - 1].rotations.get(name) as Quaternion) -
+            degrees_between(fast.plain[i].rotations.get(name) as Quaternion,
+              fast.plain[i - 1].rotations.get(name) as Quaternion))
+        }
+      }
+      const clap = await retarget_clip('clapping.glb', 'y', { limb_smoothing })
+      const palm_ratio = Math.min(...clap.corrected.map((frame, i) =>
+        clap.source[i].palm_distance < NEAR_CONTACT ? frame.palm_distance / clap.source[i].palm_distance : 9))
+      return { jump, palm_ratio }
+    }
+    const exact = await report(0)
+    const smoothed = await report(0.035)
+    console.log(`limb_smoothing 0: kick-spin jump ${exact.jump.toFixed(1)} deg, clap palm gap x${exact.palm_ratio.toFixed(2)}; ` +
+      `0.035: jump ${smoothed.jump.toFixed(1)} deg, clap palm gap x${smoothed.palm_ratio.toFixed(2)}`)
+    expect(smoothed.jump).toBeLessThan(exact.jump)
+    expect(smoothed.palm_ratio).toBeLessThan(exact.palm_ratio)
+  })
+
+  it('body_height_smoothing steadies the hips', async () => {
+    const hip_bob = (result: Result): number => {
+      let worst = 0
+      for (let i = 1; i < result.source.length; i++) {
+        const source_step = result.source[i].hips.clone().sub(result.source[i - 1].hips).multiplyScalar(LEG_LENGTH_RATIO)
+        worst = Math.max(worst, result.corrected[i].hips.clone().sub(result.corrected[i - 1].hips).sub(source_step).length())
+      }
+      return worst
+    }
+    const smoothed = hip_bob(await retarget_clip('sprint.glb'))
+    const raw = hip_bob(await retarget_clip('sprint.glb', 'y', { body_height_smoothing: 0 }))
+    console.log(`sprint.glb hip movement not in the source: smoothing 0.15 s ${(smoothed * 100).toFixed(2)} cm, ` +
+      `none ${(raw * 100).toFixed(2)} cm per frame`)
+    expect(smoothed).toBeLessThan(raw)
+  })
+
+  it('an explicit up direction gives the same result as the detected one', async () => {
+    const detected = worst_foot_error(await retarget_clip('crouch-idle.glb'))
+    const given = worst_foot_error(await retarget_clip('crouch-idle.glb', 'y', { up: new Vector3(0, 1, 0) }))
+    expect(given).toBeCloseTo(detected, 6)
   })
 })

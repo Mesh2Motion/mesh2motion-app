@@ -101,8 +101,6 @@ const SYMMETRY_TOLERANCE = 0.1
 const MIN_LENGTH = 1e-5
 /** A contact point this low in the rest pose, as a fraction of skeleton height, stands on the floor. */
 const GROUNDED_HEIGHT = 0.1
-/** Most the mid joint may be opened or closed in one correction. Radians. */
-const MAX_HINGE_CHANGE = Math.PI / 6
 
 const _center = new Vector3()
 const _axis = new Vector3()
@@ -156,13 +154,15 @@ export class LimbProportionCorrector {
    * Call with both skeletons in the reference pose (source rest, target aligned)
    * and world matrices up to date. target_rest_positions holds the target bones'
    * world positions in the target's own rest pose, from before it was aligned. It
-   * is what tells where the target's floor is.
+   * is what tells where the target's floor is. known_up overrides the up direction
+   * that is otherwise worked out from the rest pose.
    */
   static detect_limbs (
     bone_mapping: Map<string, string>,
     source_by_name: Map<string, Bone>,
     target_by_name: Map<string, Bone>,
-    target_rest_positions: Map<Bone, Vector3> = new Map()
+    target_rest_positions: Map<Bone, Vector3> = new Map(),
+    known_up: Vector3 | null = null
   ): ProportionLimb[] {
     // tree of mapped target bones (unmapped bones in between are skipped over)
     const is_mapped = (bone: Bone): boolean => {
@@ -306,9 +306,9 @@ export class LimbProportionCorrector {
     // The pair that hangs furthest below its anchor is the one being stood on, and
     // the line from its contact points up to that anchor is vertical. Snapped to a
     // world axis so a slouching rest pose cannot tilt the floor.
-    const up = new Vector3(0, 1, 0)
+    const up = known_up?.clone().normalize() ?? new Vector3(0, 1, 0)
     let longest = 0
-    for (const limb of limbs) {
+    for (const limb of known_up === null ? limbs : []) {
       const rise = rest_position(limb.target_anchor).clone()
         .sub(limb.target_rest_contact.clone().add(limb.twin.target_rest_contact).multiplyScalar(0.5))
       if (rise.length() <= longest) continue
@@ -488,8 +488,11 @@ export class LimbProportionCorrector {
    * source has, in hand sizes, split evenly between both limbs.
    *
    * @param lift extra movement of the end joint away from the floor, see height_error
+   * @param keep_spacing false skips everything above and only applies the lift
    */
-  static compute_goal (limb: ProportionLimb, out: Vector3, lift: number = 0): Vector3 {
+  static compute_goal (limb: ProportionLimb, out: Vector3, lift: number = 0, keep_spacing: boolean = true): Vector3 {
+    if (!keep_spacing) return limb.target_end.getWorldPosition(out).addScaledVector(limb.up, lift)
+
     const own = this.measure(limb, _own)
     const twin = this.measure(limb.twin, _twin)
 
@@ -582,9 +585,13 @@ export class LimbProportionCorrector {
    * mid bones into world_rotations (keyed by bone name). The caller converts those
    * to local rotations.
    *
+   * @param max_hinge_change most the mid joint may be opened or closed, radians
    * @returns how far the end joint was asked to move, in target world units
    */
-  static solve (limb: ProportionLimb, goal: Vector3, world_rotations: Map<string, Quaternion>): number {
+  static solve (
+    limb: ProportionLimb, goal: Vector3, world_rotations: Map<string, Quaternion>,
+    max_hinge_change: number = Math.PI / 6
+  ): number {
     limb.target_root.getWorldPosition(_a)
     limb.target_mid.getWorldPosition(_b)
     limb.target_end.getWorldPosition(_c)
@@ -613,7 +620,7 @@ export class LimbProportionCorrector {
     const cosine = (upper_length * upper_length + lower_length * lower_length - wanted * wanted) /
       (2 * upper_length * lower_length)
     const wanted_angle = Math.acos(Math.min(1, Math.max(-1, cosine)))
-    const change = Math.min(MAX_HINGE_CHANGE, Math.max(-MAX_HINGE_CHANGE, wanted_angle - current_angle))
+    const change = Math.min(max_hinge_change, Math.max(-max_hinge_change, wanted_angle - current_angle))
 
     _hinge.identity()
     _hinge_axis.crossVectors(_ba, _bc)

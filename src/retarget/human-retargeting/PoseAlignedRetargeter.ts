@@ -3,7 +3,7 @@ import {
   Quaternion, QuaternionKeyframeTrack, type Skeleton,
   Vector3, VectorKeyframeTrack
 } from 'three'
-import { LimbProportionCorrector } from './LimbProportionCorrector.ts'
+import { LimbProportionCorrector, type ProportionLimb } from './LimbProportionCorrector.ts'
 
 const _q = new Quaternion()
 const _q2 = new Quaternion()
@@ -11,8 +11,51 @@ const _v = new Vector3()
 const _v2 = new Vector3()
 const _goal = new Vector3()
 
-/** Width (standard deviation) of the smoothing applied to the body's height correction. */
-const BODY_LIFT_SMOOTHING_SECONDS = 0.15
+/**
+ * What the proportion correction does and how hard. Every part can be switched off
+ * or tuned on its own. The defaults favour exact contact over smoothness.
+ */
+export interface ProportionSettings {
+  /**
+   * Keep hands (and feet) where the source has them relative to the body's centre
+   * line and to each other, so they meet instead of crossing or stopping short.
+   */
+  keep_limb_spacing: boolean
+  /** Set the body's height, and each leg, so planted feet sit on the floor. */
+  ground_feet: boolean
+  /** Put hands down on the floor when the source has them there (push-ups, crawling). */
+  ground_hands: boolean
+  /**
+   * Seconds over which the body's height correction is averaged. Longer gives
+   * steadier hips through a stride and leaves more for the legs to take up;
+   * 0 follows the feet frame by frame.
+   */
+  body_height_smoothing: number
+  /**
+   * Seconds over which each limb end's correction is averaged. 0 keeps contact
+   * exact on the frame it happens. About 0.035 (one frame at 30 fps) softens the
+   * single-frame jumps in very fast clips, at the cost of contact: a clap's palms
+   * end up noticeably closer than the source has them.
+   */
+  limb_smoothing: number
+  /**
+   * Most an elbow or knee may be opened or closed by the correction, in degrees.
+   * Lower stays closer to the rotation-copied pose and reaches less far.
+   */
+  max_joint_change: number
+  /** World direction pointing away from the floor. null works it out from the rest pose. */
+  up: Vector3 | null
+}
+
+export const DEFAULT_PROPORTION_SETTINGS: Readonly<ProportionSettings> = {
+  keep_limb_spacing: true,
+  ground_feet: true,
+  ground_hands: true,
+  body_height_smoothing: 0.15,
+  limb_smoothing: 0,
+  max_joint_change: 30,
+  up: null
+}
 
 export interface PoseAlignedRetargetOptions {
   /**
@@ -26,6 +69,8 @@ export interface PoseAlignedRetargetOptions {
    * skeletons do not push hands/feet through each other or the body. Default true.
    */
   correct_proportions?: boolean
+  /** Overrides for individual parts of the proportion correction. See ProportionSettings. */
+  proportion_settings?: Partial<ProportionSettings>
 }
 
 /**
@@ -190,17 +235,22 @@ export class PoseAlignedRetargeter {
 
     // ── Find the limbs that get a positional correction ──
     // Measured now, while source (rest) and target (aligned) are in matching poses.
+    const settings: ProportionSettings = { ...DEFAULT_PROPORTION_SETTINGS, ...options.proportion_settings }
+    const max_hinge_change = settings.max_joint_change * Math.PI / 180
     const limbs = options.correct_proportions === false
       ? []
-      : LimbProportionCorrector.detect_limbs(bone_mapping, source_by_name, target_by_name, target_rest_positions)
-    const grounded_limbs = limbs.filter(limb => limb.grounded)
+      : LimbProportionCorrector.detect_limbs(
+        bone_mapping, source_by_name, target_by_name, target_rest_positions, settings.up)
+    // the legs still set the scale of the body's travel when their grounding is off
+    const standing_limbs = limbs.filter(limb => limb.grounded)
+    const grounded_limbs = settings.ground_feet ? standing_limbs : []
     const up = limbs[0]?.up ?? new Vector3(0, 1, 0)
 
     // How far the body travels scales with leg length: a crouch that folds the legs
     // to the same angles drops the hips by that much. The hip height ratio is only
     // a stand-in for it (it also counts ankle and sole height, which do not fold).
-    const translation_scale = grounded_limbs.length > 0
-      ? grounded_limbs.reduce((sum, limb) => sum + limb.length_ratio, 0) / grounded_limbs.length
+    const translation_scale = standing_limbs.length > 0
+      ? standing_limbs.reduce((sum, limb) => sum + limb.length_ratio, 0) / standing_limbs.length
       : options.hip_scale
     for (const limb of limbs) {
       console.log(`Proportion correction: ${limb.target_root.name} -> ${limb.target_end.name} ` +
@@ -360,29 +410,63 @@ export class PoseAlignedRetargeter {
         body_lifts[frame] = wanted.lift
         confidence[frame] = wanted.confidence * standing
       }
-      body_lifts = smooth(body_lifts, BODY_LIFT_SMOOTHING_SECONDS, confidence, 0.3)
+      body_lifts = smooth(body_lifts, settings.body_height_smoothing, confidence, 0.3)
     }
 
-    // ── Sweep 2: bake ──
+    // Where a limb's end joint should go on the frame both skeletons are posed for
+    const limb_goal = (limb: ProportionLimb, out: Vector3): Vector3 => {
+      // the legs take up what the body's height left over for each foot. Hands
+      // only come into it when the source has them down on the floor
+      const use_floor = limb.floor_known && (limb.grounded ? settings.ground_feet : settings.ground_hands)
+      const lift = use_floor
+        ? -(limb.grounded ? standing : 1) * LimbProportionCorrector.floor_weight(limb) *
+          LimbProportionCorrector.height_error(limb, translation_scale)
+        : 0
+      return LimbProportionCorrector.compute_goal(limb, out, lift, settings.keep_limb_spacing)
+    }
+
+    // ── Sweep 2 (only with limb smoothing): average each limb end's correction ──
+    // Kept as an offset from the rotation-copied position, in the anchor bone's
+    // orientation so it turns with the body.
+    let limb_offsets: Float32Array[][] | null = null
+    if (settings.limb_smoothing > 0 && limbs.length > 0) {
+      const offsets_by_limb: Float32Array[][] = limbs.map(() => [0, 1, 2].map(() => new Float32Array(frame_count)))
+      for (let frame = 0; frame < frame_count; frame++) {
+        copy_pose(frame)
+        set_body_height(frame)
+        limbs.forEach((limb, index) => {
+          limb_goal(limb, _goal).sub(limb.target_end.getWorldPosition(_v))
+            .applyQuaternion(limb.target_anchor.getWorldQuaternion(_q).invert())
+          offsets_by_limb[index][0][frame] = _goal.x
+          offsets_by_limb[index][1][frame] = _goal.y
+          offsets_by_limb[index][2][frame] = _goal.z
+        })
+      }
+      const every_frame = new Float32Array(frame_count).fill(1)
+      limb_offsets = offsets_by_limb.map(axes =>
+        axes.map(values => smooth(values, settings.limb_smoothing, every_frame, 0)))
+    }
+
+    // ── Final sweep: bake ──
     for (let frame = 0; frame < frame_count; frame++) {
       // Pass 1: copy rotations
       const time = copy_pose(frame)
 
       // Pass 2: move limb ends to their body-relative positions. Bones below a limb
       // keep their world rotation, so hands and feet stay oriented as the source has them.
-      // Not smoothed over time: even one frame of it blurs a clap's moment of contact.
       if (limbs.length > 0) {
         set_body_height(frame)
-        for (const limb of limbs) {
-          // the legs take up what the body's height left over for each foot. Hands
-          // only come into it when the source has them down on the floor
-          const lift = limb.floor_known
-            ? -(limb.grounded ? standing : 1) * LimbProportionCorrector.floor_weight(limb) *
-              LimbProportionCorrector.height_error(limb, translation_scale)
-            : 0
-          LimbProportionCorrector.compute_goal(limb, _goal, lift)
-          LimbProportionCorrector.solve(limb, _goal, world_rotations)
-        }
+        limbs.forEach((limb, index) => {
+          if (limb_offsets === null) {
+            limb_goal(limb, _goal)
+          } else {
+            const offset = limb_offsets[index]
+            _goal.set(offset[0][frame], offset[1][frame], offset[2][frame])
+              .applyQuaternion(limb.target_anchor.getWorldQuaternion(_q))
+              .add(limb.target_end.getWorldPosition(_v))
+          }
+          LimbProportionCorrector.solve(limb, _goal, world_rotations, max_hinge_change)
+        })
         for (const [target_name] of below_limb) apply_world_rotation(target_name)
       }
 
