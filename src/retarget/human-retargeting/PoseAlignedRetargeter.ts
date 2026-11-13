@@ -81,41 +81,93 @@ export class PoseAlignedRetargeter {
   }
 
   /**
-   * Compute how much to scale arm alignment to prevent proportion-based
-   * body penetration. Returns a value in (0, 1] where 1 = full alignment
-   * and smaller values pull the arms outward.
+   * Compute per-bone proportion scales to prevent body penetration.
+   *
+   * For each bone: scale = (tgt_center_dist × src_chain_len) / (src_center_dist × tgt_chain_len)
+   *
+   * Bones near the body center (spine) get scale ≈ 1 (no correction).
+   * Limb bones with different reach/body-width ratios get scale < 1
+   * (partial alignment to prevent overshoot).
    */
-  private static compute_arm_proportion_scale (
-    source_skeleton: Skeleton, target_skeleton: Skeleton,
+  private static compute_proportion_scales (
+    source_by_name: Map<string, Bone>, target_by_name: Map<string, Bone>,
     bone_mapping: Map<string, string>,
-    source_by_name: Map<string, Bone>, target_by_name: Map<string, Bone>
-  ): number {
-    const find_bone = (skeleton: Skeleton, ...hints: string[]): Bone | undefined =>
-      skeleton.bones.find(b => hints.some(h => b.name.toLowerCase().includes(h)))
-
-    const src_shoulder = find_bone(source_skeleton, 'upperarm_l', 'leftarm')
-    const src_hand = find_bone(source_skeleton, 'hand_l', 'lefthand')
-    const src_spine = find_bone(source_skeleton, 'spine_03', 'spine_02', 'spine2', 'spine1')
-    const tgt_shoulder = find_bone(target_skeleton, 'leftarm', 'upperarm_l')
-    const tgt_hand = find_bone(target_skeleton, 'lefthand', 'hand_l')
-    const tgt_spine = find_bone(target_skeleton, 'spine2', 'spine1', 'spine_03', 'spine_02')
-
-    if (!src_shoulder || !src_hand || !src_spine || !tgt_shoulder || !tgt_hand || !tgt_spine) return 1
-
+    sorted_mapping: Array<[string, string]>,
+    main_child: Map<string, string>
+  ): Map<string, number> {
+    const scales = new Map<string, number>()
     const wp = (bone: Bone): Vector3 => { const v = new Vector3(); bone.getWorldPosition(v); return v }
 
-    const src_arm_len = wp(src_shoulder).distanceTo(wp(src_hand))
-    const src_shoulder_x = Math.abs(wp(src_shoulder).x - wp(src_spine).x)
-    const tgt_arm_len = wp(tgt_shoulder).distanceTo(wp(tgt_hand))
-    const tgt_shoulder_x = Math.abs(wp(tgt_shoulder).x - wp(tgt_spine).x)
+    // Body center = pelvis/hips world position
+    const src_center_bone = [...source_by_name.values()].find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
+    const tgt_center_bone = [...target_by_name.values()].find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
+    if (!src_center_bone || !tgt_center_bone) return scales
 
-    if (src_arm_len < 0.01 || tgt_arm_len < 0.01 || src_shoulder_x < 0.01 || tgt_shoulder_x < 0.01) return 1
+    const src_center = wp(src_center_bone)
+    const tgt_center = wp(tgt_center_bone)
 
-    // scale = (target_shoulder_offset × source_arm_length) / (source_shoulder_offset × target_arm_length)
-    // When < 1, the target's arms reach further relative to body width → overshoot risk
-    const scale = (tgt_shoulder_x * src_arm_len) / (src_shoulder_x * tgt_arm_len)
-    console.log(`Arm proportion scale: ${scale.toFixed(3)} (src arm=${src_arm_len.toFixed(3)} shoulder=${src_shoulder_x.toFixed(3)}, tgt arm=${tgt_arm_len.toFixed(3)} shoulder=${tgt_shoulder_x.toFixed(3)})`)
-    return Math.min(1, scale)
+    // Compute chain length from each bone to its furthest mapped descendant
+    const src_chain_lengths = new Map<string, number>()
+    const tgt_chain_lengths = new Map<string, number>()
+
+    // Walk sorted_mapping in REVERSE (leaf-first) to accumulate chain lengths upward
+    for (let i = sorted_mapping.length - 1; i >= 0; i--) {
+      const [target_name, source_name] = sorted_mapping[i]
+      const child_target = main_child.get(target_name)
+
+      const src_bone = source_by_name.get(source_name)
+      const tgt_bone = target_by_name.get(target_name)
+      if (!src_bone || !tgt_bone) continue
+
+      let src_len = 0
+      let tgt_len = 0
+
+      if (child_target !== undefined) {
+        const child_source = bone_mapping.get(child_target)
+        const src_child = child_source ? source_by_name.get(child_source) : undefined
+        const tgt_child = target_by_name.get(child_target)
+
+        if (src_child && tgt_child) {
+          const src_segment = wp(src_bone).distanceTo(wp(src_child))
+          const tgt_segment = wp(tgt_bone).distanceTo(wp(tgt_child))
+          src_len = src_segment + (src_chain_lengths.get(child_source!) ?? 0)
+          tgt_len = tgt_segment + (tgt_chain_lengths.get(child_target) ?? 0)
+        }
+      }
+
+      src_chain_lengths.set(source_name, src_len)
+      tgt_chain_lengths.set(target_name, tgt_len)
+    }
+
+    // Compute per-bone proportion scale
+    for (const [target_name, source_name] of sorted_mapping) {
+      const src_bone = source_by_name.get(source_name)
+      const tgt_bone = target_by_name.get(target_name)
+      if (!src_bone || !tgt_bone) { scales.set(target_name, 1); continue }
+
+      const src_dist = wp(src_bone).distanceTo(src_center)
+      const tgt_dist = wp(tgt_bone).distanceTo(tgt_center)
+      const src_chain = src_chain_lengths.get(source_name) ?? 0
+      const tgt_chain = tgt_chain_lengths.get(target_name) ?? 0
+
+      // Bones at body center or with no chain → no correction
+      if (src_dist < 0.02 || tgt_dist < 0.02 || src_chain < 0.01 || tgt_chain < 0.01) {
+        scales.set(target_name, 1)
+        continue
+      }
+
+      const scale = Math.min(1, (tgt_dist * src_chain) / (src_dist * tgt_chain))
+      scales.set(target_name, scale)
+    }
+
+    // Log notable corrections
+    for (const [name, scale] of scales) {
+      if (scale < 0.98) console.log(`Proportion scale ${name}: ${scale.toFixed(3)}`)
+    }
+
+    return scales
   }
 
   static retarget (
@@ -140,21 +192,10 @@ export class PoseAlignedRetargeter {
     source_skeleton.bones[0]?.updateMatrixWorld(true)
     target_skeleton.bones[0]?.updateMatrixWorld(true)
 
-    // Compute arm proportion scale: prevents hands overshooting into the body
-    // when the target has longer arms relative to shoulder width.
-    const proportion_scale = this.compute_arm_proportion_scale(
-      source_skeleton, target_skeleton, bone_mapping, source_by_name, target_by_name)
-
-    // Bones that should receive proportion correction (arm chain and descendants)
-    const arm_source_names = new Set<string>()
-    for (const [, sn] of bone_mapping) {
-      const lower = sn.toLowerCase()
-      if (lower.includes('arm') || lower.includes('hand') || lower.includes('clavicle') ||
-          lower.includes('finger') || lower.includes('thumb') || lower.includes('index') ||
-          lower.includes('middle') || lower.includes('ring') || lower.includes('pinky')) {
-        arm_source_names.add(sn)
-      }
-    }
+    // Per-bone proportion scales: prevents limbs overshooting into the body
+    // when the target has different limb/body proportions.
+    const proportion_scales = this.compute_proportion_scales(
+      source_by_name, target_by_name, bone_mapping, sorted_mapping, main_child)
 
     for (const [target_name] of sorted_mapping) {
       const source_name = bone_mapping.get(target_name)!
@@ -176,11 +217,11 @@ export class PoseAlignedRetargeter {
       target_child.getWorldPosition(_v2)
       const t_dir = _v2.clone().sub(_v).normalize()
 
-      // For arm bones, partially align to prevent proportion-based overshoot.
-      // Blend toward source direction by proportion_scale (< 1 pulls back).
+      // Partially align bones with proportion mismatch to prevent overshoot.
+      const bone_scale = proportion_scales.get(target_name) ?? 1
       let align_dir = s_dir
-      if (arm_source_names.has(source_name) && proportion_scale < 1) {
-        align_dir = t_dir.clone().lerp(s_dir, proportion_scale).normalize()
+      if (bone_scale < 1) {
+        align_dir = t_dir.clone().lerp(s_dir, bone_scale).normalize()
       }
 
       const A = new Quaternion().setFromUnitVectors(t_dir, align_dir)
