@@ -219,7 +219,9 @@ export class AnimationRetargetService {
       this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
 
     const corrections = BindCorrectionRetargeter.compute_bind_corrections(
-      detached_target_skeleton, this.get_bone_mappings())
+      source_skeleton, detached_target_skeleton, this.get_bone_mappings())
+
+
 
     // The M2M skeleton has a root bone with -90° X rotation (Z-up to Y-up).
     // Position keyframes are in that bone's local space — apply its rotation to

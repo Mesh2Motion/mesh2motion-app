@@ -2,30 +2,50 @@ import { describe, it, expect } from 'vitest'
 import { AnimationClip, Bone, Quaternion, QuaternionKeyframeTrack, Skeleton, Vector3, VectorKeyframeTrack } from 'three'
 import { BindCorrectionRetargeter, type BindCorrection } from './BindCorrectionRetargeter.ts'
 
+function create_two_bone_skeleton (rootQ: Quaternion, childQ: Quaternion): Skeleton {
+  const root = new Bone()
+  root.name = 'Root'
+  root.quaternion.copy(rootQ)
+  const child = new Bone()
+  child.name = 'Child'
+  child.position.set(0, 1, 0)
+  child.quaternion.copy(childQ)
+  root.add(child)
+  root.updateMatrixWorld(true)
+  return new Skeleton([root, child])
+}
+
 describe('BindCorrectionRetargeter', () => {
   describe('compute_bind_corrections', () => {
-    it('produces corrections when target rest differs from canonical source', () => {
-      const hips = new Bone(); hips.name = 'Hips'
-      hips.quaternion.set(-0.03, 0, 0, 0.9996)
-      hips.updateMatrixWorld(true)
-      const target = new Skeleton([hips])
-      const mapping = new Map([['Hips', 'pelvis']])
+    it('returns empty map when source and target rest poses are identical', () => {
+      const q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4)
+      const cq = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 6)
+      const source = create_two_bone_skeleton(q.clone(), cq.clone())
+      const target = create_two_bone_skeleton(q.clone(), cq.clone())
+      const mapping = new Map([['Root', 'Root'], ['Child', 'Child']])
 
-      const corrections = BindCorrectionRetargeter.compute_bind_corrections(target, mapping)
-
-      expect(corrections.size).toBeGreaterThan(0)
-    })
-
-    it('skips bones not present in canonical rest data', () => {
-      const custom = new Bone(); custom.name = 'CustomBone'
-      custom.quaternion.set(0, 0, 0.7, 0.7)
-      custom.updateMatrixWorld(true)
-      const target = new Skeleton([custom])
-      const mapping = new Map([['CustomBone', 'custom_source']])
-
-      const corrections = BindCorrectionRetargeter.compute_bind_corrections(target, mapping)
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, mapping)
 
       expect(corrections.size).toBe(0)
+    })
+
+    it('produces non-identity corrections when rest poses differ', () => {
+      const source_root_q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4)
+      const source_child_q = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 6)
+      const target_root_q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3)
+      const target_child_q = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 4)
+
+      const source = create_two_bone_skeleton(source_root_q, source_child_q)
+      const target = create_two_bone_skeleton(target_root_q, target_child_q)
+      const mapping = new Map([['Root', 'Root'], ['Child', 'Child']])
+
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, mapping)
+
+      expect(corrections.size).toBeGreaterThan(0)
+
+      const child_corr = corrections.get('Child')
+      expect(child_corr).toBeDefined()
+      expect(child_corr!.L !== null || child_corr!.R !== null).toBe(true)
     })
   })
 
@@ -62,8 +82,9 @@ describe('BindCorrectionRetargeter', () => {
 
       const L = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2)
       const R = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4)
+      const target_rest = L.clone().multiply(R)
       const corrections = new Map<string, BindCorrection>([
-        ['Hips', { L, R }]
+        ['Hips', { L, R, target_rest }]
       ])
       const mapping = new Map([['Hips', 'pelvis']])
 
@@ -107,15 +128,20 @@ describe('BindCorrectionRetargeter', () => {
       expect(result.tracks[0].values[2]).toBeCloseTo(6, 5)
     })
 
-    it('passes through uncorrected bones unchanged', () => {
+    it('round-trips unchanged when source and target skeletons are identical', () => {
+      const q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4)
+      const cq = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 6)
+      const source = create_two_bone_skeleton(q.clone(), cq.clone())
+      const target = create_two_bone_skeleton(q.clone(), cq.clone())
+      const mapping = new Map([['Root', 'Root'], ['Child', 'Child']])
+
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, mapping)
+
       const anim_q = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 0.5)
       const qvals = new Float32Array([anim_q.x, anim_q.y, anim_q.z, anim_q.w])
       const source_clip = new AnimationClip('test', 0, [
-        new QuaternionKeyframeTrack('pelvis.quaternion', new Float32Array([0]), qvals)
+        new QuaternionKeyframeTrack('Child.quaternion', new Float32Array([0]), qvals)
       ])
-
-      const corrections = new Map<string, BindCorrection>()
-      const mapping = new Map([['Hips', 'pelvis']])
 
       const result = BindCorrectionRetargeter.retarget(source_clip, corrections, mapping, {
         hip_scale: 1,
@@ -124,7 +150,6 @@ describe('BindCorrectionRetargeter', () => {
       })
 
       expect(result.tracks.length).toBe(1)
-      expect(result.tracks[0].name).toBe('Hips.quaternion')
       const actual = new Quaternion(
         result.tracks[0].values[0],
         result.tracks[0].values[1],
@@ -135,9 +160,38 @@ describe('BindCorrectionRetargeter', () => {
     })
   })
 
-  describe('integration: canonical → RPM arm retarget', () => {
-    // Real rest-pose quaternions extracted from RPM avatar GLB.
-    // Source rest comes from the embedded canonical Mixamo constants.
+  describe('integration: M2M → RPM arm retarget', () => {
+    // Real rest-pose quaternions extracted from M2M sample rig and RPM avatar GLBs.
+    // The M2M rig has a root bone with 90° X rotation (Z-up convention) that the
+    // RPM rig doesn't have — this is exactly the mismatch that caused the twisted-arms bug.
+    function build_m2m_arm_skeleton (): Skeleton {
+      const root = new Bone(); root.name = 'root'
+      root.quaternion.set(-0.707107, 0, 0, 0.707107)
+      const pelvis = new Bone(); pelvis.name = 'pelvis'
+      pelvis.quaternion.set(0.790468, 0, 0, 0.612503)
+      pelvis.position.set(0, 0, 0)
+      const spine01 = new Bone(); spine01.name = 'spine_01'
+      spine01.quaternion.set(-0.064703, 0, 0, 0.997905)
+      const spine02 = new Bone(); spine02.name = 'spine_02'
+      spine02.quaternion.set(-0.077280, 0, 0, 0.997009)
+      const spine03 = new Bone(); spine03.name = 'spine_03'
+      spine03.quaternion.set(-0.093324, 0, 0, 0.995636)
+      const clavicleL = new Bone(); clavicleL.name = 'clavicle_l'
+      clavicleL.quaternion.set(-0.530812, -0.288154, -0.314649, 0.732259)
+      const upperarmL = new Bone(); upperarmL.name = 'upperarm_l'
+      upperarmL.quaternion.set(0.192103, 0.660515, -0.267884, 0.674577)
+      const lowerarmL = new Bone(); lowerarmL.name = 'lowerarm_l'
+      lowerarmL.quaternion.set(0.021641, 0.000287, -0.006738, 0.999743)
+      const handL = new Bone(); handL.name = 'hand_l'
+      handL.quaternion.set(-0.008400, -0.000060, 0.009398, 0.999921)
+
+      root.add(pelvis); pelvis.add(spine01); spine01.add(spine02)
+      spine02.add(spine03); spine03.add(clavicleL); clavicleL.add(upperarmL)
+      upperarmL.add(lowerarmL); lowerarmL.add(handL)
+      root.updateMatrixWorld(true)
+      return new Skeleton([root, pelvis, spine01, spine02, spine03, clavicleL, upperarmL, lowerarmL, handL])
+    }
+
     function build_rpm_arm_skeleton (): Skeleton {
       const hips = new Bone(); hips.name = 'Hips'
       hips.quaternion.set(-0.029978, -0.000026, 0.000001, 0.999551)
@@ -174,30 +228,32 @@ describe('BindCorrectionRetargeter', () => {
       ['LeftHand', 'hand_l']
     ])
 
-    it('produces non-identity corrections for the canonical→RPM arm chain', () => {
+    it('produces non-identity corrections for the M2M→RPM arm chain', () => {
+      const source = build_m2m_arm_skeleton()
       const target = build_rpm_arm_skeleton()
 
-      const corrections = BindCorrectionRetargeter.compute_bind_corrections(target, ARM_MAPPING)
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, ARM_MAPPING)
 
+      // The rest poses are very different — corrections must exist for arm bones
       expect(corrections.size).toBeGreaterThan(0)
       expect(corrections.has('LeftArm') || corrections.has('LeftForeArm')).toBe(true)
     })
 
-    it('retargeted canonical rest frame reproduces target rest quaternion', () => {
+    it('retargeted arm rest-pose frame reproduces the target rest quaternion', () => {
+      const source = build_m2m_arm_skeleton()
       const target = build_rpm_arm_skeleton()
 
-      const corrections = BindCorrectionRetargeter.compute_bind_corrections(target, ARM_MAPPING)
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, ARM_MAPPING)
 
-      // Canonical source rest for LeftArm (Mixamo authoring rig's LeftArm rest)
-      const canonical_leftarm_rest = new Quaternion(
-        -0.003089573263103852, 0.08018148459223169,
-        -0.025041829737156785, 0.9964608827384491
-      )
+      // Feed the SOURCE rest-pose quaternion for upperarm_l as animation data.
+      // After correction, the output should match the TARGET rest-pose for LeftArm —
+      // because rest pose in the source should map to rest pose in the target.
+      const source_upperarm_rest = new Quaternion(0.192103, 0.660515, -0.267884, 0.674577)
       const target_leftarm_rest = new Quaternion(0.384802, 0.069137, 0.038288, 0.919610)
 
       const qvals = new Float32Array([
-        canonical_leftarm_rest.x, canonical_leftarm_rest.y,
-        canonical_leftarm_rest.z, canonical_leftarm_rest.w
+        source_upperarm_rest.x, source_upperarm_rest.y,
+        source_upperarm_rest.z, source_upperarm_rest.w
       ])
       const clip = new AnimationClip('rest', 0, [
         new QuaternionKeyframeTrack('upperarm_l.quaternion', new Float32Array([0]), qvals)
@@ -213,22 +269,23 @@ describe('BindCorrectionRetargeter', () => {
         result.tracks[0].values[2], result.tracks[0].values[3]
       )
 
+      // The corrected quaternion should be close to the target's rest quaternion
+      // (within a few degrees — not exact due to hierarchy differences above the arm)
       const angle_deg = corrected.angleTo(target_leftarm_rest) * 180 / Math.PI
       expect(angle_deg).toBeLessThan(5)
     })
 
     it('arm flexion points forward, not behind the back', () => {
+      const source = build_m2m_arm_skeleton()
       const target = build_rpm_arm_skeleton()
 
-      const corrections = BindCorrectionRetargeter.compute_bind_corrections(target, ARM_MAPPING)
+      const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, ARM_MAPPING)
 
-      // Canonical source rest for LeftArm + a forward bend
-      const canonical_rest = new Quaternion(
-        -0.003089573263103852, 0.08018148459223169,
-        -0.025041829737156785, 0.9964608827384491
-      )
+      // Simulate a forward arm bend: apply a -30° rotation around the local X axis
+      // on top of the source rest pose (X flexion = elbow bends forward in M2M space)
+      const source_rest = new Quaternion(0.192103, 0.660515, -0.267884, 0.674577)
       const forward_bend = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 6)
-      const animated = canonical_rest.clone().multiply(forward_bend)
+      const animated = source_rest.clone().multiply(forward_bend)
 
       const qvals = new Float32Array([animated.x, animated.y, animated.z, animated.w])
       const clip = new AnimationClip('bend', 0, [
@@ -244,21 +301,29 @@ describe('BindCorrectionRetargeter', () => {
         result.tracks[0].values[2], result.tracks[0].values[3]
       )
 
+      // The corrected rotation should differ from target rest (arm moved)
       const target_rest = new Quaternion(0.384802, 0.069137, 0.038288, 0.919610)
       const delta_from_rest_deg = corrected.angleTo(target_rest) * 180 / Math.PI
       expect(delta_from_rest_deg).toBeGreaterThan(10)
 
-      // World rotation of the corrected arm via target parent chain
-      const parent_world = new Quaternion(-0.029978, -0.000026, 0.000001, 0.999551)
-        .multiply(new Quaternion(-0.013786, 0.000026, 0, 0.999905))
-        .multiply(new Quaternion(-0.036357, 0, 0, 0.999339))
-        .multiply(new Quaternion(0.063592, 0, 0, 0.997976))
-        .multiply(new Quaternion(0.481688, 0.492769, -0.588907, 0.422308))
+      // Key assertion: compute the world rotation of the corrected arm by composing
+      // with the target's parent chain, then check the arm direction.
+      // Target parent world = Hips × Spine × Spine1 × Spine2 × LeftShoulder
+      const parent_world = new Quaternion(-0.029978, -0.000026, 0.000001, 0.999551) // Hips
+        .multiply(new Quaternion(-0.013786, 0.000026, 0, 0.999905)) // Spine
+        .multiply(new Quaternion(-0.036357, 0, 0, 0.999339)) // Spine1
+        .multiply(new Quaternion(0.063592, 0, 0, 0.997976)) // Spine2
+        .multiply(new Quaternion(0.481688, 0.492769, -0.588907, 0.422308)) // LeftShoulder
 
       const arm_world = parent_world.clone().multiply(corrected)
+
+      // In RPM/Mixamo, the arm bone's local +Y axis (bone direction) should point
+      // roughly left (positive X in world). After a forward bend, the arm should
+      // tilt forward (negative Z) — NOT backward (positive Z).
       const arm_dir = new Vector3(0, 1, 0).applyQuaternion(arm_world)
 
-      // Arm should point forward (negative Z), not behind the back (positive Z)
+      // The arm should have a forward (negative Z) component — this is what was
+      // broken before (arms went backward = positive Z)
       expect(arm_dir.z).toBeLessThan(0)
     })
   })
