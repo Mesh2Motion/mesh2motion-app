@@ -77,20 +77,31 @@ export class BindCorrectionRetargeter {
       // R = Ws⁻¹ × Wt
       const R = Ws.clone().invert().multiply(Wt.clone())
 
-      // Normalize to positive-w hemisphere to prevent 180° flips on bones
-      // where the rest-pose difference crosses the quaternion double-cover boundary
       if (L.w < 0) { L.x = -L.x; L.y = -L.y; L.z = -L.z; L.w = -L.w }
       if (R.w < 0) { R.x = -R.x; R.y = -R.y; R.z = -R.z; R.w = -R.w }
 
       const identity_L = (1 - Math.abs(L.w)) < BIND_EPSILON
       const identity_R = (1 - Math.abs(R.w)) < BIND_EPSILON
 
-      if (identity_L && identity_R) continue
+      // When R is large the source and target bones have very different
+      // rest-pose directions (T-pose vs A-pose). The R post-multiply
+      // conjugates the animation delta so far that arm swings inward
+      // become swings outward. Dropping R preserves the source's
+      // world-space bone direction exactly.
+      const R_angle_deg = Math.acos(Math.min(1, Math.abs(R.w))) * 2 * 180 / Math.PI
+      const drop_R = R_angle_deg > 60
+
+      if (identity_L && identity_R && !drop_R) continue
+
+      const effective_R = drop_R ? null : (identity_R ? null : R)
+      const effective_rest = drop_R
+        ? L.clone().multiply(Rs.clone())
+        : Rt.clone()
 
       corrections.set(target_bone_name, {
         L: identity_L ? null : L,
-        R: identity_R ? null : R,
-        target_rest: Rt.clone()
+        R: effective_R,
+        target_rest: effective_rest
       })
 
 

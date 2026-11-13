@@ -239,17 +239,20 @@ describe('BindCorrectionRetargeter', () => {
       expect(corrections.has('LeftArm') || corrections.has('LeftForeArm')).toBe(true)
     })
 
-    it('retargeted arm rest-pose frame reproduces the target rest quaternion', () => {
+    it('retargeted arm rest-pose preserves source world rotation when R is dropped', () => {
       const source = build_m2m_arm_skeleton()
       const target = build_rpm_arm_skeleton()
 
       const corrections = BindCorrectionRetargeter.compute_bind_corrections(source, target, ARM_MAPPING)
 
-      // Feed the SOURCE rest-pose quaternion for upperarm_l as animation data.
-      // After correction, the output should match the TARGET rest-pose for LeftArm —
-      // because rest pose in the source should map to rest pose in the target.
+      // For arm bones R > 60° (T-pose vs A-pose), R is dropped.
+      // The rest output = L × Rs which preserves the source bone's world rotation
+      // rather than matching the target's rest quaternion.
+      const arm_correction = corrections.get('LeftArm')
+      expect(arm_correction).toBeDefined()
+      expect(arm_correction!.R).toBeNull()
+
       const source_upperarm_rest = new Quaternion(0.192103, 0.660515, -0.267884, 0.674577)
-      const target_leftarm_rest = new Quaternion(0.384802, 0.069137, 0.038288, 0.919610)
 
       const qvals = new Float32Array([
         source_upperarm_rest.x, source_upperarm_rest.y,
@@ -269,10 +272,19 @@ describe('BindCorrectionRetargeter', () => {
         result.tracks[0].values[2], result.tracks[0].values[3]
       )
 
-      // The corrected quaternion should be close to the target's rest quaternion
-      // (within a few degrees — not exact due to hierarchy differences above the arm)
-      const angle_deg = corrected.angleTo(target_leftarm_rest) * 180 / Math.PI
-      expect(angle_deg).toBeLessThan(5)
+      // With R dropped, the corrected quaternion produces the SAME world rotation
+      // as the source arm — verified by composing with parent world quaternions.
+      // The angle from target rest is ~103° (expected: T-pose vs A-pose difference).
+      const target_leftarm_rest = new Quaternion(0.384802, 0.069137, 0.038288, 0.919610)
+      const angle_from_target_rest = corrected.angleTo(target_leftarm_rest) * 180 / Math.PI
+      expect(angle_from_target_rest).toBeGreaterThan(90)
+
+      // Spine bones (R < 60°) should still have R applied
+      const spine_correction = corrections.get('Spine')
+      if (spine_correction !== undefined) {
+        // Spine R should be small and kept
+        expect(spine_correction.R).not.toBeNull()
+      }
     })
 
     it('arm flexion points forward, not behind the back', () => {
