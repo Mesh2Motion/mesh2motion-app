@@ -80,6 +80,44 @@ export class PoseAlignedRetargeter {
     return entries
   }
 
+  /**
+   * Compute how much to scale arm alignment to prevent proportion-based
+   * body penetration. Returns a value in (0, 1] where 1 = full alignment
+   * and smaller values pull the arms outward.
+   */
+  private static compute_arm_proportion_scale (
+    source_skeleton: Skeleton, target_skeleton: Skeleton,
+    bone_mapping: Map<string, string>,
+    source_by_name: Map<string, Bone>, target_by_name: Map<string, Bone>
+  ): number {
+    const find_bone = (skeleton: Skeleton, ...hints: string[]): Bone | undefined =>
+      skeleton.bones.find(b => hints.some(h => b.name.toLowerCase().includes(h)))
+
+    const src_shoulder = find_bone(source_skeleton, 'upperarm_l', 'leftarm')
+    const src_hand = find_bone(source_skeleton, 'hand_l', 'lefthand')
+    const src_spine = find_bone(source_skeleton, 'spine_03', 'spine_02', 'spine2', 'spine1')
+    const tgt_shoulder = find_bone(target_skeleton, 'leftarm', 'upperarm_l')
+    const tgt_hand = find_bone(target_skeleton, 'lefthand', 'hand_l')
+    const tgt_spine = find_bone(target_skeleton, 'spine2', 'spine1', 'spine_03', 'spine_02')
+
+    if (!src_shoulder || !src_hand || !src_spine || !tgt_shoulder || !tgt_hand || !tgt_spine) return 1
+
+    const wp = (bone: Bone): Vector3 => { const v = new Vector3(); bone.getWorldPosition(v); return v }
+
+    const src_arm_len = wp(src_shoulder).distanceTo(wp(src_hand))
+    const src_shoulder_x = Math.abs(wp(src_shoulder).x - wp(src_spine).x)
+    const tgt_arm_len = wp(tgt_shoulder).distanceTo(wp(tgt_hand))
+    const tgt_shoulder_x = Math.abs(wp(tgt_shoulder).x - wp(tgt_spine).x)
+
+    if (src_arm_len < 0.01 || tgt_arm_len < 0.01 || src_shoulder_x < 0.01 || tgt_shoulder_x < 0.01) return 1
+
+    // scale = (target_shoulder_offset × source_arm_length) / (source_shoulder_offset × target_arm_length)
+    // When < 1, the target's arms reach further relative to body width → overshoot risk
+    const scale = (tgt_shoulder_x * src_arm_len) / (src_shoulder_x * tgt_arm_len)
+    console.log(`Arm proportion scale: ${scale.toFixed(3)} (src arm=${src_arm_len.toFixed(3)} shoulder=${src_shoulder_x.toFixed(3)}, tgt arm=${tgt_arm_len.toFixed(3)} shoulder=${tgt_shoulder_x.toFixed(3)})`)
+    return Math.min(1, scale)
+  }
+
   static retarget (
     source_clip: AnimationClip,
     source_skeleton: Skeleton,
@@ -102,6 +140,22 @@ export class PoseAlignedRetargeter {
     source_skeleton.bones[0]?.updateMatrixWorld(true)
     target_skeleton.bones[0]?.updateMatrixWorld(true)
 
+    // Compute arm proportion scale: prevents hands overshooting into the body
+    // when the target has longer arms relative to shoulder width.
+    const proportion_scale = this.compute_arm_proportion_scale(
+      source_skeleton, target_skeleton, bone_mapping, source_by_name, target_by_name)
+
+    // Bones that should receive proportion correction (arm chain and descendants)
+    const arm_source_names = new Set<string>()
+    for (const [, sn] of bone_mapping) {
+      const lower = sn.toLowerCase()
+      if (lower.includes('arm') || lower.includes('hand') || lower.includes('clavicle') ||
+          lower.includes('finger') || lower.includes('thumb') || lower.includes('index') ||
+          lower.includes('middle') || lower.includes('ring') || lower.includes('pinky')) {
+        arm_source_names.add(sn)
+      }
+    }
+
     for (const [target_name] of sorted_mapping) {
       const source_name = bone_mapping.get(target_name)!
       const child_target_name = main_child.get(target_name)
@@ -122,8 +176,14 @@ export class PoseAlignedRetargeter {
       target_child.getWorldPosition(_v2)
       const t_dir = _v2.clone().sub(_v).normalize()
 
-      // Pure swing rotation from target direction to source direction (world space)
-      const A = new Quaternion().setFromUnitVectors(t_dir, s_dir)
+      // For arm bones, partially align to prevent proportion-based overshoot.
+      // Blend toward source direction by proportion_scale (< 1 pulls back).
+      let align_dir = s_dir
+      if (arm_source_names.has(source_name) && proportion_scale < 1) {
+        align_dir = t_dir.clone().lerp(s_dir, proportion_scale).normalize()
+      }
+
+      const A = new Quaternion().setFromUnitVectors(t_dir, align_dir)
 
       // Apply swing to target bone: new world = A × old world
       target_bone.getWorldQuaternion(_q)
