@@ -141,30 +141,87 @@ export class PoseAlignedRetargeter {
       tgt_chain_lengths.set(target_name, tgt_len)
     }
 
-    // Compute per-bone proportion scale
+    // Detect limb chains by finding the first bone in each limb that has significant
+    // lateral offset from the body center. Compute scale from the full limb measurement:
+    //   scale = (tgt_joint_offset × src_extremity_reach) / (src_joint_offset × tgt_extremity_reach)
+    // where joint_offset = distance from body center to the limb's root joint
+    // and extremity_reach = distance from root joint to the chain's end (hand/foot)
+
+    // Find the extremity (furthest descendant) for each bone
+    const extremity_of = new Map<string, string>()
+    for (const [target_name, source_name] of sorted_mapping) {
+      let furthest_tgt = target_name
+      let cur = target_name
+      while (main_child.has(cur)) { cur = main_child.get(cur)!; furthest_tgt = cur }
+      extremity_of.set(target_name, furthest_tgt)
+    }
+
+    // Compute scale for bones that are limb joints (offset from center > threshold)
+    const limb_scales = new Map<string, number>()
+    const OFFSET_THRESHOLD = 0.08
+
     for (const [target_name, source_name] of sorted_mapping) {
       const src_bone = source_by_name.get(source_name)
       const tgt_bone = target_by_name.get(target_name)
-      if (!src_bone || !tgt_bone) { scales.set(target_name, 1); continue }
+      if (!src_bone || !tgt_bone) continue
 
-      const src_dist = wp(src_bone).distanceTo(src_center)
-      const tgt_dist = wp(tgt_bone).distanceTo(tgt_center)
-      const src_chain = src_chain_lengths.get(source_name) ?? 0
-      const tgt_chain = tgt_chain_lengths.get(target_name) ?? 0
+      const src_pos = wp(src_bone)
+      const tgt_pos = wp(tgt_bone)
+      const src_offset = Math.abs(src_pos.x - src_center.x)
+      const tgt_offset = Math.abs(tgt_pos.x - tgt_center.x)
 
-      // Bones at body center or with no chain → no correction
-      if (src_dist < 0.02 || tgt_dist < 0.02 || src_chain < 0.01 || tgt_chain < 0.01) {
-        scales.set(target_name, 1)
-        continue
-      }
+      // Only compute for bones with significant lateral offset (limb joints, not spine)
+      if (src_offset < OFFSET_THRESHOLD || tgt_offset < OFFSET_THRESHOLD) continue
 
-      const scale = Math.min(1, (tgt_dist * src_chain) / (src_dist * tgt_chain))
-      scales.set(target_name, scale)
+      // Reach from this bone to its extremity
+      const extremity_tgt = extremity_of.get(target_name)
+      const extremity_src_name = extremity_tgt ? bone_mapping.get(extremity_tgt) : undefined
+      if (!extremity_tgt || !extremity_src_name) continue
+
+      const src_extremity = source_by_name.get(extremity_src_name)
+      const tgt_extremity = target_by_name.get(extremity_tgt)
+      if (!src_extremity || !tgt_extremity) continue
+
+      const src_reach = src_pos.distanceTo(wp(src_extremity))
+      const tgt_reach = tgt_pos.distanceTo(wp(tgt_extremity))
+      if (src_reach < 0.01 || tgt_reach < 0.01) continue
+
+      const scale = Math.min(1, (tgt_offset * src_reach) / (src_offset * tgt_reach))
+      limb_scales.set(target_name, scale)
     }
 
-    // Log notable corrections
+    // Each bone inherits the nearest ancestor's scale (parent-first order ensures
+    // the chain root's scale propagates to all descendants uniformly).
+    for (const [target_name] of sorted_mapping) {
+      const tgt_bone = target_by_name.get(target_name)
+      let current: Bone | null = tgt_bone?.parent as Bone ?? null
+      let inherited = -1
+      while (current !== null && (current as Bone).isBone === true) {
+        if (scales.has(current.name) && scales.get(current.name)! < 1) {
+          inherited = scales.get(current.name)!
+          break
+        }
+        if (limb_scales.has(current.name)) { inherited = limb_scales.get(current.name)!; break }
+        current = current.parent as Bone
+      }
+      // Use inherited scale if available, otherwise own computed scale, otherwise 1
+      if (inherited > 0) {
+        scales.set(target_name, inherited)
+      } else if (limb_scales.has(target_name)) {
+        scales.set(target_name, limb_scales.get(target_name)!)
+      } else {
+        scales.set(target_name, 1)
+      }
+    }
+
+    // Log
+    const logged = new Set<number>()
     for (const [name, scale] of scales) {
-      if (scale < 0.98) console.log(`Proportion scale ${name}: ${scale.toFixed(3)}`)
+      const rounded = Math.round(scale * 1000)
+      if (scale < 0.99 && !logged.has(rounded)) {
+        logged.add(rounded)
+        console.log(`Proportion scale: ${scale.toFixed(3)} (e.g. ${name})`)
+      }
     }
 
     return scales
@@ -192,8 +249,8 @@ export class PoseAlignedRetargeter {
     source_skeleton.bones[0]?.updateMatrixWorld(true)
     target_skeleton.bones[0]?.updateMatrixWorld(true)
 
-    // Per-bone proportion scales: prevents limbs overshooting into the body
-    // when the target has different limb/body proportions.
+    // Per-chain proportion scales: prevents limbs overshooting into the body.
+    // Computed at the limb root (upper arm, thigh) and inherited by children.
     const proportion_scales = this.compute_proportion_scales(
       source_by_name, target_by_name, bone_mapping, sorted_mapping, main_child)
 
