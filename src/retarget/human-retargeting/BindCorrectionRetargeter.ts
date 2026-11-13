@@ -1,5 +1,5 @@
 import {
-  type AnimationClip, type Bone, type Skeleton,
+  type AnimationClip, type Skeleton,
   Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack
 } from 'three'
 import { RetargetUtils, type TrackNameParts } from '../RetargetUtils.ts'
@@ -19,32 +19,20 @@ export interface BindCorrectionRetargetOptions {
 
 export class BindCorrectionRetargeter {
   /**
-   * Compute per-bone local and world rest quaternions by walking the skeleton hierarchy.
+   * Compute per-bone local and world rest quaternions using three.js world matrices.
+   * Uses getWorldQuaternion() to capture the full transform chain including armature
+   * nodes and unmapped ancestor bones, making both source and target consistent
+   * regardless of skeleton structure differences (e.g. M2M's extra root bone).
    */
   static capture_rest_quaternions (skeleton: Skeleton): Map<string, { local: Quaternion, world: Quaternion }> {
-    const bone_index = new Map<Bone, number>()
-    skeleton.bones.forEach((bone, i) => { bone_index.set(bone, i) })
+    skeleton.bones[0]?.parent?.updateMatrixWorld(true)
 
     const result = new Map<string, { local: Quaternion, world: Quaternion }>()
-    const world_quats: Quaternion[] = []
 
-    for (let i = 0; i < skeleton.bones.length; i++) {
-      const bone = skeleton.bones[i]
+    for (const bone of skeleton.bones) {
       const local_q = bone.quaternion.clone()
-
-      let world_q: Quaternion
-      if (bone.parent !== null && bone.parent.isBone === true) {
-        const parent_idx = bone_index.get(bone.parent as Bone)
-        if (parent_idx !== undefined) {
-          world_q = world_quats[parent_idx].clone().multiply(local_q)
-        } else {
-          world_q = local_q.clone()
-        }
-      } else {
-        world_q = local_q.clone()
-      }
-
-      world_quats[i] = world_q
+      const world_q = new Quaternion()
+      bone.getWorldQuaternion(world_q)
       result.set(bone.name, { local: local_q, world: world_q })
     }
 
