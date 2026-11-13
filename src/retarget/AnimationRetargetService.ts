@@ -1,14 +1,12 @@
 import {
   AnimationClip, QuaternionKeyframeTrack,
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
-  type Skeleton
+  type Skeleton, Vector3
 } from 'three'
 import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { HumanClipRetargeter } from './human-retargeting/HumanClipRetargeter.ts'
-import { Rig } from './human-retargeting/Rig.ts'
-import { HumanChainConfig } from './human-retargeting/HumanChainConfig.ts'
+import { PoseAlignedRetargeter } from './human-retargeting/PoseAlignedRetargeter.ts'
 
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing
@@ -220,20 +218,26 @@ export class AnimationRetargetService {
     const detached_target_skeleton: Skeleton = RetargetUtils.clone_skeleton(
       this.target_skinned_meshes[0].skeleton, this.target_rest_transforms)
 
-    const source_rig: Rig = new Rig(source_skeleton)
-    const target_rig: Rig = new Rig(detached_target_skeleton)
+    // Hip height scaling
+    let hip_scale = 1
+    source_skeleton.bones[0]?.updateMatrixWorld(true)
+    detached_target_skeleton.bones[0]?.updateMatrixWorld(true)
+    const src_pelvis = source_skeleton.bones.find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
+    const tgt_pelvis = detached_target_skeleton.bones.find(
+      b => b.name.toLowerCase().includes('pelvis') || b.name.toLowerCase().includes('hips'))
+    if (src_pelvis && tgt_pelvis) {
+      const sy = new Vector3(); src_pelvis.getWorldPosition(sy)
+      const ty = new Vector3(); tgt_pelvis.getWorldPosition(ty)
+      if (sy.y > 0.05 && ty.y > 0.05) hip_scale = Math.min(5, Math.max(0.2, ty.y / sy.y))
+    }
 
-    const { mesh2motion_config, other_rig_config } = HumanChainConfig.build_mapped_chain_configs(this.get_bone_mappings())
-    source_rig.fromConfig(mesh2motion_config)
-    target_rig.fromConfig(other_rig_config)
+    const retargeted = PoseAlignedRetargeter.retarget(
+      source_clip, source_skeleton, detached_target_skeleton,
+      this.get_bone_mappings(), { hip_scale, fps: 30 })
 
-    const retargeted_clip: AnimationClip = HumanClipRetargeter.retarget(source_clip, source_rig, target_rig, {
-      clip_name: `${source_clip.name} RT`,
-      root_correction_x_degrees: this.root_correction_x_degrees
-    })
-
-    console.log(`Swing-twist retargeting complete: ${source_clip.name} -> ${retargeted_clip.name}`)
-    return retargeted_clip
+    console.log(`Pose-aligned retargeting complete: ${source_clip.name} -> ${retargeted.name} (hip scale ${hip_scale.toFixed(3)})`)
+    return retargeted
   }
 
   // #endregion
