@@ -46,13 +46,24 @@ export interface ProportionLimb {
   /** Source distance from the centre line inside which hand (foot) size sets the scale. */
   near_distance: number
   /**
-   * True if the contact point rests on the floor in the rest pose (feet). Such limbs
-   * also get their height above the floor matched to the source.
+   * True if the contact point rests on the floor in the rest pose (feet). These
+   * limbs carry the body, so they decide how high it sits.
    */
   grounded: boolean
-  /** World height of the contact point in each skeleton's own rest pose. */
+  /**
+   * Height along `up` at which this limb's contact point is on the floor, in each
+   * skeleton's world. For grounded limbs that is where it sits in the rest pose;
+   * other limbs (hands) borrow the level from the grounded ones. Only valid if
+   * floor_known.
+   */
   source_floor: number
   target_floor: number
+  floor_known: boolean
+  /** World direction pointing away from the floor, worked out from the rest pose. Shared by all limbs. */
+  up: Vector3
+  /** Contact point in world space with each skeleton standing in its own rest pose. */
+  source_rest_contact: Vector3
+  target_rest_contact: Vector3
 }
 
 interface Measurement {
@@ -80,9 +91,8 @@ interface Contact {
   target_contact: Vector3
   source_size: number
   target_size: number
-  source_floor: number
-  target_floor: number
-  grounded: boolean
+  source_rest_contact: Vector3
+  target_rest_contact: Vector3
 }
 
 interface LimbJoints { root: Bone, mid: Bone, end: Bone, upper_length: number, lower_length: number }
@@ -146,7 +156,7 @@ export class LimbProportionCorrector {
    * Call with both skeletons in the reference pose (source rest, target aligned)
    * and world matrices up to date. target_rest_positions holds the target bones'
    * world positions in the target's own rest pose, from before it was aligned. It
-   * is what tells where the target's floor is. World +Y is taken as up.
+   * is what tells where the target's floor is.
    */
   static detect_limbs (
     bone_mapping: Map<string, string>,
@@ -218,16 +228,7 @@ export class LimbProportionCorrector {
       return worst <= SYMMETRY_TOLERANCE ? worst : Infinity
     }
 
-    // lowest and highest joint of each skeleton standing in its rest pose
     const rest_position = (bone: Bone): Vector3 => target_rest_positions.get(bone) ?? world(bone)
-    const extent = (heights: number[]): { low: number, high: number } =>
-      ({ low: Math.min(...heights), high: Math.max(...heights) })
-    const mapped_targets = [...children.values()].flat().concat(top_level)
-    const target_extent = extent(mapped_targets.map(bone => rest_position(bone).y))
-    const source_extent = extent(mapped_targets.map(bone =>
-      world(source_by_name.get(bone_mapping.get(bone.name) as string) as Bone).y))
-    const is_low = (height: number, range: { low: number, high: number }): boolean =>
-      height - range.low <= GROUNDED_HEIGHT * (range.high - range.low)
 
     // centre of the joints hanging off a limb's end bone, in that bone's local space
     const contact_point = (end: Bone, attached: Bone[]): Vector3 => {
@@ -246,21 +247,18 @@ export class LimbProportionCorrector {
         source_size += world(source_of(bone)).distanceTo(world(source_of(next)))
       }
 
-      // height of the contact point with each skeleton standing in its own rest pose
-      const height = (bones: Bone[], position: (bone: Bone) => Vector3): number =>
-        bones.reduce((sum, bone) => sum + position(bone).y, 0) / bones.length
+      // the contact point with each skeleton standing in its own rest pose
+      const centre = (bones: Bone[], position: (bone: Bone) => Vector3): Vector3 =>
+        bones.reduce((sum, bone) => sum.add(position(bone)), new Vector3()).divideScalar(bones.length)
       const target_bones = attached.length > 0 ? attached : [joints.end]
-      const target_floor = height(target_bones, rest_position)
-      const source_floor = height(target_bones.map(source_of), world)
 
       return {
         target_contact: contact_point(joints.end, attached),
         source_contact: contact_point(source_of(joints.end), attached.map(source_of)),
         target_size: reach.get(joints.end) ?? 0,
         source_size,
-        source_floor,
-        target_floor,
-        grounded: is_low(target_floor, target_extent) && is_low(source_floor, source_extent)
+        source_rest_contact: centre(target_bones.map(source_of), world),
+        target_rest_contact: centre(target_bones, rest_position)
       }
     }
 
@@ -302,6 +300,50 @@ export class LimbProportionCorrector {
       for (const candidate of candidates) {
         if (!paired.has(candidate.child)) queue.push(candidate.child)
       }
+    }
+
+    // ── which way is up, where is the floor, who stands on it ──
+    // The pair that hangs furthest below its anchor is the one being stood on, and
+    // the line from its contact points up to that anchor is vertical. Snapped to a
+    // world axis so a slouching rest pose cannot tilt the floor.
+    const up = new Vector3(0, 1, 0)
+    let longest = 0
+    for (const limb of limbs) {
+      const rise = rest_position(limb.target_anchor).clone()
+        .sub(limb.target_rest_contact.clone().add(limb.twin.target_rest_contact).multiplyScalar(0.5))
+      if (rise.length() <= longest) continue
+      longest = rise.length()
+      const axis = Math.abs(rise.x) > Math.abs(rise.y)
+        ? (Math.abs(rise.x) > Math.abs(rise.z) ? 'x' : 'z')
+        : (Math.abs(rise.y) > Math.abs(rise.z) ? 'y' : 'z')
+      up.set(0, 0, 0)[axis] = Math.sign(rise[axis])
+    }
+
+    // lowest and highest joint of each skeleton standing in its rest pose
+    const extent = (heights: number[]): { low: number, high: number } =>
+      ({ low: Math.min(...heights), high: Math.max(...heights) })
+    const mapped_targets = [...children.values()].flat().concat(top_level)
+    const target_extent = extent(mapped_targets.map(bone => rest_position(bone).dot(up)))
+    const source_extent = extent(mapped_targets.map(bone =>
+      world(source_by_name.get(bone_mapping.get(bone.name) as string) as Bone).dot(up)))
+    const is_low = (height: number, range: { low: number, high: number }): boolean =>
+      height - range.low <= GROUNDED_HEIGHT * (range.high - range.low)
+
+    for (const limb of limbs) {
+      limb.up = up
+      limb.source_floor = limb.source_rest_contact.dot(up)
+      limb.target_floor = limb.target_rest_contact.dot(up)
+      limb.grounded = is_low(limb.target_floor, target_extent) && is_low(limb.source_floor, source_extent)
+      limb.floor_known = limb.grounded
+    }
+    // limbs that do not stand on the floor can still be put down on it (hands in a
+    // crawl or a push-up). They use the floor level the grounded limbs establish
+    const grounded = limbs.filter(limb => limb.grounded)
+    for (const limb of limbs) {
+      if (limb.grounded || grounded.length === 0) continue
+      limb.source_floor = grounded.reduce((sum, other) => sum + other.source_floor, 0) / grounded.length
+      limb.target_floor = grounded.reduce((sum, other) => sum + other.target_floor, 0) / grounded.length
+      limb.floor_known = true
     }
     return limbs
   }
@@ -359,6 +401,7 @@ export class LimbProportionCorrector {
         source_contact_size: source_half_width / 2,
         near_distance: source_half_width / 2,
         grounded: false,
+        floor_known: false,
         source_floor: 0,
         target_floor: 0
       } as ProportionLimb)
@@ -372,9 +415,8 @@ export class LimbProportionCorrector {
   private static set_contact (limb: ProportionLimb, contact: Contact): void {
     limb.source_contact.copy(contact.source_contact)
     limb.target_contact.copy(contact.target_contact)
-    limb.grounded = contact.grounded
-    limb.source_floor = contact.source_floor
-    limb.target_floor = contact.target_floor
+    limb.source_rest_contact = contact.source_rest_contact
+    limb.target_rest_contact = contact.target_rest_contact
     if (contact.source_size < MIN_LENGTH || contact.target_size < MIN_LENGTH) return
 
     limb.contact_ratio = contact.target_size / contact.source_size
@@ -445,7 +487,7 @@ export class LimbProportionCorrector {
    * point is close to its twin's. Then the offset between the two is set to what the
    * source has, in hand sizes, split evenly between both limbs.
    *
-   * @param lift extra world-up movement for the end joint, see height_error
+   * @param lift extra movement of the end joint away from the floor, see height_error
    */
   static compute_goal (limb: ProportionLimb, out: Vector3, lift: number = 0): Vector3 {
     const own = this.measure(limb, _own)
@@ -479,7 +521,7 @@ export class LimbProportionCorrector {
     const together = 1 - smoothstep(separation, limb.source_contact_size, 2 * limb.source_contact_size)
 
     limb.target_end.getWorldPosition(out).addScaledVector(own.axis, shift)
-    out.y += lift
+    if (lift !== 0) out.addScaledVector(limb.up, lift)
     if (together > 0) {
       // half the source offset between the two contact points, in target hand sizes,
       // minus half the offset rotation copying produced
@@ -490,46 +532,48 @@ export class LimbProportionCorrector {
     return out
   }
 
-  /**
-   * How much too high (positive) the target's contact point is above its floor,
-   * compared with the source's height above its own floor scaled to the target's
-   * size. Only meaningful for grounded limbs.
-   */
-  static height_error (limb: ProportionLimb, scale: number): number {
-    const source_height = limb.source_end.localToWorld(_from.copy(limb.source_contact)).y - limb.source_floor
-    const target_height = limb.target_end.localToWorld(_to.copy(limb.target_contact)).y - limb.target_floor
-    return target_height - source_height * scale
+  /** Height of the source's contact point above its floor, as posed now. */
+  private static source_height (limb: ProportionLimb): number {
+    return limb.source_end.localToWorld(_from.copy(limb.source_contact)).dot(limb.up) - limb.source_floor
   }
 
   /**
-   * How much a grounded limb is bearing on the floor, judged from the source: 1 with
+   * How much too high (positive) the target's contact point is above its floor,
+   * compared with the source's height above its own floor scaled to the target's
+   * size. Only meaningful if the limb's floor_known.
+   */
+  static height_error (limb: ProportionLimb, scale: number): number {
+    const target_height = limb.target_end.localToWorld(_to.copy(limb.target_contact)).dot(limb.up) - limb.target_floor
+    return target_height - this.source_height(limb) * scale
+  }
+
+  /**
+   * How much a limb is bearing on the floor, judged from the source: 1 with
    * the contact point on the floor, falling towards 0 as it lifts off (about 0.2 at
    * half a foot-length up). Heights of limbs in the air are not worth correcting.
    */
   static floor_weight (limb: ProportionLimb): number {
-    const source_height = limb.source_end.localToWorld(_from.copy(limb.source_contact)).y - limb.source_floor
-    const relative = Math.max(0, source_height) / (0.25 * limb.source_contact_size)
+    const relative = Math.max(0, this.source_height(limb)) / (0.25 * limb.source_contact_size)
     return 1 / (1 + relative * relative)
   }
 
   /**
    * How far to raise the whole body (negative = lower) so that the grounded limbs
-   * carrying the weight sit at the right height. Each limb counts by its
-   * floor_weight, so a planted foot decides and two planted feet share. Every limb
-   * keeps a small say even in the air: the error is mostly one offset common to all
-   * of them, and dropping it mid-stride would make the body bob. What this does not
-   * settle for an individual limb is left for that limb to take up itself.
+   * carrying the weight sit at the right height, and how much that figure can be
+   * trusted this frame. Each limb counts by its floor_weight, so a planted foot
+   * decides and two planted feet share. With nothing near the floor (mid-stride,
+   * mid-air) the figure means little and the confidence says so.
    */
-  static body_lift (limbs: ProportionLimb[], scale: number): number {
+  static body_lift (limbs: ProportionLimb[], scale: number): { lift: number, confidence: number } {
     let total = 0
     let weights = 0
     for (const limb of limbs) {
       if (!limb.grounded) continue
-      const weight = this.floor_weight(limb) + 0.1
+      const weight = this.floor_weight(limb)
       total -= weight * this.height_error(limb, scale)
       weights += weight
     }
-    return weights > 0 ? total / weights : 0
+    return { lift: weights > 0 ? total / weights : 0, confidence: Math.min(1, weights) }
   }
 
   /**

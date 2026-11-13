@@ -194,6 +194,7 @@ export class PoseAlignedRetargeter {
       ? []
       : LimbProportionCorrector.detect_limbs(bone_mapping, source_by_name, target_by_name, target_rest_positions)
     const grounded_limbs = limbs.filter(limb => limb.grounded)
+    const up = limbs[0]?.up ?? new Vector3(0, 1, 0)
 
     // How far the body travels scales with leg length: a crouch that folds the legs
     // to the same angles drops the hips by that much. The hip height ratio is only
@@ -258,7 +259,7 @@ export class PoseAlignedRetargeter {
       Math.max(1, grounded_limbs.length)
     const standing_amount = (source_hip_height: number): number => {
       if (grounded_limbs.length === 0) return 1
-      const relative = (source_hip_height - source_floor) / (source_rest_position.y - source_floor)
+      const relative = (source_hip_height - source_floor) / (source_rest_position.dot(up) - source_floor)
       const t = Math.min(1, Math.max(0, (relative - 0.2) / 0.2))
       return t * t * (3 - 2 * t)
     }
@@ -289,11 +290,13 @@ export class PoseAlignedRetargeter {
       // the target's size, applied on top of the target's own rest position.
       if (position_source !== undefined && position_target !== undefined) {
         position_source.getWorldPosition(_v)
-        standing = standing_amount(_v.y)
+        standing = standing_amount(_v.dot(up))
         _v.sub(source_rest_position)
         // off its feet, height above the floor goes by overall body size instead
         const vertical_scale = options.hip_scale + (translation_scale - options.hip_scale) * standing
-        _v.set(_v.x * translation_scale, _v.y * vertical_scale, _v.z * translation_scale).add(target_rest_position)
+        const rise = _v.dot(up)
+        _v.multiplyScalar(translation_scale).addScaledVector(up, rise * (vertical_scale - translation_scale))
+          .add(target_rest_position)
         if (position_target.parent !== null) position_target.parent.worldToLocal(_v)
         position_target.position.copy(_v)
       }
@@ -308,52 +311,73 @@ export class PoseAlignedRetargeter {
       return time
     }
 
-    // How far the whole body is raised or lowered each frame so the planted feet sit
-    // at the height the source has them above the floor. The frame-by-frame figure
-    // wobbles through a stride as each leg's error comes and goes, and hips that
-    // followed it would bob. So the body only takes the slow part of it, and the legs
-    // take up the rest below.
-    const body_lifts = new Float32Array(frame_count)
-    if (grounded_limbs.length > 0 && position_target !== undefined) {
-      const raw = new Float32Array(frame_count)
-      for (let frame = 0; frame < frame_count; frame++) {
-        copy_pose(frame)
-        raw[frame] = standing * LimbProportionCorrector.body_lift(grounded_limbs, translation_scale)
-      }
-      const sigma = BODY_LIFT_SMOOTHING_SECONDS * options.fps
+    // Gaussian average over neighbouring frames. Each frame's value counts by its
+    // confidence. Where the confidence nearby averages less than `floor`, the result
+    // shrinks towards zero in proportion; above that it is the plain weighted average.
+    const smooth = (values: Float32Array, seconds: number, confidence: Float32Array, floor: number): Float32Array => {
+      const sigma = Math.max(1e-3, seconds * options.fps)
       const reach = Math.ceil(3 * sigma)
-      for (let frame = 0; frame < frame_count; frame++) {
+      const result = new Float32Array(values.length)
+      for (let frame = 0; frame < values.length; frame++) {
         let total = 0
         let weights = 0
-        for (let other = Math.max(0, frame - reach); other <= Math.min(frame_count - 1, frame + reach); other++) {
+        let plain_weights = 0
+        for (let other = Math.max(0, frame - reach); other <= Math.min(values.length - 1, frame + reach); other++) {
           const weight = Math.exp(-0.5 * ((other - frame) / sigma) ** 2)
-          total += weight * raw[other]
-          weights += weight
+          const trusted = weight * confidence[other]
+          total += trusted * values[other]
+          weights += trusted
+          plain_weights += weight
         }
-        body_lifts[frame] = total / weights
+        const divisor = Math.max(weights, floor * plain_weights)
+        result[frame] = divisor > 0 ? total / divisor : 0
       }
+      return result
     }
 
+    const set_body_height = (frame: number): void => {
+      if (grounded_limbs.length === 0 || position_target === undefined) return
+      position_target.getWorldPosition(_v)
+      _v.addScaledVector(up, body_lifts[frame])
+      if (position_target.parent !== null) position_target.parent.worldToLocal(_v)
+      position_target.position.copy(_v)
+      position_target.updateMatrixWorld(true)
+    }
+
+    // ── Sweep 1: how high the body should sit ──
+    // How far the whole body is raised or lowered each frame so the planted feet sit
+    // at the height the source has them above the floor. The frame-by-frame figure
+    // wobbles through a stride as each leg's error comes and goes, and means nothing
+    // while both feet are in the air. So the body takes only the slow part of it,
+    // carried across from the frames where a foot is actually down, and the legs
+    // take up the rest below.
+    let body_lifts: Float32Array = new Float32Array(frame_count)
+    if (grounded_limbs.length > 0 && position_target !== undefined) {
+      const confidence = new Float32Array(frame_count)
+      for (let frame = 0; frame < frame_count; frame++) {
+        copy_pose(frame)
+        const wanted = LimbProportionCorrector.body_lift(grounded_limbs, translation_scale)
+        body_lifts[frame] = wanted.lift
+        confidence[frame] = wanted.confidence * standing
+      }
+      body_lifts = smooth(body_lifts, BODY_LIFT_SMOOTHING_SECONDS, confidence, 0.3)
+    }
+
+    // ── Sweep 2: bake ──
     for (let frame = 0; frame < frame_count; frame++) {
       // Pass 1: copy rotations
       const time = copy_pose(frame)
 
       // Pass 2: move limb ends to their body-relative positions. Bones below a limb
       // keep their world rotation, so hands and feet stay oriented as the source has them.
+      // Not smoothed over time: even one frame of it blurs a clap's moment of contact.
       if (limbs.length > 0) {
-        // Feet first: set the whole body at the height that suits the planted feet ...
-        if (grounded_limbs.length > 0 && position_target !== undefined) {
-          position_target.getWorldPosition(_v)
-          _v.y += body_lifts[frame]
-          if (position_target.parent !== null) position_target.parent.worldToLocal(_v)
-          position_target.position.copy(_v)
-          position_target.updateMatrixWorld(true)
-        }
-
+        set_body_height(frame)
         for (const limb of limbs) {
-          // ... and let each leg take up whatever is left for its own foot
-          const lift = limb.grounded
-            ? -standing * LimbProportionCorrector.floor_weight(limb) *
+          // the legs take up what the body's height left over for each foot. Hands
+          // only come into it when the source has them down on the floor
+          const lift = limb.floor_known
+            ? -(limb.grounded ? standing : 1) * LimbProportionCorrector.floor_weight(limb) *
               LimbProportionCorrector.height_error(limb, translation_scale)
             : 0
           LimbProportionCorrector.compute_goal(limb, _goal, lift)

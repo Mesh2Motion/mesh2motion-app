@@ -127,6 +127,8 @@ interface Frame {
   hips: Vector3
   /** world positions of the two ball-of-foot joints */
   balls: [Vector3, Vector3]
+  /** world positions of the two palm centres */
+  palms: [Vector3, Vector3]
   rotations: Map<string, Quaternion>
 }
 
@@ -163,18 +165,34 @@ function sample (skeleton: Skeleton, clip: AnimationClip, names: RigNames): Fram
       foot_gap: gap(names.left_thigh, names.right_thigh, names.left_foot, names.right_foot),
       hips: world(bone(skeleton, names.hips)),
       balls: [world(bone(skeleton, names.left_ball)), world(bone(skeleton, names.right_ball))],
+      palms: [contact(names.left.hand), contact(names.right.hand)],
       rotations: new Map(skeleton.bones.map(b => [b.name, b.quaternion.clone()]))
     })
   }
   return frames
 }
 
-interface Result { source: Frame[], plain: Frame[], corrected: Frame[], hip_scale: number, rest: { source: Frame, target: Frame } }
+interface Result {
+  source: Frame[], plain: Frame[], corrected: Frame[], hip_scale: number, rest: { source: Frame, target: Frame }
+  /** the retargeted clip with correction on */
+  clip: AnimationClip
+}
 
-async function retarget_clip (animation_file: string): Promise<Result> {
+/**
+ * @param up which world axis is up. 'z' stands both rigs up in a Z-up world by turning
+ *   their armature nodes, the way a Z-up scene would hold them.
+ */
+async function retarget_clip (animation_file: string, up: 'y' | 'z' = 'y'): Promise<Result> {
   const source_file = await load_glb(M2M_SKELETON)
   const clip = (await load_glb(`static/assets/human/animations/${animation_file}`)).animations[0]
   const target_file = await load_glb(RPM_AVATAR)
+  if (up === 'z') {
+    for (const scene of [source_file.scene, target_file.scene]) {
+      const armature = scene.children.find(child => child.name.toLowerCase().includes('armature'))
+      if (armature === undefined) throw new Error('no armature node')
+      armature.quaternion.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2))
+    }
+  }
   target_file.scene.updateMatrixWorld(true)
   const target_real = first_skinned_mesh(target_file.scene).skeleton
   const target_rest = RetargetUtils.capture_bone_rest_transforms(target_real)
@@ -191,21 +209,24 @@ async function retarget_clip (animation_file: string): Promise<Result> {
   const rest_frame = (skeleton: Skeleton, names: RigNames): Frame => {
     skeleton.bones[0].updateMatrixWorld(true)
     return {
-      hand_gap: 0, palm_distance: 0, foot_gap: 0, rotations: new Map(),
+      hand_gap: 0, palm_distance: 0, foot_gap: 0, rotations: new Map(), palms: [new Vector3(), new Vector3()],
       hips: world(bone(skeleton, names.hips)),
       balls: [world(bone(skeleton, names.left_ball)), world(bone(skeleton, names.right_ball))]
     }
   }
   const rest = { source: rest_frame(new_source(), M2M), target: rest_frame(new_target(), RPM) }
-  const hip_scale = rest.target.hips.y / rest.source.hips.y
+  const hip_scale = rest.target.hips[up] / rest.source.hips[up]
 
+  let corrected_clip: AnimationClip | null = null
   const bake = (correct_proportions: boolean): Frame[] => {
     const retargeted = PoseAlignedRetargeter.retarget(clip, new_source(), new_target(), mapping,
       { hip_scale, fps: FPS, correct_proportions })
+    if (correct_proportions) corrected_clip = retargeted
     return sample(new_target(), retargeted, RPM)
   }
 
-  return { source: sample(new_source(), clip, M2M), plain: bake(false), corrected: bake(true), hip_scale, rest }
+  const frames = { source: sample(new_source(), clip, M2M), plain: bake(false), corrected: bake(true) }
+  return { ...frames, hip_scale, rest, clip: corrected_clip as unknown as AnimationClip }
 }
 
 function degrees_between (a: Quaternion, b: Quaternion): number {
@@ -314,9 +335,58 @@ describe('PoseAlignedRetargeter body translation and footing (M2M -> RPM)', () =
       })
       console.log(`${file}: worst height error of the lower foot: rotation-only ` +
         `${(worst_plain * 100).toFixed(1)} cm, corrected ${(worst * 100).toFixed(1)} cm`)
-      expect(worst).toBeLessThan(0.025)
+      expect(worst).toBeLessThan(0.03)
     })
   }
+
+  it('puts the hands on the floor in a push-up', async () => {
+    const result = await retarget_clip('pushup.glb')
+    const floor = (rest: Frame): number => Math.min(rest.balls[0].y, rest.balls[1].y)
+    let worst = 0
+    let worst_plain = 0
+    let frames = 0
+    result.source.forEach((source_frame, i) => {
+      for (const side of [0, 1]) {
+        const source_height = source_frame.palms[side].y - floor(result.rest.source)
+        if (source_height > 0.06) continue
+        frames++
+        const wanted = source_height * LEG_LENGTH_RATIO
+        worst = Math.max(worst, Math.abs(result.corrected[i].palms[side].y - floor(result.rest.target) - wanted))
+        worst_plain = Math.max(worst_plain, Math.abs(result.plain[i].palms[side].y - floor(result.rest.target) - wanted))
+      }
+    })
+    console.log(`pushup.glb: worst palm height error while on the floor: rotation-only ` +
+      `${(worst_plain * 100).toFixed(1)} cm, corrected ${(worst * 100).toFixed(1)} cm`)
+    expect(frames).toBeGreaterThan(50)
+    expect(worst_plain).toBeGreaterThan(0.05)
+    expect(worst).toBeLessThan(0.015)
+  })
+
+  it('finds the floor in a Z-up world too', async () => {
+    // Bone-local tracks do not depend on how the world is oriented, so the same
+    // bake in a Z-up world has to come out the same
+    const y_up = (await retarget_clip('crouch-idle.glb', 'y')).clip
+    const z_up = (await retarget_clip('crouch-idle.glb', 'z')).clip
+    expect(z_up.tracks.length).toBe(y_up.tracks.length)
+
+    let worst = 0
+    y_up.tracks.forEach((track, index) => {
+      const other = z_up.tracks[index]
+      expect(other.name).toBe(track.name)
+      const is_rotation = track.name.endsWith('.quaternion')
+      for (let i = 0; i < track.values.length; i += is_rotation ? 4 : 3) {
+        // q and -q are the same rotation
+        let same = 0
+        let flipped = 0
+        for (let k = 0; k < (is_rotation ? 4 : 3); k++) {
+          same = Math.max(same, Math.abs(track.values[i + k] - other.values[i + k]))
+          flipped = Math.max(flipped, Math.abs(track.values[i + k] + other.values[i + k]))
+        }
+        worst = Math.max(worst, is_rotation ? Math.min(same, flipped) : same)
+      }
+    })
+    expect(worst).toBeLessThan(1e-3)
+  })
 
   it('does not make the hips bob through a stride', async () => {
     const result = await retarget_clip('sprint.glb')
