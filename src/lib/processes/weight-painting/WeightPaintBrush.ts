@@ -1,4 +1,5 @@
-import { MathUtils, Matrix3, Mesh, SkinnedMesh, Triangle, Vector3, type Bone, type BufferGeometry, type Intersection, type PerspectiveCamera } from 'three'
+import { MathUtils, Matrix3, Mesh, SkinnedMesh, Triangle, Vector3, type Bone, type Intersection, type PerspectiveCamera } from 'three'
+import { vertex_adjacency } from '../../geometry/VertexAdjacency.ts'
 import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from './WeightPaintManager.ts'
 
 /**
@@ -24,8 +25,6 @@ export class WeightPaintBrush {
   private readonly sweep = new Vector3()
   private readonly sweep_offset = new Vector3()
   private readonly sweep_closest = new Vector3()
-  // triangle adjacency per geometry, used to spread a dab across the surface
-  private readonly adjacency_cache = new WeakMap<BufferGeometry, number[][]>()
 
   constructor (private readonly manager: WeightPaintManager) {}
 
@@ -201,7 +200,7 @@ export class WeightPaintBrush {
       falloffs.set(triangle[i], influence)
     }
 
-    const adjacency = this.adjacency_for(object.geometry)
+    const adjacency = vertex_adjacency(object.geometry)
     for (const index of triangle) {
       const influence = (falloffs.get(index) ?? 0) * 0.5
       if (influence <= 0) { continue }
@@ -210,34 +209,6 @@ export class WeightPaintBrush {
       }
     }
     return falloffs
-  }
-
-  /** Vertex adjacency built from the geometry's triangles, cached per geometry. */
-  private adjacency_for (geometry: BufferGeometry): number[][] {
-    const cached = this.adjacency_cache.get(geometry)
-    if (cached !== undefined) { return cached }
-
-    const positions = geometry.attributes.position
-    const vertex_count = positions?.count ?? 0
-    const neighbours: Array<Set<number>> = Array.from({ length: vertex_count }, () => new Set<number>())
-    const index = geometry.getIndex()
-    const triangle_count = Math.floor((index !== null ? index.count : vertex_count) / 3)
-
-    for (let triangle = 0; triangle < triangle_count; triangle++) {
-      const a = index !== null ? index.getX(triangle * 3) : triangle * 3
-      const b = index !== null ? index.getX(triangle * 3 + 1) : triangle * 3 + 1
-      const c = index !== null ? index.getX(triangle * 3 + 2) : triangle * 3 + 2
-      neighbours[a]?.add(b)
-      neighbours[a]?.add(c)
-      neighbours[b]?.add(a)
-      neighbours[b]?.add(c)
-      neighbours[c]?.add(a)
-      neighbours[c]?.add(b)
-    }
-
-    const adjacency = neighbours.map(set => [...set])
-    this.adjacency_cache.set(geometry, adjacency)
-    return adjacency
   }
 
   /** World-space brush radius at a surface point, derived from the pixel size. */

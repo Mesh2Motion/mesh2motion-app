@@ -1,6 +1,7 @@
 import { Vector3, type Bone, type BufferGeometry, type Mesh } from 'three'
 import { Generators } from '../../Generators'
 import { Utility } from '../../Utilities.js'
+import { vertex_adjacency } from '../../geometry/VertexAdjacency.ts'
 
 export interface PaintedInfluence {
   bone_name: string
@@ -64,7 +65,6 @@ export class WeightPaintManager {
   private current_stroke_backups: Map<Mesh, Map<number, SkinBackup>> | null = null
   private readonly bone_colors = Generators.generate_deterministic_bone_colors(120)
   private readonly mirror_cache = new WeakMap<BufferGeometry, MirrorData | null>()
-  private readonly adjacency_cache = new WeakMap<BufferGeometry, number[][]>()
 
   /** Which side of the body a bone belongs to, based on common naming patterns. */
   public static bone_side (bone_name: string): BoneSide {
@@ -362,27 +362,48 @@ export class WeightPaintManager {
     for (const brush_vertex of vertices) {
       const current = this.current_influences(mesh, geometry_overrides, brush_vertex.vertex_index, bones)
       const current_weight = current.get(bone_name) ?? 0
-      const amount = Math.min(1, Math.max(0, strength * brush_vertex.falloff))
+      const amount = WeightPaintManager.brush_amount(strength, brush_vertex.falloff)
       const target_weight = mode === 'add'
         ? current_weight + (1 - current_weight) * amount
         : current_weight * (1 - amount)
 
       const updated = this.renormalize(current, bone_name, target_weight, bones)
-      this.record_stroke_backup(mesh, brush_vertex.vertex_index)
-      geometry_overrides.set(brush_vertex.vertex_index, updated)
-      this.write_skin_influences(mesh, brush_vertex.vertex_index, updated, bones)
-      this.recolor_vertex(mesh, brush_vertex.vertex_index, updated, bones)
+      this.commit_vertex(mesh, geometry_overrides, brush_vertex.vertex_index, updated, bones)
       painted_count++
     }
 
-    if (painted_count > 0) {
+    this.flush_paint(mesh, painted_count > 0)
+    return painted_count
+  }
+
+  /** Fraction (0-1) a vertex moves towards the target for one dab. */
+  private static brush_amount (strength: number, falloff: number): number {
+    return Math.min(1, Math.max(0, strength * falloff))
+  }
+
+  /** Stores a vertex's new influences as an override and writes them to the mesh. */
+  private commit_vertex (
+    mesh: Mesh,
+    geometry_overrides: GeometryWeightOverrides,
+    vertex_index: number,
+    influences: PaintedInfluence[],
+    bones: Bone[]
+  ): void {
+    this.record_stroke_backup(mesh, vertex_index)
+    geometry_overrides.set(vertex_index, influences)
+    this.write_skin_influences(mesh, vertex_index, influences, bones)
+    this.recolor_vertex(mesh, vertex_index, influences, bones)
+  }
+
+  /** Uploads the changed attributes once after a batch of commit_vertex calls. */
+  private flush_paint (mesh: Mesh, skin_changed: boolean): void {
+    if (skin_changed) {
       this.mark_skin_attributes_dirty(mesh)
     }
     const color_attribute = mesh.geometry.attributes.color
     if (color_attribute !== undefined) {
       color_attribute.needsUpdate = true
     }
-    return painted_count
   }
 
   /** The brush vertices plus their counterparts across the symmetry plane. */
@@ -412,7 +433,7 @@ export class WeightPaintManager {
     strength: number,
     bones: Bone[]
   ): number {
-    const adjacency = this.adjacency_for(mesh.geometry)
+    const adjacency = vertex_adjacency(mesh.geometry)
     const influence_cache = new Map<number, Map<string, number>>()
     const influences_at = (vertex_index: number): Map<string, number> => {
       const cached = influence_cache.get(vertex_index)
@@ -426,7 +447,7 @@ export class WeightPaintManager {
     // on the order the brush vertices are processed in.
     const smoothed = new Map<number, PaintedInfluence[]>()
     for (const vertex of vertices) {
-      const amount = Math.min(1, Math.max(0, strength * vertex.falloff))
+      const amount = WeightPaintManager.brush_amount(strength, vertex.falloff)
       if (amount <= 1e-6) { continue }
 
       const neighbors = adjacency[vertex.vertex_index] ?? []
@@ -463,55 +484,11 @@ export class WeightPaintManager {
     }
 
     for (const [vertex_index, influences] of smoothed) {
-      this.record_stroke_backup(mesh, vertex_index)
-      geometry_overrides.set(vertex_index, influences)
-      this.write_skin_influences(mesh, vertex_index, influences, bones)
-      this.recolor_vertex(mesh, vertex_index, influences, bones)
+      this.commit_vertex(mesh, geometry_overrides, vertex_index, influences, bones)
     }
 
-    if (smoothed.size > 0) {
-      this.mark_skin_attributes_dirty(mesh)
-      const color_attribute = mesh.geometry.attributes.color
-      if (color_attribute !== undefined) { color_attribute.needsUpdate = true }
-    }
+    if (smoothed.size > 0) { this.flush_paint(mesh, true) }
     return smoothed.size
-  }
-
-  /** Connected vertex indices, built lazily from the geometry's triangles. */
-  private adjacency_for (geometry: BufferGeometry): number[][] {
-    const cached = this.adjacency_cache.get(geometry)
-    if (cached !== undefined) { return cached }
-
-    const vertex_count = geometry.attributes.position?.count ?? 0
-    const neighbors: Array<Set<number>> = Array.from({ length: vertex_count }, () => new Set<number>())
-    const connect = (a: number, b: number): void => {
-      if (a === b || a < 0 || b < 0 || a >= vertex_count || b >= vertex_count) { return }
-      neighbors[a].add(b)
-      neighbors[b].add(a)
-    }
-
-    const index = geometry.index
-    if (index !== null) {
-      for (let i = 0; i + 2 < index.count; i += 3) {
-        const a = index.getX(i)
-        const b = index.getX(i + 1)
-        const c = index.getX(i + 2)
-        connect(a, b)
-        connect(b, c)
-        connect(c, a)
-      }
-    } else {
-      // Non-indexed geometry: vertices in the same triangle are neighbours.
-      for (let i = 0; i + 2 < vertex_count; i += 3) {
-        connect(i, i + 1)
-        connect(i + 1, i + 2)
-        connect(i + 2, i)
-      }
-    }
-
-    const result = neighbors.map(set => [...set])
-    this.adjacency_cache.set(geometry, result)
-    return result
   }
 
   /**
