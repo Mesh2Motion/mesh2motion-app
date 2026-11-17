@@ -7,44 +7,29 @@ import { type SkeletonType } from '../../enums/SkeletonType'
 import { VariationLicenseCatalog } from '../../VariationLicenseInfo'
 
 /**
- * Manages the model variation selection on the "Explore" page.
+ * Manages the model variation list in the Explore page's left sidebar.
  * When a rig type is selected that has model_variations in the asset manifest,
- * a button is shown that opens a confirmation dialog with image previews
- * and attribution for each variation. Otherwise the button is hidden.
+ * a card is shown for each one; clicking a card loads that model immediately.
+ * Rigs without variations show an "no alternate models" message instead.
  *
- * The dialog HTML lives in index.html; this class populates and shows/hides it.
+ * The sidebar HTML lives in index.html; this class populates it.
  * Loads the selected variation GLB and dispatches 'variation-changed'
  * with the extracted SkinnedMesh[] so consumers can swap the model directly.
  */
 export class ModelVariationSwitcher extends EventTarget {
-
-  // Dialog related DOM elements for switching the model with a popup dialog
-  private readonly dom_dialog_overlay: HTMLElement | null = document.querySelector('#variation-dialog-overlay')
+  private readonly dom_section: HTMLElement | null = document.querySelector('#variation-section')
   private readonly dom_grid: HTMLElement | null = document.querySelector('#variation-grid')
-  private readonly dom_dialog_confirm_button: HTMLButtonElement | null = document.querySelector('#variation-confirm-button')
-  private readonly dom_dialog_cancel_button: HTMLButtonElement | null = document.querySelector('#variation-cancel-button')
 
-  private readonly loader: GLTFLoader = new GLTFLoader()
-  private current_rig: RigConfigEntry | undefined
-  private added_event_listeners = false
-  private _is_variation_active: boolean = false
-  private confirmed_variation: ModelVariation | null = null // model we currently have loaded
-  private pending_variation: ModelVariation | null = null // active selection (will be reset if user cancels out of dialog)
-
-
-  // Loading progress bar elements within the dialog once confirmation happens. A few models are around 5MB which could take
-  // a moment to load.
+  // A few models are around 5MB, so show progress while one loads.
   private readonly dom_loading_container: HTMLElement | null = document.querySelector('#variation-loading-container')
   private readonly dom_loading_bar: HTMLElement | null = document.querySelector('#variation-loading-bar')
   private readonly dom_loading_text: HTMLElement | null = document.querySelector('#variation-loading-text')
 
-  // UI elements on the explore page that show the currently selected variation's info. Used to populate current value.
-  private readonly dom_switcher: HTMLElement | null = document.querySelector('#model-variation-switcher')
-  private readonly dom_change_model_button: HTMLButtonElement | null = document.querySelector('#model-variation-button')
-  private readonly dom_info_image: HTMLImageElement | null = document.querySelector('#model-variation-info-image')
-  private readonly dom_info_name: HTMLElement | null = document.querySelector('#model-variation-info-name')
-  private readonly dom_info_license: HTMLElement | null = document.querySelector('#model-variation-info-license')
-  private readonly dom_info_attribution: HTMLElement | null = document.querySelector('#model-variation-info-attribution')
+  private readonly loader: GLTFLoader = new GLTFLoader()
+  private current_rig: RigConfigEntry | undefined
+  private _is_variation_active: boolean = false
+  private selected_variation: ModelVariation | null = null // model we currently have loaded
+  private load_request_id = 0 // lets a rig switch or newer click discard a stale load
 
   public get is_variation_active (): boolean {
     return this._is_variation_active
@@ -54,100 +39,42 @@ export class ModelVariationSwitcher extends EventTarget {
     this._is_variation_active = value
   }
 
-  /**
-   * Call this whenever the active rig type changes.
-   * Shows the variation button if the rig has variations, otherwise hides it.
-   */
+  /** Call this whenever the active rig type changes. */
   public update_for_rig (skeleton_type: SkeletonType): void {
     this.current_rig = RigConfig.by_skeleton_type(skeleton_type)
-    this.update_button_visibility()
-    this.add_event_listeners()
+    this.load_request_id++
+    this.hide_loading_progress()
 
-    // select the first variation by default if variation selection doesn't exist
+    // the rig's default model (first variation) is what gets loaded on rig change
     const variations = this.current_rig?.model_variations
-    this.confirmed_variation = (variations !== undefined && variations.length > 0) ? variations[0] : null
-    this.pending_variation = this.confirmed_variation
-    this.update_active_model_info()
-  }
-
-  /** 
-   * Updates the info section on the explore page to reflect the currently active variation.
-   * If no variation is active, hides the info section.
-  */
-  private update_active_model_info (): void {
-
-    // nothing selected for rig, or user cancelled out of dialog -> hide info section
-    if (this.confirmed_variation === null) {
-      if (this.dom_info_image !== null) this.dom_info_image.style.display = 'none'
-      if (this.dom_info_name !== null) this.dom_info_name.textContent = ''
-      if (this.dom_info_license !== null) {
-        this.dom_info_license.textContent = ''
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(this.dom_info_license as any)._tippy?.destroy()
-      }
-      return
-    }
-
-    // update image properties
-    if (this.dom_info_image !== null) {
-      this.dom_info_image.src = '../' + this.confirmed_variation.preview_image
-      this.dom_info_image.alt = this.confirmed_variation.display_name
-      this.dom_info_image.style.display = ''
-    }
-
-    // Update rig name
-    if (this.dom_info_name !== null) {
-      this.dom_info_name.textContent = this.confirmed_variation.display_name
-    }
-
-    // update license info
-    if (this.dom_info_license !== null) {
-      this.dom_info_license.textContent = this.confirmed_variation.license
-      const license_description = VariationLicenseCatalog.get_license_info(this.confirmed_variation.license).description
-      tippy(this.dom_info_license, { content: license_description, theme: 'mesh2motion' })
-    }
-
-    // update attribution
-    if (this.dom_info_attribution !== null) {
-      if (this.confirmed_variation.attribution !== 'None') {
-        this.dom_info_attribution.textContent = this.confirmed_variation.attribution
-        this.dom_info_attribution.style.display = ''
-      } else {
-        this.dom_info_attribution.textContent = ''
-        this.dom_info_attribution.style.display = 'none'
-      }
-    }
-  }
-
-  private update_button_visibility (): void {
-    const switcher = this.dom_switcher
-    if (switcher === null) return
-
-    const variations = this.current_rig?.model_variations
-    if (variations === undefined || variations.length === 0) {
-      switcher.style.display = 'none'
-      return
-    }
-
-    switcher.style.display = '' // use default display style by removing inline style
+    this.selected_variation = (variations !== undefined && variations.length > 0) ? variations[0] : null
+    this.populate_grid()
   }
 
   private populate_grid (): void {
     const grid = this.dom_grid
     if (grid === null) return
 
+    grid.innerHTML = ''
+
+    if (this.dom_section !== null) this.dom_section.style.display = '' // hidden in the HTML until the first rig loads
+
     const variations = this.current_rig?.model_variations
-    if (variations === undefined || variations.length === 0) return
+    if (variations === undefined || variations.length === 0) {
+      const empty_message = document.createElement('div')
+      empty_message.className = 'variation-empty-message'
+      empty_message.textContent = 'No alternate models for this rig.'
+      grid.appendChild(empty_message)
+      return
+    }
 
-    grid.innerHTML = '' // reset whatever was there before
-
-    // show tiles alphabetically. Sort a copy so the rig's default (first) variation is unchanged
+    // Sort a copy so the rig's default (first) variation is unchanged
     const sorted_variations = [...variations].sort((a, b) => a.display_name.localeCompare(b.display_name))
 
-    // create tiles for each variation item
     for (const variation of sorted_variations) {
       const card = document.createElement('div')
       card.className = 'variation-card'
+      card.dataset.variation = variation.name
 
       const img = document.createElement('img')
       img.src = '../' + variation.preview_image
@@ -155,62 +82,47 @@ export class ModelVariationSwitcher extends EventTarget {
       img.className = 'variation-preview-image'
       card.appendChild(img)
 
-      const name_el = document.createElement('div')
-      name_el.className = 'variation-name'
-      name_el.textContent = variation.display_name
-      card.appendChild(name_el)
+      card.title = variation.display_name // name isn't shown on the card
 
-      const license_info = VariationLicenseCatalog.get_license_info(variation.license)
-      const license_chip = document.createElement('span')
-      license_chip.className = 'variation-license-chip'
-      license_chip.textContent = variation.license
-      card.appendChild(license_chip)
-
-      tippy(license_chip, {
-        content: `${variation.license}: ${license_info.description}`,
-        theme: 'mesh2motion',
-        placement: 'top'
-      })
+      const details = document.createElement('div')
+      details.className = 'variation-details'
+      card.appendChild(details)
 
       if (variation.attribution !== 'None') {
         const attribution_el = document.createElement('div')
         attribution_el.className = 'variation-attribution'
         attribution_el.textContent = variation.attribution
-        card.appendChild(attribution_el)
+        details.appendChild(attribution_el)
       }
 
-      // add class for default selection
-      if (this.pending_variation !== null && variation.name === this.pending_variation.name) {
-        card.classList.add('selected')
-      }
+      const license_info = VariationLicenseCatalog.get_license_info(variation.license)
+      const license_chip = document.createElement('span')
+      license_chip.className = 'variation-license-chip'
+      license_chip.textContent = variation.license
+      details.appendChild(license_chip)
 
-      card.addEventListener('click', () => {
-        grid.querySelectorAll('.variation-card').forEach(c => c.classList.remove('selected'))
-        card.classList.add('selected')
-        this.pending_variation = variation
-        if (this.dom_dialog_confirm_button !== null) this.dom_dialog_confirm_button.disabled = false
+      tippy(license_chip, {
+        content: `${variation.license}: ${license_info.description}`,
+        theme: 'mesh2motion',
+        placement: 'right'
       })
+
+      card.classList.toggle('selected', variation.name === this.selected_variation?.name)
+      card.addEventListener('click', () => { this.select_variation(variation) })
 
       grid.appendChild(card)
     }
   }
 
-  private show_dialog (): void {
-    if (this.dom_dialog_overlay === null) return
+  private select_variation (variation: ModelVariation): void {
+    if (variation.name === this.selected_variation?.name) return
 
-    this.pending_variation = this.confirmed_variation
+    this.selected_variation = variation
+    this.dom_grid?.querySelectorAll('.variation-card').forEach(card => {
+      card.classList.toggle('selected', (card as HTMLElement).dataset.variation === variation.name)
+    })
 
-    if (this.dom_dialog_confirm_button !== null) {
-      this.dom_dialog_confirm_button.disabled = this.pending_variation === null
-    }
-
-    this.populate_grid()
-    this.dom_dialog_overlay.style.display = '' // reset to default styling
-  }
-
-  private hide_dialog (): void {
-    if (this.dom_dialog_overlay === null) return
-    this.dom_dialog_overlay.style.display = 'none'
+    this.load_variation_model(variation.model_file, variation.expandArms, variation.pelvis_position_scale)
   }
 
   private show_loading_progress (): void {
@@ -225,8 +137,8 @@ export class ModelVariationSwitcher extends EventTarget {
   }
 
   private update_loading_progress (percent: number): void {
-    // the progress callback from the GLTF loader can fire frequently and the DOM never 'repaints' with the new values
-    // this forces the DOM to update the new progress bar values immediately.
+    // the GLTF loader fires progress often and the DOM won't repaint between calls,
+    // so push each update through requestAnimationFrame
     requestAnimationFrame(() => {
       if (this.dom_loading_bar !== null) this.dom_loading_bar.style.transform = `scaleX(${percent / 100})`
       if (this.dom_loading_text !== null) this.dom_loading_text.textContent = `Loading model… ${Math.round(percent)}%`
@@ -234,13 +146,15 @@ export class ModelVariationSwitcher extends EventTarget {
   }
 
   private load_variation_model (model_file: string, expand_arms: number = 0, pelvis_position_scale: number = 1.0): void {
+    const request_id = ++this.load_request_id
     this.show_loading_progress()
 
     this.loader.load(
       '../' + model_file,
       (gltf) => {
+        if (request_id !== this.load_request_id) return
+
         this.hide_loading_progress()
-        this.hide_dialog()
 
         const skinned_meshes: SkinnedMesh[] = []
         gltf.scene.traverse((child) => {
@@ -258,46 +172,15 @@ export class ModelVariationSwitcher extends EventTarget {
         }))
       },
       (progress: ProgressEvent<EventTarget>) => {
-        if (progress.lengthComputable) {
-          const percent = (progress.loaded / progress.total) * 100
-          this.update_loading_progress(percent)
+        if (progress.lengthComputable && request_id === this.load_request_id) {
+          this.update_loading_progress((progress.loaded / progress.total) * 100)
         }
       },
       (error: unknown) => {
         // this should never happen since we are only using application files
         console.error('Failed to load model variation:', model_file, error)
-        this.hide_loading_progress()
-        if (this.dom_dialog_confirm_button !== null) this.dom_dialog_confirm_button.disabled = false
+        if (request_id === this.load_request_id) this.hide_loading_progress()
       }
     )
-  }
-
-  private add_event_listeners (): void {
-    if (this.added_event_listeners) return
-    this.added_event_listeners = true
-
-    this.dom_switcher?.addEventListener('click', () => {
-      this.show_dialog()
-    })
-
-    this.dom_dialog_cancel_button?.addEventListener('click', () => {
-      this.hide_dialog()
-    })
-
-    // accept changes
-    this.dom_dialog_confirm_button?.addEventListener('click', () => {
-      if (this.pending_variation === null) return // this shouldn't happen, but leave for a safe guard
-
-      this.confirmed_variation = this.pending_variation
-      if (this.dom_dialog_confirm_button !== null) this.dom_dialog_confirm_button.disabled = true
-      this.update_active_model_info()
-      this.load_variation_model(this.confirmed_variation.model_file, this.confirmed_variation.expandArms,
-        this.confirmed_variation.pelvis_position_scale)
-    })
-
-    // clicking on the overlay screen bg should also close/cancel the dialog
-    this.dom_dialog_overlay?.addEventListener('click', (e) => {
-      if (e.target === this.dom_dialog_overlay) this.hide_dialog()
-    })
   }
 }

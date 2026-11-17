@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0">
+<body class="explore-page" style="margin: 0">
     <!-- Script files-->
     <script type="module" src="./marketing/MarketingBootstrap.ts"></script>
 
@@ -39,9 +39,24 @@
 
     <div id="header-ui-mount"></div>
 
-    <div class="model-selection-section">
+    <aside class="model-selection-section">
         <!-- populated dynamically from RigConfig -->
-    </div>
+        <h2 class="sidebar-heading">Rig</h2>
+        <div id="skeleton-buttons"></div>
+
+        <div id="variation-section" style="display: none">
+            <h2 class="sidebar-heading">Model</h2>
+            <div id="variation-grid" class="variation-grid">
+                <!-- cards populated dynamically from RigConfig -->
+            </div>
+            <div id="variation-loading-container" class="variation-loading-container" style="display: none">
+                <div class="variation-loading-track">
+                    <span id="variation-loading-text" class="variation-loading-text">Loading model…</span>
+                    <div id="variation-loading-bar" class="variation-loading-bar"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
 
 
     <div id="tool-panel">
@@ -84,27 +99,6 @@
                  </div>
 
             </span>
-
-            <!-- model variation switcher-->
-            <div id="model-variation-switcher">
-                <div id="model-variation-info">
-                    <img id="model-variation-info-image" src="" alt="" />
-                    <div id="model-variation-info-details">
-                        <span style="display: flex; flex-direction: row; gap: 0.5rem;">
-                            <span id="model-variation-info-name"></span>
-                            
-                        </span>
-                        <span>
-                            <span id="model-variation-info-attribution"></span> 
-                            <span id="model-variation-info-license" class="variation-license-chip"></span> 
-                        </span>
-                                             
-                    </div>
-                </div>
-                <button id="model-variation-button" class="secondary-button">Change</button>
-            </div>
-
-    
 
             <span id="skinned-step-animation-export-options">
 
@@ -206,27 +200,6 @@
 
     <!-- build version information-->
     <span id="build-version"></span>
-
-            <!-- model variation confirmation dialog (hidden by default) -->
-            <div id="variation-dialog-overlay" class="modal-dialog-overlay" style="display: none">
-                <div class="modal-dialog-content variation-dialog">
-                    <h2>Choose Model</h2>
-                    <div id="variation-grid" class="variation-grid">
-                        <!-- cards populated dynamically from RigConfig -->
-                    </div>
-                    <div id="variation-loading-container" class="variation-loading-container" style="display: none">
-                        <div class="variation-loading-track">
-                            <span id="variation-loading-text" class="variation-loading-text">Loading model…</span>
-                            <div id="variation-loading-bar" class="variation-loading-bar"></div>
-                        </div>
-                        
-                    </div>
-                    <div class="variation-dialog-buttons">
-                        <button id="variation-cancel-button" class="secondary-button">Cancel</button>
-                        <button id="variation-confirm-button" disabled>Replace Model</button>
-                    </div>
-                </div>
-            </div>
 
 </body>
 </html>

@@ -133,7 +133,7 @@ export class CustomViewHelper extends Object3D {
     this.updateMatrixWorld()
     this.point.set(0, 0, 1)
     this.point.applyQuaternion(this.camera.quaternion)
-    const x = this.domElement.offsetWidth - this.dim
+    const x = this.domElement.offsetLeft + this.domElement.offsetWidth - this.dim
     const y = (renderer as any).isWebGPURenderer ? this.domElement.offsetHeight - this.dim : 0
     renderer.clearDepth()
     renderer.getViewport(this.viewport)

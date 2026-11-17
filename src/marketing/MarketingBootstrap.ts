@@ -22,8 +22,7 @@ export class MarketingBootstrap {
   }
 
   private change_active_skeleton (active_dom_button: HTMLElement): void {
-    // remove the active classes from all buttons in .model-selection-section
-    const model_buttons = document.querySelectorAll('.model-selection-section button')
+    const model_buttons = document.querySelectorAll('#skeleton-buttons button')
     model_buttons.forEach((button) => {
       button.classList.remove('active-button')
     })
@@ -32,7 +31,7 @@ export class MarketingBootstrap {
   }
 
   public setup_model_buttons (): void {
-    const model_section = document.querySelector('.model-selection-section')
+    const model_section = document.querySelector('#skeleton-buttons')
     if (model_section === null) return
 
     model_section.innerHTML = ''
