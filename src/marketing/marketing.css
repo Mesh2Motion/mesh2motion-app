@@ -1,6 +1,13 @@
 /* Explore page left sidebar: skeleton buttons on top, model variations below */
 body.explore-page {
     --explore-sidebar-width: 10.5rem;
+    /* tool panel width is content-driven, so this is an approximation */
+    --explore-tool-panel-width: 25rem;
+}
+
+/* center the animation player between the left sidebar and right tool panel */
+body.explore-page #animation-player {
+    left: calc(50% + (var(--explore-sidebar-width) - var(--explore-tool-panel-width)) / 2);
 }
 
 .model-selection-section {
