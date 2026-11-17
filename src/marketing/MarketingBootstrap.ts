@@ -25,9 +25,11 @@ export class MarketingBootstrap {
     const model_buttons = document.querySelectorAll('#skeleton-buttons button')
     model_buttons.forEach((button) => {
       button.classList.remove('active-button')
+      button.setAttribute('aria-pressed', 'false')
     })
 
     active_dom_button.classList.add('active-button')
+    active_dom_button.setAttribute('aria-pressed', 'true')
   }
 
   public setup_model_buttons (): void {

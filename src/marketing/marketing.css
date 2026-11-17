@@ -56,7 +56,7 @@ body.explore-page {
     background: none;
     box-shadow: none;
     border-radius: 0;
-    border: 1px solid var(--button-primary-bg);
+    border: 1px solid var(--bg-tertiary); /* neutral so the selected rig's fill stands out */
     background-color: var(--nav-background);
 }
 #skeleton-buttons button:hover {
@@ -64,8 +64,10 @@ body.explore-page {
     background-color: var(--nav-active-item-bg);
 }
 
-button.active-button {
-    background-color: var(--button-primary-bg);
+/* selected rig: softened fill. Needs the id selector to beat '#skeleton-buttons button' above */
+#skeleton-buttons button.active-button,
+#skeleton-buttons button.active-button:hover {
+    background-color: color-mix(in srgb, var(--button-primary-bg) 55%, var(--nav-background));
 }
 
 /* variation list takes the remaining sidebar height and scrolls on its own */
