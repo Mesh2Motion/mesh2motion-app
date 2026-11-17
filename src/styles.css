@@ -998,7 +998,6 @@ input[type="file"] {
     width: 20px; /* Increase checkbox size */
     height: 20px;
     cursor: pointer;
-    accent-color: var(--text-alternate);
 }
 
 .styled-checkbox label {
