@@ -1031,8 +1031,9 @@ export class StepWeightPainting extends EventTarget {
 }
 
 /**
- * Heatmap color for the selected bone's weight: blue at 0, yellow at 0.5,
- * red at 1. Alpha ramps up so low weights stay subtle over the texture.
+ * Heatmap color for the selected bone's weight, using Blender's ramp:
+ * blue (0), cyan (0.25), green (0.5), yellow (0.75), red (1). Unweighted
+ * vertices stay visibly blue, as in Blender.
  */
 function write_weight_color (
   attribute: { setXYZW: (index: number, x: number, y: number, z: number, w: number) => unknown },
@@ -1041,21 +1042,22 @@ function write_weight_color (
 ): void {
   const t = Math.min(1, Math.max(0, weight))
 
-  let red: number
-  let green: number
-  let blue: number
-  if (t < 0.5) {
-    const u = t / 0.5
-    red = 0.1 + 0.9 * u
-    green = 0.35 + 0.55 * u
-    blue = 1.0 - 0.9 * u
+  let red = 0
+  let green = 0
+  let blue = 0
+  if (t < 0.25) {
+    green = t / 0.25
+    blue = 1
+  } else if (t < 0.5) {
+    green = 1
+    blue = 1 - (t - 0.25) / 0.25
+  } else if (t < 0.75) {
+    red = (t - 0.5) / 0.25
+    green = 1
   } else {
-    const u = (t - 0.5) / 0.5
-    red = 1.0
-    green = 0.9 - 0.8 * u
-    blue = 0.1 * (1 - u)
+    red = 1
+    green = 1 - (t - 0.75) / 0.25
   }
 
-  const alpha = 0.9 * t
-  attribute.setXYZW(vertex_index, red, green, blue, alpha)
+  attribute.setXYZW(vertex_index, red, green, blue, 0.9)
 }
