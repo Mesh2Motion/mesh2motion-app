@@ -1,4 +1,4 @@
-import { MathUtils, Matrix3, Mesh, SkinnedMesh, Vector3, type Bone, type Intersection, type PerspectiveCamera } from 'three'
+import { MathUtils, Matrix3, Mesh, SkinnedMesh, Triangle, Vector3, type Bone, type BufferGeometry, type Intersection, type PerspectiveCamera } from 'three'
 import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from './WeightPaintManager.ts'
 
 /**
@@ -24,6 +24,8 @@ export class WeightPaintBrush {
   private readonly sweep = new Vector3()
   private readonly sweep_offset = new Vector3()
   private readonly sweep_closest = new Vector3()
+  // triangle adjacency per geometry, used to spread a dab across the surface
+  private readonly adjacency_cache = new WeakMap<BufferGeometry, number[][]>()
 
   constructor (private readonly manager: WeightPaintManager) {}
 
@@ -94,6 +96,9 @@ export class WeightPaintBrush {
     const point = new Vector3()
     const normal = new Vector3()
     const vertices: BrushVertex[] = []
+    // A dab should paint the surface it lands on even when no vertex happens to
+    // sit under the cursor, so seed the touched triangle and its neighbours.
+    const surface_falloffs = this.surface_falloffs(object, intersection)
 
     // Sweep from the previous dab's hit point so fast pointer moves paint a
     // continuous stroke instead of leaving gaps between discrete samples.
@@ -118,22 +123,25 @@ export class WeightPaintBrush {
       }
 
       const distance = point.distanceTo(this.sweep_closest)
-      if (distance > radius) { continue }
+      const surface_falloff = surface_falloffs.get(i) ?? 0
+      if (distance > radius && surface_falloff <= 0) { continue }
 
-      if (is_skinned) {
-        // Ignore vertices behind the surface the brush is touching, so the
-        // brush cannot paint through the mesh to the far side.
-        const depth = point.sub(this.sweep_closest).dot(ray_direction)
-        if (depth > radius * 0.5) { continue }
-      } else if (normals !== undefined && normal_matrix !== null) {
-        // The preview meshes are not deformed, so the surface normal is enough
-        // to keep the brush from painting the back of the model.
-        normal.fromBufferAttribute(normals, i).applyMatrix3(normal_matrix).normalize()
-        if (normal.dot(ray_direction) > -0.05) { continue }
+      if (surface_falloff <= 0) {
+        if (is_skinned) {
+          // Ignore vertices behind the surface the brush is touching, so the
+          // brush cannot paint through the mesh to the far side.
+          const depth = point.sub(this.sweep_closest).dot(ray_direction)
+          if (depth > radius * 0.5) { continue }
+        } else if (normals !== undefined && normal_matrix !== null) {
+          // The preview meshes are not deformed, so the surface normal is enough
+          // to keep the brush from painting the back of the model.
+          normal.fromBufferAttribute(normals, i).applyMatrix3(normal_matrix).normalize()
+          if (normal.dot(ray_direction) > -0.05) { continue }
+        }
       }
 
-      const t = 1 - distance / radius
-      const falloff = t * t * (3 - 2 * t)
+      const t = Math.max(0, 1 - distance / radius)
+      const falloff = Math.max(t * t * (3 - 2 * t), surface_falloff)
       // The first dab that reaches a vertex is usually at the brush edge. Only
       // applying the increase lets the stroke keep strengthening that vertex
       // as the brush center passes over it.
@@ -158,6 +166,78 @@ export class WeightPaintBrush {
       this.mirror_enabled
     )
     return painted_count > 0
+  }
+
+  /**
+   * Falloff for the triangle under the brush and its immediate neighbours.
+   *
+   * The barycentric coordinates of the hit point spread the dab across the
+   * triangle's three vertices, so painting anywhere on the surface changes the
+   * surrounding vertices instead of requiring the cursor to sit on one. Each
+   * direct neighbour of those vertices then receives half that influence, which
+   * blends the painted patch into the rest of the surface.
+   */
+  private surface_falloffs (object: Mesh, intersection: Intersection): Map<number, number> {
+    const falloffs = new Map<number, number>()
+    const face = intersection.face
+    const positions = object.geometry.attributes.position
+    if (face === undefined || face === null || positions === undefined) { return falloffs }
+
+    const triangle = [face.a, face.b, face.c]
+    if (triangle.some(index => index < 0 || index >= positions.count)) { return falloffs }
+
+    const world = triangle.map(index => {
+      const vertex = new Vector3()
+      object.getVertexPosition(index, vertex)
+      return vertex.applyMatrix4(object.matrixWorld)
+    })
+    const barycentric = Triangle.getBarycoord(intersection.point, world[0], world[1], world[2], new Vector3())
+    if (barycentric === null) { return falloffs }
+
+    const influences = [barycentric.x, barycentric.y, barycentric.z]
+    for (let i = 0; i < triangle.length; i++) {
+      const influence = MathUtils.clamp(influences[i] ?? 0, 0, 1)
+      if (influence <= 0) { continue }
+      falloffs.set(triangle[i], influence)
+    }
+
+    const adjacency = this.adjacency_for(object.geometry)
+    for (const index of triangle) {
+      const influence = (falloffs.get(index) ?? 0) * 0.5
+      if (influence <= 0) { continue }
+      for (const neighbour of adjacency[index] ?? []) {
+        falloffs.set(neighbour, Math.max(falloffs.get(neighbour) ?? 0, influence))
+      }
+    }
+    return falloffs
+  }
+
+  /** Vertex adjacency built from the geometry's triangles, cached per geometry. */
+  private adjacency_for (geometry: BufferGeometry): number[][] {
+    const cached = this.adjacency_cache.get(geometry)
+    if (cached !== undefined) { return cached }
+
+    const positions = geometry.attributes.position
+    const vertex_count = positions?.count ?? 0
+    const neighbours: Array<Set<number>> = Array.from({ length: vertex_count }, () => new Set<number>())
+    const index = geometry.getIndex()
+    const triangle_count = Math.floor((index !== null ? index.count : vertex_count) / 3)
+
+    for (let triangle = 0; triangle < triangle_count; triangle++) {
+      const a = index !== null ? index.getX(triangle * 3) : triangle * 3
+      const b = index !== null ? index.getX(triangle * 3 + 1) : triangle * 3 + 1
+      const c = index !== null ? index.getX(triangle * 3 + 2) : triangle * 3 + 2
+      neighbours[a]?.add(b)
+      neighbours[a]?.add(c)
+      neighbours[b]?.add(a)
+      neighbours[b]?.add(c)
+      neighbours[c]?.add(a)
+      neighbours[c]?.add(b)
+    }
+
+    const adjacency = neighbours.map(set => [...set])
+    this.adjacency_cache.set(geometry, adjacency)
+    return adjacency
   }
 
   /** World-space brush radius at a surface point, derived from the pixel size. */
