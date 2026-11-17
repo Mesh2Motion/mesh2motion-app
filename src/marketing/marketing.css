@@ -1,6 +1,6 @@
 /* Explore page left sidebar: skeleton buttons on top, model variations below */
 body.explore-page {
-    --explore-sidebar-width: 12.5rem;
+    --explore-sidebar-width: 10.5rem;
 }
 
 .model-selection-section {
@@ -130,7 +130,7 @@ button.active-button {
     filter: none !important; /* avoid inverting image like we do for icons in light mode */
 }
 
-/* credit (left) and license (right) overlaid on the bottom of the thumbnail */
+/* license chip overlaid on the bottom-right of the thumbnail */
 .variation-details {
     position: absolute;
     left: 0.6rem;
@@ -145,16 +145,9 @@ button.active-button {
     pointer-events: none; /* clicks fall through to the card; license chip re-enables for its tooltip */
 }
 
-.variation-attribution {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    font-size: 80%;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.55);
+.variation-tooltip-author {
+    font-weight: 600;
+    margin-bottom: 0.2rem;
 }
 
 .variation-license-chip {

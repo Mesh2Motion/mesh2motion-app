@@ -68,10 +68,8 @@ export class ModelVariationSwitcher extends EventTarget {
       return
     }
 
-    // Sort a copy so the rig's default (first) variation is unchanged
-    const sorted_variations = [...variations].sort((a, b) => a.display_name.localeCompare(b.display_name))
-
-    for (const variation of sorted_variations) {
+    // RigConfig orders the list with the rig's default model first
+    for (const variation of variations) {
       const card = document.createElement('div')
       card.className = 'variation-card'
       card.dataset.variation = variation.name
@@ -88,21 +86,26 @@ export class ModelVariationSwitcher extends EventTarget {
       details.className = 'variation-details'
       card.appendChild(details)
 
-      if (variation.attribution !== 'None') {
-        const attribution_el = document.createElement('div')
-        attribution_el.className = 'variation-attribution'
-        attribution_el.textContent = variation.attribution
-        details.appendChild(attribution_el)
-      }
-
       const license_info = VariationLicenseCatalog.get_license_info(variation.license)
       const license_chip = document.createElement('span')
       license_chip.className = 'variation-license-chip'
       license_chip.textContent = variation.license
       details.appendChild(license_chip)
 
+      // build the tooltip as DOM nodes so the author name is never parsed as HTML
+      const tooltip_content = document.createElement('div')
+      if (variation.attribution !== 'None') {
+        const author_el = document.createElement('div')
+        author_el.className = 'variation-tooltip-author'
+        author_el.textContent = `Author: ${variation.attribution}`
+        tooltip_content.appendChild(author_el)
+      }
+      const license_el = document.createElement('div')
+      license_el.textContent = `${variation.license}: ${license_info.description}`
+      tooltip_content.appendChild(license_el)
+
       tippy(license_chip, {
-        content: `${variation.license}: ${license_info.description}`,
+        content: tooltip_content,
         theme: 'mesh2motion',
         placement: 'right'
       })
