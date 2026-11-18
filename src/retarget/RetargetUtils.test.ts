@@ -81,6 +81,6 @@ describe('HumanChainConfig.build_mapped_chain_configs', () => {
     expect(mesh2motion_config.head).toEqual(['neck_01', ''])
     expect(other_rig_config.head).toEqual(['Neck', ''])
 
-    expect(mesh2motion_config.armL).toEqual(['', '', ''])
+    expect(mesh2motion_config.armL).toEqual(['', '', '', ''])
   })
 })

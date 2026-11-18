@@ -285,7 +285,7 @@ describe('template rig detection', () => {
     const target_config = HumanChainConfig.build_custom_target_config(source_config, mappings)
 
     expect(target_config.pelvis).toEqual(['Hips'])
-    expect(target_config.armL).toEqual(['LeftArm', 'LeftForeArm', 'LeftHand'])
+    expect(target_config.armL).toEqual(['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand'])
     expect(target_config.legR).toEqual(['RightUpLeg', 'RightLeg', 'RightFoot'])
     expect(target_config.spine).toEqual(['Spine', 'Spine1', 'Spine2'])
 
