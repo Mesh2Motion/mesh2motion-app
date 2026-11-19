@@ -12,6 +12,7 @@
         <link rel="stylesheet" href="../animation-player.css" crossorigin="anonymous" />
         <link rel="stylesheet" href="../settings-dropdown.css" crossorigin="anonymous" />
         <link rel="stylesheet" href="./retarget.css" crossorigin="anonymous" />
+        <link rel="stylesheet" href="../lib/processes/animations-listing/props/props.css" crossorigin="anonymous" />
 
         <link rel="stylesheet" href="../dialog.css" crossorigin="anonymous" />
         <link rel="stylesheet" href="../offline.css" crossorigin="anonymous" />
@@ -191,6 +192,22 @@
                
             </span>
 
+        </div>
+
+        <!-- floating props toggle and panel docked to the left of the tool panel -->
+        <div id="props-dock" style="display: none">
+            <button class="secondary-button" id="props-toggle-button" aria-expanded="false" aria-controls="props-panel" data-tippy-content="Attach props to the hands" aria-label="Attach props to the hands">
+                <img src="../images/icons/props.svg" alt="Props" width="32" height="32" />
+                Props
+            </button>
+            <div id="props-panel" class="props-panel" role="region" aria-label="Props" hidden>
+                <div id="props-left-hand" class="prop-picker"></div>
+                <div id="props-right-hand" class="prop-picker"></div>
+                <button class="secondary-button" id="props-close-button" data-tippy-content="Close props" aria-label="Close props">
+                    <img src="../images/icons/props.svg" alt="" width="32" height="32" />
+                    Props
+                </button>
+            </div>
         </div>
 
         <div id="animation-player-mount"></div>

@@ -12,7 +12,11 @@ export class HandBoneResolver {
   ]
 
   public static resolve (skeleton: Skeleton, side: PropSide): Bone | null {
-    const bones = skeleton.bones.filter((bone) => bone !== undefined && bone !== null)
+    return this.resolve_from_bones(skeleton.bones, side)
+  }
+
+  public static resolve_from_bones (all_bones: Bone[], side: PropSide): Bone | null {
+    const bones = all_bones.filter((bone) => bone !== undefined && bone !== null)
 
     for (const exact_name of this.exact_names[side]) {
       const exact_match = bones.find((bone) => bone.name === exact_name)

@@ -8,6 +8,8 @@ import { RetargetAnimationListing } from './RetargetAnimationListing.ts'
 import { AnimationRetargetService } from './AnimationRetargetService'
 import { type SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
+import { PropsManager } from '../lib/processes/animations-listing/props/PropsManager.ts'
+import { PropCatalog } from '../lib/processes/animations-listing/props/PropCatalog.ts'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -16,6 +18,7 @@ class RetargetModule {
   private readonly step_bone_mapping: StepBoneMapping
   private readonly retarget_animation_preview: RetargetAnimationPreview
   private animation_listing_step: RetargetAnimationListing | null = null
+  private readonly props_manager: PropsManager = new PropsManager()
 
   private back_to_bone_map_button: HTMLButtonElement | null = null
   private continue_to_listing_button: HTMLButtonElement | null = null
@@ -46,6 +49,7 @@ class RetargetModule {
   }
 
   public init (): void {
+    PropCatalog.set_static_root_path('../')
     this.add_event_listeners()
     this.step_load_source_skeleton.begin()
     this.step_load_target_model.begin()
@@ -143,7 +147,8 @@ class RetargetModule {
       // load the animation listing step and start it
       this.animation_listing_step = new RetargetAnimationListing(
         this.mesh2motion_engine.get_theme_manager(),
-        this.mesh2motion_engine.download_settings
+        this.mesh2motion_engine.download_settings,
+        this.props_manager
       )
       this.animation_listing_step.begin()
       this.mesh2motion_engine.download_settings.update_download_settings_ui_visibility(

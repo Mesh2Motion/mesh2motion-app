@@ -6,7 +6,7 @@ import { type AnimationLibraryLoadProgress } from '../lib/processes/animations-l
 import { AnimationLibraryProgressBar } from '../lib/processes/animations-listing/AnimationLibraryProgressBar.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import { ArmExtensionControl } from '../lib/processes/animations-listing/ArmExtensionControl.ts'
-import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, type AnimationAction } from 'three'
+import { type AnimationClip, AnimationMixer, type SkinnedMesh, Object3D, type AnimationAction, Bone, Box3, type Skeleton, Vector3 } from 'three'
 import type { ThemeManager } from '../lib/ThemeManager.ts'
 import { type TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair.ts'
 import { type AnimationClipExportSelection } from '../lib/processes/animations-listing/interfaces/AnimationExportSelection.ts'
@@ -16,6 +16,10 @@ import { UI } from '../lib/UI.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { DownloadSettings } from '../lib/processes/export-to-file/DownloadSettings.ts'
 import { ModalDialog } from '../lib/ModalDialog.ts'
+import { type PropsManager } from '../lib/processes/animations-listing/props/PropsManager.ts'
+import { HandBoneResolver } from '../lib/processes/animations-listing/props/HandBoneResolver.ts'
+import { type PropSide } from '../lib/processes/animations-listing/props/PropSide.ts'
+import { RetargetUtils } from './RetargetUtils.ts'
 
 /**
  * RetargetAnimationListing - Handles animation listing and playback specifically for retargeting workflow
@@ -27,6 +31,7 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
   private readonly step_export_retargeted_animations: StepExportRetargetedAnimations = new StepExportRetargetedAnimations()
   private readonly download_settings: DownloadSettings
+  private readonly props_manager: PropsManager
   private readonly animation_library: AnimationLibrary = new AnimationLibrary(this.animation_loader)
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private readonly ui: UI = UI.getInstance()
@@ -46,10 +51,12 @@ export class RetargetAnimationListing extends EventTarget {
 
   private export_button: HTMLButtonElement | null = null
 
-  constructor (theme_manager: ThemeManager, download_settings: DownloadSettings) {
+  // the props manager is shared across listing instances since its panel binds to static markup
+  constructor (theme_manager: ThemeManager, download_settings: DownloadSettings, props_manager: PropsManager) {
     super()
     this.theme_manager = theme_manager
     this.download_settings = download_settings
+    this.props_manager = props_manager
     this.animation_player = new AnimationPlayer()
 
     // The warp is applied to the source-space display clip, so both the preview
@@ -78,11 +85,81 @@ export class RetargetAnimationListing extends EventTarget {
     )
 
     this.show_bone_toggle_button(true)
+    this.attach_props()
   }
 
   public end (): void {
+    this.props_manager.end()
     this.show_bone_toggle_button(false) // cannot toggle bone display in configuration area
     this.stop_preview() // stop any playing animations in the listing
+  }
+
+  private attach_props (): void {
+    const retarget_service = AnimationRetargetService.getInstance()
+
+    // the live preview leaves the target mid-animation, and grip frames are captured from the current pose
+    RetargetUtils.reset_skinned_mesh_to_rest_pose(retarget_service.get_target_armature())
+
+    this.props_manager.begin(retarget_service.get_skeleton_type(), this.target_to_source_height_ratio())
+    this.props_manager.attach_to_skinned_meshes(
+      retarget_service.get_target_skinned_meshes(),
+      (skeleton, side) => this.resolve_target_hand_bone(skeleton, side)
+    )
+  }
+
+  // custom rigs may not use a recognizable hand bone name, so prefer whatever the user mapped to the Mesh2Motion hand
+  private resolve_target_hand_bone (skeleton: Skeleton, side: PropSide): Bone | null {
+    const retarget_service = AnimationRetargetService.getInstance()
+    const source_hand_bone = HandBoneResolver.resolve_from_bones(
+      this.collect_bones(retarget_service.get_source_armature()),
+      side
+    )
+
+    if (source_hand_bone !== null) {
+      for (const [target_bone_name, source_bone_name] of retarget_service.get_bone_mappings()) {
+        const mapped_bone = source_bone_name === source_hand_bone.name
+          ? skeleton.bones.find((bone) => bone.name === target_bone_name)
+          : undefined
+        if (mapped_bone !== undefined) {
+          return mapped_bone
+        }
+      }
+    }
+
+    return HandBoneResolver.resolve(skeleton, side)
+  }
+
+  // props are sized for the Mesh2Motion rig, so scale them by how much taller the target rig is
+  private target_to_source_height_ratio (): number {
+    const retarget_service = AnimationRetargetService.getInstance()
+    const source_height = this.bone_height(retarget_service.get_source_armature())
+    const target_height = this.bone_height(retarget_service.get_target_armature())
+
+    if (source_height <= 0 || target_height <= 0) {
+      return 1.0
+    }
+
+    return target_height / source_height
+  }
+
+  private bone_height (root: Object3D): number {
+    root.updateMatrixWorld(true)
+    const bounds = new Box3()
+    this.collect_bones(root).forEach((bone) => {
+      bounds.expandByPoint(bone.getWorldPosition(new Vector3()))
+    })
+
+    return bounds.isEmpty() ? 0 : bounds.max.y - bounds.min.y
+  }
+
+  private collect_bones (root: Object3D): Bone[] {
+    const bones: Bone[] = []
+    root.traverse((child) => {
+      if (child instanceof Bone) {
+        bones.push(child)
+      }
+    })
+    return bones
   }
 
   private show_bone_toggle_button (show: boolean): void {

@@ -129,7 +129,18 @@ export class PropCatalog {
   private static readonly loader: GLTFLoader = new GLTFLoader()
   private static readonly model_cache = new Map<string, Promise<Group>>()
 
+  // prefix that points from the current page to the static root, e.g. '../' for pages in a sub-folder
+  private static static_root_path: string = ''
+
   private static readonly definitions: PropDefinition[] = create_definitions()
+
+  public static set_static_root_path (path: string): void {
+    this.static_root_path = path
+  }
+
+  public static url_for (static_relative_path: string): string {
+    return `${this.static_root_path}${static_relative_path}`
+  }
 
   public static all (): PropDefinition[] {
     return this.definitions
@@ -167,7 +178,7 @@ export class PropCatalog {
   private static async load_model (asset_path: string): Promise<Group> {
     let model_promise = this.model_cache.get(asset_path)
     if (model_promise === undefined) {
-      model_promise = this.loader.loadAsync(asset_path)
+      model_promise = this.loader.loadAsync(this.url_for(asset_path))
         .then((gltf) => gltf.scene)
         .catch((error: unknown) => {
           this.model_cache.delete(asset_path)

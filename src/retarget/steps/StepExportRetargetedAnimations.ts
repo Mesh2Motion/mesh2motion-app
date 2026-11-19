@@ -10,6 +10,7 @@ import { ExportHierarchyService } from '../../lib/processes/export-to-file/Expor
 import { ExportAnimationCleanupService } from '../../lib/processes/export-to-file/ExportAnimationCleanupService'
 import { GlbSkinCleanupService } from '../../lib/processes/export-to-file/GlbSkinCleanupService'
 import { FbxTextureCompatibilityService } from '../../lib/processes/export-to-file/FbxTextureCompatibilityService'
+import { PropsExportFilter } from '../../lib/processes/animations-listing/props/PropsExportFilter'
 
 export class StepExportRetargetedAnimations extends EventTarget {
   public animation_clips_to_export: AnimationClip[] = []
@@ -70,6 +71,7 @@ export class StepExportRetargetedAnimations extends EventTarget {
 
     const skeleton_only = download_settings.export_contents() === ExportContents.Skeleton
     const objects_to_export: Object3D[] = ExportHierarchyService.collect_objects_to_export(skinned_meshes, skeleton_only)
+    const restore_props = skeleton_only ? PropsExportFilter.detach_props(objects_to_export) : () => {}
 
     // The base animation data can contain tracks for joints the target skeleton does not
     // have, and keyframe times can contain float32 duplicates that glTF validators reject.
@@ -101,6 +103,7 @@ export class StepExportRetargetedAnimations extends EventTarget {
         }
       })
 
+      restore_props()
       restore_bone_names()
     }
   }

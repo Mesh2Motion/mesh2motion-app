@@ -210,7 +210,7 @@ export class PropPicker extends EventTarget {
       return '<span class="prop-picker-empty" aria-hidden="true"></span>'
     }
 
-    return `<img src="${definition.preview_path}" alt="" loading="lazy">`
+    return `<img src="${PropCatalog.url_for(definition.preview_path)}" alt="" loading="lazy">`
   }
 
   private option_html (value: PropId, name: string, definition?: PropDefinition): string {

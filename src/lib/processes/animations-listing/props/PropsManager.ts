@@ -8,6 +8,10 @@ import { PropsPanel } from './PropsPanel.ts'
 import { HandBoneResolver } from './HandBoneResolver.ts'
 import { PROP_USER_DATA_KEY } from './PropsExportFilter.ts'
 
+export type HandBoneLookup = (skeleton: Skeleton, side: PropSide) => Bone | null
+
+const default_hand_bone_lookup: HandBoneLookup = (skeleton, side) => HandBoneResolver.resolve(skeleton, side)
+
 interface HandGripFrame {
   local_down: Vector3
   local_forward: Vector3
@@ -39,6 +43,7 @@ export class PropsManager extends EventTarget {
   private readonly grip_frames = new Map<Bone, HandGripFrame>()
   private added_event_listeners: boolean = false
   private attachment_generation: number = 0
+  private resolve_hand_bone: HandBoneLookup = default_hand_bone_lookup
 
   public begin (skeleton_type: SkeletonType, skeleton_scale: number): void {
     this.panel.initialize()
@@ -64,8 +69,9 @@ export class PropsManager extends EventTarget {
   }
 
   // meshes must still be in their rest pose here, since the grip frames are captured from it
-  public attach_to_skinned_meshes (skinned_meshes: SkinnedMesh[]): void {
+  public attach_to_skinned_meshes (skinned_meshes: SkinnedMesh[], resolve_hand_bone: HandBoneLookup = default_hand_bone_lookup): void {
     this.target_skinned_meshes = skinned_meshes
+    this.resolve_hand_bone = resolve_hand_bone
     this.capture_grip_frames()
     this.refresh_attached_props()
   }
@@ -81,12 +87,17 @@ export class PropsManager extends EventTarget {
     this.target_skinned_meshes = []
   }
 
+  public end (): void {
+    this.detach_all()
+    this.panel.set_visible(false)
+  }
+
   private capture_grip_frames (): void {
     this.grip_frames.clear()
 
     this.unique_skeletons().forEach((skeleton) => {
       Object.values(PropSide).forEach((side) => {
-        const hand_bone = HandBoneResolver.resolve(skeleton, side)
+        const hand_bone = this.resolve_hand_bone(skeleton, side)
         if (hand_bone !== null) {
           this.grip_frames.set(hand_bone, this.compute_grip_frame(hand_bone))
         }
@@ -119,7 +130,7 @@ export class PropsManager extends EventTarget {
       let found_hand_bone = false
 
       skeletons.forEach((skeleton) => {
-        const hand_bone = HandBoneResolver.resolve(skeleton, side)
+        const hand_bone = this.resolve_hand_bone(skeleton, side)
         if (hand_bone === null) {
           return
         }
