@@ -1,6 +1,10 @@
 import { Box3, SRGBColorSpace, Vector3, type BufferGeometry, type Material, type Mesh, type MeshPhongMaterial, type MeshStandardMaterial, type Object3D, type Texture } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { MODEL_HEIGHT_LIMIT } from './ModelCleanupUtility.ts'
+import { type MaterialInfo } from './interfaces/MaterialInfo'
+import { type AnalyzedObject } from './interfaces/AnalyzedObject'
+import { type SceneSnapshot } from './interfaces/SceneSnapshot'
+import { type ModelImportAnalysis } from './interfaces/ModelImportAnalysis'
 
 /**
  * Materials arrive as whatever type the file's loader picked, so read them
@@ -22,90 +26,6 @@ const TEXTURE_SLOTS: Array<[keyof InspectableMaterial, string]> = [
   ['alphaMap', 'alpha'],
   ['displacementMap', 'displacement']
 ]
-
-/**
- * What one material on one mesh looked like at import time. Emissive gets its
- * own fields because it is the property most likely to come in wrong from an
- * FBX and then follow the model all the way out to a GLB export.
- */
-export interface MaterialInfo {
-  name: string
-  type: string
-  color_hex: string | null
-  emissive_hex: string | null
-  emissive_intensity: number
-  /**
-   * Brightest channel of the emissive color on its own. A GLB export writes the
-   * color straight into emissiveFactor whenever this is above zero, so this is
-   * the number that decides whether the exported model glows.
-   */
-  emissive_strength: number
-  /**
-   * Whether emissive intensity survives an export. Only MeshStandardMaterial
-   * carries it, through the KHR_materials_emissive_strength extension. FBX files
-   * usually load as MeshPhongMaterial, where the intensity dims the model in the
-   * viewport but is dropped on export, leaving the full emissive color behind.
-   */
-  exports_emissive_intensity: boolean
-  specular_hex: string | null
-  metalness: number | null
-  roughness: number | null
-  shininess: number | null
-  opacity: number
-  transparent: boolean
-  vertex_colors: boolean
-  side: string
-  texture_slots: string[]
-}
-
-/**
- * Snapshot of a single mesh-bearing object, taken at a point in time so later
- * processing steps cannot change the numbers we are reporting on.
- */
-export interface AnalyzedObject {
-  name: string
-  type: string
-  parent_name: string
-  depth: number
-  position: Vector3
-  rotation_degrees: Vector3
-  scale: Vector3
-  world_scale: Vector3
-  world_size: Vector3
-  // parent objects between this mesh and the scene root that carry their own transform
-  transformed_ancestors: string[]
-  vertex_count: number
-  triangle_count: number
-  materials: MaterialInfo[]
-  has_uvs: boolean
-  has_normals: boolean
-  has_skin_weights: boolean
-  warnings: string[]
-}
-
-/** Everything we can say about one scene graph at one moment. */
-export interface SceneSnapshot {
-  objects: AnalyzedObject[]
-  type_counts: Record<string, number>
-  mesh_count: number
-  skinned_mesh_count: number
-  vertex_count: number
-  triangle_count: number
-  world_size: Vector3
-  world_min: Vector3
-  world_max: Vector3
-}
-
-/**
- * Before/after pair for one import. `imported` is what came out of the file
- * loader and `processed` is the mesh data the rest of the app actually works
- * with, which makes it possible to see what import processing changed.
- */
-export interface ModelImportAnalysis {
-  source_name: string
-  imported: SceneSnapshot
-  processed: SceneSnapshot
-}
 
 /** A warning message plus the objects it applies to, for grouped display. */
 interface GroupedWarning {

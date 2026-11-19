@@ -1,15 +1,7 @@
 import { AnimationClip, type QuaternionKeyframeTrack, type VectorKeyframeTrack } from 'three'
 import { Retargeter } from './Retargeter'
 import { type Rig } from './Rig'
-
-export interface HumanClipRetargetOptions {
-  // name for the baked clip. Defaults to the source clip name
-  clip_name?: string
-  // corrective X-axis rotation (degrees) applied to the whole target rig. See Retargeter.set_root_correction_x
-  root_correction_x_degrees?: number
-  // 30 fps for input animations is usually sufficient for now
-  fps?: number
-}
+import { type HumanClipRetargetOptions } from './interfaces/HumanClipRetargetOptions'
 
 /**
  * Bakes a swing-twist retarget of one clip from a source rig onto a target rig.

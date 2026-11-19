@@ -1,7 +1,9 @@
 import { type Bone, type Intersection, type PerspectiveCamera } from 'three'
 import { Utility } from '../../Utilities.ts'
 import { WeightPaintBrush } from './WeightPaintBrush.ts'
-import { WeightPaintManager, type ManualWeightOverrides, type WeightPaintMode } from './WeightPaintManager.ts'
+import { WeightPaintManager } from './WeightPaintManager.ts'
+import { type ManualWeightOverrides } from './interfaces/ManualWeightOverrides'
+import { type WeightPaintMode } from './interfaces/WeightPaintMode'
 
 /**
  * Weight painting controls shown while positioning the joints.

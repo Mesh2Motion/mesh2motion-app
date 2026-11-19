@@ -1,16 +1,7 @@
 import { ComposerLibraryList } from './ComposerLibraryList.ts'
-
-export type ComposerSlotName = 'upper' | 'lower'
-
-export interface SlotAnimationDroppedDetail {
-  slot: ComposerSlotName
-  animation_id: string
-}
-
-export interface SlotDisplay {
-  animation_name: string
-  is_loading: boolean
-}
+import { type ComposerSlotName } from './interfaces/ComposerSlotName'
+import { type SlotAnimationDroppedDetail } from './interfaces/SlotAnimationDroppedDetail'
+import { type SlotDisplay } from './interfaces/SlotDisplay'
 
 /**
  * The upper body and lower body slots on the Composer page. Library tiles are dropped onto them.

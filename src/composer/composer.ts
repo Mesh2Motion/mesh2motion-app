@@ -14,7 +14,9 @@ import { ComposerConfig } from './ComposerConfig.ts'
 import { ComposerModelLoader } from './ComposerModelLoader.ts'
 import { ComposerPreview } from './ComposerPreview.ts'
 import { ComposerLibraryList } from './ComposerLibraryList.ts'
-import { ComposerSlots, type ComposerSlotName, type SlotAnimationDroppedDetail } from './ComposerSlots.ts'
+import { ComposerSlots } from './ComposerSlots.ts'
+import { type ComposerSlotName } from './interfaces/ComposerSlotName'
+import { type SlotAnimationDroppedDetail } from './interfaces/SlotAnimationDroppedDetail'
 import { ComposerExport } from './ComposerExport.ts'
 
 /**

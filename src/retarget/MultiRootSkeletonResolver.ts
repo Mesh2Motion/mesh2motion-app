@@ -1,15 +1,5 @@
 import { Bone, Matrix4, Skeleton, type Object3D, type Scene, type SkinnedMesh } from 'three'
-
-/**
- * Information about a single disconnected bone hierarchy (root bone chain)
- * found inside an imported model.
- */
-export interface RootBoneChain {
-  root_bone: Bone
-  bone_count: number
-  skinned_meshes: SkinnedMesh[]
-  vertex_count: number
-}
+import { type RootBoneChain } from './interfaces/RootBoneChain'
 
 /**
  * Resolves FBX imports that contain multiple disconnected bone hierarchies

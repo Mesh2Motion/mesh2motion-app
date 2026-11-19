@@ -3,11 +3,7 @@ import { type DownloadSettings } from '../lib/processes/export-to-file/DownloadS
 import { type StepExportToFile } from '../lib/processes/export-to-file/StepExportToFile.ts'
 import { DownloadSuccessDialog } from '../lib/components/download-success/DownloadSuccessDialog.ts'
 import { ModalDialog } from '../lib/ModalDialog.ts'
-
-export interface ComposerExportData {
-  clip: AnimationClip
-  skinned_meshes: SkinnedMesh[]
-}
+import { type ComposerExportData } from './interfaces/ComposerExportData'
 
 /**
  * The download button on the Composer page. The file is named after the animations in the slots.

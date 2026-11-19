@@ -4,11 +4,7 @@ import { type AnimationLoader } from './AnimationLoader.ts'
 import { AnimationUtility } from './AnimationUtility.ts'
 import { type AnimationEntry } from './interfaces/AnimationEntry.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
-
-export interface AnimationLibraryLoadProgress {
-  loaded: number
-  total: number
-}
+import { type AnimationLibraryLoadProgress } from './interfaces/AnimationLibraryLoadProgress'
 
 /**
  * Every animation available for the current rig. Library animations are listed from the

@@ -1,6 +1,8 @@
 import { MathUtils, Matrix3, Mesh, SkinnedMesh, Triangle, Vector3, type Bone, type Intersection, type PerspectiveCamera } from 'three'
 import { vertex_adjacency } from '../../geometry/VertexAdjacency.ts'
-import { WeightPaintManager, type BrushVertex, type WeightPaintMode } from './WeightPaintManager.ts'
+import { WeightPaintManager } from './WeightPaintManager.ts'
+import { type BrushVertex } from './interfaces/BrushVertex'
+import { type WeightPaintMode } from './interfaces/WeightPaintMode'
 
 /**
  * Shared brush mechanics for the paint tools in the Position Joints step and

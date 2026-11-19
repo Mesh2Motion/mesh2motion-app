@@ -1,4 +1,4 @@
-import { type RawBoneRecord } from './BoneChainResolver'
+import { type RawBoneRecord } from './interfaces/RawBoneRecord'
 
 /**
  * Skeleton fixtures for the auto-mapping tests.

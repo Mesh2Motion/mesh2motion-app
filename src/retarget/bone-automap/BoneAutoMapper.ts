@@ -1,6 +1,7 @@
 import { type Bone, type Object3D, type SkinnedMesh } from 'three'
 import { BoneCategoryMapper } from './BoneCategoryMapper'
-import { BoneChainResolver, type RawBoneRecord } from './BoneChainResolver'
+import { BoneChainResolver } from './BoneChainResolver'
+import { type RawBoneRecord } from './interfaces/RawBoneRecord'
 import { CanonicalSlotMapper } from './CanonicalSlotMapper'
 import { Mesh2MotionMapper } from './Mesh2MotionMapper'
 import { MixamoMapper } from './MixamoMapper'

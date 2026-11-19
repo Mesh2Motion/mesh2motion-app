@@ -4,7 +4,8 @@ import {
   PlaneGeometry, Vector3, type Intersection
 } from 'three'
 import { WeightPaintBrush } from './WeightPaintBrush'
-import { WeightPaintManager, type BrushVertex } from './WeightPaintManager'
+import { WeightPaintManager } from './WeightPaintManager'
+import { type BrushVertex } from './interfaces/BrushVertex'
 
 class RecordingManager {
   public readonly calls: BrushVertex[][] = []

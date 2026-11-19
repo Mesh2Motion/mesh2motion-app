@@ -2,7 +2,7 @@ import { UI } from '../../../UI.ts'
 import { PropPicker } from './PropPicker.ts'
 import { PropSide } from './PropSide.ts'
 import { NO_PROP } from './PropId.ts'
-import { type PropSelection } from './PropSelection.ts'
+import { type PropSelection } from './interfaces/PropSelection'
 
 export class PropsPanel extends EventTarget {
   private readonly ui: UI = UI.getInstance()

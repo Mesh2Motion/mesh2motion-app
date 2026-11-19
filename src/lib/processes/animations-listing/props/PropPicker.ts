@@ -1,4 +1,5 @@
-import { PropCatalog, type PropDefinition } from './PropCatalog.ts'
+import { PropCatalog } from './PropCatalog.ts'
+import { type PropDefinition } from './interfaces/PropDefinition'
 import { NO_PROP, type PropId } from './PropId.ts'
 
 /**

@@ -2,32 +2,9 @@ import {
   AnimationClip, type Bone, type Interpolant, type KeyframeTrack, type Object3D, PropertyBinding,
   Quaternion, QuaternionKeyframeTrack, type Skeleton
 } from 'three'
-
-export interface ComposeClipOptions {
-  upper_clip: AnimationClip
-  lower_clip: AnimationClip
-  // bones driven by the upper clip. every other bone is driven by the lower clip
-  upper_body_bone_names: Set<string>
-  // frames per second the combined clip is baked at
-  fps: number
-  name: string
-  // when set, the upper body keeps the orientation it had in the upper clip instead of following the lower clip's hips
-  upright_upper_body?: UprightUpperBodyRig
-}
-
-export interface BoneRestRotation {
-  name: string
-  rest_quaternion: Quaternion
-}
-
-/**
- * Bones needed to keep the upper body upright. Bones without a rotation track in a clip use their rest rotation.
- */
-export interface UprightUpperBodyRig {
-  upper_body_root: BoneRestRotation // e.g. spine_01
-  // bones between the skeleton root and the upper body root, top first (e.g. pelvis)
-  parent_chain: BoneRestRotation[]
-}
+import { type ComposeClipOptions } from './interfaces/ComposeClipOptions'
+import { type BoneRestRotation } from './interfaces/BoneRestRotation'
+import { type UprightUpperBodyRig } from './interfaces/UprightUpperBodyRig'
 
 type KeyframeTrackConstructor = new (name: string, times: ArrayLike<number>, values: ArrayLike<number>) => KeyframeTrack
 type InterpolatableTrack = KeyframeTrack & { createInterpolant: () => Interpolant }

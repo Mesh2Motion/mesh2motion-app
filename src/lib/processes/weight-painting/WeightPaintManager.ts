@@ -2,21 +2,11 @@ import { Vector3, type Bone, type BufferGeometry, type Mesh } from 'three'
 import { Generators } from '../../Generators'
 import { Utility } from '../../Utilities.js'
 import { vertex_adjacency } from '../../geometry/VertexAdjacency.ts'
-
-export interface PaintedInfluence {
-  bone_name: string
-  weight: number
-}
-
-export type GeometryWeightOverrides = Map<number, PaintedInfluence[]>
-export type ManualWeightOverrides = Map<number, GeometryWeightOverrides>
-export type WeightPaintMode = 'add' | 'subtract' | 'smooth'
-
-/** One vertex touched by a brush, with the brush falloff at that vertex. */
-export interface BrushVertex {
-  vertex_index: number
-  falloff: number
-}
+import { type PaintedInfluence } from './interfaces/PaintedInfluence'
+import { type GeometryWeightOverrides } from './interfaces/GeometryWeightOverrides'
+import { type ManualWeightOverrides } from './interfaces/ManualWeightOverrides'
+import { type WeightPaintMode } from './interfaces/WeightPaintMode'
+import { type BrushVertex } from './interfaces/BrushVertex'
 
 interface SkinBackup {
   indices: number[]

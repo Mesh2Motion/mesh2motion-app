@@ -1,9 +1,11 @@
 import { UI } from '../../UI.ts'
 import { AnimationLoader } from '../animations-listing/AnimationLoader.ts'
 import { type AnimationPlayer } from '../animations-listing/AnimationPlayer.ts'
-import { WeightPaintManager, type WeightPaintMode } from './WeightPaintManager.ts'
+import { WeightPaintManager } from './WeightPaintManager.ts'
+import { type WeightPaintMode } from './interfaces/WeightPaintMode'
 import { WeightPaintBrush } from './WeightPaintBrush.ts'
-import { RigConfig, type RigAnimation } from '../../RigConfig.ts'
+import { RigConfig } from '../../RigConfig.ts'
+import { type RigAnimation } from '../../interfaces/RigAnimation'
 import { Utility } from '../../Utilities.ts'
 import {
   AnimationMixer, BufferGeometry, Float32BufferAttribute, LoopRepeat, MeshBasicMaterial,

@@ -1,6 +1,5 @@
-export interface VariationLicenseInfo {
-  description: string
-}
+import { type VariationLicenseInfo } from './interfaces/VariationLicenseInfo'
+
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class VariationLicenseCatalog {

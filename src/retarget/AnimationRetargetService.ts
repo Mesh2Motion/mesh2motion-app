@@ -3,13 +3,16 @@ import {
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
   type Skeleton
 } from 'three'
-import { RetargetUtils, type TrackNameParts, type BoneRestTransform } from './RetargetUtils.ts'
+import { RetargetUtils } from './RetargetUtils.ts'
+import { type TrackNameParts } from './interfaces/TrackNameParts'
+import { type BoneRestTransform } from './interfaces/BoneRestTransform'
 import { TargetBoneMappingType } from './bone-automap/TargetBoneMappingType.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { HumanClipRetargeter } from './human-retargeting/HumanClipRetargeter.ts'
 import { Rig } from './human-retargeting/Rig.ts'
 import { HumanChainConfig } from './human-retargeting/HumanChainConfig.ts'
-import { RetargetDiagnostics, type RestPoseSnapshot } from './RetargetDiagnostics.ts'
+import { RetargetDiagnostics } from './RetargetDiagnostics.ts'
+import { type RestPoseSnapshot } from './interfaces/RestPoseSnapshot'
 
 // AnimationRetargetService - Shared service for retargeting animations from one skeleton to another
 // Used by both RetargetAnimationPreview and RetargetAnimationListing

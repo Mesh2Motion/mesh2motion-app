@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { BoneAutoMapper } from './BoneAutoMapper'
-import { BoneChainResolver, type RawBoneRecord } from './BoneChainResolver'
+import { BoneChainResolver } from './BoneChainResolver'
+import { type RawBoneRecord } from './interfaces/RawBoneRecord'
 import { MixamoMapper } from './MixamoMapper'
 import { RigifyMapper } from './RigifyMapper'
 import { type BoneMetadata, BoneSlot } from './BoneTypes'

@@ -14,7 +14,9 @@ import { ThemeManager } from '../lib/ThemeManager.ts'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
 import { DOMUtilities } from '../lib/DOMUtilities.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
-import { RigConfig, type PreviewCamera, type RigAnimation } from '../lib/RigConfig.ts'
+import { RigConfig } from '../lib/RigConfig.ts'
+import { type PreviewCamera } from '../lib/interfaces/PreviewCamera'
+import { type RigAnimation } from '../lib/interfaces/RigAnimation'
 
 type ThemeName = 'light' | 'dark'
 

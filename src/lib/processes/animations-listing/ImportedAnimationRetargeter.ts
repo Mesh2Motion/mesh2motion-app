@@ -4,7 +4,8 @@ import { type TargetBoneMappingType } from '../../../retarget/bone-automap/Targe
 import { HumanChainConfig } from '../../../retarget/human-retargeting/HumanChainConfig.ts'
 import { HumanClipRetargeter } from '../../../retarget/human-retargeting/HumanClipRetargeter.ts'
 import { Rig } from '../../../retarget/human-retargeting/Rig.ts'
-import { RetargetUtils, type BoneRestTransform } from '../../../retarget/RetargetUtils.ts'
+import { RetargetUtils } from '../../../retarget/RetargetUtils.ts'
+import { type BoneRestTransform } from '../../../retarget/interfaces/BoneRestTransform'
 import { IncompatibleSkeletonError } from './AnimationImportErrors.ts'
 
 /**

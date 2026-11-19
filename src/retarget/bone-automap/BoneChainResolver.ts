@@ -1,28 +1,10 @@
 import { type BoneMetadata, BoneSide, BoneSlot } from './BoneTypes'
-import { normalized_lookup_key, parse_bone_name, type ParsedBoneName } from './BoneNameTokenizer'
+import { normalized_lookup_key, parse_bone_name } from './BoneNameTokenizer'
+import { type ParsedBoneName } from './interfaces/ParsedBoneName'
 import {
   is_arm_ambiguous_slot, is_finger_slot, is_leg_ambiguous_slot, resolve_slot, slot_to_category
 } from './BoneSlotVocabulary'
-
-/**
- * BoneChainResolver - builds BoneMetadata from a flat list of (bone, parent) pairs
- * and resolves each bone to a canonical slot.
- *
- * Names alone cannot settle every joint. The two that matter in practice:
- *   - Mixamo calls the clavicle "LeftShoulder" and the upper arm "LeftArm";
- *     DAZ calls the upper arm "lShldr" and the clavicle "lCollar".
- *   - Mixamo calls the calf "LeftLeg"; plenty of rigs call the thigh "leg_l".
- * Both are settled by walking up from the hand and the foot, where the terminal
- * joint is named unambiguously in every rig we care about.
- *
- * Deliberately takes plain records rather than three.js Bones so it can be unit
- * tested with nothing more than a list of names and parents.
- */
-
-export interface RawBoneRecord {
-  name: string
-  parent_name: string | null
-}
+import { type RawBoneRecord } from './interfaces/RawBoneRecord'
 
 export class BoneChainResolver {
   /**

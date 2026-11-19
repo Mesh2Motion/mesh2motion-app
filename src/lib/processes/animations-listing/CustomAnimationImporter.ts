@@ -1,17 +1,13 @@
 import { ModalDialog } from '../../ModalDialog.ts'
 import { type AnimationClip, type SkinnedMesh } from 'three'
-import { type AnimationLoader, type LoadedAnimationSource } from './AnimationLoader.ts'
+import { type AnimationLoader } from './AnimationLoader.ts'
+import { type LoadedAnimationSource } from './interfaces/LoadedAnimationSource'
 import CustomAnimationValidation from './CustomAnimationValidation.ts'
 import { IncompatibleSkeletonError } from './AnimationImportErrors.ts'
 import { ImportedAnimationRetargeter } from './ImportedAnimationRetargeter.ts'
 import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { SkeletonType } from '../../enums/SkeletonType.ts'
-
-export interface AnimationImportContext {
-  skinned_meshes_to_animate: SkinnedMesh[]
-  skeleton_scale: number
-  skeleton_type: SkeletonType
-}
+import { type AnimationImportContext } from './interfaces/AnimationImportContext'
 
 /**
  * Imports custom animations from GLB and FBX files.

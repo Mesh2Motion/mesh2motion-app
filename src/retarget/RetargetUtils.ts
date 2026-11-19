@@ -1,17 +1,7 @@
 import { type Scene, Group, Matrix4, Skeleton, Vector3, Quaternion, type SkinnedMesh, type Bone, type Object3D } from 'three'
 import { ModalDialog } from '../lib/ModalDialog.ts'
-
-export interface TrackNameParts {
-  bone_name: string
-  property: string
-}
-
-/** A single bone's local transform, captured while the skeleton is known to be at rest. */
-export interface BoneRestTransform {
-  position: Vector3
-  quaternion: Quaternion
-  scale: Vector3
-}
+import { type TrackNameParts } from './interfaces/TrackNameParts'
+import { type BoneRestTransform } from './interfaces/BoneRestTransform'
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RetargetUtils {

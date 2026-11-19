@@ -1,4 +1,5 @@
-import { type ManualWeightOverrides, type WeightPaintManager } from '../weight-painting/WeightPaintManager.ts'
+import { type WeightPaintManager } from '../weight-painting/WeightPaintManager.ts'
+import { type ManualWeightOverrides } from '../weight-painting/interfaces/ManualWeightOverrides'
 import { WeightPaintEditTools } from '../weight-painting/WeightPaintEditTools.ts'
 import { UI } from '../../UI.ts'
 import { Generators } from '../../Generators.ts'

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { BoneCategoryMapper } from './BoneCategoryMapper'
-import { BoneChainResolver, type RawBoneRecord } from './BoneChainResolver'
+import { BoneChainResolver } from './BoneChainResolver'
+import { type RawBoneRecord } from './interfaces/RawBoneRecord'
 import { type BoneMetadata } from './BoneTypes'
 
 /**

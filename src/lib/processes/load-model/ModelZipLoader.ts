@@ -4,15 +4,8 @@ import { CustomGLTFLoader } from './CustomGLTFLoader'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js'
 import { CustomDAELoader } from './CustomDAELoader'
-
-// things that might be in the ZIP file
-export type ModelFormat = 'gltf' | 'dae' | 'unknown'
-
-export interface ZipModelInfo {
-  format: ModelFormat
-  fileName: string
-  fileData: ArrayBuffer
-}
+import { type ModelFormat } from './interfaces/ModelFormat'
+import { type ZipModelInfo } from './interfaces/ZipModelInfo'
 
 export class ModelZipLoader {
   /**

@@ -1,5 +1,5 @@
 import { UI } from '../../UI.ts'
-import { type AnimationLibraryLoadProgress } from './AnimationLibrary.ts'
+import { type AnimationLibraryLoadProgress } from './interfaces/AnimationLibraryLoadProgress'
 
 export class AnimationLibraryProgressBar {
   /**

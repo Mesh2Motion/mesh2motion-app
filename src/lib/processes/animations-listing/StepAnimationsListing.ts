@@ -8,8 +8,10 @@ import {
 
 import { AnimationUtility } from './AnimationUtility.ts'
 import { ArmExtensionControl } from './ArmExtensionControl.ts'
-import { AnimationLoader, type AnimationLoadProgress } from './AnimationLoader.ts'
-import { AnimationLibrary, type AnimationLibraryLoadProgress } from './AnimationLibrary.ts'
+import { AnimationLoader } from './AnimationLoader.ts'
+import { type AnimationLoadProgress } from './interfaces/AnimationLoadProgress'
+import { AnimationLibrary } from './AnimationLibrary.ts'
+import { type AnimationLibraryLoadProgress } from './interfaces/AnimationLibraryLoadProgress'
 import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
 import { ImportAnimationsButton } from './ImportAnimationsButton.ts'

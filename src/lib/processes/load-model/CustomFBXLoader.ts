@@ -1,11 +1,7 @@
 import { EventDispatcher, type Object3DEventMap, type Group } from 'three'
 import { FBXLoader } from '../../../lib/io/FBXLoader'
 import { ModalDialog } from '../../ModalDialog'
-
-export interface FBXResults {
-  fbx_scene: Group<Object3DEventMap>
-  is_missing_dependencies: boolean
-}
+import { type FBXResults } from './interfaces/FBXResults'
 
 export class CustomFBXLoader extends EventDispatcher {
   private readonly loader: FBXLoader

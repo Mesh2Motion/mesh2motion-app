@@ -7,24 +7,8 @@ import { type SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
 import { type AnimationClipMetadata, type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { LoadError, NoAnimationsError } from './AnimationImportErrors.ts'
-
-export interface AnimationLoadProgress {
-  loaded: number
-  total: number
-  percentage: number
-  currentFile: string
-  currentFileProgress: number
-  currentFileLoaded: number
-  currentFileTotal: number
-  overallBytesLoaded: number
-  overallBytesTotal: number
-}
-
-export interface LoadedAnimationSource {
-  animations: AnimationClip[]
-  // scene the animations came with. Holds the rig they were authored on
-  scene: Object3D
-}
+import { type AnimationLoadProgress } from './interfaces/AnimationLoadProgress'
+import { type LoadedAnimationSource } from './interfaces/LoadedAnimationSource'
 
 export class AnimationLoader extends EventTarget {
   // animation GLBs from the asset library are meshopt compressed

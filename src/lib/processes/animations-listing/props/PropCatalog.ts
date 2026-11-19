@@ -1,29 +1,12 @@
 import { Euler, Group, Mesh, type Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SkeletonType } from '../../../enums/SkeletonType.ts'
-import { asset_path, props_manifest, type ManifestProp } from '../../../AssetManifest.ts'
+import { asset_path, props_manifest } from '../../../AssetManifest.ts'
+import { type ManifestProp } from '../../../interfaces/ManifestProp'
 import { type PropId } from './PropId.ts'
 import { PropSide } from './PropSide.ts'
-
-export interface PropMountOffset {
-  // meters for a rig at skeleton scale 1.0, along the hand bone toward the fingers
-  along_hand: number
-  // meters for a rig at skeleton scale 1.0, along world down in the bind pose
-  below_palm: number
-  // applied after the prop's +Y is aligned with the grip axis (world forward)
-  rotation: Euler
-}
-
-export interface PropDefinition {
-  id: PropId
-  display_name: string
-  category: string // group shown in the prop picker, e.g. 'Swords'
-  asset_path: string // relative to the static root
-  preview_path: string // relative to the static root
-  model_offset_y: number
-  default_mount_offsets: Record<PropSide, PropMountOffset>
-  rig_mount_offsets: Partial<Record<SkeletonType, Record<PropSide, PropMountOffset>>>
-}
+import { type PropMountOffset } from './interfaces/PropMountOffset'
+import { type PropDefinition } from './interfaces/PropDefinition'
 
 /**
  * App-specific settings for a prop. The model and preview files come from the props manifest.

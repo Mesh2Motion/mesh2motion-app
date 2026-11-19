@@ -1,4 +1,4 @@
-import type { RootBoneChain } from './MultiRootSkeletonResolver.ts'
+import { type RootBoneChain } from './interfaces/RootBoneChain'
 
 /**
  * Modal dialog that asks the user which root bone is the main skeleton when

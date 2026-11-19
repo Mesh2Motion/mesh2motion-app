@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { BoxGeometry, Group, Mesh, MeshPhongMaterial, MeshStandardMaterial, Scene } from 'three'
-import { ModelAnalysisReport, type SceneSnapshot } from './ModelAnalysisReport'
+import { ModelAnalysisReport } from './ModelAnalysisReport'
+import { type SceneSnapshot } from './interfaces/SceneSnapshot'
 
 /** A 1x1x1 box mesh with a name, so snapshots have something real to measure. */
 function make_mesh (name: string): Mesh {

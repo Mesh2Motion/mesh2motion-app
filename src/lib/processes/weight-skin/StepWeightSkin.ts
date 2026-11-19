@@ -1,7 +1,8 @@
 import { UI } from '../../UI.ts'
 import SkinningAlgorithm from '../../solvers/SkinningAlgorithm.ts'
 import { Utility } from '../../Utilities.ts'
-import { WeightPaintManager, type ManualWeightOverrides } from '../weight-painting/WeightPaintManager.ts'
+import { WeightPaintManager } from '../weight-painting/WeightPaintManager.ts'
+import { type ManualWeightOverrides } from '../weight-painting/interfaces/ManualWeightOverrides'
 
 import { Generators } from '../../Generators.ts'
 

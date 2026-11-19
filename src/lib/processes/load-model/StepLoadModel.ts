@@ -1,6 +1,7 @@
 import { UI } from '../../UI.ts'
 import { ModelZipLoader } from './ModelZipLoader.ts'
-import { CustomFBXLoader, type FBXResults } from './CustomFBXLoader.ts'
+import { CustomFBXLoader } from './CustomFBXLoader.ts'
+import { type FBXResults } from './interfaces/FBXResults'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DOMUtilities } from '../../DOMUtilities.ts'
 
@@ -10,7 +11,9 @@ import { BufferGeometry, Group, type Material, type Object3D } from 'three'
 import { ModalDialog } from '../../ModalDialog.ts'
 import { Utility } from '../../Utilities.ts'
 import { ModelCleanupUtility } from './ModelCleanupUtility.ts'
-import { ModelAnalysisReport, type ModelImportAnalysis, type SceneSnapshot } from './ModelAnalysisReport.ts'
+import { ModelAnalysisReport } from './ModelAnalysisReport.ts'
+import { type ModelImportAnalysis } from './interfaces/ModelImportAnalysis'
+import { type SceneSnapshot } from './interfaces/SceneSnapshot'
 import { PlatformUtils } from '../../PlatformUtils.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it

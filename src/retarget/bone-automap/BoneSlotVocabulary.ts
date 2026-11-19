@@ -1,5 +1,5 @@
 import { BoneCategory, BoneSide, BoneSlot } from './BoneTypes'
-import { type ParsedBoneName } from './BoneNameTokenizer'
+import { type ParsedBoneName } from './interfaces/ParsedBoneName'
 
 /**
  * BoneSlotVocabulary - the synonym table that turns tokenized bone names into
