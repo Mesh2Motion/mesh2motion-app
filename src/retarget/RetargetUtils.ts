@@ -46,6 +46,10 @@ export class RetargetUtils {
    * armature node's own transform, so the armature scale/rotation gets applied a
    * second time on the next updateMatrixWorld (e.g. an armature with scale 0.01
    * makes the model render at 1/100th the size the bounding box reports).
+   *
+   * Only safe right after load, before StepLoadTargetModel applies its import scale. After
+   * that, the bones absorb the inverse of that scale and the model blows up. Use
+   * AnimationRetargetService.reset_target_to_rest_pose for the retarget target instead.
    */
   static reset_skinned_mesh_to_rest_pose (skinned_meshes_group: Object3D): void {
     // ensure non-bone parent (armature) world matrices are current

@@ -94,6 +94,30 @@ export class AnimationRetargetService {
       : []
   }
 
+  /**
+   * Put the target back in its rest pose from the load-time snapshot.
+   *
+   * Do not use RetargetUtils.reset_skinned_mesh_to_rest_pose here. Large models are scaled down
+   * after load (StepLoadTargetModel), and that function rebuilds bone locals from boneInverses
+   * (pre-scale bind space) divided by the current, scaled-down parent world. The bones absorb the
+   * inverse of the import scale and the model renders at its original huge size.
+   * Fixed in b0b0701, regressed in b151ba2 when props called it on Continue.
+   */
+  public reset_target_to_rest_pose (): void {
+    if (this.target_skinned_meshes.length === 0) return
+
+    const bones = this.target_skinned_meshes[0].skeleton.bones
+    if (bones.length !== this.target_rest_transforms.length) return
+
+    bones.forEach((bone, index) => {
+      const rest = this.target_rest_transforms[index]
+      bone.position.copy(rest.position)
+      bone.quaternion.copy(rest.quaternion)
+      bone.scale.copy(rest.scale)
+    })
+    this.target_armature.updateMatrixWorld(true)
+  }
+
   public get_target_skinned_meshes (): SkinnedMesh[] {
     return this.target_skinned_meshes
   }

@@ -19,7 +19,6 @@ import { ModalDialog } from '../lib/ModalDialog.ts'
 import { type PropsManager } from '../lib/processes/animations-listing/props/PropsManager.ts'
 import { HandBoneResolver } from '../lib/processes/animations-listing/props/HandBoneResolver.ts'
 import { type PropSide } from '../lib/processes/animations-listing/props/PropSide.ts'
-import { RetargetUtils } from './RetargetUtils.ts'
 
 /**
  * RetargetAnimationListing - Handles animation listing and playback specifically for retargeting workflow
@@ -98,7 +97,7 @@ export class RetargetAnimationListing extends EventTarget {
     const retarget_service = AnimationRetargetService.getInstance()
 
     // the live preview leaves the target mid-animation, and grip frames are captured from the current pose
-    RetargetUtils.reset_skinned_mesh_to_rest_pose(retarget_service.get_target_armature())
+    retarget_service.reset_target_to_rest_pose()
 
     this.props_manager.begin(retarget_service.get_skeleton_type(), this.target_to_source_height_ratio())
     this.props_manager.attach_to_skinned_meshes(

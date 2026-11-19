@@ -1,4 +1,4 @@
-import { type AnimationClip, AnimationMixer, Object3D, type Scene, type SkinnedMesh, type AnimationAction } from 'three'
+import { type AnimationClip, AnimationMixer, Object3D, type SkinnedMesh, type AnimationAction } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
@@ -166,10 +166,7 @@ export class RetargetAnimationPreview extends EventTarget {
     // with no mappings there is nothing to retarget, so show the rest pose instead of the source clip
     if (!this.has_something_to_retarget()) {
       this.retargeted_animation_clip = null
-      const target_armature: Scene | null = AnimationRetargetService.getInstance().get_target_armature()
-      if (target_armature !== null) {
-        RetargetUtils.reset_skinned_mesh_to_rest_pose(target_armature)
-      }
+      AnimationRetargetService.getInstance().reset_target_to_rest_pose()
       return
     }
 
