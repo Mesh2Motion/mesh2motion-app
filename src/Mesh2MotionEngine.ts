@@ -961,6 +961,11 @@ export class Mesh2MotionEngine {
     if (settings_dropdown_mount instanceof HTMLElement) {
       DOMUtilities.populate_settings_dropdown(settings_dropdown_mount)
     }
+
+    // the UI singleton may already exist at this point (the retarget module builds its
+    // PropsManager as a field initializer, before this engine), so it cached null refs for
+    // every element injected above. Re-query the DOM so those controls work.
+    UI.getInstance().initialize_dom_elements()
   }
 
 } // end Mesh2Motion Engine

@@ -137,7 +137,16 @@ export class UI {
     return UI.instance
   }
 
-  private initialize_dom_elements (): void {
+  /**
+   * (Re)binds every DOM element reference on the singleton.
+   *
+   * Public and idempotent so callers can refresh after injecting shared HTML fragments.
+   * A module can create the UI instance before the shared markup exists (for example a
+   * field initializer such as `props_manager = new PropsManager()` runs before
+   * Mesh2MotionEngine populates the shared mounts), which leaves references such as the
+   * arm-extension inputs pointing at null. Those controls then silently bind no listeners.
+   */
+  public initialize_dom_elements (): void {
     // grab all UI Elements from page that we need to interact with
     this.dom_current_step_element = document.querySelector('#current-step-label')
 
