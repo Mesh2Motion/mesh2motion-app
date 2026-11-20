@@ -25,7 +25,8 @@ export class Generators {
     <span style="text-align: left;">
     <ul>
       <li>Scott Petrovic: Project Maintainer</li>
-      <li>Quaternius: Base human model, rig, and animations. <a href="http://quaternius.com/" target="_blank" rel="noopener noreferrer">quaternius.com</a></li>
+      <li>Quaternius: Base human model, rig, animations, and props. <a href="http://quaternius.com/" target="_blank" rel="noopener noreferrer">quaternius.com</a></li>
+      <li>Kay Lousberg: Props. <a href="https://kaylousberg.com/game-assets" target="_blank" rel="noopener noreferrer">kaylousberg.com</a></li>
       <li>Sketchpunklab: Provided algorithm to help retarget human rigs for animations. <a target="_blank" href="https://x.com/SketchpunkLabs">See social media account</a></li>
       <li>Lino Emmenegger (oni-swr) - Adding custom animation importer.</li>
       <li>Marino - Added improved move functionality when importing model.</li>
