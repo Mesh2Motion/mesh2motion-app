@@ -1,3 +1,4 @@
+import { AnimationLoopController } from '../lib/AnimationLoopController.ts'
 import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
 import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
@@ -47,6 +48,11 @@ export class RetargetAnimationListing extends EventTarget {
   public animation_search: AnimationSearch | null = null
 
   private is_animations_active: boolean = false
+  private readonly animation_loop: AnimationLoopController = new AnimationLoopController(
+    requestAnimationFrame,
+    cancelAnimationFrame,
+    delta_time => { if (this.is_animations_active) this.animation_frame_logic(delta_time) }
+  )
 
   private export_button: HTMLButtonElement | null = null
 
@@ -72,6 +78,8 @@ export class RetargetAnimationListing extends EventTarget {
       this.add_event_listeners()
       this._added_event_listeners = true
     }
+    // Re-entering the step after end() must resume the single owned loop.
+    this.animation_loop.start()
 
     // the arm extension markup is static, so it survives leaving and re-entering this
     // step. re-point it at this instance and clear whatever the last visit left behind
@@ -91,6 +99,13 @@ export class RetargetAnimationListing extends EventTarget {
     this.props_manager.end()
     this.show_bone_toggle_button(false) // cannot toggle bone display in configuration area
     this.stop_preview() // stop any playing animations in the listing
+    this.animation_loop.stop()
+  }
+
+  /** Release the owned animation loop when the module is discarded. */
+  public dispose (): void {
+    this.animation_loop.dispose()
+    this.end()
   }
 
   private attach_props (): void {
@@ -340,7 +355,7 @@ export class RetargetAnimationListing extends EventTarget {
   private add_event_listeners (): void {
     // Add any retarget-specific event listeners here
     // For now, keeping it minimal
-    this.setup_animation_loop()
+    this.animation_loop.start()
 
     // progress for downloading many animations at once before an export
     this.animation_library.addEventListener('progress', (event: Event) => {
@@ -406,23 +421,6 @@ export class RetargetAnimationListing extends EventTarget {
       }
       return [{ clip: clip_pair.display_animation_clip, mirror_export_mode: selection.mirror_export_mode }]
     })
-  }
-
-  private setup_animation_loop (): void {
-    let last_time = performance.now()
-    const animate = (): void => {
-      requestAnimationFrame(animate)
-
-      // calculate delta time and pass it into preview
-      const current_time = performance.now()
-      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
-      last_time = current_time
-
-      if (this.is_animations_active) {
-        this.animation_frame_logic(delta_time)
-      }
-    }
-    animate()
   }
 
   private animation_frame_logic (delta_time: number): void {

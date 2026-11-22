@@ -2,7 +2,7 @@ import {
   PerspectiveCamera, DoubleSide, FrontSide, DirectionalLight, GridHelper,
   Bone, MeshBasicMaterial, Skeleton, AmbientLight, PlaneGeometry, Mesh,
   SphereGeometry, MeshPhongMaterial, AxesHelper, ArrowHelper, ConeGeometry,
-  Vector3, BufferGeometry, type Object3D, type WebGLRenderer,
+  Vector3, BufferGeometry, type Object3D,
   BufferAttribute, Vector2
 } from 'three'
 
@@ -173,18 +173,6 @@ export class Generators {
     camera.position.y = 5
     camera.position.x = 5
     return camera
-  }
-
-  static create_window_resize_listener (renderer: WebGLRenderer, camera: PerspectiveCamera): void {
-    // there was a bit of horizontal and vertical scrollbars
-    // I tried doing overflow: none, but that wasn't working for some reason
-    const contraction_size = 2
-
-    window.addEventListener('resize', () => {
-      renderer.setSize(window.innerWidth-contraction_size, window.innerHeight-contraction_size)
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix() // update camera
-    })
   }
 
   static create_bone_plane_mesh (bone_start: Bone, bone_end: Bone, rays_to_cast: number): Mesh {

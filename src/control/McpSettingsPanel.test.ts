@@ -90,13 +90,13 @@ describe('MCP settings panel', () => {
     })
     set_tauri(invoke)
     set_opt_in(true)
-    update_publisher_status({ attached: true, published_count: 5, sequence: 9, last_error: 'write refused' })
+    update_publisher_status({ attached: true, attempted_count: 5, accepted_count: 3, sequence: 9, last_error: 'write refused' })
     const handle = mount_mcp_settings(container)
     await handle.refresh()
 
     expect(container.querySelector('[data-mcp="host-state"]')?.textContent).toBe('Enabled')
     expect(container.querySelector('[data-mcp="ipc"]')?.textContent).toContain('/run/user/1000/mesh2motion/mcp.sock')
-    expect(container.querySelector('[data-mcp="publisher"]')?.textContent).toContain('5 published')
+    expect(container.querySelector('[data-mcp="publisher"]')?.textContent).toContain('5 attempted · 3 accepted')
     expect(container.querySelector('[data-mcp="last-status"]')?.textContent).toContain('write refused')
     for (const tool of CONTROL_READ_TOOLS) {
       expect(container.querySelector('[data-mcp="tools"]')?.textContent).toContain(tool)

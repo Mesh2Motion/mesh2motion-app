@@ -53,6 +53,8 @@ class PreviewGenerator {
   private skinned_mesh: THREE.SkinnedMesh | null = null
   private preview_clips: PreviewClip[] = []
   private is_recording: boolean = false
+  private animation_frame_handle: number | null = null
+  private disposed: boolean = false
 
   // size of the preview videos. The app's CSS expects this size
   private readonly preview_width: number = 100
@@ -95,6 +97,7 @@ class PreviewGenerator {
     this.update_camera_position_output()
     document.getElementById('copy-camera-position-button')?.addEventListener('click', () => {
       void navigator.clipboard.writeText(this.camera_position_text())
+        .catch((error: unknown) => { console.warn('Could not copy camera position:', error) })
     })
 
     this.clock_ = new THREE.Clock()
@@ -374,7 +377,10 @@ class PreviewGenerator {
   }
 
   private readonly animate_ = (): void => {
-    requestAnimationFrame(this.animate_)
+    if (this.disposed) {
+      return
+    }
+    this.animation_frame_handle = requestAnimationFrame(this.animate_)
     // while recording, the recorder poses the model itself
     if (this.is_recording) return
 
@@ -382,9 +388,24 @@ class PreviewGenerator {
     this.controls_.update()
     this.renderer_.render(this.scene_, this.camera_)
   }
+
+  /** Stop the owned render loop and release GPU resources on page teardown. */
+  public dispose (): void {
+    if (this.disposed) {
+      return
+    }
+    this.disposed = true
+    if (this.animation_frame_handle !== null) {
+      cancelAnimationFrame(this.animation_frame_handle)
+      this.animation_frame_handle = null
+    }
+    this.controls_.dispose()
+    this.renderer_.dispose()
+  }
 }
 
 const app = new PreviewGenerator()
+window.addEventListener('pagehide', () => { app.dispose() }, { once: true })
 
 // Populate animation file dropdown from central rig config
 const animation_file_dropdown = document.getElementById('animation-file-dropdown') as HTMLSelectElement | null

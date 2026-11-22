@@ -14,7 +14,7 @@ import { create_browser_sequence_ledger } from './SequenceLedger.ts'
 import { TauriSnapshotSink } from './transport/TauriSnapshotSink.ts'
 import type { SnapshotSink } from './transport/SnapshotSink.ts'
 import { get_publisher_status, update_publisher_status } from './publisherStatus.ts'
-import { is_desktop_control_enabled } from './attachControl.ts'
+import { is_desktop_control_enabled } from './desktopGate.ts'
 import type { PageValue } from './contracts.ts'
 
 /** Bounded heartbeat: at most one snapshot per second while visible. */
@@ -52,7 +52,8 @@ export interface ControlPublisherHandle {
   publish_now(): boolean
   request_publish(): void
   dispose(): void
-  readonly published_count: number
+  readonly attempted_count: number
+  readonly accepted_count: number
   readonly is_disposed: boolean
   readonly last_error: string | null
 }
@@ -88,11 +89,17 @@ export function attach_control_publisher (
     disposed: false
   })
 
-  let published_count = 0
+  let attempted_count = 0
+  let accepted_count = 0
   let last_publish_at = Number.NEGATIVE_INFINITY
   let trailing: ReturnType<typeof setTimeout> | null = null
   let heartbeat: ReturnType<typeof setInterval> | null = null
   let disposed = false
+
+  function mark_accepted (): void {
+    accepted_count += 1
+    update_publisher_status({ accepted_count })
+  }
 
   function request_publish (): void {
     if (disposed) {
@@ -121,16 +128,25 @@ export function attach_control_publisher (
     if (snapshot === null) {
       return false
     }
-    sink.publish(sanitize_snapshot(snapshot))
+    const outcome = sink.publish(sanitize_snapshot(snapshot))
     last_publish_at = clock()
-    published_count += 1
+    attempted_count += 1
     update_publisher_status({
-      published_count,
+      attempted_count,
+      accepted_count,
       last_publish_epoch_ms: last_publish_at,
       sequence: session.current_sequence(),
       phase: snapshot.application.phase,
       last_error: sink.last_error?.() ?? get_publisher_status().last_error
     })
+    // Acceptance is observed asynchronously. Never count an attempt as a
+    // successful publication before the transport confirms it.
+    if (outcome !== undefined && typeof (outcome as Promise<boolean>).then === 'function') {
+      void (outcome as Promise<boolean>).then(
+        (accepted: boolean) => { if (accepted === true && !disposed) mark_accepted() },
+        () => { /* failure is already reported through the sink's error callback */ }
+      )
+    }
     return true
   }
 
@@ -209,7 +225,8 @@ export function attach_control_publisher (
     publish_now,
     request_publish,
     dispose,
-    get published_count (): number { return published_count },
+    get attempted_count (): number { return attempted_count },
+    get accepted_count (): number { return accepted_count },
     get is_disposed (): boolean { return disposed },
     get last_error (): string | null { return sink.last_error?.() ?? get_publisher_status().last_error }
   }

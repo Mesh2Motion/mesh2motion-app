@@ -37,8 +37,16 @@ export class ComposerLibraryList {
    */
   public set_slot_markers (upper_animation_id: string | null, lower_animation_id: string | null): void {
     this.tile_elements.forEach((tile, animation_id) => {
-      tile.classList.toggle('in-upper-slot', animation_id === upper_animation_id)
-      tile.classList.toggle('in-lower-slot', animation_id === lower_animation_id)
+      const in_upper = animation_id === upper_animation_id
+      const in_lower = animation_id === lower_animation_id
+      tile.classList.toggle('in-upper-slot', in_upper)
+      tile.classList.toggle('in-lower-slot', in_lower)
+      // Slot membership is this list's "selected" state; tell the shared
+      // scheduler so a selected preview can win a playback slot.
+      const preview = tile.querySelector<HTMLElement>('.anim-preview-placeholder')
+      if (preview !== null) {
+        this.preview_videos.set_selected(preview, in_upper || in_lower)
+      }
     })
   }
 

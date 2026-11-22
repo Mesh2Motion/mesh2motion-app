@@ -177,8 +177,9 @@ export class Mesh2MotionEngine {
     window.addEventListener('pagehide', () => { this.dispose() }, { once: true })
   }
 
-  /** Tear down the single viewport observer when the document is unloaded. */
+  /** Tear down owned observers and listeners when the document is unloaded. */
   public dispose (): void {
+    this.load_model_step.dispose()
     this.scene_environment.dispose()
   }
 

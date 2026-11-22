@@ -8,7 +8,13 @@
 import type { ControlSnapshot } from '../contracts.ts'
 
 export interface SnapshotSink {
-  publish(snapshot: ControlSnapshot): void | Promise<void>
+  /**
+   * Sends a snapshot. Return a promise resolving to `true` only when the
+   * transport positively observed acceptance; resolve to `false` on a known
+   * rejection. Return `void` when the outcome cannot be observed (inert sinks)
+   * so callers never claim an acceptance they did not observe.
+   */
+  publish(snapshot: ControlSnapshot): void | Promise<boolean>
   /** Optional real transport error, when the sink can observe one. */
   last_error?(): string | null
 }

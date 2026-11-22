@@ -32,7 +32,15 @@ export class ViewportManager {
       this.observer = new ResizeObserver(() => { this.resize() })
       this.observer.observe(this.container)
     }
+    // ResizeObserver covers container size changes; fullscreen transitions can
+    // briefly report a zero-sized container, so also resync explicitly.
+    document.addEventListener('fullscreenchange', this.on_fullscreen_change)
+    document.addEventListener('webkitfullscreenchange', this.on_fullscreen_change)
     this.watch_pixel_ratio()
+  }
+
+  private on_fullscreen_change = (): void => {
+    this.resize()
   }
 
   private on_pixel_ratio_change = (): void => {
@@ -58,11 +66,15 @@ export class ViewportManager {
     if (this.disposed) {
       return
     }
-    const width = Math.max(1, Math.floor(this.container.clientWidth))
-    const height = Math.max(1, Math.floor(this.container.clientHeight))
-    if (width === 0 || height === 0) {
+    // Guard on the raw measurement: clamping to 1 first made this branch
+    // unreachable and produced a bogus 1x1 render during fullscreen/tiling.
+    const raw_width = this.container.clientWidth
+    const raw_height = this.container.clientHeight
+    if (raw_width <= 0 || raw_height <= 0) {
       return
     }
+    const width = Math.max(1, Math.floor(raw_width))
+    const height = Math.max(1, Math.floor(raw_height))
 
     const pixel_ratio = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_PIXEL_RATIO)
     // Avoid redundant work on repeated resize events during animation playback.
@@ -85,6 +97,8 @@ export class ViewportManager {
     this.disposed = true
     this.observer?.disconnect()
     this.observer = null
+    document.removeEventListener('fullscreenchange', this.on_fullscreen_change)
+    document.removeEventListener('webkitfullscreenchange', this.on_fullscreen_change)
     if (this.dpr_query !== null && typeof this.dpr_query.removeEventListener === 'function') {
       this.dpr_query.removeEventListener('change', this.on_pixel_ratio_change)
     }

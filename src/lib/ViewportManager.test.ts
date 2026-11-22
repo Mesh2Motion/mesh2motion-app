@@ -99,4 +99,50 @@ describe('ViewportManager', () => {
     manager.dispose()
     expect(observer.disconnect).toHaveBeenCalledOnce()
   })
+
+  it('skips a fake 1x1 render while the container is zero-sized', () => {
+    const renderer = fake_renderer()
+    const camera = { aspect: 16 / 9, updateProjectionMatrix: vi.fn() }
+    const container = container_with(0, 0)
+    const manager = new ViewportManager(renderer as never, camera as never, container)
+
+    manager.start()
+    expect(renderer.setSize).not.toHaveBeenCalled()
+    expect(renderer.setPixelRatio).not.toHaveBeenCalled()
+    expect(camera.aspect).toBeCloseTo(16 / 9)
+    expect(camera.updateProjectionMatrix).not.toHaveBeenCalled()
+
+    // Once the container reports a real size, the next notification resizes.
+    Object.defineProperty(container, 'clientWidth', { value: 640, configurable: true })
+    Object.defineProperty(container, 'clientHeight', { value: 360, configurable: true })
+    FakeResizeObserver.instances[0].trigger()
+    expect(renderer.setSize).toHaveBeenCalledWith(640, 360, false)
+    manager.dispose()
+  })
+
+  it('resyncs on fullscreen transitions and removes listeners on dispose', () => {
+    const add = vi.spyOn(document, 'addEventListener')
+    const remove = vi.spyOn(document, 'removeEventListener')
+    const renderer = fake_renderer()
+    const camera = { aspect: 1, updateProjectionMatrix: vi.fn() }
+    const container = container_with(400, 300)
+    const manager = new ViewportManager(renderer as never, camera as never, container)
+
+    manager.start()
+    expect(add).toHaveBeenCalledWith('fullscreenchange', expect.any(Function))
+    expect(add).toHaveBeenCalledWith('webkitfullscreenchange', expect.any(Function))
+
+    // Simulate repeated fullscreen/tiling transitions converging on a new size.
+    Object.defineProperty(container, 'clientWidth', { value: 1280, configurable: true })
+    Object.defineProperty(container, 'clientHeight', { value: 720, configurable: true })
+    document.dispatchEvent(new Event('fullscreenchange'))
+    expect(renderer.setSize).toHaveBeenCalledWith(1280, 720, false)
+    expect(camera.aspect).toBeCloseTo(1280 / 720)
+
+    manager.dispose()
+    expect(remove).toHaveBeenCalledWith('fullscreenchange', expect.any(Function))
+    expect(remove).toHaveBeenCalledWith('webkitfullscreenchange', expect.any(Function))
+    add.mockRestore()
+    remove.mockRestore()
+  })
 })

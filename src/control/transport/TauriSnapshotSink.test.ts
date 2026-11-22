@@ -57,4 +57,18 @@ describe('TauriSnapshotSink', () => {
     set_tauri({ invoke: () => { throw new Error('ipc closed') } })
     expect(() => new TauriSnapshotSink().publish(snapshot())).not.toThrow()
   })
+
+  it('resolves true only for acknowledged publications and false for rejections', async () => {
+    set_tauri({ invoke: vi.fn().mockResolvedValue(null) })
+    const accepted = new TauriSnapshotSink().publish(snapshot())
+    await expect(accepted).resolves.toBe(true)
+
+    set_tauri({ invoke: vi.fn().mockRejectedValue(new Error('host disabled')) })
+    const rejected = new TauriSnapshotSink().publish(snapshot())
+    await expect(rejected).resolves.toBe(false)
+
+    set_tauri({ invoke: () => { throw new Error('ipc closed') } })
+    const thrown = new TauriSnapshotSink().publish(snapshot())
+    await expect(thrown).resolves.toBe(false)
+  })
 })

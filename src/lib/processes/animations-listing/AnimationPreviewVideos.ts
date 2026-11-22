@@ -2,25 +2,85 @@ import { type SkeletonType } from '../../enums/SkeletonType'
 import { RigConfig } from '../../RigConfig'
 
 /**
- * Looping MP4 previews for library animations. Lists can hold hundreds of animations and only so many
- * videos can play at once, so placeholders are only turned into videos once they scroll into view.
+ * One shared, interaction-driven scheduler for an animation list's video thumbnails.
  *
- * Native WebKitGTK issues byte-range requests for short looping MP4s. Tauri's embedded `tauri://`
- * protocol answers those with a full 200 body (no 206/Accept-Ranges), which can leave the media
- * pipeline unable to present frames. Desktop builds resolve bundled resources through Tauri's
- * range-capable `asset://` protocol; browser builds keep the original direct URL behavior.
- * Diagnostics are opt-in with `?m2m-preview-debug=1` or localStorage `m2m-preview-debug=1`.
+ * Visibility gates everything, but visibility alone never starts playback. A tile
+ * becomes eligible only when the user interacts with it: mouse hover (after a
+ * short delay), keyboard focus, selection in the visible list, or an explicit
+ * touch tap. Eligible tiles compete for small, fixed caps, so resource use tracks
+ * visible/interacted tiles rather than the size of the catalog.
+ *
+ * Native WebKitGTK issues byte-range requests for short looping MP4s. Tauri's embedded
+ * `tauri://` protocol answers those with a full 200 body (no 206/Accept-Ranges), which can
+ * leave the media pipeline unable to present frames. Desktop builds resolve bundled
+ * resources through Tauri's range-capable `asset://` protocol; browser builds keep the
+ * original direct URL behavior. Diagnostics are opt-in with `?m2m-preview-debug=1` or
+ * localStorage `m2m-preview-debug=1`.
+ *
+ * Protected lifecycle behavior from 7cd06bfa is preserved: one play() call site,
+ * no redundant load(), safe teardown and stale asynchronous callback protection.
  */
 
 const DEBUG_QUERY_PARAM = 'm2m-preview-debug'
 const DEBUG_STORAGE_KEY = 'm2m-preview-debug'
-const DEFAULT_MAX_ACTIVE_VIDEOS = 12
+
+/**
+ * Independent upper limits, not targets: the scheduler never fills them
+ * unless that many tiles are simultaneously visible AND interacted with.
+ * They bound resource use without depending on catalog size.
+ */
+export const MAX_ACTIVE_PREVIEW_VIDEOS = 20
+export const MAX_CONCURRENT_PREVIEW_FETCHES = 20
+/** Initial attempt + at most 2 retries for a transient media failure. NOT 20. */
+export const MAX_PLAYBACK_ATTEMPTS = 3
+const RETRY_BASE_DELAY_MS = 300
+
+/** Hover must persist this long before a thumbnail starts playing. */
+export const HOVER_DELAY_MS = 200
+/** Hover/focus/selection end grace period before the thumbnail is paused. */
+export const INTERACTION_END_DEBOUNCE_MS = 250
+/** A touch tap shows a preview for this long, or until tapped again / scrolled out. */
+export const TOUCH_PREVIEW_TIMEOUT_MS = 4000
 
 export interface PreviewVideoOptions {
-  /** Maximum number of concurrently playing preview videos. */
+  /** Upper limit on concurrently playing thumbnail videos. Default 20. */
   max_active_videos?: number
   /** Use the range-capable Tauri asset protocol for bundled media on desktop builds. */
   use_asset_protocol_on_desktop?: boolean
+  /** Independent upper limit on in-flight media fetches. Default 20. */
+  max_concurrent_fetches?: number
+  /** Hover delay override, primarily for tests. */
+  hover_delay_ms?: number
+}
+
+/** Live scheduler counters, useful for native scroll-test verification. */
+export interface PreviewSchedulerStats {
+  visible_tiles: number
+  interacted_tiles: number
+  video_count: number
+  playing_count: number
+  in_flight_fetches: number
+  queued_fetches: number
+}
+
+interface FetchJob {
+  placeholder: HTMLElement
+  run: (signal: AbortSignal) => Promise<void>
+}
+
+interface TileInteraction {
+  /** Element that receives pointer/focus events (placeholder has pointer-events:none). */
+  target: HTMLElement
+  /** Row/item that carries the selected state. */
+  tile: HTMLElement
+  hovered: boolean
+  focused: boolean
+  selected: boolean
+  tapped: boolean
+  hover_timer: ReturnType<typeof setTimeout> | null
+  end_timer: ReturnType<typeof setTimeout> | null
+  touch_timer: ReturnType<typeof setTimeout> | null
+  listeners: Array<() => void>
 }
 
 type LogPayload = Record<string, unknown>
@@ -70,13 +130,28 @@ function tauri_preview_core (): TauriPreviewCore | null {
 export class AnimationPreviewVideos {
   private observer: IntersectionObserver | null = null
   private container: HTMLElement | null = null
+  /** Tiles currently inside the visible scroll viewport. */
   private readonly active = new Set<HTMLElement>()
+  /** Tiles with an interaction that currently requests playback. */
+  private readonly interactions = new Map<HTMLElement, TileInteraction>()
+  /** Tiles whose video is currently playing (bounded by max_active). */
+  private readonly playing = new Set<HTMLElement>()
+  /** Tiles that exhausted their bounded retries; never re-created until re-observed. */
+  private readonly failed = new Set<HTMLElement>()
   private readonly videos = new Map<HTMLElement, HTMLVideoElement>()
   private readonly blob_urls = new Map<HTMLVideoElement, string>()
   private readonly debug: boolean
   private readonly max_active: number
+  private readonly max_concurrent_fetches: number
+  private readonly hover_delay_ms: number
   private readonly use_asset_protocol_on_desktop: boolean
   private disposing = false
+  private readonly playback_attempts = new Map<HTMLElement, number>()
+  private readonly retry_timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>()
+  private readonly fetch_queue: FetchJob[] = []
+  private readonly fetch_controllers = new Map<HTMLElement, AbortController>()
+  private readonly pending_fetches = new Set<HTMLElement>()
+  private in_flight_fetches = 0
   private probe_video: HTMLVideoElement | null = null
   private probe_placeholder: HTMLElement | null = null
   private probe_last_log = 0
@@ -87,7 +162,9 @@ export class AnimationPreviewVideos {
 
   constructor (options: PreviewVideoOptions = {}) {
     this.debug = diagnostics_enabled()
-    this.max_active = options.max_active_videos ?? DEFAULT_MAX_ACTIVE_VIDEOS
+    this.max_active = options.max_active_videos ?? MAX_ACTIVE_PREVIEW_VIDEOS
+    this.max_concurrent_fetches = options.max_concurrent_fetches ?? MAX_CONCURRENT_PREVIEW_FETCHES
+    this.hover_delay_ms = options.hover_delay_ms ?? HOVER_DELAY_MS
     this.use_asset_protocol_on_desktop = options.use_asset_protocol_on_desktop ?? true
   }
 
@@ -101,10 +178,13 @@ export class AnimationPreviewVideos {
     return `../animpreviews/${preview_folder}/${theme_name}_${animation_name}.mp4`
   }
 
-  /** Create an empty video element; source and listeners are attached by the loader. */
+  /** Create an empty video element; source and listeners are attached on demand. */
   static create_video (src?: string, width: number = 100, height: number = 120): HTMLVideoElement {
     const video = document.createElement('video')
     video.className = 'anim-preview'
+    // Never buffer media merely because a video element exists. play() triggers
+    // loading only for tiles that actually won a scheduler slot.
+    video.preload = 'none'
     if (src !== undefined) {
       video.src = src
     }
@@ -127,10 +207,23 @@ export class AnimationPreviewVideos {
     }
   }
 
-  /** Watch placeholders and swap in videos only while they are near the viewport. */
+  /** Live scheduler counters (playing count is always <= max_active). */
+  public get_stats (): PreviewSchedulerStats {
+    return {
+      visible_tiles: this.active.size,
+      interacted_tiles: [...this.active].filter(placeholder => this.is_eligible(placeholder)).length,
+      video_count: this.videos.size,
+      playing_count: this.playing.size,
+      in_flight_fetches: this.in_flight_fetches,
+      queued_fetches: this.fetch_queue.length
+    }
+  }
+
+  /** Watch placeholders. Idle visible tiles remain lightweight placeholders. */
   public observe_placeholders (container: HTMLElement): void {
     this.disconnect()
     this.container = container
+    this.failed.clear()
 
     if (typeof IntersectionObserver === 'undefined') {
       // Without an observer, create nothing rather than loading hundreds of videos.
@@ -143,37 +236,270 @@ export class AnimationPreviewVideos {
         const placeholder = entry.target as HTMLElement
         this.log('intersection', {
           visible: entry.isIntersecting,
-          src: placeholder.getAttribute('data-src'),
-          boundingClientRect: {
-            width: entry.boundingClientRect.width,
-            height: entry.boundingClientRect.height
-          }
+          src: placeholder.getAttribute('data-src')
         })
         if (entry.isIntersecting) {
           this.active.add(placeholder)
-          this.ensure_video(placeholder)
+          this.ensure_interaction(placeholder)
         } else {
+          // Scroll-out wins over any hover/focus/selection state.
           this.active.delete(placeholder)
-          this.pause_video(placeholder)
+          this.release_video(placeholder)
+          this.cancel_interaction(placeholder)
         }
       }
-      this.enforce_limit()
-    }, { rootMargin: '300px' })
+      this.refresh_playback()
+    }, { rootMargin: '0px' })
 
     container.querySelectorAll<HTMLElement>('.anim-preview-placeholder').forEach((placeholder) => {
       this.observer?.observe(placeholder)
     })
   }
 
-  private ensure_video (placeholder: HTMLElement): void {
-    const existing = this.videos.get(placeholder)
+  /**
+   * Explicit selection bridge for lists that manage selection via classes rather
+   * than a `data-selected` attribute (the Composer slot markers).
+   */
+  public set_selected (placeholder: HTMLElement, selected: boolean): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing) {
+      return
+    }
+    state.selected = selected
+    if (selected) {
+      this.clear_end_timer(placeholder)
+    } else {
+      this.schedule_end(placeholder)
+    }
+    this.refresh_playback()
+  }
+
+  private ensure_interaction (placeholder: HTMLElement): TileInteraction {
+    const existing = this.interactions.get(placeholder)
     if (existing !== undefined) {
-      // A second IntersectionObserver notification can arrive while the
-      // resource-path command is still resolving. Do not call play() on a
-      // source-less element; WebKit may reject it and replace the tile.
-      if (existing.hasAttribute('src')) {
-        this.safe_play(existing, placeholder)
+      return existing
+    }
+
+    // The placeholder itself has pointer-events:none, so hover/focus are observed
+    // on the nearest interactive ancestor. Tests use the bare placeholder.
+    const target = placeholder.closest<HTMLElement>('button, .composer-library-item') ?? placeholder
+    const tile = placeholder.closest<HTMLElement>('[data-selected], .anim-item, .composer-library-item') ?? placeholder
+    const state: TileInteraction = {
+      target,
+      tile,
+      hovered: false,
+      focused: false,
+      selected: false,
+      tapped: false,
+      hover_timer: null,
+      end_timer: null,
+      touch_timer: null,
+      listeners: []
+    }
+
+    const add = (element: HTMLElement, type: string, listener: EventListener): void => {
+      element.addEventListener(type, listener)
+      state.listeners.push(() => { element.removeEventListener(type, listener) })
+    }
+
+    add(target, 'pointerenter', (event: Event) => {
+      if ((event as PointerEvent).pointerType !== 'touch') {
+        this.set_hover(placeholder, true)
       }
+    })
+    add(target, 'pointerleave', (event: Event) => {
+      if ((event as PointerEvent).pointerType !== 'touch') {
+        this.set_hover(placeholder, false)
+      }
+    })
+    add(target, 'pointerdown', (event: Event) => {
+      if ((event as PointerEvent).pointerType === 'touch') {
+        this.toggle_touch(placeholder)
+      }
+    })
+    add(target, 'focusin', () => { this.set_focus(placeholder, true) })
+    add(target, 'focusout', () => { this.set_focus(placeholder, false) })
+    add(tile, 'change', () => {
+      this.sync_selected(placeholder)
+      if (state.selected) {
+        this.clear_end_timer(placeholder)
+      } else {
+        this.schedule_end(placeholder)
+      }
+      this.refresh_playback()
+    })
+
+    this.interactions.set(placeholder, state)
+    this.sync_selected(placeholder)
+    return state
+  }
+
+  private sync_selected (placeholder: HTMLElement): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined) {
+      return
+    }
+    state.selected = state.tile.getAttribute('data-selected') === 'true' ||
+      state.tile.classList.contains('in-upper-slot') ||
+      state.tile.classList.contains('in-lower-slot')
+  }
+
+  private set_hover (placeholder: HTMLElement, hovered: boolean): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing) {
+      return
+    }
+    state.hovered = hovered
+    if (state.hover_timer !== null) {
+      clearTimeout(state.hover_timer)
+      state.hover_timer = null
+    }
+    if (hovered) {
+      this.clear_end_timer(placeholder)
+      if (this.active.has(placeholder)) {
+        state.hover_timer = setTimeout(() => {
+          state.hover_timer = null
+          this.refresh_playback()
+        }, this.hover_delay_ms)
+      }
+    } else {
+      this.schedule_end(placeholder)
+    }
+    this.refresh_playback()
+  }
+
+  private set_focus (placeholder: HTMLElement, focused: boolean): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing) {
+      return
+    }
+    state.focused = focused
+    if (focused) {
+      this.clear_end_timer(placeholder)
+    } else {
+      this.schedule_end(placeholder)
+    }
+    this.refresh_playback()
+  }
+
+  private toggle_touch (placeholder: HTMLElement): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing) {
+      return
+    }
+    state.tapped = !state.tapped
+    if (state.touch_timer !== null) {
+      clearTimeout(state.touch_timer)
+      state.touch_timer = null
+    }
+    if (state.tapped && this.active.has(placeholder)) {
+      this.clear_end_timer(placeholder)
+      state.touch_timer = setTimeout(() => {
+        state.touch_timer = null
+        state.tapped = false
+        this.schedule_end(placeholder)
+      }, TOUCH_PREVIEW_TIMEOUT_MS)
+    } else {
+      this.schedule_end(placeholder)
+    }
+    this.refresh_playback()
+  }
+
+  private schedule_end (placeholder: HTMLElement): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing) {
+      return
+    }
+    if (state.end_timer !== null) {
+      clearTimeout(state.end_timer)
+    }
+    state.end_timer = setTimeout(() => {
+      state.end_timer = null
+      this.refresh_playback()
+    }, INTERACTION_END_DEBOUNCE_MS)
+  }
+
+  private clear_end_timer (placeholder: HTMLElement): void {
+    const state = this.interactions.get(placeholder)
+    if (state !== undefined && state.end_timer !== null) {
+      clearTimeout(state.end_timer)
+      state.end_timer = null
+    }
+  }
+
+  private cancel_interaction (placeholder: HTMLElement): void {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined) {
+      return
+    }
+    if (state.hover_timer !== null) clearTimeout(state.hover_timer)
+    if (state.end_timer !== null) clearTimeout(state.end_timer)
+    if (state.touch_timer !== null) clearTimeout(state.touch_timer)
+    // Listeners stay attached: a tile can scroll back into view and be hovered.
+  }
+
+  private is_eligible (placeholder: HTMLElement): boolean {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || !this.active.has(placeholder) || this.failed.has(placeholder)) {
+      return false
+    }
+    if (state.selected || state.focused || state.tapped || state.end_timer !== null) {
+      return true
+    }
+    // Hover starts playback only after the configured delay, unless this tile
+    // is already playing (re-hover during the end debounce must not flicker).
+    if (state.hovered) {
+      return this.playing.has(placeholder) || state.hover_timer === null
+    }
+    return false
+  }
+
+  private priority (placeholder: HTMLElement): number {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined) {
+      return 0
+    }
+    if (state.selected) return 4
+    if (state.focused) return 3
+    if (state.tapped) return 2
+    return 1 // hovered
+  }
+
+  /** Single arbitration point: only eligible, visible tiles may hold a slot. */
+  private refresh_playback (): void {
+    if (this.disposing) {
+      return
+    }
+    const ranked = [...this.active]
+      .filter(placeholder => this.is_eligible(placeholder))
+      .sort((left, right) => this.priority(right) - this.priority(left))
+
+    const allowed = new Set(ranked.slice(0, this.max_active))
+    for (const placeholder of [...this.playing]) {
+      if (!allowed.has(placeholder) || !this.active.has(placeholder)) {
+        this.release_video(placeholder)
+      }
+    }
+    for (const placeholder of allowed) {
+      const video = this.videos.get(placeholder)
+      if (video !== undefined && video.paused) {
+        // A tile that still holds a slot but was paused (e.g. browser-suspended)
+        // resumes on the next interaction without replacing its source or node.
+        this.safe_play(video, placeholder)
+      } else {
+        this.ensure_video(placeholder)
+      }
+    }
+    this.log('schedule', {
+      visible: this.active.size,
+      eligible: ranked.length,
+      playing: this.playing.size,
+      fetches: this.in_flight_fetches
+    })
+  }
+
+  private ensure_video (placeholder: HTMLElement): void {
+    if (this.playing.has(placeholder) || this.videos.has(placeholder) || this.failed.has(placeholder)) {
       return
     }
     const src = placeholder.getAttribute('data-src')
@@ -192,7 +518,7 @@ export class AnimationPreviewVideos {
     this.videos.set(placeholder, video)
 
     if (has_tauri_bridge() && this.use_asset_protocol_on_desktop) {
-      void this.load_asset_source(video, placeholder, src)
+      this.enqueue_fetch(placeholder)
     } else {
       video.src = src
       this.log('source-direct', { src })
@@ -200,7 +526,7 @@ export class AnimationPreviewVideos {
     }
   }
 
-  private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string): Promise<void> {
+  private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string, signal: AbortSignal): Promise<void> {
     try {
       const core = tauri_preview_core()
       if (core === null) {
@@ -219,12 +545,12 @@ export class AnimationPreviewVideos {
       // some bundled MP4s (FormatError), although the same resource works as a
       // Blob. Fetch only the Rust-allowlisted resource, then give the media
       // pipeline a fully buffered, seekable blob URL.
-      const response = await fetch(asset_url)
+      const response = await fetch(asset_url, { signal })
       if (!response.ok) {
         throw new Error(`Preview resource request failed (${response.status})`)
       }
       const data = await response.blob()
-      if (this.videos.get(placeholder) !== video || this.disposing) {
+      if (this.videos.get(placeholder) !== video || this.disposing || signal.aborted) {
         return
       }
       if (data.size === 0) {
@@ -235,15 +561,84 @@ export class AnimationPreviewVideos {
       this.blob_urls.set(video, blob_url)
       video.src = blob_url
       this.log('source-blob', { asset_key, asset_url, blob_size: media_blob.size })
-      if (this.active.has(placeholder)) {
+      // Stale callback protection: the tile must still own this video and still
+      // hold a scheduler slot before a fetched source is ever played.
+      if (this.is_eligible(placeholder)) {
         this.safe_play(video, placeholder)
       }
     } catch (error) {
-      if (this.videos.get(placeholder) !== video) {
+      if (this.videos.get(placeholder) !== video || this.disposing || signal.aborted) {
         return
       }
       this.log('asset-error', { src, error: String(error) })
       this.show_fallback(placeholder, src, String(error))
+    }
+  }
+
+  /** Queue a bounded media transfer, serving higher-priority interactions first. */
+  private enqueue_fetch (placeholder: HTMLElement): void {
+    if (this.disposing || this.pending_fetches.has(placeholder)) {
+      return
+    }
+    const src = placeholder.getAttribute('data-src')
+    if (src === null || src === '') {
+      return
+    }
+    this.pending_fetches.add(placeholder)
+    const job: FetchJob = {
+      placeholder,
+      run: async (signal) => {
+        const video = this.videos.get(placeholder)
+        if (video === undefined || this.disposing) {
+          return
+        }
+        await this.load_asset_source(video, placeholder, src, signal)
+      }
+    }
+    const insert_at = this.fetch_queue.findIndex(other => this.priority(other.placeholder) < this.priority(placeholder))
+    if (insert_at >= 0) {
+      this.fetch_queue.splice(insert_at, 0, job)
+    } else {
+      this.fetch_queue.push(job)
+    }
+    this.pump_fetches()
+  }
+
+  private pump_fetches (): void {
+    while (!this.disposing && this.in_flight_fetches < this.max_concurrent_fetches && this.fetch_queue.length > 0) {
+      const job = this.fetch_queue.shift() as FetchJob
+      const controller = new AbortController()
+      this.fetch_controllers.set(job.placeholder, controller)
+      this.in_flight_fetches += 1
+      void job.run(controller.signal).finally(() => {
+        // A cancelled job may settle late (or never, with a non-compliant
+        // transport). Only the controller still registered here owns a slot.
+        if (this.fetch_controllers.get(job.placeholder) !== controller) {
+          return
+        }
+        this.in_flight_fetches -= 1
+        this.fetch_controllers.delete(job.placeholder)
+        this.pending_fetches.delete(job.placeholder)
+        this.pump_fetches()
+      })
+    }
+  }
+
+  private abort_fetch (placeholder: HTMLElement): void {
+    const controller = this.fetch_controllers.get(placeholder)
+    if (controller !== undefined) {
+      // Release the slot immediately on cancellation instead of waiting for a
+      // possibly never-settling transport promise to reach its finally block.
+      controller.abort()
+      this.fetch_controllers.delete(placeholder)
+      this.pending_fetches.delete(placeholder)
+      this.in_flight_fetches = Math.max(0, this.in_flight_fetches - 1)
+      this.pump_fetches()
+    }
+    const index = this.fetch_queue.findIndex(job => job.placeholder === placeholder)
+    if (index >= 0) {
+      this.fetch_queue.splice(index, 1)
+      this.pending_fetches.delete(placeholder)
     }
   }
 
@@ -262,7 +657,7 @@ export class AnimationPreviewVideos {
         networkState: video.networkState,
         error: video.error == null ? null : { code: video.error.code, message: video.error.message }
       })
-      this.show_fallback(placeholder, src, 'media error')
+      this.retry_or_fallback(placeholder, video, src, 'media error')
     })
 
     if (!this.debug) {
@@ -341,22 +736,63 @@ export class AnimationPreviewVideos {
   }
 
   private safe_play (video: HTMLVideoElement, placeholder: HTMLElement): void {
-    // Repeated observer notifications must not re-issue play() on an already
-    // running video; WebKit can treat that as a seek/restart.
+    // The single play() call site. Repeated scheduler passes and stale async
+    // callbacks must never re-issue play() on an already-running video.
     if (this.disposing || !video.hasAttribute('src') || (!video.paused && !video.ended)) {
       return
     }
+    if (!this.is_eligible(placeholder) || this.videos.get(placeholder) !== video) {
+      return
+    }
+    this.playing.add(placeholder)
     try {
       const result = video.play()
       if (result !== undefined && typeof (result as Promise<void>).then === 'function') {
         void (result as Promise<void>).catch((error: unknown) => {
-          this.log('play-rejected', { src: placeholder.getAttribute('data-src'), error: String(error) })
-          this.show_fallback(placeholder, placeholder.getAttribute('data-src') ?? '', String(error))
+          const source = placeholder.getAttribute('data-src') ?? ''
+          this.playing.delete(placeholder)
+          this.log('play-rejected', { src: source, error: String(error) })
+          this.retry_or_fallback(placeholder, video, source, String(error))
         })
       }
     } catch (error) {
-      this.log('play-threw', { src: placeholder.getAttribute('data-src'), error: String(error) })
-      this.show_fallback(placeholder, placeholder.getAttribute('data-src') ?? '', String(error))
+      const source = placeholder.getAttribute('data-src') ?? ''
+      this.playing.delete(placeholder)
+      this.log('play-threw', { src: source, error: String(error) })
+      this.retry_or_fallback(placeholder, video, source, String(error))
+    }
+  }
+
+  /** Bounded retry with linear backoff; falls back only after MAX_PLAYBACK_ATTEMPTS. */
+  private retry_or_fallback (placeholder: HTMLElement, video: HTMLVideoElement, src: string, reason: string): void {
+    if (this.disposing || this.videos.get(placeholder) !== video) {
+      return
+    }
+    const attempt = (this.playback_attempts.get(placeholder) ?? 0) + 1
+    this.playback_attempts.set(placeholder, attempt)
+    if (attempt >= MAX_PLAYBACK_ATTEMPTS) {
+      this.log('retry-exhausted', { src, attempt, reason })
+      this.show_fallback(placeholder, src, reason)
+      return
+    }
+    this.clear_retry_timer(placeholder)
+    const delay = RETRY_BASE_DELAY_MS * attempt
+    this.log('retry-scheduled', { src, attempt, delay, reason })
+    const timer = setTimeout(() => {
+      this.retry_timers.delete(placeholder)
+      if (this.disposing || this.videos.get(placeholder) !== video || !this.is_eligible(placeholder)) {
+        return
+      }
+      this.safe_play(video, placeholder)
+    }, delay)
+    this.retry_timers.set(placeholder, timer)
+  }
+
+  private clear_retry_timer (placeholder: HTMLElement): void {
+    const timer = this.retry_timers.get(placeholder)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      this.retry_timers.delete(placeholder)
     }
   }
 
@@ -364,6 +800,11 @@ export class AnimationPreviewVideos {
     if (placeholder.querySelector('.preview-fallback') !== null) {
       return
     }
+    this.failed.add(placeholder)
+    this.playing.delete(placeholder)
+    this.clear_retry_timer(placeholder)
+    this.abort_fetch(placeholder)
+    this.cancel_interaction(placeholder)
     this.log('fallback', { src, reason })
     placeholder.classList.add('preview-failed')
     const fallback = document.createElement('span')
@@ -371,22 +812,25 @@ export class AnimationPreviewVideos {
     fallback.textContent = 'Preview unavailable'
     fallback.setAttribute('title', `Preview unavailable: ${reason}`)
     placeholder.replaceChildren(fallback)
+    this.release_video(placeholder)
+  }
+
+  /** Pause and release owned media for a tile that no longer holds a slot. */
+  private release_video (placeholder: HTMLElement): void {
+    this.playing.delete(placeholder)
+    this.clear_retry_timer(placeholder)
+    this.abort_fetch(placeholder)
+    this.playback_attempts.delete(placeholder)
     const video = this.videos.get(placeholder)
     if (video !== undefined) {
+      // Drop the stale reference before removing src so any synchronous media
+      // event cannot insert a fallback into a tile we no longer own.
+      this.videos.delete(placeholder)
       video.pause()
+      // Do not call load(): it fires media events that could insert a fallback.
       video.removeAttribute('src')
       video.remove()
       this.revoke_blob_url(video)
-      this.videos.delete(placeholder)
-    }
-    this.active.delete(placeholder)
-  }
-
-  private pause_video (placeholder: HTMLElement): void {
-    const video = this.videos.get(placeholder)
-    if (video !== undefined) {
-      video.pause()
-      this.log('paused-offscreen', { src: placeholder.getAttribute('data-src') })
     }
   }
 
@@ -398,45 +842,40 @@ export class AnimationPreviewVideos {
     }
   }
 
-  private enforce_limit (): void {
-    const viewport_height = window.innerHeight || document.documentElement.clientHeight
-    const viewport_width = window.innerWidth || document.documentElement.clientWidth
-    const ranked = [...this.active].map((placeholder) => {
-      const rect = placeholder.getBoundingClientRect()
-      const visible = rect.bottom > 0 && rect.top < viewport_height && rect.right > 0 && rect.left < viewport_width
-      const vertical_distance = Math.max(0, -rect.bottom, rect.top - viewport_height)
-      const horizontal_distance = Math.max(0, -rect.right, rect.left - viewport_width)
-      return { placeholder, visible, distance: Math.hypot(vertical_distance, horizontal_distance) }
-    }).sort((left, right) => Number(right.visible) - Number(left.visible) || left.distance - right.distance)
-
-    for (const { placeholder } of ranked.slice(this.max_active)) {
-      this.pause_video(placeholder)
-      this.active.delete(placeholder)
-    }
-  }
-
-  /** Stop observing, pause every video and release all video nodes. */
+  /** Stop observing, cancel every pending operation and release all owned resources. */
   public disconnect (): void {
     this.disposing = true
     this.observer?.disconnect()
     this.observer = null
-    for (const placeholder of [...this.active]) {
-      this.pause_video(placeholder)
+    for (const [placeholder, state] of this.interactions) {
+      if (state.hover_timer !== null) clearTimeout(state.hover_timer)
+      if (state.end_timer !== null) clearTimeout(state.end_timer)
+      if (state.touch_timer !== null) clearTimeout(state.touch_timer)
+      for (const remove of state.listeners) remove()
+      this.release_video(placeholder)
+      state.listeners.length = 0
     }
+    this.interactions.clear()
+    for (const placeholder of [...this.retry_timers.keys()]) {
+      this.clear_retry_timer(placeholder)
+    }
+    for (const controller of this.fetch_controllers.values()) {
+      controller.abort()
+    }
+    this.fetch_controllers.clear()
+    this.fetch_queue.length = 0
+    this.pending_fetches.clear()
+    this.playback_attempts.clear()
+    this.failed.clear()
+    this.playing.clear()
     this.active.clear()
     if (this.probe_frame_handle !== null) {
       const with_frame_callback = this.probe_video as (HTMLVideoElement & { cancelVideoFrameCallback?: (handle: number) => void }) | null
       with_frame_callback?.cancelVideoFrameCallback?.(this.probe_frame_handle)
       this.probe_frame_handle = null
     }
-    for (const [placeholder, video] of this.videos) {
-      video.pause()
-      // Do not call load() during teardown: it fires media events that could
-      // otherwise insert a fallback into a placeholder being removed.
-      video.removeAttribute('src')
-      video.remove()
+    for (const video of this.videos.values()) {
       this.revoke_blob_url(video)
-      this.videos.delete(placeholder)
     }
     this.videos.clear()
     this.probe_video = null
