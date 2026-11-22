@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-11-06T20:41:49.612Z",
+  "generated": "2026-11-22T18:04:32.961Z",
   "rigs": {
     "bird": {
       "fps": 24,
@@ -28,23 +28,13 @@
       ],
       "animations": [
         {
-          "name": "Hop",
-          "file": "bird/animations/hop.glb",
-          "hash": "b12efab1da122766",
-          "tags": [],
-          "loop": true,
-          "root_motion": false,
-          "frame_count": 20,
-          "duration": 0.7917,
-          "source": "rigs/bird/WIP-animation-bird-hop.blend"
-        },
-        {
           "name": "Death",
           "file": "bird/animations/death.glb",
           "hash": "222be7d3c50e9626",
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/bird/animation-bird-death.blend"
@@ -56,6 +46,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 14,
           "duration": 0.5417,
           "source": "rigs/bird/animation-bird-flap.blend"
@@ -67,9 +58,22 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 14,
           "duration": 0.5417,
           "source": "rigs/bird/animation-bird-glide.blend"
+        },
+        {
+          "name": "Hop",
+          "file": "bird/animations/hop.glb",
+          "hash": "f315870bf538f790",
+          "tags": [],
+          "loop": true,
+          "root_motion": false,
+          "fps": 24,
+          "frame_count": 21,
+          "duration": 0.8333,
+          "source": "rigs/bird/animation-bird-hop.blend"
         },
         {
           "name": "Idle",
@@ -78,6 +82,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 29,
           "duration": 1.1667,
           "source": "rigs/bird/animation-bird-idle.blend"
@@ -89,6 +94,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/bird/animation-bird-land.blend"
@@ -100,6 +106,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 9,
           "duration": 0.3333,
           "source": "rigs/bird/animation-bird-rest-pose.blend"
@@ -111,6 +118,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/bird/animation-bird-take-off.blend"
@@ -122,6 +130,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 11,
           "duration": 0.4167,
           "source": "rigs/bird/animation-bird-walk.blend"
@@ -147,6 +156,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/dragon/animation-dragon-attack.blend"
@@ -158,6 +168,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 101,
           "duration": 4.1667,
           "source": "rigs/dragon/animation-dragon-death.blend"
@@ -169,6 +180,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 76,
           "duration": 3.125,
           "source": "rigs/dragon/animation-dragon-fire-breath.blend"
@@ -180,6 +192,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/dragon/animation-dragon-fly-flap.blend"
@@ -191,6 +204,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/dragon/animation-dragon-fly-glide.blend"
@@ -202,6 +216,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/dragon/animation-dragon-hurt.blend"
@@ -213,6 +228,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/dragon/animation-dragon-idle.blend"
@@ -224,6 +240,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 91,
           "duration": 3.75,
           "source": "rigs/dragon/animation-dragon-land.blend"
@@ -235,6 +252,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 4,
           "duration": 0.125,
           "source": "rigs/dragon/animation-dragon-rest-pose.blend"
@@ -246,6 +264,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 108,
           "duration": 4.4583,
           "source": "rigs/dragon/animation-dragon-roar.blend"
@@ -257,6 +276,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 81,
           "duration": 3.3333,
           "source": "rigs/dragon/animation-dragon-take-off.blend"
@@ -268,6 +288,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/dragon/animation-dragon-walk.blend"
@@ -324,6 +345,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 67,
           "duration": 2.75,
           "source": "rigs/fox/animation-fox-bark.blend"
@@ -335,6 +357,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 21,
           "duration": 0.8333,
           "source": "rigs/fox/animation-fox-bite.blend"
@@ -346,6 +369,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 35,
           "duration": 1.4167,
           "source": "rigs/fox/animation-fox-death.blend"
@@ -357,6 +381,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/fox/animation-fox-fall.blend"
@@ -368,6 +393,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 29,
           "duration": 1.1667,
           "source": "rigs/fox/animation-fox-fetch.blend"
@@ -379,6 +405,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 89,
           "duration": 3.6667,
           "source": "rigs/fox/animation-fox-flip.blend"
@@ -390,6 +417,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 69,
           "duration": 2.8333,
           "source": "rigs/fox/animation-fox-howl.blend"
@@ -401,6 +429,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/fox/animation-fox-idle-alert.blend"
@@ -412,6 +441,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/fox/animation-fox-idle.blend"
@@ -423,6 +453,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 52,
           "duration": 2.125,
           "source": "rigs/fox/animation-fox-jump.blend"
@@ -434,6 +465,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 100,
           "duration": 4.125,
           "source": "rigs/fox/animation-fox-play-bow.blend"
@@ -445,6 +477,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 7,
           "duration": 0.25,
           "source": "rigs/fox/animation-fox-rest-pose.blend"
@@ -456,6 +489,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 14,
           "duration": 0.5417,
           "source": "rigs/fox/animation-fox-run.blend"
@@ -467,6 +501,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 81,
           "duration": 3.3333,
           "source": "rigs/fox/animation-fox-scratch-ear.blend"
@@ -478,6 +513,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 90,
           "duration": 3.7083,
           "source": "rigs/fox/animation-fox-shake-off.blend"
@@ -489,6 +525,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/fox/animation-fox-sit.blend"
@@ -500,6 +537,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 181,
           "duration": 7.5,
           "source": "rigs/fox/animation-fox-sleep.blend"
@@ -511,6 +549,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 39,
           "duration": 1.5833,
           "source": "rigs/fox/animation-fox-sneak.blend"
@@ -522,6 +561,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/fox/animation-fox-swim.blend"
@@ -533,6 +573,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 16,
           "duration": 0.625,
           "source": "rigs/fox/animation-fox-trot.blend"
@@ -544,6 +585,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 23,
           "duration": 0.9167,
           "source": "rigs/fox/animation-fox-walk.blend"
@@ -569,6 +611,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 46,
           "duration": 1.5,
           "source": "rigs/horse/animation-horse-death.blend"
@@ -580,6 +623,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 80,
           "duration": 2.6333,
           "source": "rigs/horse/animation-horse-eating.blend"
@@ -591,6 +635,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 30,
           "duration": 0.9667,
           "source": "rigs/horse/animation-horse-headbut.blend"
@@ -602,6 +647,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 80,
           "duration": 2.6333,
           "source": "rigs/horse/animation-horse-idle.blend"
@@ -613,6 +659,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 40,
           "duration": 1.3,
           "source": "rigs/horse/animation-horse-kick.blend"
@@ -624,6 +671,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 81,
           "duration": 2.6667,
           "source": "rigs/horse/animation-horse-lay-to-idle.blend"
@@ -635,6 +683,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 88,
           "duration": 2.9,
           "source": "rigs/horse/animation-horse-rear.blend"
@@ -646,6 +695,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 29,
           "duration": 0.9333,
           "source": "rigs/horse/animation-horse-rest-pose.blend"
@@ -657,6 +707,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 14,
           "duration": 0.4333,
           "source": "rigs/horse/animation-horse-run.blend"
@@ -668,6 +719,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 60,
           "duration": 1.9667,
           "source": "rigs/horse/animation-horse-sleep.blend"
@@ -679,6 +731,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 21,
           "duration": 0.6667,
           "source": "rigs/horse/animation-horse-trot.blend"
@@ -690,6 +743,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 140,
           "duration": 4.6333,
           "source": "rigs/horse/animation-horse-turn-left.blend"
@@ -701,6 +755,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 140,
           "duration": 4.6333,
           "source": "rigs/horse/animation-horse-turn-right.blend"
@@ -712,6 +767,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 29,
           "duration": 0.9333,
           "source": "rigs/horse/animation-horse-walk.blend"
@@ -914,6 +970,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/abilities/animation-human-attack-ground-pound.blend"
@@ -927,6 +984,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 100,
           "duration": 4.125,
           "source": "rigs/human/abilities/animation-human-consume-powerup.blend"
@@ -940,6 +998,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 11,
           "duration": 0.4167,
           "source": "rigs/human/abilities/animation-human-flying-forward-super.blend"
@@ -953,6 +1012,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 11,
           "duration": 0.4167,
           "source": "rigs/human/abilities/animation-human-flying-forward.blend"
@@ -966,6 +1026,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 19,
           "duration": 0.75,
           "source": "rigs/human/abilities/animation-human-glide.blend"
@@ -979,6 +1040,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/abilities/animation-human-levitate-entrance.blend"
@@ -992,6 +1054,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/abilities/animation-human-levitate-idle.blend"
@@ -1005,6 +1068,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 102,
           "duration": 4.2083,
           "source": "rigs/human/abilities/animation-human-power-burst.blend"
@@ -1018,6 +1082,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 17,
           "duration": 0.6667,
           "source": "rigs/human/abilities/animation-human-power-up.blend"
@@ -1032,6 +1097,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 16,
           "duration": 0.625,
           "source": "rigs/human/abilities/animation-human-spell-simple-enter.blend"
@@ -1046,6 +1112,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/human/abilities/animation-human-spell-simple-exit.blend"
@@ -1060,6 +1127,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 64,
           "duration": 2.625,
           "source": "rigs/human/abilities/animation-human-spell-simple-idle.blend"
@@ -1074,6 +1142,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 15,
           "duration": 0.5833,
           "source": "rigs/human/abilities/animation-human-spell-simple-shoot.blend"
@@ -1087,6 +1156,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 11,
           "duration": 0.4167,
           "source": "rigs/human/abilities/animation-human-two-hand-blast.blend"
@@ -1100,6 +1170,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 80,
           "duration": 3.2917,
           "source": "rigs/human/activities/animation-human-burpee.blend"
@@ -1114,6 +1185,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/activities/animation-human-chest-open.blend"
@@ -1128,6 +1200,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 23,
           "duration": 0.9167,
           "source": "rigs/human/activities/animation-human-chop-tree.blend"
@@ -1141,6 +1214,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/activities/animation-human-chop-wood.blend"
@@ -1155,6 +1229,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/activities/animation-human-consume.blend"
@@ -1168,6 +1243,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 97,
           "duration": 4,
           "source": "rigs/human/activities/animation-human-drumming.blend"
@@ -1182,6 +1258,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 56,
           "duration": 2.2917,
           "source": "rigs/human/activities/animation-human-farm-harvest.blend"
@@ -1196,6 +1273,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 67,
           "duration": 2.75,
           "source": "rigs/human/activities/animation-human-farm-plantseed.blend"
@@ -1210,6 +1288,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 92,
           "duration": 3.7917,
           "source": "rigs/human/activities/animation-human-farm-watering.blend"
@@ -1224,6 +1303,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 156,
           "duration": 6.4583,
           "source": "rigs/human/activities/animation-human-fixing-kneeling.blend"
@@ -1237,6 +1317,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 96,
           "duration": 3.9583,
           "source": "rigs/human/activities/animation-human-guitar-playing.blend"
@@ -1250,6 +1331,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/activities/animation-human-hammering.blend"
@@ -1264,6 +1346,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/activities/animation-human-interact.blend"
@@ -1277,6 +1360,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 31,
           "duration": 1.25,
           "source": "rigs/human/activities/animation-human-jumping-jacks.blend"
@@ -1290,6 +1374,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 70,
           "duration": 2.875,
           "source": "rigs/human/activities/animation-human-knock.blend"
@@ -1303,6 +1388,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/human/activities/animation-human-mining.blend"
@@ -1316,6 +1402,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 110,
           "duration": 4.5417,
           "source": "rigs/human/activities/animation-human-open-door.blend"
@@ -1329,6 +1416,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 57,
           "duration": 2.3333,
           "source": "rigs/human/activities/animation-human-pick-up.blend"
@@ -1343,6 +1431,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/activities/animation-human-pickup-table.blend"
@@ -1357,6 +1446,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 80,
           "duration": 3.2917,
           "source": "rigs/human/activities/animation-human-push.blend"
@@ -1370,6 +1460,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 38,
           "duration": 1.5417,
           "source": "rigs/human/activities/animation-human-pushup.blend"
@@ -1383,6 +1474,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/activities/animation-human-rope-pull.blend"
@@ -1396,6 +1488,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 99,
           "duration": 4.0833,
           "source": "rigs/human/activities/animation-human-shovel-dig.blend"
@@ -1409,6 +1502,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 96,
           "duration": 3.9583,
           "source": "rigs/human/activities/animation-human-sitting-writing.blend"
@@ -1422,6 +1516,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/activities/animation-human-throw-ball.blend"
@@ -1433,6 +1528,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 9,
           "duration": 0.3333,
           "source": "rigs/human/animation-human-rest-pose.blend"
@@ -1447,6 +1543,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 23,
           "duration": 0.9167,
           "source": "rigs/human/combat/defense/animation-human-defend.blend"
@@ -1461,6 +1558,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-back.blend"
@@ -1475,6 +1573,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-back_RM.blend"
@@ -1489,6 +1588,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-left.blend"
@@ -1503,6 +1603,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-left_RM.blend"
@@ -1517,6 +1618,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-right.blend"
@@ -1531,6 +1633,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/defense/animation-human-dodge-right_RM.blend"
@@ -1546,6 +1649,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 26,
           "duration": 1.0417,
           "source": "rigs/human/combat/defense/animation-human-idle-shield-break.blend"
@@ -1561,6 +1665,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/combat/defense/animation-human-idle-shield.blend"
@@ -1576,6 +1681,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/combat/defense/animation-human-shield-oneshot.blend"
@@ -1591,6 +1697,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/human/combat/defense/animation-human-sword-block.blend"
@@ -1605,6 +1712,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 35,
           "duration": 1.4167,
           "source": "rigs/human/combat/melee/animation-human-dagger-stab.blend"
@@ -1619,6 +1727,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 54,
           "duration": 2.2083,
           "source": "rigs/human/combat/melee/animation-human-dual-wield-combo.blend"
@@ -1633,6 +1742,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/combat/melee/animation-human-dual-wield-cross-slash.blend"
@@ -1648,6 +1758,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/combat/melee/animation-human-idle-sword.blend"
@@ -1662,6 +1773,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 59,
           "duration": 2.4167,
           "source": "rigs/human/combat/melee/animation-human-jump-attack.blend"
@@ -1676,6 +1788,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 43,
           "duration": 1.75,
           "source": "rigs/human/combat/melee/animation-human-one-hand-slash-combo.blend"
@@ -1690,6 +1803,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 63,
           "duration": 2.5833,
           "source": "rigs/human/combat/melee/animation-human-one-hand-weapon-idle.blend"
@@ -1704,6 +1818,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 63,
           "duration": 2.5833,
           "source": "rigs/human/combat/melee/animation-human-polearm-idle.blend"
@@ -1718,6 +1833,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/combat/melee/animation-human-polearm-run.blend"
@@ -1733,6 +1849,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 27,
           "duration": 1.0833,
           "source": "rigs/human/combat/melee/animation-human-shield-dash_RM.blend"
@@ -1747,6 +1864,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/combat/melee/animation-human-spear-thrust.blend"
@@ -1761,6 +1879,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/combat/melee/animation-human-staff-combo.blend"
@@ -1775,6 +1894,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/combat/melee/animation-human-staff-spin.blend"
@@ -1789,6 +1909,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 117,
           "duration": 4.8333,
           "source": "rigs/human/combat/melee/animation-human-sword-attack-air-vertical.blend"
@@ -1804,6 +1925,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 46,
           "duration": 1.875,
           "source": "rigs/human/combat/melee/animation-human-sword-attack.blend"
@@ -1811,7 +1933,7 @@
         {
           "name": "Sword_Attack_RM",
           "file": "human/animations/sword-attack-rm.glb",
-          "hash": "17b9e193d3f1c6bf",
+          "hash": "69a2d37e08ff9a17",
           "tags": [
             "combat",
             "melee",
@@ -1819,8 +1941,9 @@
           ],
           "loop": false,
           "root_motion": true,
-          "frame_count": 46,
-          "duration": 1.875,
+          "fps": 24,
+          "frame_count": 47,
+          "duration": 1.9167,
           "source": "rigs/human/combat/melee/animation-human-sword-attack_RM.blend"
         },
         {
@@ -1834,6 +1957,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 39,
           "duration": 1.5833,
           "source": "rigs/human/combat/melee/animation-human-sword-dash_RM.blend"
@@ -1849,6 +1973,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 23,
           "duration": 0.9167,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-a-rec.blend"
@@ -1864,6 +1989,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 11,
           "duration": 0.4167,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-a.blend"
@@ -1879,6 +2005,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-b-rec.blend"
@@ -1894,6 +2021,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 14,
           "duration": 0.5417,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-b.blend"
@@ -1909,6 +2037,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-c.blend"
@@ -1924,6 +2053,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-c_RM.blend"
@@ -1939,6 +2069,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/combat/melee/animation-human-sword-regular-combo.blend"
@@ -1953,6 +2084,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/combat/melee/animation-human-two-handed-horizontal-swing.blend"
@@ -1967,6 +2099,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 44,
           "duration": 1.7917,
           "source": "rigs/human/combat/melee/animation-human-two-handed-overhead-slam.blend"
@@ -1981,6 +2114,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 46,
           "duration": 1.875,
           "source": "rigs/human/combat/melee/animation-human-weapon-block.blend"
@@ -1995,6 +2129,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 37,
           "duration": 1.5,
           "source": "rigs/human/combat/melee/animation-human-weapon-draw.blend"
@@ -2009,6 +2144,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/combat/ranged/animation-human-bow-pull-hold.blend"
@@ -2023,6 +2159,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/human/combat/ranged/animation-human-bow-pull.blend"
@@ -2037,6 +2174,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/human/combat/ranged/animation-human-bow-release.blend"
@@ -2051,6 +2189,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 89,
           "duration": 3.6667,
           "source": "rigs/human/combat/ranged/animation-human-bow.blend"
@@ -2065,6 +2204,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/combat/ranged/animation-human-grenade-throw.blend"
@@ -2079,6 +2219,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 29,
           "duration": 1.1667,
           "source": "rigs/human/combat/ranged/animation-human-knife-throw.blend"
@@ -2094,6 +2235,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/combat/ranged/animation-human-overhandthrow.blend"
@@ -2109,6 +2251,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 4,
           "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-down.blend"
@@ -2124,6 +2267,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 4,
           "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-neutral.blend"
@@ -2139,6 +2283,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 4,
           "duration": 0.125,
           "source": "rigs/human/combat/ranged/animation-human-pistol-aim-up.blend"
@@ -2153,6 +2298,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/combat/ranged/animation-human-pistol-fire.blend"
@@ -2167,6 +2313,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/combat/ranged/animation-human-pistol-idle-aim.blend"
@@ -2182,6 +2329,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/combat/ranged/animation-human-pistol-idle.blend"
@@ -2196,6 +2344,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/combat/ranged/animation-human-pistol-prone.blend"
@@ -2211,6 +2360,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/combat/ranged/animation-human-pistol-reload-2.blend"
@@ -2225,6 +2375,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/human/combat/ranged/animation-human-pistol-reload.blend"
@@ -2240,6 +2391,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 19,
           "duration": 0.75,
           "source": "rigs/human/combat/ranged/animation-human-pistol-shoot.blend"
@@ -2254,6 +2406,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/combat/ranged/animation-human-pistol-walk.blend"
@@ -2268,6 +2421,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/human/combat/ranged/animation-human-rifle-fire.blend"
@@ -2282,6 +2436,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/combat/ranged/animation-human-rifle-idle.blend"
@@ -2296,6 +2451,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 66,
           "duration": 2.7083,
           "source": "rigs/human/combat/ranged/animation-human-rifle-reload.blend"
@@ -2310,6 +2466,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/combat/ranged/animation-human-rifle-run.blend"
@@ -2324,6 +2481,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/combat/ranged/animation-human-rifle-walk.blend"
@@ -2338,6 +2496,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/combat/ranged/animation-human-spear-throw.blend"
@@ -2352,6 +2511,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 111,
           "duration": 4.5833,
           "source": "rigs/human/combat/reactions/animation-human-death-A.blend"
@@ -2366,6 +2526,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 49,
           "duration": 2,
           "source": "rigs/human/combat/reactions/animation-human-death-B.blend"
@@ -2380,6 +2541,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/human/combat/reactions/animation-human-death-C.blend"
@@ -2395,6 +2557,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 53,
           "duration": 2.1667,
           "source": "rigs/human/combat/reactions/animation-human-death-d.blend"
@@ -2409,6 +2572,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 119,
           "duration": 4.9167,
           "source": "rigs/human/combat/reactions/animation-human-death-spin_RM.blend"
@@ -2423,6 +2587,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 58,
           "duration": 2.375,
           "source": "rigs/human/combat/reactions/animation-human-dizzy.blend"
@@ -2438,6 +2603,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 10,
           "duration": 0.375,
           "source": "rigs/human/combat/reactions/animation-human-hit-chest.blend"
@@ -2453,6 +2619,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/human/combat/reactions/animation-human-hit-head.blend"
@@ -2468,6 +2635,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/combat/reactions/animation-human-hit-knockback.blend"
@@ -2483,6 +2651,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 16,
           "duration": 0.625,
           "source": "rigs/human/combat/reactions/animation-human-hit-knockback_RM.blend"
@@ -2498,6 +2667,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 38,
           "duration": 1.5417,
           "source": "rigs/human/combat/reactions/animation-human-laytoidle.blend"
@@ -2512,6 +2682,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/combat/unarmed/animation-human-fighting-idle.blend"
@@ -2526,6 +2697,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 22,
           "duration": 0.875,
           "source": "rigs/human/combat/unarmed/animation-human-fighting-left-jab.blend"
@@ -2540,6 +2712,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 21,
           "duration": 0.8333,
           "source": "rigs/human/combat/unarmed/animation-human-fighting-right-jab.blend"
@@ -2554,6 +2727,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/combat/unarmed/animation-human-kick-front.blend"
@@ -2568,6 +2742,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/combat/unarmed/animation-human-kick-roundhouse.blend"
@@ -2582,6 +2757,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/combat/unarmed/animation-human-kick-side.blend"
@@ -2596,6 +2772,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 46,
           "duration": 1.875,
           "source": "rigs/human/combat/unarmed/animation-human-kick-spin.blend"
@@ -2611,6 +2788,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 15,
           "duration": 0.5833,
           "source": "rigs/human/combat/unarmed/animation-human-melee-hook-rec.blend"
@@ -2626,6 +2804,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 12,
           "duration": 0.4583,
           "source": "rigs/human/combat/unarmed/animation-human-melee-hook.blend"
@@ -2641,6 +2820,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/human/combat/unarmed/animation-human-punch-cross.blend"
@@ -2656,6 +2836,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 26,
           "duration": 1.0417,
           "source": "rigs/human/combat/unarmed/animation-human-punch-jab.blend"
@@ -2669,6 +2850,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/human/emotes/animation-human-clapping.blend"
@@ -2682,6 +2864,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 47,
           "duration": 1.9167,
           "source": "rigs/human/emotes/animation-human-dab.blend"
@@ -2695,6 +2878,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/human/emotes/animation-human-dance-arm-pump.blend"
@@ -2708,6 +2892,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 155,
           "duration": 6.4167,
           "source": "rigs/human/emotes/animation-human-dance-body-roll.blend"
@@ -2721,6 +2906,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 55,
           "duration": 2.25,
           "source": "rigs/human/emotes/animation-human-dance-charleston.blend"
@@ -2734,6 +2920,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/human/emotes/animation-human-dance-reach-hip.blend"
@@ -2748,6 +2935,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/human/emotes/animation-human-dance-simple.blend"
@@ -2761,6 +2949,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 119,
           "duration": 4.9167,
           "source": "rigs/human/emotes/animation-human-greeting.blend"
@@ -2774,6 +2963,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/emotes/animation-human-head-nod.blend"
@@ -2787,6 +2977,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/emotes/animation-human-moonwalk.blend"
@@ -2800,6 +2991,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 96,
           "duration": 3.9583,
           "source": "rigs/human/emotes/animation-human-singing.blend"
@@ -2814,6 +3006,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/emotes/animation-human-yes.blend"
@@ -2827,6 +3020,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 19,
           "duration": 0.75,
           "source": "rigs/human/emotions/animation-human-angry.blend"
@@ -2840,6 +3034,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 69,
           "duration": 2.8333,
           "source": "rigs/human/emotions/animation-human-confused.blend"
@@ -2853,6 +3048,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 90,
           "duration": 3.7083,
           "source": "rigs/human/emotions/animation-human-reject.blend"
@@ -2866,6 +3062,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 5,
           "duration": 0.1667,
           "source": "rigs/human/emotions/animation-human-shiver.blend"
@@ -2879,6 +3076,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/emotions/animation-human-sit-ground-crying.blend"
@@ -2892,6 +3090,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/emotions/animation-human-tired-hunched.blend"
@@ -2905,6 +3104,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 19,
           "duration": 0.75,
           "source": "rigs/human/emotions/animation-human-tired-kneeling.blend"
@@ -2918,6 +3118,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/emotions/animation-human-victory-fist-pump.blend"
@@ -2931,6 +3132,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/emotions/animation-human-victory.blend"
@@ -2945,6 +3147,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 88,
           "duration": 3.625,
           "source": "rigs/human/idles/animation-human-crouch-idle.blend"
@@ -2959,6 +3162,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 49,
           "duration": 2,
           "source": "rigs/human/idles/animation-human-driving.blend"
@@ -2973,6 +3177,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 75,
           "duration": 3.0833,
           "source": "rigs/human/idles/animation-human-idle-a.blend"
@@ -2987,6 +3192,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/idles/animation-human-idle-foldarms.blend"
@@ -3000,6 +3206,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/idles/animation-human-idle-hurt.blend"
@@ -3014,6 +3221,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/idles/animation-human-idle-lantern.blend"
@@ -3027,6 +3235,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/idles/animation-human-idle-listening.blend"
@@ -3041,6 +3250,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/idles/animation-human-idle-rail-call.blend"
@@ -3055,6 +3265,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/idles/animation-human-idle-rail.blend"
@@ -3069,6 +3280,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/idles/animation-human-idle-shakeoff.blend"
@@ -3082,6 +3294,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 62,
           "duration": 2.5417,
           "source": "rigs/human/idles/animation-human-idle-subtle.blend"
@@ -3096,6 +3309,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 88,
           "duration": 3.625,
           "source": "rigs/human/idles/animation-human-idle-talking.blend"
@@ -3110,6 +3324,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 70,
           "duration": 2.875,
           "source": "rigs/human/idles/animation-human-idle-talkingphone.blend"
@@ -3124,6 +3339,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 38,
           "duration": 1.5417,
           "source": "rigs/human/idles/animation-human-idle-torch.blend"
@@ -3137,6 +3353,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 71,
           "duration": 2.9167,
           "source": "rigs/human/idles/animation-human-kneel.blend"
@@ -3150,6 +3367,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 35,
           "duration": 1.4167,
           "source": "rigs/human/idles/animation-human-meditate.blend"
@@ -3163,6 +3381,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 90,
           "duration": 3.7083,
           "source": "rigs/human/idles/animation-human-mount-idle.blend"
@@ -3176,6 +3395,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 96,
           "duration": 3.9583,
           "source": "rigs/human/idles/animation-human-pray.blend"
@@ -3189,6 +3409,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/idles/animation-human-sit-ground-idle.blend"
@@ -3203,6 +3424,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/idles/animation-human-sitting-enter.blend"
@@ -3217,6 +3439,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/idles/animation-human-sitting-exit.blend"
@@ -3231,6 +3454,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/idles/animation-human-sitting-idle.blend"
@@ -3245,6 +3469,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 88,
           "duration": 3.625,
           "source": "rigs/human/idles/animation-human-sitting-talking.blend"
@@ -3258,6 +3483,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 39,
           "duration": 1.5833,
           "source": "rigs/human/idles/animation-human-sleeping.blend"
@@ -3271,6 +3497,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/human/locomotion/animation-human-backflip.blend"
@@ -3284,6 +3511,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 87,
           "duration": 3.5833,
           "source": "rigs/human/locomotion/animation-human-climb-ladder.blend"
@@ -3297,6 +3525,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/locomotion/animation-human-climb-pipe.blend"
@@ -3310,6 +3539,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/locomotion/animation-human-climb-wall.blend"
@@ -3324,6 +3554,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 16,
           "duration": 0.625,
           "source": "rigs/human/locomotion/animation-human-climbup-1m_RM.blend"
@@ -3337,6 +3568,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-crawl-RM.blend"
@@ -3350,6 +3582,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-crawl.blend"
@@ -3364,6 +3597,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/locomotion/animation-human-crouch-walk.blend"
@@ -3377,6 +3611,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-drunk-walk.blend"
@@ -3390,6 +3625,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/human/locomotion/animation-human-freefall.blend"
@@ -3404,6 +3640,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 29,
           "duration": 1.1667,
           "source": "rigs/human/locomotion/animation-human-jog.blend"
@@ -3417,6 +3654,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-jump-2.blend"
@@ -3430,6 +3668,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-jump-2_RM.blend"
@@ -3444,6 +3683,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 75,
           "duration": 3.0833,
           "source": "rigs/human/locomotion/animation-human-jump-air.blend"
@@ -3458,6 +3698,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 39,
           "duration": 1.5833,
           "source": "rigs/human/locomotion/animation-human-jump-land.blend"
@@ -3471,6 +3712,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/human/locomotion/animation-human-jump-running.blend"
@@ -3485,6 +3727,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 41,
           "duration": 1.6667,
           "source": "rigs/human/locomotion/animation-human-jump-start.blend"
@@ -3498,6 +3741,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 60,
           "duration": 2.4583,
           "source": "rigs/human/locomotion/animation-human-ladder-idle.blend"
@@ -3511,6 +3755,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/human/locomotion/animation-human-land-three-point.blend"
@@ -3524,6 +3769,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 84,
           "duration": 3.4583,
           "source": "rigs/human/locomotion/animation-human-ledge-climb-up.blend"
@@ -3537,6 +3783,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/locomotion/animation-human-ledge-hang.blend"
@@ -3551,6 +3798,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/human/locomotion/animation-human-ninjajump-idle.blend"
@@ -3565,6 +3813,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 31,
           "duration": 1.25,
           "source": "rigs/human/locomotion/animation-human-ninjajump-land.blend"
@@ -3579,6 +3828,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/locomotion/animation-human-ninjajump-start.blend"
@@ -3593,6 +3843,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/locomotion/animation-human-roll.blend"
@@ -3607,6 +3858,7 @@
           ],
           "loop": false,
           "root_motion": true,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/human/locomotion/animation-human-roll_RM.blend"
@@ -3620,6 +3872,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/locomotion/animation-human-rope-hang.blend"
@@ -3633,6 +3886,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 49,
           "duration": 2,
           "source": "rigs/human/locomotion/animation-human-rope-swing.blend"
@@ -3646,6 +3900,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 18,
           "duration": 0.7083,
           "source": "rigs/human/locomotion/animation-human-run-anime.blend"
@@ -3659,6 +3914,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 21,
           "duration": 0.8333,
           "source": "rigs/human/locomotion/animation-human-run-female.blend"
@@ -3672,6 +3928,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/human/locomotion/animation-human-run-stealth.blend"
@@ -3686,6 +3943,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 13,
           "duration": 0.5,
           "source": "rigs/human/locomotion/animation-human-slide-exit.blend"
@@ -3700,6 +3958,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/locomotion/animation-human-slide-start.blend"
@@ -3714,6 +3973,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/human/locomotion/animation-human-slide.blend"
@@ -3728,6 +3988,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/human/locomotion/animation-human-sprint.blend"
@@ -3741,6 +4002,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/locomotion/animation-human-strafe-left.blend"
@@ -3754,6 +4016,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/locomotion/animation-human-strafe-right.blend"
@@ -3767,6 +4030,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 49,
           "duration": 2,
           "source": "rigs/human/locomotion/animation-human-swim-2.blend"
@@ -3781,6 +4045,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-swim-fwd.blend"
@@ -3795,6 +4060,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 100,
           "duration": 4.125,
           "source": "rigs/human/locomotion/animation-human-swim-idle.blend"
@@ -3808,6 +4074,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 28,
           "duration": 1.125,
           "source": "rigs/human/locomotion/animation-human-texting-walk.blend"
@@ -3821,6 +4088,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 56,
           "duration": 2.2917,
           "source": "rigs/human/locomotion/animation-human-tightrope-walk.blend"
@@ -3834,6 +4102,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 37,
           "duration": 1.5,
           "source": "rigs/human/locomotion/animation-human-tumbling.blend"
@@ -3847,6 +4116,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 24,
           "duration": 0.9583,
           "source": "rigs/human/locomotion/animation-human-walk-backwards.blend"
@@ -3861,6 +4131,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/human/locomotion/animation-human-walk-carry.blend"
@@ -3874,6 +4145,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 44,
           "duration": 1.7917,
           "source": "rigs/human/locomotion/animation-human-walk-cautious.blend"
@@ -3887,6 +4159,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/locomotion/animation-human-walk-female.blend"
@@ -3901,6 +4174,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-walk-formal.blend"
@@ -3914,6 +4188,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 26,
           "duration": 1.0417,
           "source": "rigs/human/locomotion/animation-human-walk-happy.blend"
@@ -3927,6 +4202,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-walk-injured.blend"
@@ -3940,6 +4216,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 35,
           "duration": 1.4167,
           "source": "rigs/human/locomotion/animation-human-walk-large.blend"
@@ -3953,6 +4230,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 34,
           "duration": 1.375,
           "source": "rigs/human/locomotion/animation-human-walk-relaxed.blend"
@@ -3966,6 +4244,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/human/locomotion/animation-human-walk-stealth.blend"
@@ -3980,6 +4259,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/human/locomotion/animation-human-walk.blend"
@@ -3993,6 +4273,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 18,
           "duration": 0.7083,
           "source": "rigs/human/locomotion/animation-human-wall-run.blend"
@@ -4007,6 +4288,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 32,
           "duration": 1.2917,
           "source": "rigs/human/zombie/animation-human-zombie-idle-2.blend"
@@ -4020,6 +4302,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/human/zombie/animation-human-zombie-idle.blend"
@@ -4033,6 +4316,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 91,
           "duration": 3.75,
           "source": "rigs/human/zombie/animation-human-zombie-rise.blend"
@@ -4046,6 +4330,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 19,
           "duration": 0.75,
           "source": "rigs/human/zombie/animation-human-zombie-run.blend"
@@ -4060,6 +4345,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 43,
           "duration": 1.75,
           "source": "rigs/human/zombie/animation-human-zombie-scratch.blend"
@@ -4073,6 +4359,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 70,
           "duration": 2.875,
           "source": "rigs/human/zombie/animation-human-zombie-walk-2.blend"
@@ -4086,6 +4373,7 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 50,
           "duration": 2.0417,
           "source": "rigs/human/zombie/animation-human-zombie-walk-3.blend"
@@ -4100,6 +4388,7 @@
           ],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/human/zombie/animation-human-zombie-walk.blend"
@@ -4113,9 +4402,234 @@
           ],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 89,
           "duration": 3.6667,
           "source": "rigs/human/zombie/animation-human-zombie-yell.blend"
+        },
+        {
+          "name": "Cheer_One_arm",
+          "file": "human/animations/cheer-one-arms.glb",
+          "hash": "9907b43132c15b57",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 130,
+          "duration": 2.15,
+          "source": "motion-capture/animations/human/animation-human-cheer-one-arms.blend"
+        },
+        {
+          "name": "Cheering_Two_Hands",
+          "file": "human/animations/cheer-two-arms.glb",
+          "hash": "ee355b7a9722b0fa",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 95,
+          "duration": 1.5667,
+          "source": "motion-capture/animations/human/animation-human-cheer-two-arms.blend"
+        },
+        {
+          "name": "Fishing_Cast",
+          "file": "human/animations/fishing-cast.glb",
+          "hash": "99d3fc81ae120378",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 177,
+          "duration": 2.9333,
+          "source": "motion-capture/animations/human/animation-human-fishing-cast.blend"
+        },
+        {
+          "name": "Fishing_Catch",
+          "file": "human/animations/fishing-catch.glb",
+          "hash": "222280fe0a0ab6ca",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 137,
+          "duration": 2.2667,
+          "source": "motion-capture/animations/human/animation-human-fishing-catch.blend"
+        },
+        {
+          "name": "Fishing_Reel",
+          "file": "human/animations/fishing-reel.glb",
+          "hash": "9b516035df609522",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 87,
+          "duration": 1.4333,
+          "source": "motion-capture/animations/human/animation-human-fishing-reel.blend"
+        },
+        {
+          "name": "Golf_Drive",
+          "file": "human/animations/golf-drive.glb",
+          "hash": "3aada6e38c290ddf",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 200,
+          "duration": 3.3167,
+          "source": "motion-capture/animations/human/animation-human-golf-drive.blend"
+        },
+        {
+          "name": "Golf_idle",
+          "file": "human/animations/golf-idle.glb",
+          "hash": "e8fab13367da4aad",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 30,
+          "frame_count": 110,
+          "duration": 3.6333,
+          "source": "motion-capture/animations/human/animation-human-golf-idle.blend"
+        },
+        {
+          "name": "Help_One_Arm",
+          "file": "human/animations/help-one-arm.glb",
+          "hash": "c813d6cf211f7142",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 160,
+          "duration": 2.65,
+          "source": "motion-capture/animations/human/animation-human-help-one-arm.blend"
+        },
+        {
+          "name": "Help_Two_Arms",
+          "file": "human/animations/help-two-arms.glb",
+          "hash": "4c9a828a81232862",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 95,
+          "duration": 1.5667,
+          "source": "motion-capture/animations/human/animation-human-help-two-arms.blend"
+        },
+        {
+          "name": "Insult",
+          "file": "human/animations/insult.glb",
+          "hash": "fc6b8c537db43d89",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 167,
+          "duration": 2.7667,
+          "source": "motion-capture/animations/human/animation-human-insult.blend"
+        },
+        {
+          "name": "Kick_Breach",
+          "file": "human/animations/kick-breach.glb",
+          "hash": "64d207eccd84ad3b",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 120,
+          "duration": 1.9833,
+          "source": "motion-capture/animations/human/animation-human-kick-breach.blend"
+        },
+        {
+          "name": "Salute",
+          "file": "human/animations/salute.glb",
+          "hash": "2f78093d832aecd5",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 263,
+          "duration": 4.3667,
+          "source": "motion-capture/animations/human/animation-human-salute.blend"
+        },
+        {
+          "name": "Turn_Left_180",
+          "file": "human/animations/turn-left-180.glb",
+          "hash": "1e3325cc79b77d4a",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 150,
+          "duration": 2.4833,
+          "source": "motion-capture/animations/human/animation-human-turn-left-180.blend"
+        },
+        {
+          "name": "Turn_Left_90",
+          "file": "human/animations/turn-left-90.glb",
+          "hash": "8c1baf789c7905a9",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 120,
+          "duration": 1.9833,
+          "source": "motion-capture/animations/human/animation-human-turn-left-90.blend"
+        },
+        {
+          "name": "Turn_Right_180",
+          "file": "human/animations/turn-right-180.glb",
+          "hash": "cad00b36b5f689f8",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 30,
+          "frame_count": 120,
+          "duration": 3.9667,
+          "source": "motion-capture/animations/human/animation-human-turn-right-180.blend"
+        },
+        {
+          "name": "Turn_Right_90",
+          "file": "human/animations/turn-right-90.glb",
+          "hash": "3629a2f4257216e1",
+          "tags": [
+            "motion-capture"
+          ],
+          "loop": false,
+          "root_motion": false,
+          "fps": 60,
+          "frame_count": 120,
+          "duration": 1.9833,
+          "source": "motion-capture/animations/human/animation-human-turn-right-90.blend"
         }
       ]
     },
@@ -4151,6 +4665,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 32,
           "duration": 1.0333,
           "source": "rigs/kaiju/animation-kaiju-attack.blend"
@@ -4162,6 +4677,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 137,
           "duration": 4.5333,
           "source": "rigs/kaiju/animation-kaiju-death.blend"
@@ -4173,6 +4689,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 30,
           "duration": 0.9667,
           "source": "rigs/kaiju/animation-kaiju-hit.blend"
@@ -4184,6 +4701,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 72,
           "duration": 2.3667,
           "source": "rigs/kaiju/animation-kaiju-idle.blend"
@@ -4195,6 +4713,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 15,
           "duration": 0.4667,
           "source": "rigs/kaiju/animation-kaiju-rest-pose.blend"
@@ -4206,6 +4725,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 181,
           "duration": 6,
           "source": "rigs/kaiju/animation-kaiju-roar.blend"
@@ -4217,6 +4737,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 85,
           "duration": 2.8,
           "source": "rigs/kaiju/animation-kaiju-swim.blend"
@@ -4228,6 +4749,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 83,
           "duration": 2.7333,
           "source": "rigs/kaiju/animation-kaiju-tail-attack.blend"
@@ -4239,6 +4761,7 @@
           "tags": [],
           "loop": false,
           "root_motion": true,
+          "fps": 30,
           "frame_count": 102,
           "duration": 3.3667,
           "source": "rigs/kaiju/animation-kaiju-walk-rm.blend"
@@ -4250,6 +4773,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 30,
           "frame_count": 94,
           "duration": 3.1,
           "source": "rigs/kaiju/animation-kaiju-walk.blend"
@@ -4288,6 +4812,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/shark/animation-shark-bite.blend"
@@ -4299,6 +4824,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 80,
           "duration": 3.2917,
           "source": "rigs/shark/animation-shark-dead-floating.blend"
@@ -4310,6 +4836,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 20,
           "duration": 0.7917,
           "source": "rigs/shark/animation-shark-hit.blend"
@@ -4321,6 +4848,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 61,
           "duration": 2.5,
           "source": "rigs/shark/animation-shark-idle.blend"
@@ -4332,6 +4860,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/shark/animation-shark-rest-pose.blend"
@@ -4343,6 +4872,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/shark/animation-shark-swim-horizontal.blend"
@@ -4354,6 +4884,7 @@
           "tags": [],
           "loop": true,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 81,
           "duration": 3.3333,
           "source": "rigs/shark/animation-shark-swim-vertical.blend"
@@ -4379,6 +4910,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/snake/animation-snake-bite.blend"
@@ -4390,6 +4922,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 40,
           "duration": 1.625,
           "source": "rigs/snake/animation-snake-coiled.blend"
@@ -4401,6 +4934,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 48,
           "duration": 1.9583,
           "source": "rigs/snake/animation-snake-dance.blend"
@@ -4412,6 +4946,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 55,
           "duration": 2.25,
           "source": "rigs/snake/animation-snake-death.blend"
@@ -4423,6 +4958,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/snake/animation-snake-hit.blend"
@@ -4434,6 +4970,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 55,
           "duration": 2.25,
           "source": "rigs/snake/animation-snake-idle.blend"
@@ -4445,6 +4982,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 5,
           "duration": 0.1667,
           "source": "rigs/snake/animation-snake-rest-pose.blend"
@@ -4456,6 +4994,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 45,
           "duration": 1.8333,
           "source": "rigs/snake/animation-snake-sidewinding.blend"
@@ -4481,6 +5020,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/spider/animation-spider-attack.blend"
@@ -4492,6 +5032,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/spider/animation-spider-bite.blend"
@@ -4503,6 +5044,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 30,
           "duration": 1.2083,
           "source": "rigs/spider/animation-spider-death-2.blend"
@@ -4514,6 +5056,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 36,
           "duration": 1.4583,
           "source": "rigs/spider/animation-spider-death.blend"
@@ -4525,6 +5068,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 54,
           "duration": 2.2083,
           "source": "rigs/spider/animation-spider-eating.blend"
@@ -4536,6 +5080,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 17,
           "duration": 0.6667,
           "source": "rigs/spider/animation-spider-hit.blend"
@@ -4547,6 +5092,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 78,
           "duration": 3.2083,
           "source": "rigs/spider/animation-spider-idle.blend"
@@ -4558,6 +5104,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 33,
           "duration": 1.3333,
           "source": "rigs/spider/animation-spider-jump.blend"
@@ -4569,6 +5116,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 5,
           "duration": 0.1667,
           "source": "rigs/spider/animation-spider-rest-pose.blend"
@@ -4580,6 +5128,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 72,
           "duration": 2.9583,
           "source": "rigs/spider/animation-spider-threat-display.blend"
@@ -4591,6 +5140,7 @@
           "tags": [],
           "loop": false,
           "root_motion": false,
+          "fps": 24,
           "frame_count": 25,
           "duration": 1,
           "source": "rigs/spider/animation-spider-walk.blend"
