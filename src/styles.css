@@ -1337,9 +1337,16 @@ div.modal-dialog-body p.survey-thank-you {
         --explore-tool-panel-width: var(--responsive-right-width);
     }
 
-    #m2m-viewport {
+    body.explore-page #m2m-viewport {
         top: var(--navigation-height);
         left: var(--responsive-left-width);
+        right: var(--responsive-right-width);
+        bottom: 0;
+    }
+
+    body.tool-panel-page #m2m-viewport {
+        top: var(--navigation-height);
+        left: 0;
         right: var(--responsive-right-width);
         bottom: 0;
     }
@@ -1347,7 +1354,11 @@ div.modal-dialog-body p.survey-thank-you {
         width: var(--responsive-left-width);
         padding: 0.5rem;
     }
-    #animation-player {
+    body.tool-panel-page #animation-player {
+        width: min(30rem, calc(100vw - var(--responsive-right-width) - 1rem)) !important;
+        left: calc(50% - var(--responsive-right-width) / 2) !important;
+    }
+    body.explore-page #animation-player {
         width: min(30rem, calc(100vw - var(--responsive-right-width) - var(--responsive-left-width) - 1rem)) !important;
         left: calc(50% + (var(--responsive-left-width) - var(--responsive-right-width)) / 2) !important;
     }
@@ -1393,19 +1404,35 @@ div.modal-dialog-body p.survey-thank-you {
         box-sizing: border-box;
     }
 
-    #animation-player {
+    body.explore-page #animation-player {
         width: min(36rem, calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 1rem)) !important;
         left: calc(50% + (var(--responsive-left-width) - var(--responsive-right-width)) / 2) !important;
     }
 
+    body.tool-panel-page #animation-player {
+        width: min(36rem, calc(100vw - var(--responsive-right-width) - 1rem)) !important;
+        left: calc(50% - var(--responsive-right-width) / 2) !important;
+    }
+
     #props-dock {
         right: var(--responsive-right-width) !important;
+    }
+
+    body.explore-page #props-dock {
         max-width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 1rem);
     }
 
-    #props-panel {
-        max-width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 2rem);
+    body.tool-panel-page #props-dock {
+        max-width: calc(100vw - var(--responsive-right-width) - 1rem);
+    }
+
+    body.tool-panel-page #props-panel {
+        max-width: calc(100vw - var(--responsive-right-width) - 2rem);
         overflow-x: auto;
+    }
+
+    body.explore-page #props-panel {
+        max-width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 2rem);
     }
 
     #view-control-hitbox {
@@ -1428,8 +1455,11 @@ div.modal-dialog-body p.survey-thank-you {
         width: 88px;
         height: 145px;
     }
-    #animation-player {
+    body.explore-page #animation-player {
         width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 0.5rem) !important;
+    }
+    body.tool-panel-page #animation-player {
+        width: calc(100vw - var(--responsive-right-width) - 0.5rem) !important;
     }
     .mcp-settings {
         max-width: calc(100vw - 2rem);
