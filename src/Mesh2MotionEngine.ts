@@ -174,6 +174,12 @@ export class Mesh2MotionEngine {
     mark('engine-construct:render-loop-started')
     this.inject_build_version()
     this.setup_tooltips()
+    window.addEventListener('pagehide', () => { this.dispose() }, { once: true })
+  }
+
+  /** Tear down the single viewport observer when the document is unloaded. */
+  public dispose (): void {
+    this.scene_environment.dispose()
   }
 
   public get_theme_manager(): ThemeManager {

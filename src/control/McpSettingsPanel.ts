@@ -1,58 +1,62 @@
 /**
- * Desktop-only Integrations/MCP section for the existing settings dropdown.
+ * Compact Integrations/MCP section for the settings dropdown.
  *
- * Everything shown here is either a documented prerequisite or a value actually
- * observed in this webview. It never claims a connected MCP client, an active
- * Rust host, or a live toggle that Rust does not implement.
+ * All host state comes from the typed McpHostClient adapter. When Rust does not
+ * expose a command, controls are disabled and the panel says so; it never
+ * pretends a host is running, connected, or reporting client telemetry.
  */
 
-import { has_tauri_bridge, is_desktop_control_enabled } from './attachControl.ts'
+import { is_desktop_control_enabled } from './attachControl.ts'
 import { get_publisher_status } from './publisherStatus.ts'
-import { CONTROL_SCHEMA_VERSION } from './contracts.ts'
-
-export const MCP_READ_TOOLS: readonly string[] = [
-  'application_get_status',
-  'renderer_get_state',
-  'rigs_list',
-  'animations_list',
-  'scene_inspect'
-]
-
-/** Expected Rust host endpoint from M2M-009; not verified by the frontend. */
-export const MCP_EXPECTED_ENDPOINT = '$XDG_RUNTIME_DIR/mesh2motion/mcp.sock'
-
-export const MCP_CLIENT_CONFIG = JSON.stringify({
-  mcpServers: {
-    mesh2motion: {
-      command: '<path-to-built-mesh2motion-mcp>',
-      env: { M2M_MCP_IPC_ENDPOINT: MCP_EXPECTED_ENDPOINT }
-    }
-  }
-}, null, 2)
+import { CONTROL_SCHEMA_VERSION, CONTROL_READ_TOOLS, type ControlCommand } from './contracts.ts'
+import {
+  build_client_config,
+  McpHostClient,
+  MCP_COMMANDS,
+  type McpHostError,
+  type McpHostPaths,
+  type McpHostStatus
+} from './McpHostApi.ts'
 
 export interface McpSettingsRefresh {
-  refresh(): void
+  refresh(): Promise<void>
+}
+
+function element<K extends keyof HTMLElementTagNameMap> (
+  tag: K,
+  className: string,
+  text?: string
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag)
+  node.className = className
+  if (text !== undefined) {
+    node.textContent = text
+  }
+  return node
 }
 
 function row (label: string, key: string): HTMLElement {
-  const wrapper = document.createElement('div')
-  wrapper.className = 'mcp-settings-row'
-  const name = document.createElement('span')
-  name.className = 'mcp-settings-label'
-  name.textContent = label
-  const value = document.createElement('span')
-  value.className = 'mcp-settings-value'
+  const wrapper = element('div', 'mcp-row')
+  wrapper.appendChild(element('span', 'mcp-label', label))
+  const value = element('span', 'mcp-value')
   value.setAttribute('data-mcp', key)
-  wrapper.append(name, value)
+  wrapper.appendChild(value)
   return wrapper
 }
 
-function add_text (parent: HTMLElement, text: string, className: string): HTMLElement {
-  const element = document.createElement('div')
-  element.className = className
-  element.textContent = text
-  parent.appendChild(element)
-  return element
+function error_text (error: McpHostError): string {
+  switch (error.code) {
+    case 'NO_BRIDGE':
+      return 'No Tauri bridge (browser mode).'
+    case 'UNSUPPORTED':
+      return 'Rust command not available in this build.'
+    case 'HOST_DISABLED':
+      return 'Host disabled: build with --features mcp-host and set M2M_MCP_ENABLE=1.'
+    case 'INVALID_SNAPSHOT':
+      return 'Snapshot rejected by Rust validation.'
+    default:
+      return error.message
+  }
 }
 
 async function copy_text (text: string): Promise<boolean> {
@@ -62,7 +66,7 @@ async function copy_text (text: string): Promise<boolean> {
       return true
     }
   } catch {
-    // Fall back to the legacy selection-based copy below.
+    // Fall through to selection-based copy.
   }
   try {
     const textarea = document.createElement('textarea')
@@ -80,96 +84,59 @@ async function copy_text (text: string): Promise<boolean> {
   }
 }
 
-function describe_publisher (): string {
-  const status = get_publisher_status()
-  if (!status.attached) {
-    return status.disposed ? 'Stopped (page closing)' : 'Not attached'
-  }
-  const parts = [`Active · schema ${status.schema_version}`]
-  parts.push(`published ${status.published_count}`)
-  if (status.sequence !== null) {
-    parts.push(`sequence ${status.sequence}`)
-  }
-  if (status.phase !== null) {
-    parts.push(`phase ${status.phase}`)
-  }
-  return parts.join(' · ')
-}
-
-/** Mount the MCP settings section into an existing settings dropdown container. */
+/** Mount the responsive MCP section into an existing container. */
 export function mount_mcp_settings (container: HTMLElement): McpSettingsRefresh {
   container.replaceChildren()
-  const section = document.createElement('section')
+  const section = element('section', 'mcp-settings')
   section.id = 'mcp-settings-section'
-  section.className = 'mcp-settings'
   section.setAttribute('aria-label', 'Integrations - MCP')
   container.appendChild(section)
 
-  add_text(section, 'Integrations / MCP', 'mcp-settings-title')
-
-  const desktop = has_tauri_bridge()
-  if (!desktop) {
-    add_text(section, 'MCP is unavailable in web builds. It requires the native desktop application.',
-      'mcp-settings-note')
-    return { refresh: () => {} }
+  if (!is_desktop_control_enabled()) {
+    section.appendChild(element('div', 'mcp-note',
+      'MCP is unavailable here. It requires the native desktop build with the MCP opt-in enabled.'))
+    return { refresh: async () => {} }
   }
 
-  section.appendChild(row('Availability', 'availability'))
-  section.appendChild(row('Host state', 'host-state'))
+  const header = element('div', 'mcp-header')
+  header.appendChild(element('strong', '', 'Integrations / MCP'))
+  const badge = element('span', 'mcp-badge', 'Checking…')
+  badge.setAttribute('data-mcp', 'host-state')
+  header.appendChild(badge)
+  section.appendChild(header)
+
+  section.appendChild(row('IPC', 'ipc'))
   section.appendChild(row('Publisher', 'publisher'))
-  section.appendChild(row('Endpoint (expected)', 'endpoint'))
-  section.appendChild(row('Contract', 'contract'))
+  section.appendChild(row('Tools', 'tools'))
+  section.appendChild(row('Clients', 'clients'))
+  section.appendChild(row('Last status', 'last-status'))
 
-  const tools = document.createElement('div')
-  tools.className = 'mcp-settings-tools'
-  const tools_title = document.createElement('div')
-  tools_title.className = 'mcp-settings-subtitle'
-  tools_title.textContent = 'Read-only tools'
-  tools.appendChild(tools_title)
-  const list = document.createElement('ul')
-  for (const tool of MCP_READ_TOOLS) {
-    const item = document.createElement('li')
-    item.textContent = `${tool} (read-only)`
-    list.appendChild(item)
+  const actions = element('div', 'mcp-actions')
+  const enable = element('button', 'mcp-button', 'Enable') as HTMLButtonElement
+  const disable = element('button', 'mcp-button', 'Disable') as HTMLButtonElement
+  const test = element('button', 'mcp-button', 'Test connection') as HTMLButtonElement
+  const copy = element('button', 'mcp-button', 'Copy config') as HTMLButtonElement
+  enable.type = disable.type = test.type = copy.type = 'button'
+  for (const button of [enable, disable, test, copy]) {
+    button.disabled = true
+    actions.appendChild(button)
   }
-  tools.appendChild(list)
-  section.appendChild(tools)
+  section.appendChild(actions)
 
-  add_text(section,
-    'Prerequisites: build the desktop with --features mcp-host and launch it with M2M_MCP_ENABLE=1. ' +
-    'Frontend publishing also needs the MCP opt-in. A relaunch is required after changing these; ' +
-    'this panel does not enable a host that is not running.',
-    'mcp-settings-note')
+  const action_result = element('div', 'mcp-action-result')
+  section.appendChild(action_result)
 
-  const instructions = document.createElement('ol')
-  instructions.className = 'mcp-settings-steps'
-  for (const step of [
-    'Build the desktop with the mcp-host feature enabled.',
-    'Start Mesh2Motion with M2M_MCP_ENABLE=1 in its environment.',
-    'Configure your MCP client to launch the mesh2motion-mcp stdio sidecar with M2M_MCP_IPC_ENDPOINT set to the endpoint above.',
-    'Relaunch the client; no client count is reported because the frontend has no such telemetry.'
-  ]) {
-    const item = document.createElement('li')
-    item.textContent = step
-    instructions.appendChild(item)
-  }
-  section.appendChild(instructions)
+  const details = element('details', 'mcp-details')
+  details.appendChild(element('summary', '', 'Advanced diagnostics'))
+  const diagnostics = element('pre', 'mcp-diagnostics')
+  diagnostics.setAttribute('data-mcp', 'diagnostics')
+  details.appendChild(diagnostics)
+  section.appendChild(details)
 
-  const copy_button = document.createElement('button')
-  copy_button.type = 'button'
-  copy_button.className = 'mcp-settings-copy'
-  copy_button.textContent = 'Copy MCP client config'
-  section.appendChild(copy_button)
-  const copy_result = add_text(section, '', 'mcp-settings-copy-result')
-  copy_button.addEventListener('click', () => {
-    void copy_text(MCP_CLIENT_CONFIG).then(copied => {
-      copy_result.textContent = copied
-        ? 'Client configuration copied. Replace the command placeholder with your built sidecar path.'
-        : 'Copy failed. Select the instructions manually.'
-    })
-  })
-
-  const error_box = add_text(section, '', 'mcp-settings-error')
+  let host_status: McpHostStatus | null = null
+  let host_error: McpHostError | null = null
+  let host_paths: McpHostPaths | null = null
+  let generation = 0
 
   const set = (key: string, value: string): void => {
     const node = section.querySelector<HTMLElement>(`[data-mcp="${key}"]`)
@@ -178,20 +145,119 @@ export function mount_mcp_settings (container: HTMLElement): McpSettingsRefresh 
     }
   }
 
-  function refresh (): void {
-    const status = get_publisher_status()
-    set('availability', is_desktop_control_enabled()
-      ? 'Desktop bridge detected · publisher opt-in enabled'
-      : 'Desktop bridge detected · publisher opt-in disabled')
-    // Host state is deliberately not claimed: Rust exposes no status command to the UI.
-    set('host-state', 'Not reported by frontend — requires mcp-host build + M2M_MCP_ENABLE=1')
-    set('publisher', describe_publisher())
-    set('endpoint', MCP_EXPECTED_ENDPOINT)
-    set('contract', `v${CONTROL_SCHEMA_VERSION} · five read-only tools`)
-    const error = status.last_error
-    error_box.textContent = error === null ? '' : `Last publish error: ${error}`
+  function render (): void {
+    const publisher = get_publisher_status()
+    badge.textContent = host_status === null
+      ? (host_error === null ? 'Not supported' : error_text(host_error))
+      : (host_status.enabled ? 'Enabled' : 'Disabled')
+    badge.classList.toggle('is-enabled', host_status?.enabled === true)
+
+    const endpoint = host_status?.endpoint
+    set('ipc', endpoint === null || endpoint === undefined
+      ? 'Endpoint not reported'
+      : `Endpoint ${endpoint}`)
+    const publish_parts = [`schema ${CONTROL_SCHEMA_VERSION}`]
+    publish_parts.push(publisher.attached ? 'publisher active' : 'publisher inactive')
+    publish_parts.push(`${publisher.published_count} published`)
+    if (publisher.sequence !== null) {
+      publish_parts.push(`seq ${publisher.sequence}`)
+    }
+    set('publisher', publish_parts.join(' · '))
+
+    const tools = host_status?.tools ?? [...CONTROL_READ_TOOLS] as ControlCommand[]
+    set('tools', tools.join(', '))
+
+    set('clients', host_status?.client_count === null || host_status?.client_count === undefined
+      ? 'Not reported'
+      : String(host_status.client_count))
+
+    const errors: string[] = []
+    if (publisher.last_error !== null) {
+      errors.push(`publish: ${publisher.last_error}`)
+    }
+    if (host_error !== null) {
+      errors.push(`host: ${error_text(host_error)}`)
+    }
+    set('last-status', errors.length === 0 ? 'No errors reported' : errors.join(' | '))
+
+    const commands = host_status?.commands ?? []
+    enable.disabled = !commands.includes(MCP_COMMANDS.setEnabled)
+    disable.disabled = enable.disabled
+    test.disabled = !commands.includes(MCP_COMMANDS.testConnection)
+    copy.disabled = build_client_config(host_paths ?? { sidecar_path: null, socket_path: null }) === null
+    copy.title = copy.disabled
+      ? 'Requires Rust mcp_host_paths with absolute executable and socket paths'
+      : 'Copy configuration with real absolute paths'
+
+    diagnostics.textContent = JSON.stringify({
+      host_status,
+      host_error,
+      host_paths,
+      publisher: get_publisher_status()
+    }, null, 2)
   }
 
-  refresh()
+  async function refresh (): Promise<void> {
+    const current = ++generation
+    const client = new McpHostClient()
+    const status = await client.status()
+    if (current !== generation) {
+      return
+    }
+    if (status.ok) {
+      host_status = status.data
+      host_error = null
+      if (status.data.commands.includes(MCP_COMMANDS.hostPaths)) {
+        const paths = await client.paths()
+        if (current === generation && paths.ok) {
+          host_paths = paths.data
+        }
+      }
+    } else {
+      host_status = null
+      host_error = status.error
+      host_paths = null
+    }
+    if (current === generation) {
+      render()
+    }
+  }
+
+  enable.addEventListener('click', () => {
+    void (async () => {
+      const result = await new McpHostClient().set_enabled(true)
+      action_result.textContent = result.ok ? 'Enable command accepted by Rust.' : error_text(result.error)
+      await refresh()
+    })()
+  })
+  disable.addEventListener('click', () => {
+    void (async () => {
+      const result = await new McpHostClient().set_enabled(false)
+      action_result.textContent = result.ok ? 'Disable command accepted by Rust.' : error_text(result.error)
+      await refresh()
+    })()
+  })
+  test.addEventListener('click', () => {
+    void (async () => {
+      const result = await new McpHostClient().test_connection()
+      action_result.textContent = result.ok
+        ? `${result.data.ok ? 'Connected' : 'Not connected'}: ${result.data.message}`
+        : error_text(result.error)
+    })()
+  })
+  copy.addEventListener('click', () => {
+    void (async () => {
+      const config = build_client_config(host_paths ?? { sidecar_path: null, socket_path: null })
+      if (config === null) {
+        action_result.textContent = 'No absolute host paths reported by Rust.'
+        return
+      }
+      action_result.textContent = await copy_text(config)
+        ? 'Configuration copied with real absolute paths.'
+        : 'Copy failed; select the diagnostics text manually.'
+    })()
+  })
+
+  render()
   return { refresh }
 }

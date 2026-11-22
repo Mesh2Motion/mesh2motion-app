@@ -1,26 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  MCP_CLIENT_CONFIG,
-  MCP_EXPECTED_ENDPOINT,
-  MCP_READ_TOOLS,
-  mount_mcp_settings
-} from './McpSettingsPanel.ts'
+import { mount_mcp_settings } from './McpSettingsPanel.ts'
 import { reset_publisher_status, update_publisher_status } from './publisherStatus.ts'
+import { CONTROL_READ_TOOLS } from './contracts.ts'
+import { build_client_config, MCP_COMMANDS } from './McpHostApi.ts'
 
-function set_tauri (available: boolean): void {
+function set_tauri (invoke?: (command: string, args?: unknown) => Promise<unknown>): void {
   Object.defineProperty(window, '__TAURI_INTERNALS__', {
-    value: available ? { invoke: vi.fn() } : undefined,
+    value: invoke === undefined ? undefined : { invoke },
     configurable: true,
     writable: true
   })
 }
 
 function set_opt_in (enabled: boolean): void {
-  Object.defineProperty(window, '__M2M_MCP_ENABLED__', {
-    value: enabled,
-    configurable: true,
-    writable: true
-  })
+  Object.defineProperty(window, '__M2M_MCP_ENABLED__', { value: enabled, configurable: true, writable: true })
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: (key: string) => key === 'm2m-control-enabled' && enabled ? '1' : null,
@@ -35,7 +28,7 @@ let container: HTMLElement
 
 beforeEach(() => {
   document.body.innerHTML = ''
-  set_tauri(false)
+  set_tauri()
   set_opt_in(false)
   reset_publisher_status()
   container = document.createElement('div')
@@ -43,99 +36,111 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  set_tauri(false)
+  set_tauri()
   set_opt_in(false)
-  reset_publisher_status()
   Reflect.deleteProperty(navigator, 'clipboard')
 })
 
 describe('MCP settings panel', () => {
-  it('states accurately that MCP is unavailable in web builds', () => {
+  it('is truthfully unavailable in browser mode', async () => {
     const handle = mount_mcp_settings(container)
-    expect(container.textContent).toContain('unavailable in web builds')
-    expect(container.querySelector('[data-mcp="availability"]')).toBeNull()
-    expect(container.textContent).not.toContain(MCP_EXPECTED_ENDPOINT)
-    handle.refresh()
+    await handle.refresh()
+    expect(container.textContent).toContain('MCP is unavailable here')
+    expect(container.querySelector('[data-mcp="host-state"]')).toBeNull()
   })
 
-  it('shows prerequisites and the five read-only tools on desktop without claiming a host', () => {
-    set_tauri(true)
-    mount_mcp_settings(container)
-
-    const text = container.textContent ?? ''
-    expect(text).toContain('Desktop bridge detected')
-    expect(text).toContain('publisher opt-in disabled')
-    expect(text).toContain('--features mcp-host')
-    expect(text).toContain('M2M_MCP_ENABLE=1')
-    expect(text).toContain(MCP_EXPECTED_ENDPOINT)
-    for (const tool of MCP_READ_TOOLS) {
-      expect(text).toContain(`${tool} (read-only)`)
-    }
-    expect(container.querySelector('[data-mcp="host-state"]')?.textContent).toContain('Not reported by frontend')
-    // No fabricated client telemetry.
-    expect(text.toLowerCase()).not.toContain('connected clients')
-  })
-
-  it('shows real publisher status and last publish error from the registry', () => {
-    set_tauri(true)
+  it('disables every interactive control when Rust commands do not exist', async () => {
+    set_tauri(vi.fn().mockRejectedValue(new Error('command mcp_host_status not found')))
     set_opt_in(true)
     const handle = mount_mcp_settings(container)
-    update_publisher_status({
-      attached: true,
-      published_count: 7,
-      sequence: 12,
-      phase: 'ready',
-      last_publish_epoch_ms: 1000,
-      last_error: 'IPC command rejected'
-    })
-    handle.refresh()
+    await handle.refresh()
 
-    const publisher = container.querySelector('[data-mcp="publisher"]')?.textContent ?? ''
-    expect(publisher).toContain('Active')
-    expect(publisher).toContain('published 7')
-    expect(publisher).toContain('sequence 12')
-    expect(publisher).toContain('phase ready')
-    expect(container.querySelector('.mcp-settings-error')?.textContent).toContain('IPC command rejected')
-    expect(container.querySelector('[data-mcp="availability"]')?.textContent).toContain('publisher opt-in enabled')
+    expect(container.querySelector('[data-mcp="host-state"]')?.textContent).toContain('Rust command not available')
+    expect(container.querySelector('[data-mcp="clients"]')?.textContent).toBe('Not reported')
+    container.querySelectorAll<HTMLButtonElement>('.mcp-button').forEach(button => {
+      expect(button.disabled).toBe(true)
+    })
+    expect(container.textContent).not.toContain('$XDG_RUNTIME_DIR')
+    expect(container.querySelector('.mcp-diagnostics')?.textContent).toContain('UNSUPPORTED')
   })
 
-  it('copies a safe client config and reports the real clipboard outcome', async () => {
-    set_tauri(true)
-    mount_mcp_settings(container)
+  it('shows real host/publisher state and enables actions when Rust reports capabilities', async () => {
+    const invoke = vi.fn(async (command: string) => {
+      if (command === MCP_COMMANDS.status) {
+        return {
+          enabled: true,
+          endpoint: '/run/user/1000/mesh2motion/mcp.sock',
+          client_count: null,
+          commands: [MCP_COMMANDS.setEnabled, MCP_COMMANDS.testConnection, MCP_COMMANDS.hostPaths]
+        }
+      }
+      if (command === MCP_COMMANDS.hostPaths) {
+        return {
+          sidecar_path: '/opt/mesh2motion/bin/mesh2motion-mcp',
+          socket_path: '/run/user/1000/mesh2motion/mcp.sock'
+        }
+      }
+      if (command === MCP_COMMANDS.testConnection) {
+        return { ok: true, message: 'Endpoint reachable', latency_ms: 3 }
+      }
+      if (command === MCP_COMMANDS.setEnabled) {
+        return null
+      }
+      throw new Error(`unexpected command ${command}`)
+    })
+    set_tauri(invoke)
+    set_opt_in(true)
+    update_publisher_status({ attached: true, published_count: 5, sequence: 9, last_error: 'write refused' })
+    const handle = mount_mcp_settings(container)
+    await handle.refresh()
+
+    expect(container.querySelector('[data-mcp="host-state"]')?.textContent).toBe('Enabled')
+    expect(container.querySelector('[data-mcp="ipc"]')?.textContent).toContain('/run/user/1000/mesh2motion/mcp.sock')
+    expect(container.querySelector('[data-mcp="publisher"]')?.textContent).toContain('5 published')
+    expect(container.querySelector('[data-mcp="last-status"]')?.textContent).toContain('write refused')
+    for (const tool of CONTROL_READ_TOOLS) {
+      expect(container.querySelector('[data-mcp="tools"]')?.textContent).toContain(tool)
+    }
+    const buttons = container.querySelectorAll<HTMLButtonElement>('.mcp-button')
+    buttons.forEach(button => expect(button.disabled).toBe(false))
+
+    container.querySelector<HTMLButtonElement>('.mcp-button:nth-child(3)')?.click()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(container.querySelector('.mcp-action-result')?.textContent).toContain('Endpoint reachable')
+  })
+
+  it('copies a config built from real absolute paths only', async () => {
     const write_text = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: write_text },
-      configurable: true,
-      writable: true
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: write_text }, configurable: true, writable: true })
+    const invoke = vi.fn(async (command: string) => {
+      if (command === MCP_COMMANDS.status) {
+        return { enabled: true, commands: [MCP_COMMANDS.hostPaths], endpoint: '/run/user/1000/mesh2motion/mcp.sock' }
+      }
+      if (command === MCP_COMMANDS.hostPaths) {
+        return { sidecar_path: '/opt/mesh2motion/bin/mesh2motion-mcp', socket_path: '/run/user/1000/mesh2motion/mcp.sock' }
+      }
+      throw new Error('unexpected')
     })
+    set_tauri(invoke)
+    set_opt_in(true)
+    const handle = mount_mcp_settings(container)
+    await handle.refresh()
 
-    const button = container.querySelector<HTMLButtonElement>('.mcp-settings-copy')
-    expect(button).not.toBeNull()
-    button?.click()
-    await Promise.resolve()
-    await Promise.resolve()
-
-    expect(write_text).toHaveBeenCalledOnce()
-    expect(write_text.mock.calls[0][0]).toBe(MCP_CLIENT_CONFIG)
-    expect(JSON.parse(MCP_CLIENT_CONFIG).mcpServers.mesh2motion.command).toContain('<path-to-built')
-    expect(container.querySelector('.mcp-settings-copy-result')?.textContent).toContain('copied')
-  })
-
-  it('reports a failed copy without pretending it succeeded', async () => {
-    set_tauri(true)
-    mount_mcp_settings(container)
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
-      configurable: true,
-      writable: true
-    })
-    const exec = vi.fn().mockReturnValue(false)
-    Object.defineProperty(document, 'execCommand', { value: exec, configurable: true, writable: true })
-
-    container.querySelector<HTMLButtonElement>('.mcp-settings-copy')?.click()
+    const copy = container.querySelector<HTMLButtonElement>('.mcp-button:last-child')
+    expect(copy?.disabled).toBe(false)
+    copy?.click()
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(exec).toHaveBeenCalled()
-    expect(container.querySelector('.mcp-settings-copy-result')?.textContent).toContain('Copy failed')
+    expect(write_text).toHaveBeenCalledOnce()
+    const config = JSON.parse(write_text.mock.calls[0][0])
+    expect(config.mcpServers.mesh2motion.command).toBe('/opt/mesh2motion/bin/mesh2motion-mcp')
+    expect(config.mcpServers.mesh2motion.env.M2M_MCP_IPC_ENDPOINT).toBe('/run/user/1000/mesh2motion/mcp.sock')
+    expect(write_text.mock.calls[0][0]).not.toContain('$XDG_RUNTIME_DIR')
+  })
+
+  it('refuses to generate a config from placeholders or relative paths', () => {
+    expect(build_client_config({ sidecar_path: null, socket_path: null })).toBeNull()
+    expect(build_client_config({ sidecar_path: 'mesh2motion-mcp', socket_path: '/run/user/1000/x.sock' })).toBeNull()
+    expect(build_client_config({ sidecar_path: '/opt/bin/mesh2motion-mcp', socket_path: '$XDG_RUNTIME_DIR/x.sock' })).toBeNull()
   })
 })

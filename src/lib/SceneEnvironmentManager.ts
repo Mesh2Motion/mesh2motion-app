@@ -5,6 +5,7 @@ import { type CustomTransformControls } from './components/CustomTransformContro
 
 import { CustomViewHelper } from './CustomViewHelper.ts'
 import { Generators } from './Generators.ts'
+import { ViewportManager } from './ViewportManager.ts'
 import type { ThemeManager } from './ThemeManager.ts'
 import { type MeshDragBonePlacement } from './processes/edit-skeleton/MeshDragBonePlacement.ts'
 
@@ -18,6 +19,7 @@ export class SceneEnvironmentManager {
 
   private controls: OrbitControls | undefined = undefined
   private view_helper: CustomViewHelper | undefined = undefined
+  private viewport_manager: ViewportManager | null = null
   private environment_container: Group = new Group()
 
   constructor (
@@ -30,7 +32,6 @@ export class SceneEnvironmentManager {
   ) {}
 
   public setup_environment (): void {
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.shadowMap.enabled = true
 
     // Set Filmic tone mapping for less saturated, more cinematic look
@@ -45,8 +46,18 @@ export class SceneEnvironmentManager {
     // this will help because we first want the user to rotate the model to face the front
     this.camera.position.set(0, 1.7, 15)
 
-    Generators.create_window_resize_listener(this.renderer, this.camera)
-    document.body.appendChild(this.renderer.domElement)
+    // The canvas lives in a dedicated viewport container whose real size is
+    // observed. This works for maximized, snapped and repeatedly resized KDE
+    // windows and avoids window-level resize listeners entirely.
+    let viewport = document.getElementById('m2m-viewport')
+    if (viewport === null) {
+      viewport = document.createElement('div')
+      viewport.id = 'm2m-viewport'
+      document.body.insertBefore(viewport, document.body.firstChild)
+    }
+    viewport.appendChild(this.renderer.domElement)
+    this.viewport_manager = new ViewportManager(this.renderer, this.camera, viewport)
+    this.viewport_manager.start()
 
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -210,5 +221,13 @@ export class SceneEnvironmentManager {
   private apply_scene_fog (): void {
     const { floor_color } = this.get_environment_colors()
     this.scene.fog = new THREE.Fog(floor_color, this.fog_near, this.fog_far)
+  }
+
+  /** Release the single resize observer when the page/engine is torn down. */
+  public dispose (): void {
+    this.viewport_manager?.dispose()
+    this.viewport_manager = null
+    this.controls?.dispose()
+    this.controls = undefined
   }
 }

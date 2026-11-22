@@ -150,6 +150,15 @@ export type ControlRequest =
 
 export type ControlCommand = ControlRequest['kind']
 
+/** The five read-only commands exposed by the v1.0 control contract. */
+export const CONTROL_READ_TOOLS: readonly ControlCommand[] = [
+  'application_get_status',
+  'renderer_get_state',
+  'rigs_list',
+  'animations_list',
+  'scene_inspect'
+]
+
 /** Tool availability by lifecycle phase (MCP-001 §3). */
 export const TOOL_ALLOWED_PHASES: Readonly<Record<ControlCommand, readonly ApplicationPhase[]>> = {
   application_get_status: ['uninitialized', 'loading', 'ready', 'degraded', 'fatal', 'closed'],
