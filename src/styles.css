@@ -848,6 +848,38 @@ option {
     pointer-events: none;
 }
 
+/* M2M-023A: offline-generated poster stays visible whenever no video is playing. */
+.anim-play-button .anim-preview-placeholder {
+    position: relative;
+    display: block;
+    background-color: var(--bg-alternate);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    image-rendering: auto;
+}
+
+.anim-preview-placeholder--no-poster::after {
+    content: 'No preview';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text-alternate);
+    background: var(--bg-alternate);
+}
+
+.anim-play-button .anim-preview {
+    position: relative;
+    z-index: 1;
+    display: block;
+}
+
 .anim-row-checkbox {
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
@@ -1327,6 +1359,10 @@ div.modal-dialog-body p.survey-thank-you {
 :root {
     --responsive-left-width: 10.5rem;
     --responsive-right-width: 24rem;
+    /* Shared viewport insets; #props-dock uses the same values. */
+    --viewport-top: var(--navigation-height);
+    --viewport-left: 0px;
+    --viewport-right: 0px;
 }
 
 #tool-panel {
@@ -1348,6 +1384,15 @@ div.modal-dialog-body p.survey-thank-you {
     body.explore-page {
         --explore-sidebar-width: var(--responsive-left-width);
         --explore-tool-panel-width: var(--responsive-right-width);
+    }
+    :root {
+        --viewport-right: var(--responsive-right-width);
+    }
+    body.explore-page {
+        --viewport-left: var(--responsive-left-width);
+    }
+    body.tool-panel-page {
+        --viewport-left: 0px;
     }
 
     body.explore-page #m2m-viewport {
@@ -1389,6 +1434,15 @@ div.modal-dialog-body p.survey-thank-you {
         --explore-sidebar-width: var(--responsive-left-width);
         --explore-tool-panel-width: var(--responsive-right-width);
     }
+    :root {
+        --viewport-right: var(--responsive-right-width);
+    }
+    body.explore-page {
+        --viewport-left: var(--responsive-left-width);
+    }
+    body.tool-panel-page {
+        --viewport-left: 0px;
+    }
 
     .model-selection-section {
         position: fixed;
@@ -1425,10 +1479,6 @@ div.modal-dialog-body p.survey-thank-you {
     body.tool-panel-page #animation-player {
         width: min(36rem, calc(100vw - var(--responsive-right-width) - 1rem)) !important;
         left: calc(50% - var(--responsive-right-width) / 2) !important;
-    }
-
-    #props-dock {
-        right: var(--responsive-right-width) !important;
     }
 
     body.explore-page #props-dock {

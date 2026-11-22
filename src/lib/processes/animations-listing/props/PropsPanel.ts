@@ -36,14 +36,9 @@ export class PropsPanel extends EventTarget {
       this.ui.dom_props_toggle_button?.focus()
     })
 
-    // keep the floating panel docked beside the tool panel as its width changes
-    const tool_panel = document.querySelector<HTMLElement>('#tool-panel')
-    const dock = this.ui.dom_props_dock
-    if (tool_panel !== null && dock !== null) {
-      new ResizeObserver(() => {
-        dock.style.right = `calc(${tool_panel.offsetWidth}px + 0.5rem)`
-      }).observe(tool_panel)
-    }
+    // The dock is anchored to the 3D viewport entirely in CSS via the shared
+    // --viewport-* insets (see props.css and styles.css). No pixel measurement
+    // or ResizeObserver is needed here; resize/tiling/DPR changes are automatic.
 
     this.added_event_listeners = true
   }

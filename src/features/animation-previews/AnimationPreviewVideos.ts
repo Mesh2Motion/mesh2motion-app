@@ -180,6 +180,17 @@ export class AnimationPreviewVideos {
     return `../animpreviews/${preview_folder}/${theme_name}_${animation_name}.mp4`
   }
 
+  /**
+   * Static poster for a preview video, generated offline by
+   * `tools/generate-preview-posters.mjs`. Kept next to the MP4 with a .webp suffix.
+   */
+  static poster_src (video_src: string | null): string | null {
+    if (video_src === null || !video_src.toLowerCase().endsWith('.mp4')) {
+      return null
+    }
+    return `${video_src.slice(0, -4)}.webp`
+  }
+
   /** Create an empty video element; source and listeners are attached on demand. */
   static create_video (src?: string, width: number = 100, height: number = 120): HTMLVideoElement {
     const video = document.createElement('video')
@@ -834,6 +845,8 @@ export class AnimationPreviewVideos {
     this.cancel_interaction(placeholder)
     this.log('fallback', { src, reason })
     placeholder.classList.add('preview-failed')
+    // Inline poster background would otherwise outrank the fallback CSS.
+    placeholder.style.removeProperty('background-image')
     const fallback = document.createElement('span')
     fallback.className = 'preview-fallback'
     fallback.textContent = 'Preview unavailable'

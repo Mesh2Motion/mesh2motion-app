@@ -243,10 +243,18 @@ body.composer-is-dragging .composer-slot.is-drag-over {
     height: 120px;
     margin: 0;
     border-radius: 0;
-    background: var(--bg-primary);
+    background-color: var(--bg-primary);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     object-fit: cover;
     /* videos are draggable on their own, so let the tile handle the drag */
     pointer-events: none;
+}
+
+.composer-library-item .anim-preview {
+    position: relative;
+    z-index: 1;
 }
 
 /* imported animations have no preview video. a chip in the middle of the frame marks them.

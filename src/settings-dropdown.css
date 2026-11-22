@@ -29,6 +29,11 @@
     position: absolute;
     right: 0;
     min-width: 250px;
+    max-width: min(24rem, calc(100vw - 1rem));
+    max-height: calc(100dvh - var(--navigation-height) - 1rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
     background: var(--nav-background);
     border: 1px solid var(--bg-tertiary);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
@@ -82,10 +87,12 @@
 .mcp-settings {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.45rem;
     padding: 0.4rem;
-    max-width: 22rem;
-    font-size: 0.78rem;
+    max-width: min(22rem, 100%);
+    min-width: 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
 }
 
 .mcp-header {
@@ -109,18 +116,25 @@
 
 .mcp-row {
     display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    gap: 0.4rem;
+    /* minmax(0, 1fr) prevents long paths/tool lists from expanding past the
+       column and overlapping the next row (the native layout defect). */
+    grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
+    gap: 0.5rem;
     align-items: start;
+    min-width: 0;
+}
+
+.mcp-label,
+.mcp-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+    font-size: 0.75rem;
 }
 
 .mcp-label {
     opacity: 0.75;
-}
-
-.mcp-value {
-    overflow-wrap: anywhere;
-    line-height: 1.3;
 }
 
 .mcp-actions {
@@ -143,6 +157,8 @@
 .mcp-note {
     font-size: 0.72rem;
     line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     color: var(--text-alternate);
 }
 

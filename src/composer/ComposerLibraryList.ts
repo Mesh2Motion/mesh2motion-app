@@ -91,7 +91,7 @@ export class ComposerLibraryList {
       : AnimationPreviewVideos.preview_src(this.skeleton_type, this.theme_manager.get_current_theme(), entry.name)
     const preview_html = is_custom_import
       ? '<div class="anim-preview-placeholder composer-custom-preview"><span class="composer-imported-chip">Imported</span></div>'
-      : `<div class="anim-preview-placeholder"${preview_src === null ? '' : ` data-src="${preview_src}"`}></div>`
+      : `<div class="anim-preview-placeholder"${preview_src === null ? ' anim-preview-placeholder--no-poster' : ` data-src="${preview_src}" style="background-image:url('${AnimationPreviewVideos.poster_src(preview_src)}')"`}></div>`
     const template = document.createElement('template')
     template.innerHTML = `
       <div class="composer-library-item" draggable="true" tabindex="0" data-animation-id="${entry.id}" title="Drag ${name} onto a slot">
