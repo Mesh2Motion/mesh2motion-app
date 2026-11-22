@@ -2,13 +2,14 @@ import { FBXTree } from './FBXTree'
 import { append, parseNumberArray } from './fbx-utils'
 import { type FBXNode } from './BinaryParser'
 import type { FBXNodeObject, FBXNodeValue } from './FBXNodes'
+import { readFBXNodeArray, readFBXNodeObject } from './FBXNodeValidation'
 
 function as_object (value: FBXNodeValue): FBXNodeObject {
-    return value as FBXNodeObject;
+    return readFBXNodeObject(value, 'ASCII parser node');
 }
 
 function as_array (value: FBXNodeValue): FBXNodeValue[] {
-    return value as FBXNodeValue[];
+    return readFBXNodeArray(value, 'ASCII parser list');
 }
 
 /**
@@ -338,7 +339,8 @@ class TextParser {
         // so convert the string to an array
         if (line.slice(- 1) !== ',') {
 
-            currentNode.a = parseNumberArray(currentNode.a as string);
+            if (typeof currentNode.a !== 'string') throw new Error(`Invalid ASCII number array at line ${this.currentLineNumber}`);
+            currentNode.a = parseNumberArray(currentNode.a);
 
         }
 

@@ -16,6 +16,7 @@ import { NURBSCurve } from 'three/addons/curves/NURBSCurve.js'
 import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { generateTransform, getEulerOrder, getData, type FBXAttributeInfo, type FBXTransformData } from './fbx-utils'
 import type { FBXColorLayerNode, FBXDeformerResults, FBXGeometrySkeletonData, FBXMorphDeformerData, FBXMaterialLayerNode, FBXNodeObject, FBXNormalLayerNode, FBXNodeValue, FBXRawNode, FBXUVLayerNode } from './FBXNodes'
+import { isFBXNodeObject, readFBXProperty } from './FBXNodeValidation'
 
 type GeometrySkeleton = FBXGeometrySkeletonData;
 
@@ -54,7 +55,7 @@ interface GeometryBuffers {
 
 /** Geometry node carrying the fields used by NURBS curves. */
 interface FBXNurbsGeoNode extends FBXRawNode {
-    Order: string
+    Order: string | number
     KnotVector: { a: number[] }
     Points: { a: number[] }
     Form?: string
@@ -65,21 +66,80 @@ interface FBXMorphGeoNode extends FBXRawNode {
     Indexes?: { a: number[] }
 }
 
-/* Layer nodes are carried as dynamic FBX values; adding the index signature lets
-   them be asserted out of FBXNodeValue while keeping the shared field types. */
+/* Layer nodes are validated at the dynamic FBX tree boundary before conversion. */
 interface GeometryColorLayer extends FBXColorLayerNode, FBXNodeObject {}
 interface GeometryMaterialLayer extends FBXMaterialLayerNode, FBXNodeObject {}
 interface GeometryNormalLayer extends FBXNormalLayerNode, FBXNodeObject {}
 interface GeometryUVLayer extends FBXUVLayerNode, FBXNodeObject {}
 
-function as_node (value: FBXNodeValue): FBXRawNode { return value as FBXRawNode; }
-function as_number (value: FBXNodeValue): number { return value as number; }
-function as_string (value: FBXNodeValue): string { return value as string; }
-function as_number_array (value: FBXNodeValue): number[] { return value as number[]; }
-function as_color_layers (value: FBXNodeValue): GeometryColorLayer[] { return value as GeometryColorLayer[]; }
-function as_material_layers (value: FBXNodeValue): GeometryMaterialLayer[] { return value as GeometryMaterialLayer[]; }
-function as_normal_layers (value: FBXNodeValue): GeometryNormalLayer[] { return value as GeometryNormalLayer[]; }
-function as_uv_layers (value: FBXNodeValue): GeometryUVLayer[] { return value as GeometryUVLayer[]; }
+function is_number (value: FBXNodeValue): value is number { return typeof value === 'number'; }
+function is_string (value: FBXNodeValue): value is string { return typeof value === 'string'; }
+function is_number_array (value: FBXNodeValue): value is number[] { return Array.isArray(value) && value.every((entry: FBXNodeValue) => typeof entry === 'number'); }
+
+function is_number_array_node (value: FBXNodeValue): value is FBXNodeObject & { a: number[] } {
+    return isFBXNodeObject(value) && 'a' in value && is_number_array(value.a);
+}
+
+function is_layer_base (value: FBXNodeValue): value is FBXNodeObject & { MappingInformationType: string; ReferenceInformationType: string } {
+    return isFBXNodeObject(value) && typeof value.MappingInformationType === 'string' && typeof value.ReferenceInformationType === 'string';
+}
+
+function is_color_layer (value: FBXNodeValue): value is GeometryColorLayer {
+    return is_layer_base(value) && is_number_array_node(value.Colors) && is_number_array_node(value.ColorIndex);
+}
+
+function is_material_layer (value: FBXNodeValue): value is GeometryMaterialLayer {
+    return is_layer_base(value) && is_number_array_node(value.Materials);
+}
+
+function is_normal_layer (value: FBXNodeValue): value is GeometryNormalLayer {
+    return is_layer_base(value) && is_number_array_node(value.Normals) &&
+        (value.NormalIndex === undefined || is_number_array_node(value.NormalIndex)) &&
+        (value.NormalsIndex === undefined || is_number_array_node(value.NormalsIndex));
+}
+
+function is_uv_layer (value: FBXNodeValue): value is GeometryUVLayer {
+    return is_layer_base(value) && is_number_array_node(value.UV) && is_number_array_node(value.UVIndex);
+}
+
+function read_layer_array<T extends FBXNodeValue> (value: FBXNodeValue | undefined, isLayer: (candidate: FBXNodeValue) => candidate is T, context: string): T[] {
+    if (value === undefined) return [];
+    const layers: T[] = [];
+    const appendLayer = (layer: FBXNodeValue): void => {
+        if (!isLayer(layer)) throw new Error(`Invalid FBX layer node at ${context}`);
+        layers.push(layer);
+    };
+
+    if (Array.isArray(value)) {
+
+        value.forEach((layer: FBXNodeValue) => appendLayer(layer));
+
+    } else if (isFBXNodeObject(value)) {
+
+        if (isLayer(value)) return [value];
+
+        const indexes = Object.keys(value).filter((key) => /^\d+$/.test(key)).sort((a, b) => Number(a) - Number(b));
+        if (indexes.length === 0) throw new Error(`Invalid FBX layer collection at ${context}`);
+        indexes.forEach((index) => appendLayer(value[index]));
+
+    } else {
+
+        throw new Error(`Invalid FBX layer collection at ${context}`);
+
+    }
+
+    return layers;
+}
+
+function is_nurbs_geo_node (node: FBXRawNode): node is FBXNurbsGeoNode {
+    return (typeof node.Order === 'string' || typeof node.Order === 'number') &&
+        is_number_array_node(node.KnotVector) && is_number_array_node(node.Points) &&
+        (node.Form === undefined || typeof node.Form === 'string');
+}
+
+function is_morph_geo_node (node: FBXRawNode): node is FBXMorphGeoNode {
+    return is_number_array_node(node.Vertices) && (node.Indexes === undefined || is_number_array_node(node.Indexes));
+}
 
 /**
  * Converts geometry nodes from the `FBXTree` into Three.js `BufferGeometry` objects.
@@ -107,7 +167,8 @@ class GeometryParser {
 
             for (const nodeID in geoNodes) {
 
-                const relationships = fbxGlobals.connections.get(parseInt(nodeID)) as FBXConnectionEntry;
+                const relationships = fbxGlobals.connections.get(parseInt(nodeID));
+                if (relationships === undefined) throw new Error(`FBX geometry ${nodeID} has no connection record`);
                 const geo = this.parseGeometry(relationships, geoNodes[nodeID], deformers);
 
                 geometryMap.set(parseInt(nodeID), geo);
@@ -137,7 +198,8 @@ class GeometryParser {
                 return this.parseMeshGeometry(relationships, geoNode, deformers);
 
             case 'NurbsCurve':
-                return this.parseNurbsGeometry(geoNode as FBXNurbsGeoNode);
+                if (!is_nurbs_geo_node(geoNode)) throw new Error(`Invalid FBX NURBS geometry ${geoNode.id ?? ''}`);
+                return this.parseNurbsGeometry(geoNode);
 
         }
 
@@ -182,12 +244,15 @@ class GeometryParser {
 
         const transformData: FBXTransformData = {};
 
-        if ('RotationOrder' in modelNode) transformData.eulerOrder = getEulerOrder(as_number(as_node(modelNode.RotationOrder).value));
-        if ('InheritType' in modelNode) transformData.inheritType = parseInt(as_string(as_node(modelNode.InheritType).value));
+        if ('RotationOrder' in modelNode) transformData.eulerOrder = getEulerOrder(readFBXProperty(modelNode.RotationOrder, is_number, 'Model.RotationOrder'));
+        if ('InheritType' in modelNode) {
+            const inheritType = readFBXProperty(modelNode.InheritType, (value): value is number | string => is_number(value) || is_string(value), 'Model.InheritType');
+            transformData.inheritType = parseInt(String(inheritType));
+        }
 
-        if ('GeometricTranslation' in modelNode) transformData.translation = as_number_array(as_node(modelNode.GeometricTranslation).value);
-        if ('GeometricRotation' in modelNode) transformData.rotation = as_number_array(as_node(modelNode.GeometricRotation).value);
-        if ('GeometricScaling' in modelNode) transformData.scale = as_number_array(as_node(modelNode.GeometricScaling).value);
+        if ('GeometricTranslation' in modelNode) transformData.translation = readFBXProperty(modelNode.GeometricTranslation, is_number_array, 'Model.GeometricTranslation');
+        if ('GeometricRotation' in modelNode) transformData.rotation = readFBXProperty(modelNode.GeometricRotation, is_number_array, 'Model.GeometricRotation');
+        if ('GeometricScaling' in modelNode) transformData.scale = readFBXProperty(modelNode.GeometricScaling, is_number_array, 'Model.GeometricScaling');
 
         const transform = generateTransform(transformData);
 
@@ -306,29 +371,29 @@ class GeometryParser {
         geoInfo.vertexPositions = (geoNode.Vertices !== undefined) ? geoNode.Vertices.a : [];
         geoInfo.vertexIndices = (geoNode.PolygonVertexIndex !== undefined) ? geoNode.PolygonVertexIndex.a : [];
 
-        const colorLayers = as_color_layers(geoNode.LayerElementColor);
-        if (colorLayers && colorLayers[0].Colors) {
+        const colorLayers = read_layer_array(geoNode.LayerElementColor, is_color_layer, 'LayerElementColor');
+        if (colorLayers.length > 0 && colorLayers[0].Colors) {
 
             geoInfo.color = this.parseVertexColors(colorLayers[0]);
 
         }
 
-        const materialLayers = as_material_layers(geoNode.LayerElementMaterial);
-        if (materialLayers) {
+        const materialLayers = read_layer_array(geoNode.LayerElementMaterial, is_material_layer, 'LayerElementMaterial');
+        if (materialLayers.length > 0) {
 
             geoInfo.material = this.parseMaterialIndices(materialLayers[0]);
 
         }
 
-        const normalLayers = as_normal_layers(geoNode.LayerElementNormal);
-        if (normalLayers) {
+        const normalLayers = read_layer_array(geoNode.LayerElementNormal, is_normal_layer, 'LayerElementNormal');
+        if (normalLayers.length > 0) {
 
             geoInfo.normal = this.parseNormals(normalLayers[0]);
 
         }
 
-        const uvLayers = as_uv_layers(geoNode.LayerElementUV);
-        if (uvLayers) {
+        const uvLayers = read_layer_array(geoNode.LayerElementUV, is_uv_layer, 'LayerElementUV');
+        if (uvLayers.length > 0) {
 
             geoInfo.uv = [];
 
@@ -822,7 +887,8 @@ class GeometryParser {
 
                 if (morphGeoNode !== undefined) {
 
-                    this.genMorphGeometry(parentGeo, parentGeoNode, morphGeoNode as FBXMorphGeoNode, morphPreTransform, rawTarget.name);
+                    if (!is_morph_geo_node(morphGeoNode)) throw new Error(`Invalid FBX morph geometry ${rawTarget.geoID}`);
+                    this.genMorphGeometry(parentGeo, parentGeoNode, morphGeoNode, morphPreTransform, rawTarget.name);
 
                 }
 
@@ -867,7 +933,7 @@ class GeometryParser {
         const morphBuffers = this.genBuffers(morphGeoInfo);
 
         const positionAttribute = new Float32BufferAttribute(morphBuffers.vertex, 3);
-        positionAttribute.name = (name || morphGeoNode.attrName) as string;
+        positionAttribute.name = name || morphGeoNode.attrName || '';
 
         positionAttribute.applyMatrix4(preTransform);
 
@@ -1004,7 +1070,7 @@ class GeometryParser {
     // Generate a NurbGeometry from a node in FBXTree.Objects.Geometry
     parseNurbsGeometry (geoNode: FBXNurbsGeoNode): BufferGeometry {
 
-        const order = parseInt(geoNode.Order);
+        const order = parseInt(String(geoNode.Order));
 
         if (isNaN(order)) {
 

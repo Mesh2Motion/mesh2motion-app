@@ -19,10 +19,9 @@ import type {
     FBXAnimationCurve,
     FBXAnimationCurveNode,
     FBXAnimationLayerNode,
-    FBXModelObject,
-    FBXNodeValue,
     FBXRawNode
 } from './FBXNodes'
+import { readFBXNodeObject, readFBXNumber, readFBXNumberArray, readFBXProperty } from './FBXNodeValidation'
 
 /** A times/values pair for one animated axis. Synchronised curves have no id. */
 interface AnimationCurveData {
@@ -52,14 +51,10 @@ interface MorphTargetObject extends Object3D {
     morphTargetDictionary?: Record<string, number>;
 }
 
-/** Asserts that a dynamically shaped FBX value is an object-shaped raw node. */
-function as_node (value: FBXNodeValue | undefined): FBXRawNode {
-    return value as FBXRawNode;
-}
-
-/** Asserts that a dynamically shaped FBX value is an array of numbers. */
-function as_numbers (value: FBXNodeValue | undefined): number[] {
-    return value as number[];
+function isMorphTargetObject (object: Object3D | undefined): object is MorphTargetObject {
+    if (object === undefined || !('morphTargetDictionary' in object)) return false;
+    const dictionary = object.morphTargetDictionary;
+    return typeof dictionary === 'object' && dictionary !== null && Object.values(dictionary).every((value) => typeof value === 'number');
 }
 
 /**
@@ -128,7 +123,7 @@ class AnimationParser {
 
                 const curveNode: FBXAnimationCurveNode = {
 
-                    id: rawCurveNode.id as number,
+                    id: readFBXNumber(rawCurveNode.id, 'AnimationCurveNode.id'),
                     attr: rawCurveNode.attrName!,
                     curves: {},
 
@@ -160,13 +155,13 @@ class AnimationParser {
 
         for (const nodeID in rawCurves) {
 
-            const rawCurve = as_node(rawCurves[nodeID]);
+            const rawCurve: FBXRawNode = readFBXNodeObject(rawCurves[nodeID], `AnimationCurve.${nodeID}`);
 
             const animationCurve: FBXAnimationCurve = {
 
-                id: rawCurve.id as number,
-                times: as_numbers(as_node(rawCurve.KeyTime).a).map(convertFBXTimeToSeconds),
-                values: as_numbers(as_node(rawCurve.KeyValueFloat).a),
+                id: readFBXNumber(rawCurve.id, `AnimationCurve.${nodeID}.id`),
+                times: readFBXNumberArray(readFBXNodeObject(rawCurve.KeyTime, `AnimationCurve.${nodeID}.KeyTime`).a, `AnimationCurve.${nodeID}.KeyTime.a`).map(convertFBXTimeToSeconds),
+                values: readFBXNumberArray(readFBXNodeObject(rawCurve.KeyValueFloat, `AnimationCurve.${nodeID}.KeyValueFloat`).a, `AnimationCurve.${nodeID}.KeyValueFloat.a`),
 
             };
 
@@ -255,7 +250,7 @@ class AnimationParser {
                                     const node: FBXAnimationLayerNode = {
 
                                         modelName: rawModel.attrName ? PropertyBinding.sanitizeNodeName(rawModel.attrName) : '',
-                                        ID: rawModel.id as number,
+                                        ID: readFBXNumber(rawModel.id, `Model.${modelID}.id`),
                                         initialPosition: [0, 0, 0],
                                         initialRotation: [0, 0, 0],
                                         initialScale: [1, 1, 1],
@@ -264,7 +259,7 @@ class AnimationParser {
 
                                     fbxGlobals.sceneGraph.traverse((child) => {
 
-                                        if ((child as FBXModelObject).ID === rawModel.id) {
+                                        if ('ID' in child && typeof child.ID === 'number' && child.ID === rawModel.id) {
 
                                             node.transform = child.matrix;
 
@@ -284,8 +279,8 @@ class AnimationParser {
 
                                     // if the animated model is pre rotated, we'll have to apply the pre rotations to every
                                     // animation value as well
-                                    if ('PreRotation' in rawModel) node.preRotation = as_numbers(rawModel.PreRotation!.value);
-                                    if ('PostRotation' in rawModel) node.postRotation = as_numbers(rawModel.PostRotation!.value);
+                                    if ('PreRotation' in rawModel) node.preRotation = readFBXNumberArray(readFBXProperty(rawModel.PreRotation, (value): value is number[] => Array.isArray(value) && value.every((entry) => typeof entry === 'number'), 'Model.PreRotation'), 'Model.PreRotation.value');
+                                    if ('PostRotation' in rawModel) node.postRotation = readFBXNumberArray(readFBXProperty(rawModel.PostRotation, (value): value is number[] => Array.isArray(value) && value.every((entry) => typeof entry === 'number'), 'Model.PostRotation'), 'Model.PostRotation.value');
 
                                     layerCurveNodes[i] = node;
 
@@ -547,11 +542,14 @@ class AnimationParser {
 
     generateMorphTrack (rawTracks: RawAnimationTracks): NumberKeyframeTrack {
 
-        const curves = rawTracks.DeformPercent!.curves.morph!;
+        const curves = rawTracks.DeformPercent?.curves.morph;
+        if (curves === undefined) throw new Error(`Missing morph curve for animation track ${rawTracks.modelName}`);
         const values = curves.values.map((val) => val / 100);
 
-        const morphObject = fbxGlobals.sceneGraph.getObjectByName(rawTracks.modelName) as MorphTargetObject | null | undefined;
-        const morphNum = morphObject?.morphTargetDictionary![rawTracks.morphName!];
+        const morphObject = fbxGlobals.sceneGraph.getObjectByName(rawTracks.modelName);
+        const morphName = rawTracks.morphName;
+        if (morphName === undefined) throw new Error(`Missing morph name for animation track ${rawTracks.modelName}`);
+        const morphNum = isMorphTargetObject(morphObject) ? morphObject.morphTargetDictionary?.[morphName] : undefined;
 
         return new NumberKeyframeTrack(rawTracks.modelName + '.morphTargetInfluences[' + morphNum + ']', curves.times, values);
 

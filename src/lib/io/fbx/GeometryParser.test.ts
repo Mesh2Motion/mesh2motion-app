@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { GeometryParser } from './GeometryParser'
+import type { FBXRawNode } from './FBXNodes'
 
 type GeometryFixtureNode = {
   Vertices: { a: number[] }
@@ -81,5 +82,41 @@ describe('GeometryParser skin weights', () => {
     // vertex 2 had only zero-weight entries, so it pads out to joint 0 / weight 0
     expect(buffers.weightsIndices.slice(8, 12)).toEqual([0, 0, 0, 0])
     expect(buffers.vertexWeights.slice(8, 12)).toEqual([0, 0, 0, 0])
+  })
+})
+
+describe('GeometryParser layer node shapes', () => {
+  it('reads a numeric-keyed material layer record from binary FBX data', () => {
+    const node: FBXRawNode = {
+      Vertices: { a: [] },
+      PolygonVertexIndex: { a: [] },
+      LayerElementMaterial: {
+        '0': {
+          MappingInformationType: 'ByPolygon',
+          ReferenceInformationType: 'IndexToDirect',
+          Materials: { a: [2, 1] }
+        }
+      }
+    }
+
+    const result = new GeometryParser().parseGeoNode(node, null)
+
+    expect(result.material?.buffer).toEqual([2, 1])
+  })
+
+  it('accepts a single direct material layer record', () => {
+    const node: FBXRawNode = {
+      Vertices: { a: [] },
+      PolygonVertexIndex: { a: [] },
+      LayerElementMaterial: {
+        MappingInformationType: 'ByPolygon',
+        ReferenceInformationType: 'IndexToDirect',
+        Materials: { a: [1] }
+      }
+    }
+
+    const result = new GeometryParser().parseGeoNode(node, null)
+
+    expect(result.material?.buffer).toEqual([1])
   })
 })

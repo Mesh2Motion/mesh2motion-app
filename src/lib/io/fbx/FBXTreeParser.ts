@@ -34,10 +34,8 @@ import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { GeometryParser } from './GeometryParser'
 import { AnimationParser } from './AnimationParser'
 import { generateTransform, getEulerOrder, type FBXTransformData } from './fbx-utils'
-import type { FBXCameraAttributeNode, FBXConnectionRow, FBXDeformerNode, FBXDeformerResults, FBXLightAttributeNode, FBXMaterialNode, FBXMaterialProperties, FBXModelObject, FBXMorphDeformerData, FBXNodeObject, FBXNodeValue, FBXPoseDataNode, FBXRawBoneData, FBXRawMorphTargetData, FBXRawNode, FBXSkeletonData, FBXSceneDeformerResults, FBXTextureNode, FBXTransformModelNode, FBXVideoNode } from './FBXNodes'
+import type { FBXCameraAttributeNode, FBXDeformerNode, FBXDeformerResults, FBXLightAttributeNode, FBXMaterialNode, FBXMaterialProperties, FBXModelObject, FBXMorphDeformerData, FBXNodeObject, FBXNodeValue, FBXPoseDataNode, FBXRawBoneData, FBXRawMorphTargetData, FBXRawNode, FBXSkeletonData, FBXSceneDeformerResults, FBXTextureNode, FBXTransformModelNode, FBXVideoNode } from './FBXNodes'
 
-function as_video (value: FBXRawNode): FBXVideoNode { return value as FBXVideoNode; }
-function as_texture (value: FBXRawNode): FBXTextureNode { return value as FBXTextureNode; }
 function is_node_object (value: FBXNodeValue): value is FBXNodeObject {
     return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof ArrayBuffer) && !(value instanceof Uint8Array);
 }
@@ -82,6 +80,22 @@ function is_fbx_deformer_node (node: FBXRawNode): node is FBXDeformerNode {
     if (typeof node.id !== 'number' || typeof node.attrName !== 'string' || typeof node.attrType !== 'string') return false;
     if (!['TransformLink', 'Indexes', 'Weights', 'FullWeights'].every((key) => node[key] === undefined || is_number_array_node(node[key]))) return false;
     return node.DeformPercent === undefined || is_property(node.DeformPercent, is_number);
+}
+
+function is_fbx_video_node (node: FBXRawNode): node is FBXVideoNode {
+    const content = node.Content;
+    return typeof node.Filename === 'string' && (node.RelativeFilename === undefined || is_string(node.RelativeFilename)) &&
+        (content === undefined || is_string(content) || content instanceof ArrayBuffer);
+}
+
+function is_fbx_texture_node (node: FBXRawNode): node is FBXTextureNode {
+    return typeof node.id === 'number' && typeof node.attrName === 'string' && typeof node.FileName === 'string' &&
+        ['WrapModeU', 'WrapModeV'].every((key) => is_optional_property(node, key, is_number)) &&
+        ['Scaling', 'Translation'].every((key) => is_optional_property(node, key, is_number_array));
+}
+
+function has_texture_load_result (loader: Loader): loader is Loader & { load: (url: string) => Texture } {
+    return typeof loader.load === 'function';
 }
 
 function is_fbx_camera_attribute (node: FBXRawNode): node is FBXCameraAttributeNode {
@@ -147,17 +161,20 @@ class FBXTreeParser {
     // and details the connection type
     parseConnections (): Map<number, FBXConnectionEntry> {
 
-        const connectionMap = new Map();
+        const connectionMap = new Map<number, FBXConnectionEntry>();
 
         if ('Connections' in fbxGlobals.fbxTree) {
 
             const rawConnections = fbxGlobals.fbxTree.Connections.connections;
 
-            (rawConnections as FBXConnectionRow[]).forEach(function (rawConnection: FBXConnectionRow) {
+            rawConnections.forEach(function (rawConnection) {
 
                 const fromID = rawConnection[0];
                 const toID = rawConnection[1];
                 const relationship = rawConnection[2];
+                if (typeof fromID !== 'number' || typeof toID !== 'number' || (relationship !== undefined && typeof relationship !== 'string')) {
+                    throw new Error('Invalid FBX connection row');
+                }
 
                 if (!connectionMap.has(fromID)) {
 
@@ -169,7 +186,7 @@ class FBXTreeParser {
                 }
 
                 const parentRelationship = { ID: toID, relationship: relationship };
-                connectionMap.get(fromID).parents.push(parentRelationship);
+                connectionMap.get(fromID)!.parents.push(parentRelationship);
 
                 if (!connectionMap.has(toID)) {
 
@@ -181,7 +198,7 @@ class FBXTreeParser {
                 }
 
                 const childRelationship = { ID: fromID, relationship: relationship };
-                connectionMap.get(toID).children.push(childRelationship);
+                connectionMap.get(toID)!.children.push(childRelationship);
 
             });
 
@@ -205,7 +222,8 @@ class FBXTreeParser {
 
             for (const nodeID in videoNodes) {
 
-                const videoNode: FBXVideoNode = as_video(videoNodes[nodeID]);
+                const videoNode = videoNodes[nodeID];
+                if (!is_fbx_video_node(videoNode)) throw new Error(`Invalid FBX video node ${nodeID}`);
 
                 const id = parseInt(nodeID);
 
@@ -219,7 +237,7 @@ class FBXTreeParser {
 
                     if (arrayBufferContent || base64Content) {
 
-                        const image = this.parseImage(as_video(videoNodes[nodeID]));
+                        const image = this.parseImage(videoNode);
 
                         if (image !== undefined) blobs[videoNode.RelativeFilename || videoNode.Filename] = image;
 
@@ -326,7 +344,9 @@ class FBXTreeParser {
             const textureNodes = fbxGlobals.fbxTree.Objects.Texture;
             for (const nodeID in textureNodes) {
 
-                const texture = this.parseTexture(as_texture(textureNodes[nodeID]), images);
+                const textureNode = textureNodes[nodeID];
+                if (!is_fbx_texture_node(textureNode)) throw new Error(`Invalid FBX texture node ${nodeID}`);
+                const texture = this.parseTexture(textureNode, images);
                 textureMap.set(parseInt(nodeID), texture);
 
             }
@@ -406,7 +426,7 @@ class FBXTreeParser {
 
             if (fileName.indexOf('blob:') === 0 || fileName.indexOf('data:') === 0) {
 
-                loader.setPath(undefined as unknown as string);
+                loader.setPath('');
 
             }
 
@@ -419,10 +439,13 @@ class FBXTreeParser {
 
         }
 
-        const texture = (loader as TextureLoader).load(fileName);
+        if (!has_texture_load_result(loader)) throw new Error(`Texture handler for ${extension} cannot load textures synchronously`);
+        const result: unknown = loader.load(fileName);
+        if (!(result instanceof Texture)) throw new Error(`Texture handler for ${extension} returned no Texture`);
+        const texture = result;
 
         // revert to initial path
-        loader.setPath(loaderPath as string);
+        loader.setPath(loaderPath);
 
         return texture;
 
