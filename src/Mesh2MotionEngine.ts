@@ -39,7 +39,7 @@ import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtil
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
 import { DOMUtilities } from './lib/DOMUtilities.ts'
-import { PlatformManager } from './lib/PlatformManager.ts'
+import { PlatformAdapter } from './platform/PlatformAdapter.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
 import { mark, mark_error } from './lib/StartupDiagnostics.ts'
 import {
@@ -104,7 +104,7 @@ export class Mesh2MotionEngine {
     mark('engine-construct:dom-mounts-ready')
 
     // this will add a platform CSS file if we are running our desktop app
-    new PlatformManager().init();
+    new PlatformAdapter().init();
     new NetworkStatusManager();
     mark('engine-construct:platform-ready')
 
