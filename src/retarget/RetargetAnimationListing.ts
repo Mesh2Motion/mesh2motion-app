@@ -1,6 +1,6 @@
 import { AnimationLoopController } from '../lib/AnimationLoopController.ts'
 import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
-import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
+import { AnimationSearch } from '../features/animation-catalog/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
 import { AnimationLibrary } from '../lib/processes/animations-listing/AnimationLibrary.ts'
 import { type AnimationLibraryLoadProgress } from '../lib/processes/animations-listing/interfaces/AnimationLibraryLoadProgress'

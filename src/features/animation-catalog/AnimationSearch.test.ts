@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { ThemeManager } from '../../ThemeManager'
-import { SkeletonType } from '../../enums/SkeletonType'
+import { ThemeManager } from '../../lib/ThemeManager.ts'
+import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
 import { AnimationSearch } from './AnimationSearch'
-import type { AnimationEntry } from './interfaces/AnimationEntry'
+import type { AnimationEntry } from '../../lib/processes/animations-listing/interfaces/AnimationEntry.ts'
 
 function entries (count: number): AnimationEntry[] {
   return Array.from({ length: count }, (_, index) => ({
