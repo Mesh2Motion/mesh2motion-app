@@ -43,7 +43,6 @@ import { PlatformAdapter } from './platform/PlatformAdapter.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
 import { mark, mark_error } from './lib/StartupDiagnostics.ts'
 import {
-  create_webgl_renderer,
   display_render_loop_error,
   clear_fatal_startup_error,
   RENDER_LOOP_ERROR_REASON
@@ -52,7 +51,7 @@ import { RendererLifecycle } from './rendering/RendererLifecycle.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
-  public readonly renderer = create_webgl_renderer()
+  public readonly renderer = RendererLifecycle.create_renderer()
 
   public readonly transform_controls: CustomTransformControls = new CustomTransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false

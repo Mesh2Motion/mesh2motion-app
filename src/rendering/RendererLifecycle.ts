@@ -1,6 +1,6 @@
 import type { PerspectiveCamera, WebGLRenderer } from 'three'
 import { ViewportController } from './ViewportController.ts'
-import { install_webgl_context_handlers } from '../lib/WebGLStartup.ts'
+import { create_webgl_renderer, install_webgl_context_handlers } from '../lib/WebGLStartup.ts'
 
 export type FrameRequest = (callback: () => void) => number
 export type FrameCancel = (handle: number) => void
@@ -92,6 +92,10 @@ export class RendererLifecycle {
   private readonly remove_context_handlers: () => void
   private started = false
   private disposed = false
+
+  public static create_renderer (): WebGLRenderer {
+    return create_webgl_renderer()
+  }
 
   constructor (
     private readonly renderer: WebGLRenderer,

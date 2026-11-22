@@ -54,8 +54,11 @@ describe('VirtualizedAnimationCatalog', () => {
     const started = performance.now()
     catalog.set_items(make_entries(count))
     const elapsed = performance.now() - started
+    const mounted = catalog.mounted_count()
+    catalog.scroll_to_id(`animation-${count - 1}`, 'auto')
 
     expect(catalog.total_count()).toBe(count)
+    expect(mounted).toBeLessThanOrEqual(18)
     expect(catalog.mounted_count()).toBeLessThanOrEqual(18)
     expect(viewport.querySelectorAll('[data-animation-id]')).toHaveLength(catalog.mounted_count())
     expect(elapsed).toBeLessThan(500)
