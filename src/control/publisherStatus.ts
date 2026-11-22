@@ -13,7 +13,10 @@ export interface PublisherStatus {
   publisher_opted_in: boolean
   attached: boolean
   disposed: boolean
-  published_count: number
+  /** Commands actually attempted by the webview. */
+  attempted_count: number
+  /** Attempts positively acknowledged by the Rust transport. */
+  accepted_count: number
   last_publish_epoch_ms: number | null
   sequence: number | null
   phase: string | null
@@ -26,7 +29,8 @@ const initial: PublisherStatus = {
   publisher_opted_in: false,
   attached: false,
   disposed: false,
-  published_count: 0,
+  attempted_count: 0,
+  accepted_count: 0,
   last_publish_epoch_ms: null,
   sequence: null,
   phase: null,

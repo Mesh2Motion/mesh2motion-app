@@ -57,26 +57,40 @@ export class TauriSnapshotSink implements SnapshotSink {
     }
   }
 
-  /** No-op without Tauri; failures never propagate into the application. */
-  public publish (snapshot: ControlSnapshot): void {
+  /**
+   * No-op without Tauri. With the bridge, resolves to `true` only when Rust
+   * acknowledged the command; transport failures are reported through the
+   * error callback and resolve to `false`, never propagating into the app.
+   */
+  public publish (snapshot: ControlSnapshot): void | Promise<boolean> {
     const tauri = internals()
     if (tauri === null || typeof tauri.invoke !== 'function') {
       return
     }
+    let result: unknown
     try {
-      const result = tauri.invoke(MCP_PUBLISH_COMMAND, { snapshot })
-      const maybe_promise = result as { then?: (ok?: (value: unknown) => void, fail?: (error: unknown) => void) => unknown } | null
-      if (maybe_promise !== null && typeof maybe_promise.then === 'function') {
-        void maybe_promise.then(
-          () => {
-            this.last_error_value = null
-            try { this.on_success?.() } catch { /* ignore */ }
-          },
-          (error: unknown) => { this.report_error(error) }
-        )
-      }
+      result = tauri.invoke(MCP_PUBLISH_COMMAND, { snapshot })
     } catch (error) {
       this.report_error(error)
+      return Promise.resolve(false)
     }
+    const maybe_promise = result as { then?: (ok?: (value: unknown) => void, fail?: (error: unknown) => void) => unknown } | null
+    if (maybe_promise != null && typeof maybe_promise.then === 'function') {
+      return maybe_promise.then(
+        () => {
+          this.last_error_value = null
+          try { this.on_success?.() } catch { /* ignore */ }
+          return true
+        },
+        (error: unknown) => {
+          this.report_error(error)
+          return false
+        }
+      ) as Promise<boolean>
+    }
+    // A synchronous invoke that did not throw is the only other accepted case.
+    this.last_error_value = null
+    try { this.on_success?.() } catch { /* ignore */ }
+    return Promise.resolve(true)
   }
 }

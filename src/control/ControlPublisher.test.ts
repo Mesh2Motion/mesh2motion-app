@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { attach_control_publisher, ControlEngineLike, ControlPublisherHandle } from './ControlPublisher.ts'
 import { CONTROL_ERROR_CODES, ControlSnapshot } from './contracts.ts'
 import { REDACTED } from './sanitize.ts'
+import { get_publisher_status, reset_publisher_status } from './publisherStatus.ts'
+import type { SnapshotSink } from './transport/SnapshotSink.ts'
 
 class FakeTarget {
   private readonly listeners = new Map<string, Set<(event: Event) => void>>()
@@ -33,7 +35,7 @@ interface Harness {
   handle: ControlPublisherHandle
 }
 
-function setup (options: { publish_error?: string } = {}): Harness {
+function setup (options: { publish_error?: string, sink?: { publish: ReturnType<typeof vi.fn> } } = {}): Harness {
   if (options.publish_error !== undefined) {
     const panel = document.createElement('div')
     panel.id = 'm2m-startup-error'
@@ -67,8 +69,8 @@ function setup (options: { publish_error?: string } = {}): Harness {
     })
   } as unknown as ControlEngineLike
 
-  const sink = { publish: vi.fn() }
-  const handle = attach_control_publisher(engine, { page: 'explore', sink, clock: () => Date.now() })
+  const sink = options.sink ?? { publish: vi.fn() }
+  const handle = attach_control_publisher(engine, { page: 'explore', sink: sink as SnapshotSink, clock: () => Date.now() })
   return {
     engine,
     canvas,
@@ -84,6 +86,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(0)
   document.body.innerHTML = ''
+  reset_publisher_status()
 })
 
 afterEach(() => {
@@ -102,6 +105,42 @@ describe('ControlPublisher', () => {
     const published = h.sink.publish.mock.calls[0][0] as ControlSnapshot
     expect(published.meta.schema_version).toBe('1.0')
     expect(published.application.phase).toBe('ready')
+  })
+
+  it('counts acceptance only after the transport confirms it', async () => {
+    let resolve_publish: ((accepted: boolean) => void) | undefined
+    const sink = {
+      publish: vi.fn(() => new Promise<boolean>((resolve) => { resolve_publish = resolve }))
+    }
+    const h = setup({ sink })
+
+    expect(h.handle.attempted_count).toBe(1)
+    expect(h.handle.accepted_count).toBe(0)
+    expect(get_publisher_status().attempted_count).toBe(1)
+    expect(get_publisher_status().accepted_count).toBe(0)
+
+    resolve_publish?.(true)
+    await Promise.resolve()
+    expect(h.handle.accepted_count).toBe(1)
+    expect(get_publisher_status().accepted_count).toBe(1)
+    h.handle.dispose()
+  })
+
+  it('never counts a rejected transport attempt as accepted', async () => {
+    let reject_publish: ((error: unknown) => void) | undefined
+    const sink = {
+      publish: vi.fn(() => new Promise<boolean>((_resolve, reject) => { reject_publish = reject }))
+    }
+    const h = setup({ sink })
+
+    reject_publish?.(new Error('host disabled'))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(h.handle.attempted_count).toBe(1)
+    expect(h.handle.accepted_count).toBe(0)
+    expect(get_publisher_status().accepted_count).toBe(0)
+    h.handle.dispose()
   })
 
   it('coalesces events into bounded refreshes and never runs per frame', async () => {

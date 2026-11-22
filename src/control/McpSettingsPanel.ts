@@ -158,7 +158,7 @@ export function mount_mcp_settings (container: HTMLElement): McpSettingsRefresh 
       : `Endpoint ${endpoint}`)
     const publish_parts = [`schema ${CONTROL_SCHEMA_VERSION}`]
     publish_parts.push(publisher.attached ? 'publisher active' : 'publisher inactive')
-    publish_parts.push(`${publisher.published_count} published`)
+    publish_parts.push(`${publisher.attempted_count} attempted · ${publisher.accepted_count} accepted`)
     if (publisher.sequence !== null) {
       publish_parts.push(`seq ${publisher.sequence}`)
     }
