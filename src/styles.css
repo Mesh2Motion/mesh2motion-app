@@ -1465,3 +1465,21 @@ div.modal-dialog-body p.survey-thank-you {
         max-width: calc(100vw - 2rem);
     }
 }
+
+/* M2M-011C: static fallback when a native preview video cannot be presented. */
+.anim-preview-placeholder.preview-failed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg-alternate);
+}
+
+.preview-fallback {
+    display: block;
+    padding: 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    color: var(--text-alternate);
+    cursor: default;
+}
