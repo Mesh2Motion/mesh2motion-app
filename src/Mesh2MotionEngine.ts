@@ -187,6 +187,24 @@ export class Mesh2MotionEngine {
     return this.scene
   }
 
+  /**
+   * Read-only renderer/loop state for the optional application-control API.
+   * Pure accessor: no control, MCP or Tauri dependency is introduced here.
+   */
+  public control_state (): {
+    first_frame_rendered: boolean
+    context_lost: boolean
+    render_loop_stopped: boolean
+    render_failures: number
+  } {
+    return {
+      first_frame_rendered: this.first_frame_marked,
+      context_lost: this.render_loop_recovery.is_context_lost(),
+      render_loop_stopped: this.render_loop_guard.is_stopped(),
+      render_failures: this.render_loop_guard.failure_count()
+    }
+  }
+
   /* Add this attribute to an HTML element to give it a tooltip */
   private setup_tooltips (): void {
     tippy('[data-tippy-content]', { theme: 'mesh2motion' })
