@@ -1368,6 +1368,14 @@ div.modal-dialog-body p.survey-thank-you {
 @media (max-width: 960px) {
     .layout-toggles {
         display: inline-flex;
+        position: fixed;
+        top: calc(var(--navigation-height) + 0.35rem);
+        right: 0.5rem;
+        z-index: 100;
+        padding: 0.25rem;
+        border-radius: 0.5rem;
+        background: var(--bg-primary);
+        box-shadow: 0 1px 6px #0008;
     }
     .model-selection-section,
     #tool-panel {

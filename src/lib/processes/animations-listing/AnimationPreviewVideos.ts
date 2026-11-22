@@ -31,6 +31,7 @@ export class AnimationPreviewVideos {
     video.muted = true
     video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
     video.autoplay = true
+    video.preload = 'auto'
     return video
   }
 
@@ -55,8 +56,23 @@ export class AnimationPreviewVideos {
           return
         }
 
-        placeholder.innerHTML = ''
-        placeholder.appendChild(AnimationPreviewVideos.create_video(src))
+        const video = AnimationPreviewVideos.create_video(src)
+        video.addEventListener('error', () => {
+          const error_code = video.error?.code
+          placeholder.dataset.previewError = error_code === undefined ? 'unknown' : String(error_code)
+          console.error('Animation preview video failed to load or decode.', {
+            code: error_code,
+            source: src
+          })
+        }, { once: true })
+        placeholder.replaceChildren(video)
+        // Explicit play helps WebKitGTK start muted videos after lazy mounting.
+        // Autoplay remains enabled for browsers that start playback themselves.
+        void video.play().catch((error: unknown) => {
+          const name = error instanceof Error ? error.name : 'unknown'
+          placeholder.dataset.previewPlayError = name
+          console.warn('Animation preview autoplay was rejected.', { name })
+        })
       })
     }, { rootMargin: '300px' }) // rootMargin pre-loads videos before they scroll into view to reduce popping
 
