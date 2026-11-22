@@ -663,7 +663,6 @@ export class Mesh2MotionEngine {
       this.load_skeleton_step?.dispose()
 
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton())
-      process_step = ProcessStep.EditSkeleton
       this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
       this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
@@ -872,6 +871,7 @@ export class Mesh2MotionEngine {
     // this returns 3 values, so we can destructure them. do not remove any of these
     // even if one of them is not used, otherwise there will be weird issues
     const [closest_bone, closest_bone_index, closest_distance] = Utility.raycast_closest_bone_test(this.camera, mouse_event, skeleton_to_test)
+    void closest_bone_index // destructuring must stay complete for raycast semantics
 
     // don't allow to select root bone for now
     if (closest_bone?.name === 'root') {

@@ -1,6 +1,5 @@
 import { AnimationClip, Quaternion, Vector3, type KeyframeTrack, type QuaternionKeyframeTrack } from 'three'
 import type { TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair'
-import { RigConfig } from '../../RigConfig'
 
 export class AnimationUtility {
   // when we scaled the skeleton itself near the beginning, we kept track of that
@@ -181,7 +180,7 @@ export class AnimationUtility {
       }
  
       // Perform the swaps with quaternion mirroring
-      track_swaps.forEach(({ leftIndex, rightIndex, clipDetails }) => {
+      track_swaps.forEach(({ leftIndex, rightIndex }) => {
         const left_track = tracks[leftIndex]
         const right_track = tracks[rightIndex]
 

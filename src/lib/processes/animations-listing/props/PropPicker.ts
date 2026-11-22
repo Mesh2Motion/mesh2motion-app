@@ -93,7 +93,7 @@ export class PropPicker extends EventTarget {
 
   private add_event_listeners (): void {
     this.trigger.addEventListener('click', () => {
-      this.is_open() ? this.close() : this.open()
+      if (this.is_open()) this.close(); else this.open()
     })
 
     this.trigger.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -135,7 +135,7 @@ export class PropPicker extends EventTarget {
   }
 
   private handle_listbox_key (event: KeyboardEvent): void {
-    let next_index: number | null = null
+    let next_index: number | null
 
     switch (event.key) {
       case 'ArrowDown': next_index = Math.min(this.active_index + 1, this.options.length - 1); break

@@ -64,7 +64,7 @@ export class EventListeners {
 
   public addEventListeners (): void {
     // monitor theme changes
-    this.bootstrap.theme_manager.addEventListener('theme-changed', (event: any) => {
+    this.bootstrap.theme_manager.addEventListener('theme-changed', () => {
       this.bootstrap.regenerate_floor_grid()
     })
 
@@ -352,9 +352,10 @@ export class EventListeners {
 
     // custom event listeners for the transform controls.
     // we can know about the "mouseup" event with this
-    this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
-      this.bootstrap.is_transform_controls_dragging = event.value
-      this.bootstrap.enable_orbit_controls(!event.value)
+    this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: Record<string, unknown>) => {
+      const dragging = (event as { value: boolean }).value
+      this.bootstrap.is_transform_controls_dragging = dragging
+      this.bootstrap.enable_orbit_controls(!dragging)
 
       // show the overlay when the transform widget drag starts, hide when it ends
       // also switch to a grabbing cursor while dragging a bone

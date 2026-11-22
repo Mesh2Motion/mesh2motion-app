@@ -91,7 +91,7 @@ export class StepLoadModel extends EventTarget {
           // clone each material in the array and preserve array structure
           const materials = (child as Mesh).material as Material[]
           const cloned_materials = materials.map(mat => mat.clone())
-          this.material_list.push(cloned_materials as any)
+          this.material_list.push(cloned_materials as unknown as Material)
         } else {
           // single material case
           const new_material: Material = ((child as Mesh).material as Material).clone()

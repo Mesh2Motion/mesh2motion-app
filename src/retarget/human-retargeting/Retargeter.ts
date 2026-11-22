@@ -272,11 +272,9 @@ export class Retargeter {
     }
 
     // Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    const cnt = src.length
     const vec: THREE.Vector3 = new THREE.Vector3() // we will copy position data into this
     const quat: THREE.Quaternion = new THREE.Quaternion() // we will copy rotation data into this
 
-    const p = new Vec3()
     const source_position: Vec3 = new Vec3()
     const source_rotation: Quat = new Quat()
     const target_rotation: Quat = new Quat()
@@ -290,8 +288,8 @@ export class Retargeter {
     const parent_transform: Transform = new Transform()
     const current_transform: Transform = new Transform()
 
-    let bone: THREE.Bone | null = null
-    let joint: Joint | null = null
+    let bone: THREE.Bone
+    let joint: Joint
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

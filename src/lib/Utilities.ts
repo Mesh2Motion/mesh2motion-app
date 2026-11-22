@@ -6,7 +6,6 @@ import BoneTransformState from './interfaces/BoneTransformState'
 import type BoneCalculationData from './interfaces/BoneCalculationData'
 import IntersectionPointData from './interfaces/IntersectionPointData'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class Utility {
   static distance_between_objects (
     object_1: Object3D,

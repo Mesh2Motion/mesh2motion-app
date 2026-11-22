@@ -166,7 +166,7 @@ export class StepExportToFile extends EventTarget {
             reject(new Error('Export result is not an ArrayBuffer'))
           }
         },
-        (error: any) => {
+        (error: unknown) => {
           console.log('An error happened during parsing', error)
           reject(error) // Reject the promise if an error occurs
         },

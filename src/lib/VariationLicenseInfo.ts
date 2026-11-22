@@ -1,7 +1,6 @@
 import { type VariationLicenseInfo } from './interfaces/VariationLicenseInfo'
 
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class VariationLicenseCatalog {
   private static readonly license_info_by_key: Record<string, VariationLicenseInfo> = {
     cc0: {

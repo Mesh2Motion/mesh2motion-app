@@ -3,12 +3,11 @@ import {
   Bone, MeshBasicMaterial, Skeleton, AmbientLight, PlaneGeometry, Mesh,
   SphereGeometry, MeshPhongMaterial, AxesHelper, ArrowHelper, ConeGeometry,
   Vector3, BufferGeometry, type Object3D, type WebGLRenderer,
-  Group, Line, LineBasicMaterial, BufferAttribute, Vector2
+  BufferAttribute, Vector2
 } from 'three'
 
 import { Utility } from './Utilities'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class Generators {
   static create_material (wireframe_value = true, color_hex = 0x00ff00): MeshPhongMaterial {
     const material = new MeshPhongMaterial({ color: color_hex, wireframe: wireframe_value })
@@ -56,7 +55,7 @@ export class Generators {
     `
   }
 
-  static create_grid_helper (grid_color: number = 0x111155, floor_color: number = 0x4e4e7a): any[] {
+  static create_grid_helper (grid_color: number = 0x111155, floor_color: number = 0x4e4e7a): Object3D[] {
     // create floor mesh and add to scene to help with shadows
     const grid_size: number = 180
     const divisions: number = 100

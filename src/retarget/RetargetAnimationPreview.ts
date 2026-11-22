@@ -118,7 +118,7 @@ export class RetargetAnimationPreview extends EventTarget {
       await new Promise<void>((resolve, reject) => {
         this.gltf_loader.load(
           animation_file_path,
-          (gltf: any) => {
+          (gltf: { animations: AnimationClip[] }) => {
             if (gltf.animations !== null && gltf.animations !== undefined && gltf.animations.length > 0) {
               this.current_animation_clip = gltf.animations[0]
 

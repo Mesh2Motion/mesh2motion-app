@@ -45,7 +45,7 @@ describe('ArmExtensionControl.set_value', () => {
     const control = ArmExtensionControl.getInstance()
     let value = -1
 
-    ;(control as any).on_change = (next_value: number) => {
+    ;(control as unknown as { on_change: (value: number) => void }).on_change = (next_value: number) => {
       value = next_value
     }
 

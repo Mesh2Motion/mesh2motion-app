@@ -1045,7 +1045,7 @@ function write_weight_color (
   const t = Math.min(1, Math.max(0, weight))
 
   let red = 0
-  let green = 0
+  let green: number
   let blue = 0
   if (t < 0.25) {
     green = t / 0.25

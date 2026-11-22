@@ -141,7 +141,7 @@ export class MeshDragBonePlacement {
     }
 
     const intersection_segment = this.get_edit_mesh_intersection_segment(mouse_event)
-    let target_world_position: Vector3 | null = null
+    let target_world_position: Vector3 | null
 
     if (intersection_segment !== null) {
       const [first_intersection, last_intersection] = intersection_segment

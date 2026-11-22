@@ -180,7 +180,7 @@ export class AnimationSearch extends EventTarget {
 
   private setup_theme_change_listener (): void {
     // rebuild animation previews so we have the correct theme
-    this.theme_manager.addEventListener('theme-changed', (new_theme) => {
+    this.theme_manager.addEventListener('theme-changed', () => {
       this.rebuild_animation_rows()
     })
   }

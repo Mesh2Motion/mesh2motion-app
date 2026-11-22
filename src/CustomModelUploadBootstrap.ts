@@ -14,7 +14,7 @@ export class CustomModelUploadBootstrap {
 
 // instantiate the class to setup event listeners
 try {
-  const app = new CustomModelUploadBootstrap()
+  new CustomModelUploadBootstrap()
   mark('bootstrap:custom-model:ok')
 } catch (error) {
   mark_error('bootstrap:custom-model', error)

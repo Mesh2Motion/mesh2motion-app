@@ -3,7 +3,6 @@ import { ModalDialog } from '../lib/ModalDialog.ts'
 import { type TrackNameParts } from './interfaces/TrackNameParts'
 import { type BoneRestTransform } from './interfaces/BoneRestTransform'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RetargetUtils {
   /**
    * Convert a Group (with Armature and Bone hierarchy) to a detached THREE.Skeleton

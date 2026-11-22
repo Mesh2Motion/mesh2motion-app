@@ -138,7 +138,7 @@ export class MarketingBootstrap {
     skinned_meshes.forEach((mesh) => {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       materials.forEach((mat) => {
-        (mat as any).wireframe = is_wireframe
+        if ('wireframe' in mat) mat.wireframe = is_wireframe
       })
     })
   }
@@ -149,7 +149,7 @@ export class MarketingBootstrap {
 
 // instantiate the class to setup event listeners
 try {
-  const app = new MarketingBootstrap()
+  new MarketingBootstrap()
   mark('bootstrap:marketing:ok')
 } catch (error) {
   mark_error('bootstrap:marketing', error)

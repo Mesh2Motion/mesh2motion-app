@@ -6,7 +6,7 @@ import { type ManualWeightOverrides } from '../weight-painting/interfaces/Manual
 
 import { Generators } from '../../Generators.ts'
 
-import { type BufferGeometry, type Material, type Object3D, type Skeleton, SkinnedMesh, Group, Uint16BufferAttribute, Float32BufferAttribute } from 'three'
+import { type BufferGeometry, type Material, type Mesh, type Object3D, type Skeleton, SkinnedMesh, Group, Uint16BufferAttribute, Float32BufferAttribute } from 'three'
 import { type SkeletonType } from '../../enums/SkeletonType.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
@@ -98,7 +98,7 @@ export class StepWeightSkin extends EventTarget {
     // It didn't seem to make much of a difference for Scott, but maybe it helps others
     this.weight_painted_mesh_preview.children.forEach((child) => {
       if (child instanceof SkinnedMesh || 'geometry' in child) {
-        const mesh = child as any
+        const mesh = child as Mesh
         if (mesh.geometry) {
           mesh.geometry.dispose()
         }

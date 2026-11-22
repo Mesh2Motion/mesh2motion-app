@@ -29,6 +29,8 @@ import type { Camera, Material, WebGLRenderer } from 'three'
  * @augments Object3D
  * @three_import import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
  */
+type AxisUserData = { type: string }
+
 interface ViewHelperOptions {
   labelX?: string
   labelY?: string
@@ -113,12 +115,12 @@ export class CustomViewHelper extends Object3D {
     this.negXAxisHelper.material.opacity = 0.2
     this.negYAxisHelper.material.opacity = 0.2
     this.negZAxisHelper.material.opacity = 0.2;
-    (this.posXAxisHelper.userData as any).type = 'posX';
-    (this.posYAxisHelper.userData as any).type = 'posY';
-    (this.posZAxisHelper.userData as any).type = 'posZ';
-    (this.negXAxisHelper.userData as any).type = 'negX';
-    (this.negYAxisHelper.userData as any).type = 'negY';
-    (this.negZAxisHelper.userData as any).type = 'negZ'
+    (this.posXAxisHelper.userData as AxisUserData).type = 'posX';
+    (this.posYAxisHelper.userData as AxisUserData).type = 'posY';
+    (this.posZAxisHelper.userData as AxisUserData).type = 'posZ';
+    (this.negXAxisHelper.userData as AxisUserData).type = 'negX';
+    (this.negYAxisHelper.userData as AxisUserData).type = 'negY';
+    (this.negZAxisHelper.userData as AxisUserData).type = 'negZ'
     this.add(this.posXAxisHelper)
     this.add(this.posYAxisHelper)
     this.add(this.posZAxisHelper)
@@ -134,7 +136,7 @@ export class CustomViewHelper extends Object3D {
     this.point.set(0, 0, 1)
     this.point.applyQuaternion(this.camera.quaternion)
     const x = this.domElement.offsetLeft + this.domElement.offsetWidth - this.dim
-    const y = (renderer as any).isWebGPURenderer ? this.domElement.offsetHeight - this.dim : 0
+    const y = ('isWebGPURenderer' in renderer) ? this.domElement.offsetHeight - this.dim : 0
     renderer.clearDepth()
     renderer.getViewport(this.viewport)
     renderer.setViewport(x, y, this.dim, this.dim)
@@ -223,7 +225,7 @@ export class CustomViewHelper extends Object3D {
   }
 
   private prepare_animation_data (object: Sprite, focusPoint: Vector3): void {
-    switch ((object.userData as any).type) {
+    switch ((object.userData as AxisUserData).type) {
       case 'posX':
         this.targetPosition.set(1, 0, 0)
         this.targetQuaternion.setFromEuler(new Euler(0, Math.PI * 0.5, 0))

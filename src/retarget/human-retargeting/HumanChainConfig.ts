@@ -1,6 +1,5 @@
 import { RetargetUtils } from '../RetargetUtils.ts'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class HumanChainConfig {
   // Master list of human bone/joint names that we can use and part of the Mesh2Motion rig
   // this will always be the source config we start with for retargeting
