@@ -123,7 +123,10 @@ describe('AnimationPreviewVideos', () => {
 
     expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', { assetKey: 'human/dark_Angry.mp4' })
     expect(convert_file_src_mock).toHaveBeenCalledWith('/resources/animpreviews/human/dark_Angry.mp4')
-    expect(globalThis.fetch).toHaveBeenCalledWith('asset://localhost/resources/animpreviews/human/dark_Angry.mp4')
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'asset://localhost/resources/animpreviews/human/dark_Angry.mp4',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
     expect(tile.querySelector('video')?.getAttribute('src')).toBe('blob:preview-test')
     expect(URL.createObjectURL).toHaveBeenCalledOnce()
     previews.disconnect()
@@ -167,7 +170,8 @@ describe('AnimationPreviewVideos', () => {
     previews.disconnect()
   })
 
-  it('shows a static fallback when the media source errors', () => {
+  it('shows a static fallback only after bounded media retries are exhausted', () => {
+    vi.useFakeTimers()
     const container = document.createElement('div')
     const tile = placeholder()
     container.appendChild(tile)
@@ -176,14 +180,87 @@ describe('AnimationPreviewVideos', () => {
     previews.observe_placeholders(container)
     FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
     const video = tile.querySelector('video')!
+
+    video.dispatchEvent(new Event('error'))
+    expect(tile.querySelector('.preview-fallback')).toBeNull()
+    vi.advanceTimersByTime(300)
+    video.dispatchEvent(new Event('error'))
+    expect(tile.querySelector('.preview-fallback')).toBeNull()
+    vi.advanceTimersByTime(600)
     video.dispatchEvent(new Event('error'))
 
     expect(tile.classList.contains('preview-failed')).toBe(true)
     expect(tile.querySelector('.preview-fallback')?.textContent).toContain('Preview unavailable')
     previews.disconnect()
+    vi.useRealTimers()
   })
 
-  it('handles rejected autoplay without an unhandled promise', async () => {
+  it('recovers from a transient media error without disabling the tile', () => {
+    vi.useFakeTimers()
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    const video = tile.querySelector('video')!
+    play_mock.mockClear()
+
+    // A real media error puts the element into a paused/error state; the retry
+    // must re-issue play() rather than treating the error as terminal.
+    Object.defineProperty(video, 'paused', { value: true, configurable: true })
+    video.dispatchEvent(new Event('error'))
+    vi.advanceTimersByTime(300)
+
+    expect(tile.querySelector('.preview-fallback')).toBeNull()
+    expect(play_mock).toHaveBeenCalledOnce()
+    previews.disconnect()
+    vi.useRealTimers()
+  })
+
+  it('caps concurrent media fetches and prioritizes visible placeholders', async () => {
+    set_tauri(true)
+    let resolve_fetch: ((value: unknown) => void) | undefined
+    const fetch_mock = vi.fn(() => new Promise<unknown>((resolve) => { resolve_fetch = resolve }))
+    globalThis.fetch = fetch_mock as unknown as typeof fetch
+    const container = document.createElement('div')
+    const tiles = Array.from({ length: 6 }, (_, i) => placeholder(`human/dark_clip${i}.mp4`))
+    tiles.forEach(tile => container.appendChild(tile))
+    const previews = new AnimationPreviewVideos({ max_concurrent_fetches: 2 })
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit(tiles.map(target => ({ target, isIntersecting: true })))
+    await vi.waitFor(() => expect(fetch_mock).toHaveBeenCalledTimes(2))
+
+    resolve_fetch?.({ ok: true, status: 200, blob: async () => new Blob(['x'], { type: 'video/mp4' }) })
+    await vi.waitFor(() => expect(fetch_mock).toHaveBeenCalledTimes(3))
+
+    previews.disconnect()
+    vi.useRealTimers()
+  })
+
+  it('aborts pending fetches on rapid rig/theme redraw', async () => {
+    set_tauri(true)
+    const abort_signals: AbortSignal[] = []
+    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+      if (init?.signal != null) abort_signals.push(init.signal)
+      return new Promise<unknown>(() => {}) as unknown as Promise<Response>
+    }) as unknown as typeof fetch
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    await vi.waitFor(() => expect(abort_signals.length).toBeGreaterThan(0))
+    previews.disconnect()
+    expect(abort_signals.every(signal => signal.aborted)).toBe(true)
+  })
+
+  it('handles rejected autoplay with bounded retries and no unhandled promise', async () => {
+    vi.useFakeTimers()
     play_mock.mockRejectedValue(new Error('autoplay blocked'))
     const container = document.createElement('div')
     const tile = placeholder()
@@ -195,8 +272,21 @@ describe('AnimationPreviewVideos', () => {
     await Promise.resolve()
     await Promise.resolve()
 
+    // A single rejected play() must not permanently disable the preview.
+    expect(tile.classList.contains('preview-failed')).toBe(false)
+    expect(tile.querySelector('.preview-fallback')).toBeNull()
+
+    // Advance through the bounded backoff; each retried play() rejects again.
+    for (let i = 0; i < 3; i++) {
+      vi.advanceTimersByTime(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    }
+
     expect(tile.classList.contains('preview-failed')).toBe(true)
+    expect(tile.querySelector('.preview-fallback')).not.toBeNull()
     previews.disconnect()
+    vi.useRealTimers()
   })
 
   it('shows a fallback when the desktop asset lookup fails', async () => {

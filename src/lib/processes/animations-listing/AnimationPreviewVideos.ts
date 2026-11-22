@@ -15,12 +15,23 @@ import { RigConfig } from '../../RigConfig'
 const DEBUG_QUERY_PARAM = 'm2m-preview-debug'
 const DEBUG_STORAGE_KEY = 'm2m-preview-debug'
 const DEFAULT_MAX_ACTIVE_VIDEOS = 12
+/** Initial attempt plus two bounded retries before a permanent fallback. */
+const MAX_PLAYBACK_ATTEMPTS = 3
+const RETRY_BASE_DELAY_MS = 300
+const DEFAULT_MAX_CONCURRENT_FETCHES = 4
 
 export interface PreviewVideoOptions {
   /** Maximum number of concurrently playing preview videos. */
   max_active_videos?: number
   /** Use the range-capable Tauri asset protocol for bundled media on desktop builds. */
   use_asset_protocol_on_desktop?: boolean
+  /** Independent bound on in-flight media fetches (not the playback cap). */
+  max_concurrent_fetches?: number
+}
+
+interface FetchJob {
+  placeholder: HTMLElement
+  run: (signal: AbortSignal) => Promise<void>
 }
 
 type LogPayload = Record<string, unknown>
@@ -75,8 +86,15 @@ export class AnimationPreviewVideos {
   private readonly blob_urls = new Map<HTMLVideoElement, string>()
   private readonly debug: boolean
   private readonly max_active: number
+  private readonly max_concurrent_fetches: number
   private readonly use_asset_protocol_on_desktop: boolean
   private disposing = false
+  private readonly playback_attempts = new Map<HTMLElement, number>()
+  private readonly retry_timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>()
+  private readonly fetch_queue: FetchJob[] = []
+  private readonly fetch_controllers = new Map<HTMLElement, AbortController>()
+  private readonly pending_fetches = new Set<HTMLElement>()
+  private in_flight_fetches = 0
   private probe_video: HTMLVideoElement | null = null
   private probe_placeholder: HTMLElement | null = null
   private probe_last_log = 0
@@ -88,6 +106,7 @@ export class AnimationPreviewVideos {
   constructor (options: PreviewVideoOptions = {}) {
     this.debug = diagnostics_enabled()
     this.max_active = options.max_active_videos ?? DEFAULT_MAX_ACTIVE_VIDEOS
+    this.max_concurrent_fetches = options.max_concurrent_fetches ?? DEFAULT_MAX_CONCURRENT_FETCHES
     this.use_asset_protocol_on_desktop = options.use_asset_protocol_on_desktop ?? true
   }
 
@@ -173,6 +192,9 @@ export class AnimationPreviewVideos {
       // source-less element; WebKit may reject it and replace the tile.
       if (existing.hasAttribute('src')) {
         this.safe_play(existing, placeholder)
+      } else if (!this.pending_fetches.has(placeholder)) {
+        // A previous fetch was aborted while offscreen; re-enter the queue.
+        this.enqueue_fetch(placeholder)
       }
       return
     }
@@ -192,7 +214,7 @@ export class AnimationPreviewVideos {
     this.videos.set(placeholder, video)
 
     if (has_tauri_bridge() && this.use_asset_protocol_on_desktop) {
-      void this.load_asset_source(video, placeholder, src)
+      this.enqueue_fetch(placeholder)
     } else {
       video.src = src
       this.log('source-direct', { src })
@@ -200,7 +222,7 @@ export class AnimationPreviewVideos {
     }
   }
 
-  private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string): Promise<void> {
+  private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string, signal: AbortSignal): Promise<void> {
     try {
       const core = tauri_preview_core()
       if (core === null) {
@@ -219,7 +241,7 @@ export class AnimationPreviewVideos {
       // some bundled MP4s (FormatError), although the same resource works as a
       // Blob. Fetch only the Rust-allowlisted resource, then give the media
       // pipeline a fully buffered, seekable blob URL.
-      const response = await fetch(asset_url)
+      const response = await fetch(asset_url, { signal })
       if (!response.ok) {
         throw new Error(`Preview resource request failed (${response.status})`)
       }
@@ -239,11 +261,63 @@ export class AnimationPreviewVideos {
         this.safe_play(video, placeholder)
       }
     } catch (error) {
-      if (this.videos.get(placeholder) !== video) {
+      if (this.videos.get(placeholder) !== video || this.disposing || signal.aborted) {
         return
       }
       this.log('asset-error', { src, error: String(error) })
       this.show_fallback(placeholder, src, String(error))
+    }
+  }
+
+  /** Add a media transfer to the bounded queue; visible placeholders are served first. */
+  private enqueue_fetch (placeholder: HTMLElement): void {
+    if (this.disposing || this.pending_fetches.has(placeholder)) {
+      return
+    }
+    const src = placeholder.getAttribute('data-src')
+    if (src === null || src === '') {
+      return
+    }
+    this.pending_fetches.add(placeholder)
+    this.fetch_queue.push({
+      placeholder,
+      run: async (signal) => {
+        const video = this.videos.get(placeholder)
+        if (video === undefined || this.disposing) {
+          return
+        }
+        await this.load_asset_source(video, placeholder, src, signal)
+      }
+    })
+    this.pump_fetches()
+  }
+
+  private pump_fetches (): void {
+    while (!this.disposing && this.in_flight_fetches < this.max_concurrent_fetches && this.fetch_queue.length > 0) {
+      const index = this.fetch_queue.findIndex(job => this.active.has(job.placeholder))
+      const job = this.fetch_queue.splice(index >= 0 ? index : 0, 1)[0]
+      const controller = new AbortController()
+      this.fetch_controllers.set(job.placeholder, controller)
+      this.in_flight_fetches += 1
+      void job.run(controller.signal).finally(() => {
+        this.in_flight_fetches -= 1
+        this.fetch_controllers.delete(job.placeholder)
+        this.pending_fetches.delete(job.placeholder)
+        this.pump_fetches()
+      })
+    }
+  }
+
+  private abort_fetch (placeholder: HTMLElement): void {
+    const controller = this.fetch_controllers.get(placeholder)
+    if (controller !== undefined) {
+      controller.abort()
+      this.fetch_controllers.delete(placeholder)
+    }
+    const index = this.fetch_queue.findIndex(job => job.placeholder === placeholder)
+    if (index >= 0) {
+      this.fetch_queue.splice(index, 1)
+      this.pending_fetches.delete(placeholder)
     }
   }
 
@@ -262,7 +336,7 @@ export class AnimationPreviewVideos {
         networkState: video.networkState,
         error: video.error == null ? null : { code: video.error.code, message: video.error.message }
       })
-      this.show_fallback(placeholder, src, 'media error')
+      this.retry_or_fallback(placeholder, video, src, 'media error')
     })
 
     if (!this.debug) {
@@ -350,13 +424,48 @@ export class AnimationPreviewVideos {
       const result = video.play()
       if (result !== undefined && typeof (result as Promise<void>).then === 'function') {
         void (result as Promise<void>).catch((error: unknown) => {
-          this.log('play-rejected', { src: placeholder.getAttribute('data-src'), error: String(error) })
-          this.show_fallback(placeholder, placeholder.getAttribute('data-src') ?? '', String(error))
+          const source = placeholder.getAttribute('data-src') ?? ''
+          this.log('play-rejected', { src: source, error: String(error) })
+          this.retry_or_fallback(placeholder, video, source, String(error))
         })
       }
     } catch (error) {
-      this.log('play-threw', { src: placeholder.getAttribute('data-src'), error: String(error) })
-      this.show_fallback(placeholder, placeholder.getAttribute('data-src') ?? '', String(error))
+      const source = placeholder.getAttribute('data-src') ?? ''
+      this.log('play-threw', { src: source, error: String(error) })
+      this.retry_or_fallback(placeholder, video, source, String(error))
+    }
+  }
+
+  /** Bounded retry with linear backoff; falls back only after MAX_PLAYBACK_ATTEMPTS. */
+  private retry_or_fallback (placeholder: HTMLElement, video: HTMLVideoElement, src: string, reason: string): void {
+    if (this.disposing || this.videos.get(placeholder) !== video) {
+      return
+    }
+    const attempt = (this.playback_attempts.get(placeholder) ?? 0) + 1
+    this.playback_attempts.set(placeholder, attempt)
+    if (attempt >= MAX_PLAYBACK_ATTEMPTS) {
+      this.log('retry-exhausted', { src, attempt, reason })
+      this.show_fallback(placeholder, src, reason)
+      return
+    }
+    this.clear_retry_timer(placeholder)
+    const delay = RETRY_BASE_DELAY_MS * attempt
+    this.log('retry-scheduled', { src, attempt, delay, reason })
+    const timer = setTimeout(() => {
+      this.retry_timers.delete(placeholder)
+      if (this.disposing || this.videos.get(placeholder) !== video || !this.active.has(placeholder)) {
+        return
+      }
+      this.safe_play(video, placeholder)
+    }, delay)
+    this.retry_timers.set(placeholder, timer)
+  }
+
+  private clear_retry_timer (placeholder: HTMLElement): void {
+    const timer = this.retry_timers.get(placeholder)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      this.retry_timers.delete(placeholder)
     }
   }
 
@@ -364,6 +473,8 @@ export class AnimationPreviewVideos {
     if (placeholder.querySelector('.preview-fallback') !== null) {
       return
     }
+    this.clear_retry_timer(placeholder)
+    this.abort_fetch(placeholder)
     this.log('fallback', { src, reason })
     placeholder.classList.add('preview-failed')
     const fallback = document.createElement('span')
@@ -386,6 +497,8 @@ export class AnimationPreviewVideos {
     const video = this.videos.get(placeholder)
     if (video !== undefined) {
       video.pause()
+      this.clear_retry_timer(placeholder)
+      this.abort_fetch(placeholder)
       this.log('paused-offscreen', { src: placeholder.getAttribute('data-src') })
     }
   }
@@ -420,6 +533,16 @@ export class AnimationPreviewVideos {
     this.disposing = true
     this.observer?.disconnect()
     this.observer = null
+    for (const placeholder of [...this.retry_timers.keys()]) {
+      this.clear_retry_timer(placeholder)
+    }
+    for (const controller of this.fetch_controllers.values()) {
+      controller.abort()
+    }
+    this.fetch_controllers.clear()
+    this.fetch_queue.length = 0
+    this.pending_fetches.clear()
+    this.playback_attempts.clear()
     for (const placeholder of [...this.active]) {
       this.pause_video(placeholder)
     }
