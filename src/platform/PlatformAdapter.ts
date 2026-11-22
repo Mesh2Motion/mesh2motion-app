@@ -1,1 +1,37 @@
-/**\n * Browser/Tauri platform adapter\n * We have a desktop application built with Tauri. This will help us conditionally show/hide things on the desktop app\n   since there is a good chance the desktop app will not have a internet connection\n **/\n\nexport enum Platform {\n    Web = "Web",\n    Desktop = "Desktop"\n}\n\nexport class PlatformAdapter {\n\n  private isTauri: boolean;\n  private platform: Platform;\n\n  constructor() {\n    this.isTauri = '__TAURI_INTERNALS__' in window;\n    this.platform = this.isTauri ? Platform.Desktop : Platform.Web;\n    console.log(`Platform: ${this.platform}`);\n  }\n\n\n  public init() {\n    document.documentElement.dataset.platform = this.platform;\n\n    if (this.platform === Platform.Desktop) {\n      const link = document.createElement('link');\n      link.rel = 'stylesheet';\n      link.href = '/desktop.css';\n      document.head.appendChild(link);\n    }\n\n    return this;\n  }\n}\n
+/**
+ * Browser/Tauri platform adapter
+ * We have a desktop application built with Tauri. This will help us conditionally show/hide things on the desktop app
+   since there is a good chance the desktop app will not have a internet connection
+ **/
+
+export enum Platform {
+    Web = "Web",
+    Desktop = "Desktop"
+}
+
+export class PlatformAdapter {
+
+  private isTauri: boolean;
+  private platform: Platform;
+
+  constructor() {
+    this.isTauri = '__TAURI_INTERNALS__' in window;
+    this.platform = this.isTauri ? Platform.Desktop : Platform.Web;
+    console.log(`Platform: ${this.platform}`);
+  }
+
+
+  public init() {
+    document.documentElement.dataset.platform = this.platform;
+
+    if (this.platform === Platform.Desktop) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/desktop.css';
+      document.head.appendChild(link);
+    }
+
+    return this;
+  }
+}
+
