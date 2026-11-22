@@ -12,6 +12,7 @@ import { PropsManager } from '../lib/processes/animations-listing/props/PropsMan
 import { PropCatalog } from '../lib/processes/animations-listing/props/PropCatalog.ts'
 import { mark, mark_error } from '../lib/StartupDiagnostics.ts'
 import { display_fatal_startup_error } from '../lib/WebGLStartup.ts'
+import { maybe_attach_desktop_control } from '../control/attachControl.ts'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -28,6 +29,7 @@ class RetargetModule {
   constructor () {
     // Set up camera position similar to marketing bootstrap
     this.mesh2motion_engine = new Mesh2MotionEngine()
+    maybe_attach_desktop_control(this.mesh2motion_engine, { page: 'retarget' })
     const camera_position = new Vector3().set(3, 2, 15)
     this.mesh2motion_engine.set_camera_position(camera_position)
 
