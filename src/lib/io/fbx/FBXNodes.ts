@@ -1,10 +1,11 @@
-import type { EulerOrder, Matrix4, Object3D } from 'three'
+import type { Bone, Color, EulerOrder, Matrix4, Object3D, Texture } from 'three'
 
 /**
  * Dynamically shaped value stored in a parsed FBX document node. FBX nodes can
  * nest arbitrarily and carry scalars, byte buffers or arrays of any of these.
  */
 export type FBXNodeValue =
+    | null
     | string
     | number
     | boolean
@@ -13,8 +14,7 @@ export type FBXNodeValue =
     | FBXNodeValue[]
     | FBXNodeObject
     | ((key: string, value: FBXNodeValue) => void)
-    | FBXProperty<number>
-    | FBXProperty<number[]>
+    | FBXProperty<FBXNodeValue>
     | undefined;
 
 /** Object-shaped FBX node (a dynamic record of named values). */
@@ -128,6 +128,160 @@ export interface FBXProperty<T> {
     value: T;
 }
 
+export interface FBXValueProperty<T> extends FBXProperty<T> {
+    type?: string;
+}
+
+/** FBX material fields required by the material adapter. */
+export interface FBXMaterialNode extends FBXRawNode {
+    id: number;
+    attrName: string;
+    ShadingModel: string | FBXProperty<string>;
+    BumpFactor?: FBXProperty<number>;
+    Diffuse?: FBXProperty<number[]>;
+    DiffuseColor?: FBXValueProperty<number[]>;
+    DisplacementFactor?: FBXProperty<number>;
+    Emissive?: FBXProperty<number[]>;
+    EmissiveColor?: FBXProperty<number[]>;
+    EmissiveFactor?: FBXProperty<number>;
+    TransparencyFactor?: FBXProperty<number | string>;
+    Opacity?: FBXProperty<number | string | null>;
+    ReflectionFactor?: FBXProperty<number>;
+    Shininess?: FBXProperty<number>;
+    Specular?: FBXProperty<number[]>;
+    SpecularColor?: FBXValueProperty<number[]>;
+}
+
+/** Material parameters emitted by the FBX material adapter. */
+export interface FBXMaterialProperties {
+    bumpScale?: number;
+    color?: Color;
+    displacementScale?: number;
+    emissive?: Color;
+    opacity: number;
+    transparent?: boolean;
+    reflectivity?: number;
+    shininess?: number;
+    specular?: Color;
+    bumpMap?: Texture;
+    aoMap?: Texture;
+    map?: Texture;
+    displacementMap?: Texture;
+    normalMap?: Texture;
+    envMap?: Texture;
+    specularMap?: Texture;
+    alphaMap?: Texture;
+}
+
+export interface FBXRawBoneData {
+    ID: number;
+    indices: number[];
+    weights: number[];
+    transformLink: Matrix4;
+}
+
+export interface FBXDeformerNode extends FBXRawNode {
+    id: number;
+    attrName: string;
+    attrType: string;
+    TransformLink?: { a: number[] };
+    Indexes?: { a: number[] };
+    Weights?: { a: number[] };
+    DeformPercent?: FBXProperty<number>;
+    FullWeights?: { a: number[] };
+}
+
+export interface FBXSkeletonData {
+    ID: string;
+    geometryID: number;
+    rawBones: FBXRawBoneData[];
+    bones: Array<Bone & { ID: number }>;
+}
+
+/** Skin data required by geometry conversion before scene bones are resolved. */
+export interface FBXGeometrySkeletonData {
+    rawBones: Array<Pick<FBXRawBoneData, 'indices' | 'weights'>>;
+}
+
+export interface FBXRawMorphTargetData {
+    name: string;
+    initialWeight: FBXProperty<number> | undefined;
+    id: number | string;
+    fullWeights: number[];
+    geoID?: number;
+}
+
+export interface FBXMorphDeformerData {
+    id: string;
+    rawTargets: FBXRawMorphTargetData[];
+}
+
+/** Shared output of FBXTreeParser.parseDeformers and input to geometry parsing. */
+export interface FBXDeformerResults {
+    skeletons: Record<string, FBXGeometrySkeletonData>;
+    morphTargets: Record<string, FBXMorphDeformerData>;
+}
+
+/** Fully resolved deformer data after scene model construction. */
+export interface FBXSceneDeformerResults {
+    skeletons: Record<string, FBXSkeletonData>;
+    morphTargets: Record<string, FBXMorphDeformerData>;
+}
+
+/** Common transform fields used by model nodes. */
+export interface FBXTransformModelNode extends FBXRawNode {
+    id: number;
+    attrName: string;
+    attrType: string;
+    InheritType?: FBXProperty<number | string>;
+    RotationOrder?: FBXProperty<number>;
+    Lcl_Translation?: FBXProperty<number[]>;
+    PreRotation?: FBXProperty<number[]>;
+    Lcl_Rotation?: FBXProperty<number[]>;
+    PostRotation?: FBXProperty<number[]>;
+    Lcl_Scaling?: FBXProperty<number[]>;
+    ScalingOffset?: FBXProperty<number[]>;
+    ScalingPivot?: FBXProperty<number[]>;
+    RotationOffset?: FBXProperty<number[]>;
+    RotationPivot?: FBXProperty<number[]>;
+    LookAtProperty?: FBXProperty<number[]>;
+}
+
+export interface FBXCameraAttributeNode extends FBXRawNode {
+    id: number;
+    CameraProjectionType?: FBXProperty<number>;
+    NearPlane?: FBXProperty<number>;
+    FarPlane?: FBXProperty<number>;
+    AspectWidth?: FBXProperty<number>;
+    AspectHeight?: FBXProperty<number>;
+    FieldOfView?: FBXProperty<number>;
+    FocalLength?: FBXProperty<number>;
+}
+
+export interface FBXLightAttributeNode extends FBXRawNode {
+    id: number;
+    LightType?: FBXProperty<number>;
+    Color?: FBXProperty<number[]>;
+    Intensity?: FBXProperty<number>;
+    CastLightOnObject?: FBXProperty<number>;
+    FarAttenuationEnd?: FBXProperty<number>;
+    EnableFarAttenuation?: FBXProperty<number>;
+    OuterAngle?: FBXProperty<number>;
+    InnerAngle?: FBXProperty<number>;
+    CastShadows?: FBXProperty<number>;
+}
+
+export interface FBXPoseMatrixNode extends FBXNodeObject {
+    Node: string;
+    Matrix: FBXNodeObject & { a: number[] };
+}
+
+export interface FBXPoseDataNode extends FBXRawNode {
+    attrType?: string;
+    NbPoseNodes: number;
+    PoseNode: FBXPoseMatrixNode | FBXPoseMatrixNode[];
+}
+
 /** A connection row emitted by both the binary and text FBX parsers. */
 export type FBXConnectionRow = [fromID: number, toID: number, relationship?: string];
 
@@ -203,4 +357,5 @@ export interface FBXAnimationLayerNode {
 /** Three.js scene object annotated with the numeric object ID from its FBX node. */
 export interface FBXModelObject extends Object3D {
     ID: number;
+    geometry?: import('three').BufferGeometry;
 }

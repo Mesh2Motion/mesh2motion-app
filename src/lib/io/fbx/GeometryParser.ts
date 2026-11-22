@@ -15,18 +15,9 @@ import {
 import { NURBSCurve } from 'three/addons/curves/NURBSCurve.js'
 import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { generateTransform, getEulerOrder, getData, type FBXAttributeInfo, type FBXTransformData } from './fbx-utils'
-import type { FBXColorLayerNode, FBXMaterialLayerNode, FBXNodeObject, FBXNormalLayerNode, FBXNodeValue, FBXRawNode, FBXUVLayerNode } from './FBXNodes'
+import type { FBXColorLayerNode, FBXDeformerResults, FBXGeometrySkeletonData, FBXMorphDeformerData, FBXMaterialLayerNode, FBXNodeObject, FBXNormalLayerNode, FBXNodeValue, FBXRawNode, FBXUVLayerNode } from './FBXNodes'
 
-/** One skin cluster's raw per-vertex influence lists. */
-interface GeometryRawBone {
-    indices: number[]
-    weights: number[]
-}
-
-/** The minimal skeleton shape consumed while building geometry buffers. */
-interface GeometrySkeleton {
-    rawBones: GeometryRawBone[]
-}
+type GeometrySkeleton = FBXGeometrySkeletonData;
 
 /** A single skin influence deposited into a vertex's four slots. */
 interface SkinWeight {
@@ -34,16 +25,8 @@ interface SkinWeight {
     weight: number
 }
 
-/** Morph deformer records supplied by FBXTreeParser. */
-interface GeometryMorphTarget {
-    rawTargets: Array<{ geoID: number; name?: string }>
-}
-
-/** Deformer records supplied by FBXTreeParser. */
-interface GeometryDeformers {
-    skeletons: Record<string, GeometrySkeleton>
-    morphTargets: Record<string, GeometryMorphTarget>
-}
+type GeometryMorphTarget = FBXMorphDeformerData;
+type GeometryDeformers = FBXDeformerResults;
 
 /** Intermediate per-vertex data produced by parseGeoNode and consumed by genBuffers. */
 interface GeometryInfo {
@@ -832,6 +815,8 @@ class GeometryParser {
         morphTargets.forEach((morphTarget) => {
 
             morphTarget.rawTargets.forEach((rawTarget) => {
+
+                if (rawTarget.geoID === undefined) return;
 
                 const morphGeoNode = fbxGlobals.fbxTree.Objects.Geometry[rawTarget.geoID];
 
