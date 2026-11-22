@@ -21,6 +21,7 @@ export class ComposerLibraryList {
   private readonly catalog: VirtualizedAnimationCatalog<AnimationEntry>
   private upper_animation_id: string | null = null
   private lower_animation_id: string | null = null
+  private readonly lifetime = new AbortController()
 
   constructor (
     private readonly list_container: HTMLElement,
@@ -41,6 +42,7 @@ export class ComposerLibraryList {
     })
     this.catalog.set_footer('<div class="composer-library-empty" style="display: none">No animations match the filter.</div>')
     this.add_event_listeners()
+    window.addEventListener('pagehide', () => { this.dispose() }, { once: true, signal: this.lifetime.signal })
   }
 
   public set_animations (entries: AnimationEntry[]): void {
@@ -61,6 +63,13 @@ export class ComposerLibraryList {
 
   public scroll_to_animation (animation_id: string): void {
     this.catalog.scroll_to_id(animation_id)
+  }
+
+  public dispose (): void {
+    this.lifetime.abort()
+    this.catalog.dispose()
+    this.preview_videos.disconnect()
+    document.body.classList.remove(ComposerLibraryList.dragging_body_class)
   }
 
   static display_name (animation_name: string): string {
@@ -140,10 +149,10 @@ export class ComposerLibraryList {
   }
 
   private add_event_listeners (): void {
-    this.filter_input?.addEventListener('input', () => { this.apply_filter() })
+    this.filter_input?.addEventListener('input', () => { this.apply_filter() }, { signal: this.lifetime.signal })
 
     // preview video file names depend on the theme
-    this.theme_manager.addEventListener('theme-changed', () => { this.build_tiles() })
+    this.theme_manager.addEventListener('theme-changed', () => { this.build_tiles() }, { signal: this.lifetime.signal })
 
     this.list_container.addEventListener('dragstart', (event: DragEvent) => {
       const tile = (event.target as HTMLElement).closest<HTMLElement>('.composer-library-item')
@@ -158,12 +167,12 @@ export class ComposerLibraryList {
 
       tile.classList.add('is-dragging')
       document.body.classList.add(ComposerLibraryList.dragging_body_class)
-    })
+    }, { signal: this.lifetime.signal })
 
     // fires on the dragged tile whether the drop landed on a slot or was cancelled
     this.list_container.addEventListener('dragend', (event: DragEvent) => {
       (event.target as HTMLElement).closest('.composer-library-item')?.classList.remove('is-dragging')
       document.body.classList.remove(ComposerLibraryList.dragging_body_class)
-    })
+    }, { signal: this.lifetime.signal })
   }
 }

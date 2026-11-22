@@ -240,6 +240,7 @@ export class VirtualizedAnimationCatalog<T> {
       }
     }
     this.position_footer()
+    this.options.on_window_change?.(this.viewport)
   }
 
   private position_footer (): void {
