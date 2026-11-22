@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { GeometryParser } from './GeometryParser'
 
+interface GeometryFixtureNode {
+  Vertices: { a: number[] }
+  PolygonVertexIndex: { a: number[] }
+}
+
+interface SkeletonFixture {
+  rawBones: Array<{ indices: number[]; weights: number[] }>
+}
+
 /** A single triangle. PolygonVertexIndex marks the last vertex of a face as (index ^ -1). */
-function make_geo_node (): any {
+function make_geo_node (): GeometryFixtureNode {
   return {
     Vertices: { a: [0, 0, 0, 1, 0, 0, 0, 1, 0] },
     PolygonVertexIndex: { a: [0, 1, -3] }
@@ -10,7 +19,7 @@ function make_geo_node (): any {
 }
 
 /** Minimal stand-in for the skeleton deformer: each raw bone weights vertices by index. */
-function make_skeleton (raw_bones: Array<{ indices: number[], weights: number[] }>): any {
+function make_skeleton (raw_bones: SkeletonFixture['rawBones']): SkeletonFixture {
   return { rawBones: raw_bones }
 }
 
@@ -49,7 +58,6 @@ describe('GeometryParser skin weights', () => {
 
     // vertex 1 (second corner of the face) keeps both of its real influences
     const vertex_one_indices = buffers.weightsIndices.slice(4, 8)
-    const vertex_one_weights = buffers.vertexWeights.slice(4, 8)
     expect(vertex_one_indices).toContain(0)
     expect(vertex_one_indices).toContain(2)
 

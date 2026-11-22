@@ -21,7 +21,6 @@ import {
     PerspectiveCamera,
     PointLight,
     PropertyBinding,
-    Quaternion,
     RepeatWrapping,
     Skeleton,
     SkinnedMesh,
@@ -35,6 +34,7 @@ import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { GeometryParser } from './GeometryParser'
 import { AnimationParser } from './AnimationParser'
 import { generateTransform, getEulerOrder } from './fbx-utils'
+import type { FBXConnectionRow, FBXModelObject, FBXTextureNode, FBXVideoNode } from './FBXNodes'
 
 /**
  * Traverses the `FBXTree` produced by `BinaryParser` or `TextParser` and builds
@@ -77,7 +77,7 @@ class FBXTreeParser {
 
             const rawConnections = fbxGlobals.fbxTree.Connections.connections;
 
-            rawConnections.forEach(function (rawConnection: any) {
+            rawConnections.forEach(function (rawConnection: FBXConnectionRow) {
 
                 const fromID = rawConnection[0];
                 const toID = rawConnection[1];
@@ -120,8 +120,8 @@ class FBXTreeParser {
     // via FBXTree.Connections.
     parseImages (): Record<number, string> {
 
-        const images: any = {};
-        const blobs: any = {};
+        const images: Record<number, string> = {};
+        const blobs: Record<string, string | undefined> = {};
 
         if ('Video' in fbxGlobals.fbxTree.Objects) {
 
@@ -129,7 +129,7 @@ class FBXTreeParser {
 
             for (const nodeID in videoNodes) {
 
-                const videoNode = videoNodes[nodeID];
+                const videoNode: FBXVideoNode = videoNodes[nodeID];
 
                 const id = parseInt(nodeID);
 
@@ -145,7 +145,7 @@ class FBXTreeParser {
 
                         const image = this.parseImage(videoNodes[nodeID]);
 
-                        blobs[videoNode.RelativeFilename || videoNode.Filename] = image;
+                        if (image !== undefined) blobs[videoNode.RelativeFilename || videoNode.Filename] = image;
 
                     }
 
@@ -159,8 +159,9 @@ class FBXTreeParser {
 
             const filename = images[id];
 
-            if (blobs[filename] !== undefined) images[id] = blobs[filename];
-            else images[id] = images[id].split('\\').pop();
+            const embeddedImage = blobs[filename];
+            if (embeddedImage !== undefined) images[id] = embeddedImage;
+            else images[id] = images[id].split('\\').pop() ?? images[id];
 
         }
 
@@ -169,9 +170,10 @@ class FBXTreeParser {
     }
 
     // Parse embedded image data in FBXTree.Video.Content
-    parseImage (videoNode: any): string | undefined {
+    parseImage (videoNode: FBXVideoNode): string | undefined {
 
         const content = videoNode.Content;
+        if (content === undefined) return;
         const fileName = videoNode.RelativeFilename || videoNode.Filename;
         const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
 
@@ -260,11 +262,11 @@ class FBXTreeParser {
     }
 
     // Parse individual node in FBXTree.Objects.Texture
-    parseTexture (textureNode: any, images: Record<number, string>): Texture {
+    parseTexture (textureNode: FBXTextureNode, images: Record<number, string>): Texture {
 
         const texture = this.loadTexture(textureNode, images);
 
-        (texture as any).ID = textureNode.id;
+        Object.assign(texture, { ID: textureNode.id });
 
         texture.name = textureNode.attrName;
 
@@ -280,7 +282,7 @@ class FBXTreeParser {
         texture.wrapS = valueU === 0 ? RepeatWrapping : ClampToEdgeWrapping;
         texture.wrapT = valueV === 0 ? RepeatWrapping : ClampToEdgeWrapping;
 
-        if ('Scaling' in textureNode) {
+        if (textureNode.Scaling !== undefined) {
 
             const values = textureNode.Scaling.value;
 
@@ -289,7 +291,7 @@ class FBXTreeParser {
 
         }
 
-        if ('Translation' in textureNode) {
+        if (textureNode.Translation !== undefined) {
 
             const values = textureNode.Translation.value;
 
@@ -303,9 +305,9 @@ class FBXTreeParser {
     }
 
     // load a texture specified as a blob or data URI, or via an external URL using TextureLoader
-    loadTexture (textureNode: any, images: Record<number, string>): Texture {
+    loadTexture (textureNode: FBXTextureNode, images: Record<number, string>): Texture {
 
-        const extension = textureNode.FileName.split('.').pop().toLowerCase();
+        const extension = textureNode.FileName.split('.').pop()?.toLowerCase() ?? '';
 
         let loader = this.manager.getHandler(`.${extension}`);
         if (loader === null) loader = this.textureLoader;
@@ -510,24 +512,23 @@ class FBXTreeParser {
 
         }
 
-        const scope = this;
-        fbxGlobals.connections.get(ID)!.children.forEach(function (child: any) {
+        fbxGlobals.connections.get(ID)!.children.forEach((child) => {
 
             const type = child.relationship;
 
             switch (type) {
 
                 case 'Bump':
-                    parameters.bumpMap = scope.getTexture(textureMap, child.ID);
+                    parameters.bumpMap = this.getTexture(textureMap, child.ID);
                     break;
 
                 case 'Maya|TEX_ao_map':
-                    parameters.aoMap = scope.getTexture(textureMap, child.ID);
+                    parameters.aoMap = this.getTexture(textureMap, child.ID);
                     break;
 
                 case 'DiffuseColor':
                 case 'Maya|TEX_color_map':
-                    parameters.map = scope.getTexture(textureMap, child.ID);
+                    parameters.map = this.getTexture(textureMap, child.ID);
                     if (parameters.map !== undefined) {
 
                         parameters.map.colorSpace = SRGBColorSpace;
@@ -537,7 +538,7 @@ class FBXTreeParser {
                     break;
 
                 case 'DisplacementColor':
-                    parameters.displacementMap = scope.getTexture(textureMap, child.ID);
+                    parameters.displacementMap = this.getTexture(textureMap, child.ID);
                     break;
 
                 case 'EmissiveColor':
@@ -554,11 +555,11 @@ class FBXTreeParser {
 
                 case 'NormalMap':
                 case 'Maya|TEX_normal_map':
-                    parameters.normalMap = scope.getTexture(textureMap, child.ID);
+                    parameters.normalMap = this.getTexture(textureMap, child.ID);
                     break;
 
                 case 'ReflectionColor':
-                    parameters.envMap = scope.getTexture(textureMap, child.ID);
+                    parameters.envMap = this.getTexture(textureMap, child.ID);
                     if (parameters.envMap !== undefined) {
 
                         parameters.envMap.mapping = EquirectangularReflectionMapping;
@@ -569,7 +570,7 @@ class FBXTreeParser {
                     break;
 
                 case 'SpecularColor':
-                    parameters.specularMap = scope.getTexture(textureMap, child.ID);
+                    parameters.specularMap = this.getTexture(textureMap, child.ID);
                     if (parameters.specularMap !== undefined) {
 
                         parameters.specularMap.colorSpace = SRGBColorSpace;
@@ -580,7 +581,7 @@ class FBXTreeParser {
 
                 case 'TransparentColor':
                 case 'TransparencyFactor':
-                    parameters.alphaMap = scope.getTexture(textureMap, child.ID);
+                    parameters.alphaMap = this.getTexture(textureMap, child.ID);
                     parameters.transparent = true;
                     break;
 
@@ -758,15 +759,14 @@ class FBXTreeParser {
 
         const modelNodes = fbxGlobals.fbxTree.Objects.Model;
 
-        const scope = this;
-        modelMap.forEach(function (model: any) {
+        modelMap.forEach((model: FBXModelObject) => {
 
             const modelNode = modelNodes[model.ID];
-            scope.setLookAtProperties(model, modelNode);
+            this.setLookAtProperties(model, modelNode);
 
             const parentConnections = fbxGlobals.connections.get(model.ID)!.parents;
 
-            parentConnections.forEach(function (connection: any) {
+            parentConnections.forEach((connection) => {
 
                 const parent = modelMap.get(connection.ID);
                 if (parent !== undefined) parent.add(model);
@@ -784,7 +784,7 @@ class FBXTreeParser {
 
         this.addGlobalSceneSettings();
 
-        fbxGlobals.sceneGraph.traverse(function (node: any) {
+        fbxGlobals.sceneGraph.traverse((node) => {
 
             if (node.userData.transformData) {
 
@@ -798,7 +798,7 @@ class FBXTreeParser {
                 const transform = generateTransform(node.userData.transformData);
 
                 node.applyMatrix4(transform);
-                node.updateWorldMatrix();
+                node.updateWorldMatrix(false, false);
 
             }
 
@@ -895,9 +895,9 @@ class FBXTreeParser {
     }
 
     // parse nodes in FBXTree.Objects.Model
-    parseModels (skeletons: any, geometryMap: any, materialMap: any): Map<number, Object3D> {
+    parseModels (skeletons: any, geometryMap: any, materialMap: any): Map<number, FBXModelObject> {
 
-        const modelMap = new Map();
+        const modelMap = new Map<number, FBXModelObject>();
         const modelNodes = fbxGlobals.fbxTree.Objects.Model;
 
         for (const nodeID in modelNodes) {
@@ -1173,6 +1173,7 @@ class FBXTreeParser {
                     break;
 
                 case 2: // Spot
+                {
                     let angle = Math.PI / 3;
                     let penumbra = 0;
 
@@ -1197,6 +1198,7 @@ class FBXTreeParser {
 
                     model = new SpotLight(color, intensity, distance, angle, penumbra, decay);
                     break;
+                }
 
                 default:
                     console.warn('THREE.FBXLoader: Unknown light type ' + lightAttribute.LightType.value + ', defaulting to a PointLight.');
