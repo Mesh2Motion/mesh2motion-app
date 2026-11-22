@@ -1,4 +1,4 @@
-import type { Object3D } from 'three'
+import type { EulerOrder, Matrix4, Object3D } from 'three'
 
 /** FBX property values used by the tree parser. */
 export interface FBXProperty<T> {
@@ -49,6 +49,32 @@ export interface FBXColorLayerNode extends FBXLayerNodeBase {
 
 export interface FBXMaterialLayerNode extends FBXLayerNodeBase {
     Materials: { a: number[] };
+}
+
+export interface FBXAnimationCurve {
+    id: number;
+    times: number[];
+    values: number[];
+}
+
+export interface FBXAnimationCurveNode {
+    id: number;
+    attr: string;
+    curves: Partial<Record<'x' | 'y' | 'z' | 'morph', FBXAnimationCurve>>;
+}
+
+export interface FBXAnimationLayerNode {
+    modelName: string;
+    ID?: number;
+    morphName?: string;
+    initialPosition?: number[];
+    initialRotation?: number[];
+    initialScale?: number[];
+    transform?: Matrix4;
+    eulerOrder?: EulerOrder;
+    preRotation?: number[];
+    postRotation?: number[];
+    [name: string]: string | number | number[] | Matrix4 | EulerOrder | FBXAnimationCurveNode | undefined;
 }
 
 /** Three.js scene object annotated with the numeric object ID from its FBX node. */

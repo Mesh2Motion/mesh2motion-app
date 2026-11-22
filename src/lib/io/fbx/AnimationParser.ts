@@ -14,6 +14,7 @@ import {
 } from 'three'
 import { fbxGlobals } from './fbx-globals'
 import { convertFBXTimeToSeconds, getEulerOrder } from './fbx-utils'
+import type { FBXAnimationCurveNode, FBXAnimationLayerNode } from './FBXNodes'
 
 /**
  * Converts animation data from the `FBXTree` into Three.js `AnimationClip` objects.
@@ -71,7 +72,7 @@ class AnimationParser {
 
         const rawCurveNodes = fbxGlobals.fbxTree.Objects.AnimationCurveNode;
 
-        const curveNodesMap = new Map();
+        const curveNodesMap = new Map<number, FBXAnimationCurveNode>();
 
         for (const nodeID in rawCurveNodes) {
 
@@ -79,7 +80,7 @@ class AnimationParser {
 
             if (rawCurveNode.attrName.match(/S|R|T|DeformPercent/) !== null) {
 
-                const curveNode = {
+                const curveNode: FBXAnimationCurveNode = {
 
                     id: rawCurveNode.id,
                     attr: rawCurveNode.attrName,
@@ -100,7 +101,7 @@ class AnimationParser {
     // parse nodes in FBXTree.Objects.AnimationCurve and connect them up to
     // previously parsed AnimationCurveNodes. Each AnimationCurve holds data for a single animated
     // axis ( e.g. times and values of x rotation)
-    parseAnimationCurves (curveNodesMap: Map<number, any>) {
+    parseAnimationCurves (curveNodesMap: Map<number, FBXAnimationCurveNode>) {
 
         const rawCurves = fbxGlobals.fbxTree.Objects.AnimationCurve;
 
@@ -155,7 +156,7 @@ class AnimationParser {
     // parse nodes in FBXTree.Objects.AnimationLayer. Each layers holds references
     // to various AnimationCurveNodes and is referenced by an AnimationStack node
     // note: theoretically a stack can have multiple layers, however in practice there always seems to be one per stack
-    parseAnimationLayers (curveNodesMap: Map<number, any>) {
+    parseAnimationLayers (curveNodesMap: Map<number, FBXAnimationCurveNode>) {
 
         const rawLayers = fbxGlobals.fbxTree.Objects.AnimationLayer;
 
@@ -163,7 +164,7 @@ class AnimationParser {
 
         for (const nodeID in rawLayers) {
 
-            const layerCurveNodes: any[] = [];
+            const layerCurveNodes: FBXAnimationLayerNode[] = [];
 
             const connection = fbxGlobals.connections.get(parseInt(nodeID));
 
@@ -172,18 +173,17 @@ class AnimationParser {
                 // all the animationCurveNodes used in the layer
                 const children = connection.children;
 
-                children.forEach(function (child: any, i: number) {
+                children.forEach((child, i) => {
 
-                    if (curveNodesMap.has(child.ID)) {
-
-                        const curveNode = curveNodesMap.get(child.ID);
+                    const curveNode = curveNodesMap.get(child.ID);
+                    if (curveNode !== undefined) {
 
                         // check that the curves are defined for at least one axis, otherwise ignore the curveNode
                         if (curveNode.curves.x !== undefined || curveNode.curves.y !== undefined || curveNode.curves.z !== undefined) {
 
                             if (layerCurveNodes[i] === undefined) {
 
-                                const filteredParents = fbxGlobals.connections.get(child.ID)!.parents.filter(function (parent: any) {
+                                const filteredParents = fbxGlobals.connections.get(child.ID)!.parents.filter((parent) => {
 
                                     return parent.relationship !== undefined;
 
@@ -204,7 +204,7 @@ class AnimationParser {
 
                                     }
 
-                                    const node: any = {
+                                    const node: FBXAnimationLayerNode = {
 
                                         modelName: rawModel.attrName ? PropertyBinding.sanitizeNodeName(rawModel.attrName) : '',
                                         ID: rawModel.id,
@@ -251,7 +251,7 @@ class AnimationParser {
 
                             if (layerCurveNodes[i] === undefined) {
 
-                                const filteredParents = fbxGlobals.connections.get(child.ID)!.parents.filter(function (parent: any) {
+                                const filteredParents = fbxGlobals.connections.get(child.ID)!.parents.filter((parent) => {
 
                                     return parent.relationship !== undefined;
 
@@ -269,7 +269,7 @@ class AnimationParser {
 
                                 const rawModel = fbxGlobals.fbxTree.Objects.Model[modelID];
 
-                                const node: any = {
+                                const node: FBXAnimationLayerNode = {
 
                                     modelName: rawModel.attrName ? PropertyBinding.sanitizeNodeName(rawModel.attrName) : '',
                                     morphName: fbxGlobals.fbxTree.Objects.Deformer[deformerID].attrName,
