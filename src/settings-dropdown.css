@@ -78,6 +78,75 @@
     background: var(--bg-alternate);
 }
 
+/* Integrations / MCP section (desktop builds; web builds show an unavailable note). */
+.mcp-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.4rem 0.35rem;
+    max-width: 24rem;
+}
+
+.mcp-settings-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.mcp-settings-subtitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.mcp-settings-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.mcp-settings-value {
+    font-size: 0.8rem;
+    color: var(--text-alternate);
+    overflow-wrap: anywhere;
+}
+
+.mcp-settings-note {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--text-alternate);
+}
+
+.mcp-settings-tools ul {
+    margin: 0.2rem 0;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.mcp-settings-steps {
+    margin: 0.2rem 0;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.mcp-settings-copy {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.mcp-settings-copy-result {
+    font-size: 0.75rem;
+    color: var(--text-alternate);
+}
+
+.mcp-settings-error:not(:empty) {
+    font-size: 0.75rem;
+    color: #ffb4b4;
+    border-top: 1px solid var(--bg-tertiary);
+    padding-top: 0.3rem;
+}
+
 .settings-dropdown-slider-row {
     flex-direction: column;
     align-items: flex-start;

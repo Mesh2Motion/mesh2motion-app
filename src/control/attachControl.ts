@@ -18,6 +18,19 @@ interface TauriWindow extends Window {
   __M2M_MCP_ENABLED__?: boolean
 }
 
+/** True when a Tauri v2 IPC bridge is present (desktop build). */
+export function has_tauri_bridge (): boolean {
+  try {
+    if (typeof window === 'undefined') {
+      return false
+    }
+    const tauri = (window as TauriWindow).__TAURI_INTERNALS__
+    return tauri !== undefined && typeof tauri.invoke === 'function'
+  } catch {
+    return false
+  }
+}
+
 /** True only on a desktop bridge that the integrator explicitly enabled. */
 export function is_desktop_control_enabled (): boolean {
   try {
@@ -25,8 +38,7 @@ export function is_desktop_control_enabled (): boolean {
       return false
     }
     const browser = window as TauriWindow
-    const tauri = browser.__TAURI_INTERNALS__
-    if (tauri === undefined || typeof tauri.invoke !== 'function') {
+    if (!has_tauri_bridge()) {
       return false
     }
     if (browser[ENABLE_GLOBAL] === true) {

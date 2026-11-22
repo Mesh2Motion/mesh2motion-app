@@ -7,6 +7,7 @@
  */
 
 import { ControlHost, ControlObservation, derive_phase, empty_observation } from './ControlHost.ts'
+import { SequenceLedger } from './SequenceLedger.ts'
 import {
   AnimationsListData,
   ApplicationStatusData,
@@ -44,12 +45,22 @@ function failure<T> (
 export class ControlSession {
   private host: ControlHost | null = null
   private closed = false
-  private sequence = 0
+  private readonly ledger: SequenceLedger
   private last_snapshot: ControlSnapshot | null = null
   private last_observation: ControlObservation | null = null
   private started_at: number | null = null
 
-  constructor (private readonly clock: () => number = () => Date.now()) {}
+  constructor (
+    private readonly clock: () => number = () => Date.now(),
+    ledger?: SequenceLedger
+  ) {
+    this.ledger = ledger ?? new SequenceLedger()
+  }
+
+  /** Current sequence value without advancing it. */
+  public current_sequence (): number {
+    return this.ledger.current()
+  }
 
   /** Attach an observation host. Does not mutate the application. */
   public attach (host: ControlHost): void {
@@ -60,14 +71,14 @@ export class ControlSession {
     if (this.started_at === null) {
       this.started_at = this.clock()
     }
-    this.sequence += 1
+    this.ledger.next()
     this.last_snapshot = null
     this.last_observation = null
   }
 
   public detach (): void {
     this.host = null
-    this.sequence += 1
+    this.ledger.next()
     this.last_snapshot = null
     this.last_observation = null
   }
@@ -76,7 +87,7 @@ export class ControlSession {
   public close (): void {
     this.closed = true
     this.host = null
-    this.sequence += 1
+    this.ledger.next()
     this.last_snapshot = null
     this.last_observation = null
   }
@@ -95,7 +106,7 @@ export class ControlSession {
     this.last_observation = observation
     const meta: SnapshotMeta = {
       schema_version: CONTROL_SCHEMA_VERSION,
-      sequence: ++this.sequence,
+      sequence: this.ledger.next(),
       captured_at: new Date(this.clock()).toISOString(),
       age_ms: 0
     }
@@ -161,7 +172,7 @@ export class ControlSession {
     }
     const meta: SnapshotMeta = {
       schema_version: CONTROL_SCHEMA_VERSION,
-      sequence: this.sequence,
+      sequence: this.ledger.current(),
       captured_at: new Date(this.clock()).toISOString(),
       age_ms: 0
     }
@@ -407,6 +418,6 @@ export class ControlSession {
 }
 
 /** Convenience factory for platform integrations and tests. */
-export function create_control_session (clock?: () => number): ControlSession {
-  return new ControlSession(clock)
+export function create_control_session (clock?: () => number, ledger?: SequenceLedger): ControlSession {
+  return new ControlSession(clock, ledger)
 }

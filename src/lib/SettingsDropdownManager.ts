@@ -2,11 +2,13 @@ import { UI } from './UI'
 import { DOMUtilities } from './DOMUtilities'
 import { CustomSkeletonHelper } from './CustomSkeletonHelper'
 import { type SceneEnvironmentManager } from './SceneEnvironmentManager'
+import { mount_mcp_settings, type McpSettingsRefresh } from '../control/McpSettingsPanel.ts'
 
 export class SettingsDropdownManager {
   private readonly ui: UI = UI.getInstance()
   private initialized: boolean = false
   private is_open: boolean = false
+  private mcp_settings: McpSettingsRefresh | null = null
   private readonly scene_environment?: SceneEnvironmentManager
 
   constructor (scene_environment?: SceneEnvironmentManager) {
@@ -66,6 +68,15 @@ export class SettingsDropdownManager {
     this.initialize_bone_opacity_setting()
     this.initialize_floor_grid_setting()
     this.initialize_background_setting()
+    this.initialize_mcp_settings(dropdown_content)
+  }
+
+  private initialize_mcp_settings (dropdown_content: HTMLElement): void {
+    const mount = dropdown_content.querySelector<HTMLElement>('#mcp-settings-mount')
+    if (mount === null) {
+      return
+    }
+    this.mcp_settings = mount_mcp_settings(mount)
   }
 
   private initialize_floor_grid_setting (): void {
@@ -176,6 +187,7 @@ export class SettingsDropdownManager {
     this.is_open = true
     dropdown_content.hidden = false
     toggle_button.setAttribute('aria-expanded', 'true')
+    this.mcp_settings?.refresh()
   }
 
   private close_dropdown (): void {

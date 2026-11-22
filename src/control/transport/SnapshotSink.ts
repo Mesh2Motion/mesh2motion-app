@@ -9,6 +9,8 @@ import type { ControlSnapshot } from '../contracts.ts'
 
 export interface SnapshotSink {
   publish(snapshot: ControlSnapshot): void | Promise<void>
+  /** Optional real transport error, when the sink can observe one. */
+  last_error?(): string | null
 }
 
 /** Default sink: keeps the ordinary web build completely inert. */

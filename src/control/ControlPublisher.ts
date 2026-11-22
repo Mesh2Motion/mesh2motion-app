@@ -10,8 +10,11 @@
 import { create_control_session, ControlSession } from './ControlSession.ts'
 import { create_engine_control_host, EngineLike } from './EngineControlHost.ts'
 import { sanitize_snapshot } from './sanitize.ts'
+import { create_browser_sequence_ledger } from './SequenceLedger.ts'
 import { TauriSnapshotSink } from './transport/TauriSnapshotSink.ts'
 import type { SnapshotSink } from './transport/SnapshotSink.ts'
+import { get_publisher_status, update_publisher_status } from './publisherStatus.ts'
+import { is_desktop_control_enabled } from './attachControl.ts'
 import type { PageValue } from './contracts.ts'
 
 /** Bounded heartbeat: at most one snapshot per second while visible. */
@@ -51,6 +54,7 @@ export interface ControlPublisherHandle {
   dispose(): void
   readonly published_count: number
   readonly is_disposed: boolean
+  readonly last_error: string | null
 }
 
 export function attach_control_publisher (
@@ -58,16 +62,31 @@ export function attach_control_publisher (
   options: ControlPublisherOptions = {}
 ): ControlPublisherHandle {
   const clock = options.clock ?? (() => Date.now())
-  const sink: SnapshotSink = options.sink ?? new TauriSnapshotSink()
+  const opted_in = is_desktop_control_enabled()
+  const sink: SnapshotSink = options.sink ?? new TauriSnapshotSink(
+    (error) => {
+      update_publisher_status({
+        last_error: error instanceof Error ? error.message : String(error)
+      })
+    },
+    () => { update_publisher_status({ last_error: null }) }
+  )
   const heartbeat_ms = options.heartbeat_ms ?? MCP_HEARTBEAT_MS
   const min_interval_ms = options.min_interval_ms ?? MCP_MIN_PUBLISH_INTERVAL_MS
 
-  const session = create_control_session(clock)
+  // Persist sequence across reloads so the Rust host never sees a lower value.
+  const session = create_control_session(clock, create_browser_sequence_ledger())
   session.attach(create_engine_control_host(engine, {
     page: options.page,
     version: options.version,
     build: options.build
   }))
+  update_publisher_status({
+    bridge_available: sink instanceof TauriSnapshotSink ? sink.is_available() : true,
+    publisher_opted_in: opted_in,
+    attached: true,
+    disposed: false
+  })
 
   let published_count = 0
   let last_publish_at = Number.NEGATIVE_INFINITY
@@ -105,6 +124,13 @@ export function attach_control_publisher (
     sink.publish(sanitize_snapshot(snapshot))
     last_publish_at = clock()
     published_count += 1
+    update_publisher_status({
+      published_count,
+      last_publish_epoch_ms: last_publish_at,
+      sequence: session.current_sequence(),
+      phase: snapshot.application.phase,
+      last_error: sink.last_error?.() ?? get_publisher_status().last_error
+    })
     return true
   }
 
@@ -171,6 +197,7 @@ export function attach_control_publisher (
     }
     // Terminal lifecycle: invalidate state. No final snapshot is fabricated.
     session.close()
+    update_publisher_status({ attached: false, disposed: true })
   }
 
   // One real initial observation; phase may still be `loading` until the first frame.
@@ -183,6 +210,7 @@ export function attach_control_publisher (
     request_publish,
     dispose,
     get published_count (): number { return published_count },
-    get is_disposed (): boolean { return disposed }
+    get is_disposed (): boolean { return disposed },
+    get last_error (): string | null { return sink.last_error?.() ?? get_publisher_status().last_error }
   }
 }
