@@ -10,6 +10,8 @@ import { type SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
 import { PropsManager } from '../lib/processes/animations-listing/props/PropsManager.ts'
 import { PropCatalog } from '../lib/processes/animations-listing/props/PropCatalog.ts'
+import { mark, mark_error } from '../lib/StartupDiagnostics.ts'
+import { display_fatal_startup_error } from '../lib/WebGLStartup.ts'
 
 class RetargetModule {
   private readonly mesh2motion_engine: Mesh2MotionEngine
@@ -229,9 +231,18 @@ class RetargetModule {
   }
 }
 
-// Initialize when DOM is ready
+// Initialize when DOM is ready. If engine construction fails, report it
+// instead of leaving a blank page with a listener bound to nothing.
+let retarget_app: RetargetModule | undefined
+
 document.addEventListener('DOMContentLoaded', () => {
-  retarget_app.init()
+  retarget_app?.init()
 })
 
-const retarget_app = new RetargetModule()
+try {
+  retarget_app = new RetargetModule()
+  mark('bootstrap:retarget:ok')
+} catch (error) {
+  mark_error('bootstrap:retarget', error)
+  display_fatal_startup_error(error)
+}

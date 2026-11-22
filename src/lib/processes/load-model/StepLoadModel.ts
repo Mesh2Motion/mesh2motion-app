@@ -15,6 +15,7 @@ import { ModelAnalysisReport } from './ModelAnalysisReport.ts'
 import { type ModelImportAnalysis } from './interfaces/ModelImportAnalysis'
 import { type SceneSnapshot } from './interfaces/SceneSnapshot'
 import { PlatformUtils } from '../../PlatformUtils.ts'
+import { mark, mark_error } from '../../StartupDiagnostics.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepLoadModel extends EventTarget {
@@ -255,19 +256,44 @@ export class StepLoadModel extends EventTarget {
     // would keep forcing the fallback material onto every model loaded after it
     this.mesh_has_broken_material = false
 
+    mark('model-load:start', { path: String(model_file_path), format: file_extension })
     if (file_extension === 'fbx') {
       this.load_fbx_file(model_file_path)
     } else if (file_extension === 'glb') {
-      this.gltf_loader.load(model_file_path as string, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        this.process_loaded_scene(loaded_scene)
-      })
+      this.gltf_loader.load(
+        model_file_path as string,
+        (gltf) => {
+          mark('model-load:glb:loaded', String(model_file_path))
+          const loaded_scene: Scene = gltf.scene
+          this.process_loaded_scene(loaded_scene)
+        },
+        undefined,
+        (error: unknown) => {
+          this.handle_model_load_error('GLB', model_file_path, error)
+        }
+      )
     } else if (file_extension === 'zip') {
       console.log('ZIP file can contain GLTF+BIN model data')
       this.handle_zip_file(model_file_path)
     } else {
       console.error('Unsupported file format to load. Only acccepts FBX, (ZIP)GLTF+BIN, GLB:', model_file_path)
     }
+  }
+
+  /**
+   * Shared failure path for model loads. Previously the GLB branch had no
+   * error callback at all, so a failed local asset fetch silently stalled the
+   * startup chain. Keep the existing event flow intact and only add an error
+   * notification.
+   */
+  private handle_model_load_error (format: string, model_file_path: string | ArrayBuffer | null, error: unknown): void {
+    mark_error(`model-load:${format.toLowerCase()}`, error)
+    console.error(`Failed to load ${format} model:`, error)
+    // Fixed message: file paths are not interpolated into ModalDialog HTML.
+    new ModalDialog('Error loading model', 'The model file could not be loaded. Check the console for details.').show()
+    this.dispatchEvent(new CustomEvent('modelLoadError', {
+      detail: { format, path: model_file_path, error }
+    }))
   }
 
   private load_fbx_file (model_file_path: string | ArrayBuffer | null): void {
@@ -429,7 +455,7 @@ export class StepLoadModel extends EventTarget {
     console.log('final mesh data should be prepared at this point', this.final_mesh_data)
 
     this.import_analysis = this.build_import_analysis(imported_snapshot, this.final_mesh_data)
-
+    mark('model-load:processed')
     this.dispatchEvent(new CustomEvent('modelLoaded'))
   }
 

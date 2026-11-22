@@ -4,6 +4,8 @@ import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
 import { ModelVariationSwitcher } from '../lib/processes/animations-listing/ModelVariationSwitcher'
 import { RigConfig } from '../lib/RigConfig'
+import { mark, mark_error } from '../lib/StartupDiagnostics.ts'
+import { display_fatal_startup_error } from '../lib/WebGLStartup.ts'
 
 export class MarketingBootstrap {
   private mesh2motion_engine: Mesh2MotionEngine
@@ -144,4 +146,10 @@ export class MarketingBootstrap {
 
 
 // instantiate the class to setup event listeners
-const app = new MarketingBootstrap()
+try {
+  const app = new MarketingBootstrap()
+  mark('bootstrap:marketing:ok')
+} catch (error) {
+  mark_error('bootstrap:marketing', error)
+  display_fatal_startup_error(error)
+}

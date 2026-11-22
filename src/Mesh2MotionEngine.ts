@@ -41,10 +41,13 @@ import { CameraShake } from './lib/CameraShake.ts'
 import { DOMUtilities } from './lib/DOMUtilities.ts'
 import { PlatformManager } from './lib/PlatformManager.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
+import { mark, mark_error } from './lib/StartupDiagnostics.ts'
+import { create_webgl_renderer, display_fatal_startup_error, install_webgl_context_handlers } from './lib/WebGLStartup.ts'
+import { RenderLoopGuard } from './lib/RenderLoopGuard.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
-  public readonly renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  public readonly renderer = create_webgl_renderer()
 
   public readonly transform_controls: CustomTransformControls = new CustomTransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
@@ -86,13 +89,19 @@ export class Mesh2MotionEngine {
   private readonly scene_environment: SceneEnvironmentManager
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
+  private readonly render_loop_guard = new RenderLoopGuard()
+  private context_lost = false
+  private first_frame_marked = false
 
   constructor () {
+    mark('engine-construct:start')
     this.initialize_shared_dom_mounts()
+    mark('engine-construct:dom-mounts-ready')
 
     // this will add a platform CSS file if we are running our desktop app
     new PlatformManager().init();
     new NetworkStatusManager();
+    mark('engine-construct:platform-ready')
 
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
@@ -132,10 +141,25 @@ export class Mesh2MotionEngine {
 
     this.settings_dropdown_manager = new SettingsDropdownManager(this.scene_environment)
 
+    mark('engine-construct:before-environment')
     this.setup_environment()
+    mark('engine-construct:environment-ready')
+    install_webgl_context_handlers(
+      this.renderer.domElement,
+      () => {
+        this.context_lost = true
+        console.warn('[M2M] WebGL context lost; pausing renders until it is restored')
+      },
+      () => {
+        this.context_lost = false
+        this.render_loop_guard.reset()
+      }
+    )
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
+    mark('engine-construct:initial-step-ready')
     this.animate() // start the render loop which will continue rendering the scene
+    mark('engine-construct:render-loop-started')
     this.inject_build_version()
     this.setup_tooltips()
   }
@@ -675,30 +699,57 @@ export class Mesh2MotionEngine {
 
 
   private animate (): void {
+    // Once the guard trips, stop scheduling frames instead of spinning on a
+    // render error that repeats every frame.
+    if (this.render_loop_guard.is_stopped()) {
+      return
+    }
     requestAnimationFrame(this.animate)
     const delta_time: number = this.clock.getDelta()
 
-    this.scene_environment.frame_change()
+    try {
+      this.scene_environment.frame_change()
 
-    // camera shake effect
-    this.camera_shake.update(delta_time)
+      // camera shake effect
+      this.camera_shake.update(delta_time)
 
-    // if we are in the animation listing step, we can call
-    // render/update functions in that
-    if (this.process_step === ProcessStep.AnimationsListing) {
-      this.animations_listing_step.frame_change(delta_time)
-    } else if (this.process_step === ProcessStep.WeightPainting) {
-      this.weight_painting_step.frame_change(delta_time)
-    }
+      // Upstream per-step frame updates (animation listing, weight painting,
+      // remix/composer listeners) must all keep running.
+      if (this.process_step === ProcessStep.AnimationsListing) {
+        this.animations_listing_step.frame_change(delta_time)
+      } else if (this.process_step === ProcessStep.WeightPainting) {
+        this.weight_painting_step.frame_change(delta_time)
+      }
 
-    this.frame_listeners.forEach((listener) => { listener(delta_time) })
+      this.frame_listeners.forEach((listener) => { listener(delta_time) })
 
-    this.renderer.render(this.scene, this.camera)
+      // While the GL context is lost, skip GL calls but keep the loop alive so
+      // a `webglcontextrestored` event can resume rendering.
+      if (this.context_lost) {
+        return
+      }
 
-    // view helper
-    this.view_helper.render(this.renderer) // updates current viewport
-    if (this.view_helper.animating) {
-      this.view_helper.update(delta_time) // updates animation when clicking on axis
+      this.renderer.render(this.scene, this.camera)
+
+      // view helper
+      if (this.view_helper !== undefined) {
+        this.view_helper.render(this.renderer) // updates current viewport
+        if (this.view_helper.is_animating()) {
+          this.view_helper.update(delta_time) // updates animation when clicking on axis
+        }
+      }
+
+      this.render_loop_guard.note_success()
+      if (!this.first_frame_marked) {
+        this.first_frame_marked = true
+        mark('first-successful-frame')
+      }
+    } catch (error) {
+      mark_error('render-frame', error)
+      if (this.render_loop_guard.note_failure()) {
+        const detail = error instanceof Error ? error.message : String(error)
+        display_fatal_startup_error(new Error(`Rendering stopped after repeated failures: ${detail}`))
+      }
     }
   }
 
