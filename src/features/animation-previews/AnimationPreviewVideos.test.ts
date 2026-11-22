@@ -263,7 +263,7 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     await flush()
 
     expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
-      assetKey: 'human/dark_Angry.webp'
+      assetKey: 'human/dark_Angry.mp4'
     })
     expect(convert_file_src_mock).toHaveBeenCalledWith('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
     expect(tile.querySelector('img')?.getAttribute('src')).toBe(
@@ -287,7 +287,7 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     await flush()
 
     expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
-      assetKey: 'human/dark_Angry.webp'
+      assetKey: 'human/dark_Angry.mp4'
     })
     expect(previews.get_stats().video_count).toBe(0)
     expect(play_mock).not.toHaveBeenCalled()
@@ -795,5 +795,29 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     const second = AnimationPreviewVideos.preview_src(SkeletonType.Human, 'dark', 'Angry')
     expect(first).toBe(second)
     expect(first).toBe('../animpreviews/human/dark_Angry.mp4')
+  })
+
+  it('resolves native posters through the allowlisted video path (no .webp key)', async () => {
+    set_tauri(true)
+    invoke_mock.mockResolvedValue('/resources/animpreviews/human/dark_Angry.mp4')
+    const container = document.createElement('div')
+    const tile = placeholder()
+    const image = document.createElement('img')
+    image.className = 'anim-preview-poster'
+    tile.setAttribute('data-poster-src', '../animpreviews/human/dark_Angry.webp')
+    tile.appendChild(image)
+    container.appendChild(tile)
+    document.body.appendChild(container)
+
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    await flush()
+
+    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', { assetKey: 'human/dark_Angry.mp4' })
+    expect(convert_file_src_mock).toHaveBeenCalledWith('/resources/animpreviews/human/dark_Angry.webp')
+    expect(image.getAttribute('src')).toBe('asset://localhost/resources/animpreviews/human/dark_Angry.webp')
+    expect(tile.classList.contains('poster-unavailable')).toBe(false)
+    previews.disconnect()
   })
 })

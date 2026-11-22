@@ -70,14 +70,15 @@ describe('M2M-023A preview posters', () => {
     }
   })
 
-  it('renders an accessible image node and a separate explicit preview action', () => {
+  it('always renders a static poster image and never an explicit play control', () => {
     const search = readFileSync(join(project_root, 'src/features/animation-catalog/AnimationSearch.ts'), 'utf8')
     const composer = readFileSync(join(project_root, 'src/composer/ComposerLibraryList.ts'), 'utf8')
+    const styles = css('src/styles.css')
     expect(search).toContain('class="anim-preview-poster"')
-    expect(search).toContain('data-action="preview-video"')
-    expect(search).toContain('aria-pressed="false"')
     expect(composer).toContain('class="anim-preview-poster"')
-    expect(composer).toContain('data-action="preview-video"')
+    expect(search).not.toContain('data-action="preview-video"')
+    expect(composer).not.toContain('data-action="preview-video"')
+    expect(styles).not.toContain('.anim-preview-control')
   })
 })
 

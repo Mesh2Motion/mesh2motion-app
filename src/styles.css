@@ -883,27 +883,6 @@ option {
     font-size: 0.7rem;
 }
 
-.anim-preview-control {
-    position: absolute;
-    top: 88px;
-    left: 4px;
-    z-index: 4;
-    width: 28px;
-    height: 28px;
-    margin: 0;
-    padding: 0;
-    border-radius: 50%;
-    border: 1px solid var(--bg-tertiary);
-    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
-    font-size: 0.75rem;
-    line-height: 1;
-}
-
-.anim-preview-control:focus-visible {
-    outline: 2px solid var(--text-primary);
-    outline-offset: 2px;
-}
-
 .anim-preview-placeholder--no-poster::after {
     content: 'No preview';
     position: absolute;

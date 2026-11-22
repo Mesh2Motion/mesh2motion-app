@@ -559,17 +559,26 @@ export class AnimationPreviewVideos {
     }
 
     const core = tauri_preview_core()
-    const asset_key = poster_src.replace(/^\.\.\/animpreviews\//, '')
-    if (core === null || asset_key === poster_src) {
+    if (core === null) {
       this.fail_poster(image, placeholder, poster_src, 'Tauri asset bridge unavailable')
       return
     }
-    void core.invoke('animation_preview_asset_path', { assetKey: asset_key }).then(file_path => {
+    // The Rust allowlist validates the bundled video keys (.mp4 only). Resolve
+    // the allowlisted video path first, then derive its sibling poster path and
+    // convert that local file through the same bridge. No Rust/MCP change and no
+    // arbitrary frontend-supplied filesystem path is used.
+    const video_asset_key = poster_src.replace(/^\.\.\/animpreviews\//, '').replace(/\.webp$/i, '.mp4')
+    if (video_asset_key === poster_src || !video_asset_key.toLowerCase().endsWith('.mp4')) {
+      this.fail_poster(image, placeholder, poster_src, 'poster has no matching preview video')
+      return
+    }
+    void core.invoke('animation_preview_asset_path', { assetKey: video_asset_key }).then(file_path => {
       if (!image.isConnected || placeholder.getAttribute('data-poster-src') !== poster_src) return
       if (typeof file_path !== 'string' || file_path.length === 0) {
-        throw new Error('Tauri returned no poster resource path')
+        throw new Error('Tauri returned no preview resource path')
       }
-      image.src = core.convertFileSrc(file_path)
+      const poster_path = file_path.replace(/\.mp4$/i, '.webp')
+      image.src = core.convertFileSrc(poster_path)
     }).catch((error: unknown) => {
       this.fail_poster(image, placeholder, poster_src, String(error))
     })
