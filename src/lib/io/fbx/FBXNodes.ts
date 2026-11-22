@@ -1,4 +1,4 @@
-import type { Bone, Color, EulerOrder, Matrix4, Object3D, Texture } from 'three'
+import type { Bone, BufferGeometry, Color, EulerOrder, Matrix4, Object3D, Texture } from 'three'
 
 /**
  * Dynamically shaped value stored in a parsed FBX document node. FBX nodes can
@@ -272,7 +272,7 @@ export interface FBXLightAttributeNode extends FBXRawNode {
 }
 
 export interface FBXPoseMatrixNode extends FBXNodeObject {
-    Node: string;
+    Node: string | number;
     Matrix: FBXNodeObject & { a: number[] };
 }
 
@@ -357,5 +357,6 @@ export interface FBXAnimationLayerNode {
 /** Three.js scene object annotated with the numeric object ID from its FBX node. */
 export interface FBXModelObject extends Object3D {
     ID: number;
-    geometry?: import('three').BufferGeometry;
+    geometry?: BufferGeometry;
+    target?: Object3D;
 }

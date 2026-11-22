@@ -33,17 +33,11 @@ import {
 import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { GeometryParser } from './GeometryParser'
 import { AnimationParser } from './AnimationParser'
-import { generateTransform, getEulerOrder } from './fbx-utils'
+import { generateTransform, getEulerOrder, type FBXTransformData } from './fbx-utils'
 import type { FBXCameraAttributeNode, FBXConnectionRow, FBXDeformerNode, FBXDeformerResults, FBXLightAttributeNode, FBXMaterialNode, FBXMaterialProperties, FBXModelObject, FBXMorphDeformerData, FBXNodeObject, FBXNodeValue, FBXPoseDataNode, FBXRawBoneData, FBXRawMorphTargetData, FBXRawNode, FBXSkeletonData, FBXSceneDeformerResults, FBXTextureNode, FBXTransformModelNode, FBXVideoNode } from './FBXNodes'
 
-interface FBXPoseNode { Node: string; Matrix: { a: number[] } }
-
-function as_object (value: FBXNodeValue): FBXRawNode { return value as FBXRawNode; }
-function as_numbers (value: FBXNodeValue): number[] { return value as number[]; }
 function as_video (value: FBXRawNode): FBXVideoNode { return value as FBXVideoNode; }
 function as_texture (value: FBXRawNode): FBXTextureNode { return value as FBXTextureNode; }
-function as_pose (value: FBXNodeValue): FBXPoseNode { return value as unknown as FBXPoseNode; }
-
 function is_node_object (value: FBXNodeValue): value is FBXNodeObject {
     return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof ArrayBuffer) && !(value instanceof Uint8Array);
 }
@@ -88,6 +82,34 @@ function is_fbx_deformer_node (node: FBXRawNode): node is FBXDeformerNode {
     if (typeof node.id !== 'number' || typeof node.attrName !== 'string' || typeof node.attrType !== 'string') return false;
     if (!['TransformLink', 'Indexes', 'Weights', 'FullWeights'].every((key) => node[key] === undefined || is_number_array_node(node[key]))) return false;
     return node.DeformPercent === undefined || is_property(node.DeformPercent, is_number);
+}
+
+function is_fbx_camera_attribute (node: FBXRawNode): node is FBXCameraAttributeNode {
+    return typeof node.id === 'number' &&
+        ['CameraProjectionType', 'NearPlane', 'FarPlane', 'AspectWidth', 'AspectHeight', 'FieldOfView', 'FocalLength'].every((key) => is_optional_property(node, key, is_number));
+}
+
+function is_fbx_light_attribute (node: FBXRawNode): node is FBXLightAttributeNode {
+    return typeof node.id === 'number' &&
+        ['LightType', 'Intensity', 'CastLightOnObject', 'FarAttenuationEnd', 'EnableFarAttenuation', 'OuterAngle', 'InnerAngle', 'CastShadows'].every((key) => is_optional_property(node, key, is_number)) &&
+        is_optional_property(node, 'Color', is_number_array);
+}
+
+function is_fbx_transform_model_node (node: FBXRawNode): node is FBXTransformModelNode {
+    return typeof node.id === 'number' && typeof node.attrName === 'string' && typeof node.attrType === 'string' &&
+        ['RotationOrder'].every((key) => is_optional_property(node, key, is_number)) &&
+        ['InheritType'].every((key) => is_optional_property(node, key, (value): value is number | string => is_number(value) || is_string(value))) &&
+        ['Lcl_Translation', 'PreRotation', 'Lcl_Rotation', 'PostRotation', 'Lcl_Scaling', 'ScalingOffset', 'ScalingPivot', 'RotationOffset', 'RotationPivot', 'LookAtProperty'].every((key) => is_optional_property(node, key, is_number_array));
+}
+
+function is_fbx_pose_matrix_node (value: FBXNodeValue): value is import('./FBXNodes').FBXPoseMatrixNode {
+    if (!is_node_object(value) || !('Node' in value) || !(is_string(value.Node) || is_number(value.Node)) || !('Matrix' in value)) return false;
+    return is_node_object(value.Matrix) && 'a' in value.Matrix && is_number_array(value.Matrix.a);
+}
+
+function is_fbx_pose_node (node: FBXRawNode): node is FBXPoseDataNode {
+    if (typeof node.NbPoseNodes !== 'number' || node.NbPoseNodes <= 0 || node.PoseNode === undefined) return false;
+    return Array.isArray(node.PoseNode) ? node.PoseNode.every(is_fbx_pose_matrix_node) : is_fbx_pose_matrix_node(node.PoseNode);
 }
 
 /**
@@ -825,6 +847,7 @@ class FBXTreeParser {
         modelMap.forEach((model: FBXModelObject) => {
 
             const modelNode = modelNodes[model.ID];
+            if (modelNode === undefined || !is_fbx_transform_model_node(modelNode)) throw new Error(`Missing FBX model node ${model.ID}`);
             this.setLookAtProperties(model, modelNode);
 
             const parentConnections = fbxGlobals.connections.get(model.ID)!.parents;
@@ -873,12 +896,12 @@ class FBXTreeParser {
         // may represent an animation frame rather than the true rest state.
         // Bones WITH clusters will get their bind pose from TransformLink
         // (set via bindSkeleton below), which takes priority.
-        const bindPoseMatrices: any = this.parsePoseNodes();
-        const clusterBoneIDs = new Set();
+        const bindPoseMatrices = this.parsePoseNodes();
+        const clusterBoneIDs = new Set<number>();
 
         for (const ID in deformers.skeletons) {
 
-            deformers.skeletons[ID].rawBones.forEach(function (_: any, i: number) {
+            deformers.skeletons[ID].rawBones.forEach(function (_, i: number) {
 
                 const bone = deformers.skeletons[ID].bones[i];
                 if (bone) clusterBoneIDs.add(bone.ID);
@@ -889,11 +912,11 @@ class FBXTreeParser {
 
         const tempMatrix = new Matrix4();
 
-        fbxGlobals.sceneGraph.traverse(function (node: any) {
+        fbxGlobals.sceneGraph.traverse(function (node) {
 
-            if (node.isBone && node.ID !== undefined && !clusterBoneIDs.has(node.ID)) {
+            if (node instanceof Bone && 'ID' in node && typeof node.ID === 'number' && !clusterBoneIDs.has(node.ID)) {
 
-                const bindPose = bindPoseMatrices[node.ID];
+                const bindPose = bindPoseMatrices[String(node.ID)];
 
                 if (bindPose !== undefined) {
 
@@ -941,9 +964,10 @@ class FBXTreeParser {
         // up-axis conventions (Y-up or Z-up). Three.js uses Y-up, so rotate
         // the scene when the file uses Z-up (UpAxis === 2).
 
-        if ('GlobalSettings' in fbxGlobals.fbxTree && 'UpAxis' in fbxGlobals.fbxTree.GlobalSettings) {
+        if ('GlobalSettings' in fbxGlobals.fbxTree) {
 
-            const upAxis = fbxGlobals.fbxTree.GlobalSettings.UpAxis.value;
+            const upAxisProperty = fbxGlobals.fbxTree.GlobalSettings.UpAxis;
+            const upAxis = is_property(upAxisProperty, is_number) ? upAxisProperty.value : undefined;
 
             if (upAxis === 2) {
 
@@ -958,7 +982,7 @@ class FBXTreeParser {
     }
 
     // parse nodes in FBXTree.Objects.Model
-    parseModels (skeletons: any, geometryMap: any, materialMap: any): Map<number, FBXModelObject> {
+    parseModels (skeletons: FBXSceneDeformerResults['skeletons'], geometryMap: Map<number, BufferGeometry | undefined>, materialMap: Map<number, MeshPhongMaterial | MeshLambertMaterial>): Map<number, FBXModelObject> {
 
         const modelMap = new Map<number, FBXModelObject>();
         const modelNodes = fbxGlobals.fbxTree.Objects.Model;
@@ -966,12 +990,15 @@ class FBXTreeParser {
         for (const nodeID in modelNodes) {
 
             const id = parseInt(nodeID);
-            const node = modelNodes[nodeID];
+            const rawNode = modelNodes[nodeID];
+            if (!is_fbx_transform_model_node(rawNode)) throw new Error(`Invalid FBX model node ${nodeID}`);
+            const node = rawNode;
             const relationships = fbxGlobals.connections.get(id);
 
-            let model: any = this.buildSkeleton(relationships, skeletons, id, node.attrName);
+            const skeletonBone = this.buildSkeleton(relationships, skeletons, id, node.attrName);
+            let model: Object3D;
 
-            if (!model) {
+            if (skeletonBone === null) {
 
                 switch (node.attrType) {
 
@@ -1001,12 +1028,15 @@ class FBXTreeParser {
                 model.name = node.attrName ? PropertyBinding.sanitizeNodeName(node.attrName) : '';
                 model.userData.originalName = node.attrName;
 
-                model.ID = id;
+            } else {
+
+                model = skeletonBone;
 
             }
 
-            this.getTransformData(model, node);
-            modelMap.set(id, model);
+            const taggedModel: FBXModelObject = Object.assign(model, { ID: id });
+            this.getTransformData(taggedModel, node);
+            modelMap.set(id, taggedModel);
 
         }
 
@@ -1014,22 +1044,22 @@ class FBXTreeParser {
 
     }
 
-    buildSkeleton (relationships: any, skeletons: any, id: number, name: any): Bone | null {
+    buildSkeleton (relationships: FBXConnectionEntry | undefined, skeletons: FBXSceneDeformerResults['skeletons'], id: number, name: string): (Bone & { ID: number }) | null {
 
-        let bone: any = null;
+        let bone: (Bone & { ID: number }) | null = null;
 
-        relationships.parents.forEach(function (parent: any) {
+        relationships?.parents.forEach(function (parent) {
 
             for (const ID in skeletons) {
 
                 const skeleton = skeletons[ID];
 
-                skeleton.rawBones.forEach(function (rawBone: any, i: number) {
+                skeleton.rawBones.forEach(function (rawBone, i: number) {
 
                     if (rawBone.ID === parent.ID) {
 
                         const subBone = bone;
-                        bone = new Bone();
+                        bone = Object.assign(new Bone(), { ID: id });
 
                         bone.matrixWorld.copy(rawBone.transformLink);
 
@@ -1037,8 +1067,6 @@ class FBXTreeParser {
 
                         bone.name = name ? PropertyBinding.sanitizeNodeName(name) : '';
                         bone.userData.originalName = name;
-                        bone.ID = id;
-
                         skeleton.bones[i] = bone;
 
                         // In cases where a bone is shared between multiple meshes
@@ -1062,17 +1090,18 @@ class FBXTreeParser {
     }
 
     // create a PerspectiveCamera or OrthographicCamera
-    createCamera (relationships: any): Object3D {
+    createCamera (relationships: FBXConnectionEntry | undefined): Object3D {
 
-        let model: any;
-        let cameraAttribute: any;
+        let model: Object3D;
+        let cameraAttribute: FBXCameraAttributeNode | undefined;
 
-        relationships.children.forEach(function (child: any) {
+        relationships?.children.forEach(function (child) {
 
             const attr = fbxGlobals.fbxTree.Objects.NodeAttribute[child.ID];
 
             if (attr !== undefined) {
 
+                if (!is_fbx_camera_attribute(attr)) throw new Error(`Invalid FBX camera attribute ${child.ID}`);
                 cameraAttribute = attr;
 
             }
@@ -1131,9 +1160,12 @@ class FBXTreeParser {
             switch (type) {
 
                 case 0: // Perspective
-                    model = new PerspectiveCamera(fov, aspect, nearClippingPlane, farClippingPlane);
-                    if (focalLength !== null) model.setFocalLength(focalLength);
+                {
+                    const camera = new PerspectiveCamera(fov, aspect, nearClippingPlane, farClippingPlane);
+                    if (focalLength !== null) camera.setFocalLength(focalLength);
+                    model = camera;
                     break;
+                }
 
                 case 1: // Orthographic
                     console.warn('THREE.FBXLoader: Orthographic cameras not supported yet.');
@@ -1154,17 +1186,18 @@ class FBXTreeParser {
     }
 
     // Create a DirectionalLight, PointLight or SpotLight
-    createLight (relationships: any): Object3D {
+    createLight (relationships: FBXConnectionEntry | undefined): Object3D {
 
-        let model: any;
-        let lightAttribute: any;
+        let model: Object3D;
+        let lightAttribute: FBXLightAttributeNode | undefined;
 
-        relationships.children.forEach(function (child: any) {
+        relationships?.children.forEach(function (child) {
 
             const attr = fbxGlobals.fbxTree.Objects.NodeAttribute[child.ID];
 
             if (attr !== undefined) {
 
+                if (!is_fbx_light_attribute(attr)) throw new Error(`Invalid FBX light attribute ${child.ID}`);
                 lightAttribute = attr;
 
             }
@@ -1177,20 +1210,10 @@ class FBXTreeParser {
 
         } else {
 
-            let type;
+            const type = lightAttribute.LightType?.value ?? 0;
 
             // LightType can be undefined for Point lights
-            if (lightAttribute.LightType === undefined) {
-
-                type = 0;
-
-            } else {
-
-                type = lightAttribute.LightType.value;
-
-            }
-
-            let color: any = 0xffffff;
+            let color: Color | number = 0xffffff;
 
             if (lightAttribute.Color !== undefined) {
 
@@ -1264,7 +1287,7 @@ class FBXTreeParser {
                 }
 
                 default:
-                    console.warn('THREE.FBXLoader: Unknown light type ' + lightAttribute.LightType.value + ', defaulting to a PointLight.');
+                    console.warn('THREE.FBXLoader: Unknown light type ' + type + ', defaulting to a PointLight.');
                     model = new PointLight(color, intensity);
                     break;
 
@@ -1282,15 +1305,13 @@ class FBXTreeParser {
 
     }
 
-    createMesh (relationships: any, geometryMap: any, materialMap: any): Mesh | SkinnedMesh {
+    createMesh (relationships: FBXConnectionEntry | undefined, geometryMap: Map<number, BufferGeometry | undefined>, materialMap: Map<number, MeshPhongMaterial | MeshLambertMaterial>): Mesh | SkinnedMesh {
 
-        let model: any;
-        let geometry: any = null;
-        let material: any = null;
-        const materials: any[] = [];
+        let geometry: BufferGeometry | undefined;
+        const materials: Array<MeshPhongMaterial | MeshLambertMaterial> = [];
 
         // get geometry and materials(s) from connections
-        relationships.children.forEach(function (child: any) {
+        relationships?.children.forEach(function (child) {
 
             if (geometryMap.has(child.ID)) {
 
@@ -1300,29 +1321,24 @@ class FBXTreeParser {
 
             if (materialMap.has(child.ID)) {
 
-                materials.push(materialMap.get(child.ID));
+                const material = materialMap.get(child.ID);
+                if (material !== undefined) materials.push(material);
 
             }
 
         });
 
-        if (materials.length > 1) {
+        if (materials.length === 0) {
 
-            material = materials;
-
-        } else if (materials.length > 0) {
-
-            material = materials[0];
-
-        } else {
-
-            material = new MeshPhongMaterial({
+            materials.push(new MeshPhongMaterial({
                 name: Loader.DEFAULT_MATERIAL_NAME,
                 color: 0xcccccc
-            });
-            materials.push(material);
+            }));
 
         }
+
+        if (geometry === undefined) throw new Error('FBX mesh model has no connected geometry');
+        const meshMaterial: MeshPhongMaterial | MeshLambertMaterial | Array<MeshPhongMaterial | MeshLambertMaterial> = materials.length > 1 ? materials : materials[0];
 
         if ('color' in geometry.attributes) {
 
@@ -1345,7 +1361,7 @@ class FBXTreeParser {
 
                 const group = geometry.groups[i];
 
-                if (group.materialIndex < 0 || group.materialIndex >= materials.length) {
+                if (group.materialIndex !== undefined && (group.materialIndex < 0 || group.materialIndex >= materials.length)) {
 
                     group.materialIndex = materials.length;
                     needsDefaultMaterial = true;
@@ -1363,30 +1379,29 @@ class FBXTreeParser {
 
         }
 
-        if (geometry.FBX_Deformer) {
+        if ('FBX_Deformer' in geometry) {
 
-            model = new SkinnedMesh(geometry, material);
+            const model = new SkinnedMesh(geometry, meshMaterial);
             model.normalizeSkinWeights();
-
-        } else {
-
-            model = new Mesh(geometry, material);
+            return model;
 
         }
 
-        return model;
+        return new Mesh(geometry, meshMaterial);
 
     }
 
-    createCurve (relationships: any, geometryMap: any): Line {
+    createCurve (relationships: FBXConnectionEntry | undefined, geometryMap: Map<number, BufferGeometry | undefined>): Line {
 
-        const geometry = relationships.children.reduce(function (geo: any, child: any) {
+        const geometry = relationships?.children.reduce(function (geo: BufferGeometry | undefined, child) {
 
             if (geometryMap.has(child.ID)) geo = geometryMap.get(child.ID);
 
             return geo;
 
-        }, null);
+        }, undefined);
+
+        if (geometry === undefined) throw new Error('FBX curve model has no connected geometry');
 
         // FBX does not list materials for Nurbs lines, so we'll just put our own in here.
         const material = new LineBasicMaterial({
@@ -1399,48 +1414,48 @@ class FBXTreeParser {
     }
 
     // parse the model node for transform data
-    getTransformData (model: any, modelNode: any): void {
+    getTransformData (model: FBXModelObject, modelNode: FBXTransformModelNode): void {
 
-        const transformData: any = {};
+        const transformData: FBXTransformData = {};
 
-        if ('InheritType' in modelNode) transformData.inheritType = parseInt(modelNode.InheritType.value);
+        if (modelNode.InheritType !== undefined) transformData.inheritType = parseInt(String(modelNode.InheritType.value));
 
-        if ('RotationOrder' in modelNode) transformData.eulerOrder = getEulerOrder(modelNode.RotationOrder.value);
+        if (modelNode.RotationOrder !== undefined) transformData.eulerOrder = getEulerOrder(modelNode.RotationOrder.value);
         else transformData.eulerOrder = getEulerOrder(0);
 
-        if ('Lcl_Translation' in modelNode) transformData.translation = modelNode.Lcl_Translation.value;
+        if (modelNode.Lcl_Translation !== undefined) transformData.translation = modelNode.Lcl_Translation.value;
 
-        if ('PreRotation' in modelNode) transformData.preRotation = modelNode.PreRotation.value;
-        if ('Lcl_Rotation' in modelNode) transformData.rotation = modelNode.Lcl_Rotation.value;
-        if ('PostRotation' in modelNode) transformData.postRotation = modelNode.PostRotation.value;
+        if (modelNode.PreRotation !== undefined) transformData.preRotation = modelNode.PreRotation.value;
+        if (modelNode.Lcl_Rotation !== undefined) transformData.rotation = modelNode.Lcl_Rotation.value;
+        if (modelNode.PostRotation !== undefined) transformData.postRotation = modelNode.PostRotation.value;
 
-        if ('Lcl_Scaling' in modelNode) transformData.scale = modelNode.Lcl_Scaling.value;
+        if (modelNode.Lcl_Scaling !== undefined) transformData.scale = modelNode.Lcl_Scaling.value;
 
-        if ('ScalingOffset' in modelNode) transformData.scalingOffset = modelNode.ScalingOffset.value;
-        if ('ScalingPivot' in modelNode) transformData.scalingPivot = modelNode.ScalingPivot.value;
+        if (modelNode.ScalingOffset !== undefined) transformData.scalingOffset = modelNode.ScalingOffset.value;
+        if (modelNode.ScalingPivot !== undefined) transformData.scalingPivot = modelNode.ScalingPivot.value;
 
-        if ('RotationOffset' in modelNode) transformData.rotationOffset = modelNode.RotationOffset.value;
-        if ('RotationPivot' in modelNode) transformData.rotationPivot = modelNode.RotationPivot.value;
+        if (modelNode.RotationOffset !== undefined) transformData.rotationOffset = modelNode.RotationOffset.value;
+        if (modelNode.RotationPivot !== undefined) transformData.rotationPivot = modelNode.RotationPivot.value;
 
         model.userData.transformData = transformData;
 
     }
 
-    setLookAtProperties (model: any, modelNode: any): void {
+    setLookAtProperties (model: FBXModelObject, modelNode: FBXTransformModelNode): void {
 
         if ('LookAtProperty' in modelNode) {
 
             const children = fbxGlobals.connections.get(model.ID)!.children;
 
-            children.forEach(function (child: any) {
+            children.forEach(function (child) {
 
                 if (child.relationship === 'LookAtProperty') {
 
                     const lookAtTarget = fbxGlobals.fbxTree.Objects.Model[child.ID];
 
-                    if ('Lcl_Translation' in lookAtTarget) {
+                    if (lookAtTarget !== undefined && is_fbx_transform_model_node(lookAtTarget) && lookAtTarget.Lcl_Translation !== undefined) {
 
-                        const pos = as_numbers(as_object(lookAtTarget.Lcl_Translation).value);
+                        const pos = lookAtTarget.Lcl_Translation.value;
 
                         // DirectionalLight, SpotLight
                         if (model.target !== undefined) {
@@ -1464,7 +1479,7 @@ class FBXTreeParser {
 
     }
 
-    bindSkeleton (skeletons: any, geometryMap: any, modelMap: any): void {
+    bindSkeleton (skeletons: FBXSceneDeformerResults['skeletons'], geometryMap: Map<number, BufferGeometry | undefined>, modelMap: Map<number, FBXModelObject>): void {
 
         for (const ID in skeletons) {
 
@@ -1483,7 +1498,7 @@ class FBXTreeParser {
             // each bone's global transform at the time the skin weights were
             // painted, which may differ from the scene-reconstructed transforms.
             const boneInverses: Matrix4[] = [];
-            const bones: Bone[] = [];
+            const bones: Array<Bone & { ID: number }> = [];
             const clusterToBoneIndex: number[] = [];
 
             for (let i = 0, l = skeleton.rawBones.length; i < l; i++) {
@@ -1504,7 +1519,7 @@ class FBXTreeParser {
             }
 
             const hasMissingBones = bones.length !== skeleton.rawBones.length;
-            const remappedGeometries = new Set();
+            const remappedGeometries = new Set<BufferGeometry>();
 
             if (hasMissingBones) {
 
@@ -1514,20 +1529,22 @@ class FBXTreeParser {
 
             skeleton.bones = bones;
 
-            const parents = fbxGlobals.connections.get(parseInt(skeleton.ID))!.parents;
+            const parents = fbxGlobals.connections.get(parseInt(skeleton.ID))?.parents ?? [];
 
-            parents.forEach((parent: any) => {
+            parents.forEach((parent) => {
 
                 if (geometryMap.has(parent.ID)) {
 
                     const geoID = parent.ID;
-                    const geoRelationships = fbxGlobals.connections.get(geoID)!
+                    const geoRelationships = fbxGlobals.connections.get(geoID);
+                    if (geoRelationships === undefined) return;
 
-                    geoRelationships.parents.forEach((geoConnParent: any) => {
+                    geoRelationships.parents.forEach((geoConnParent) => {
 
                         if (modelMap.has(geoConnParent.ID)) {
 
                             const model = modelMap.get(geoConnParent.ID);
+                            if (!(model instanceof SkinnedMesh)) return;
 
                             // the skin indices on the geometry are cluster indices, so
                             // they only line up with the bone list while it is complete
@@ -1610,7 +1627,7 @@ class FBXTreeParser {
     }
 
     // Parse BindPose nodes and return a map of node ID to bind matrix.
-    parsePoseNodes () {
+    parsePoseNodes (): Record<string, Matrix4> {
 
         const bindMatrices: { [key: string]: Matrix4 } = {};
 
@@ -1620,25 +1637,24 @@ class FBXTreeParser {
 
             for (const nodeID in BindPoseNode) {
 
-                if (BindPoseNode[nodeID].attrType === 'BindPose' && (as_object(BindPoseNode[nodeID]).NbPoseNodes as number) > 0) {
-
-                    const poseNodes = BindPoseNode[nodeID].PoseNode;
+                const poseNode = BindPoseNode[nodeID];
+                if (poseNode.attrType !== 'BindPose') continue;
+                if (!is_fbx_pose_node(poseNode)) throw new Error(`Invalid FBX bind pose ${nodeID}`);
+                const poseNodes = poseNode.PoseNode;
 
                     if (Array.isArray(poseNodes)) {
 
-                        poseNodes.forEach(function (poseNode) {
+                        poseNodes.forEach(function (poseEntry) {
 
-                            bindMatrices[as_pose(poseNode).Node] = new Matrix4().fromArray(as_numbers(as_pose(poseNode).Matrix.a));
+                            bindMatrices[String(poseEntry.Node)] = new Matrix4().fromArray(poseEntry.Matrix.a);
 
                         });
 
                     } else {
 
-                        bindMatrices[as_pose(as_object(poseNodes)).Node] = new Matrix4().fromArray(as_numbers(as_pose(as_object(poseNodes)).Matrix.a));
+                        bindMatrices[String(poseNodes.Node)] = new Matrix4().fromArray(poseNodes.Matrix.a);
 
                     }
-
-                }
 
             }
 
@@ -1656,10 +1672,11 @@ class FBXTreeParser {
 
                 // Parse ambient color - if it's not set to black (default), create an ambient light
 
-                const ambientColor = as_numbers(as_object(fbxGlobals.fbxTree.GlobalSettings.AmbientColor).value);
-                const r = ambientColor[0];
-                const g = ambientColor[1];
-                const b = ambientColor[2];
+                const ambientColorProperty = fbxGlobals.fbxTree.GlobalSettings.AmbientColor;
+
+                if (!is_property(ambientColorProperty, is_number_array)) return;
+
+                const [r, g, b] = ambientColorProperty.value;
 
                 if (r !== 0 || g !== 0 || b !== 0) {
 
