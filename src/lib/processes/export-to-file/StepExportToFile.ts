@@ -1,4 +1,5 @@
 import { UI } from '../../UI.ts'
+import { download_blob } from '../../BlobDownload.ts'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { type AnimationClip, Scene, type SkinnedMesh, type Object3D } from 'three'
@@ -203,9 +204,7 @@ export class StepExportToFile extends EventTarget {
 
   private save_file (blob: Blob, filename: string): void {
     if (this.ui.dom_export_button_hidden_link != null) {
-      this.ui.dom_export_button_hidden_link.href = URL.createObjectURL(blob)
-      this.ui.dom_export_button_hidden_link.download = filename
-      this.ui.dom_export_button_hidden_link.click()
+      download_blob(blob, filename, this.ui.dom_export_button_hidden_link)
     } else {
       console.log('ERROR: dom_export_button_hidden_link is null')
     }

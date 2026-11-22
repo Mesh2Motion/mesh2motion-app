@@ -42,6 +42,8 @@ export class StepLoadModel extends EventTarget {
   private readonly material_list: Material[] = []
 
   private _added_event_listeners: boolean = false
+  /** Owns every listener added by this step so dispose() can remove them all. */
+  private readonly listeners_abort_controller: AbortController = new AbortController()
 
   // this can happen when images are not loading. this
   // will mess up model and need to just replace the entire material
@@ -118,6 +120,7 @@ export class StepLoadModel extends EventTarget {
   }
 
   public add_event_listeners (): void {
+    const signal = this.listeners_abort_controller.signal
     // Populate the model reference dropdown from the central rig config
     const model_select = document.querySelector<HTMLSelectElement>('#model-selection')
     if (model_select !== null) {
@@ -131,7 +134,7 @@ export class StepLoadModel extends EventTarget {
         const file = input?.files?.[0]
         if (file === undefined) return
         this.load_uploaded_file(file)
-      })
+      }, { signal })
 
       // iOS has a weird issue with accepted file extensions, so we need to just
       // accept everything for that platform
@@ -147,7 +150,7 @@ export class StepLoadModel extends EventTarget {
         const checkbox = event.target as HTMLInputElement | null
         const debug_mode = checkbox?.checked ?? false
         this.debug_model_loading = debug_mode
-      })
+      }, { signal })
     }
 
     if (this.ui.dom_load_model_button !== null) {
@@ -161,22 +164,23 @@ export class StepLoadModel extends EventTarget {
           this.source_file_name = file_name.split('/').pop() ?? file_name
           this.load_model_file(file_name, file_extension, true)
         }
-      })
+      }, { signal })
     }
   }
 
   private add_drop_zone_event_listeners (): void {
+    const signal = this.listeners_abort_controller.signal
     const drop_zone = document.querySelector<HTMLElement>('#model-drop-zone')
     if (drop_zone === null) return
 
     drop_zone.addEventListener('dragover', (event: DragEvent) => {
       event.preventDefault()
       drop_zone.classList.add('drag-over')
-    })
+    }, { signal })
 
     drop_zone.addEventListener('dragleave', () => {
       drop_zone.classList.remove('drag-over')
-    })
+    }, { signal })
 
     drop_zone.addEventListener('drop', (event: DragEvent) => {
       event.preventDefault()
@@ -185,12 +189,18 @@ export class StepLoadModel extends EventTarget {
       const file = event.dataTransfer?.files[0]
       if (file === undefined) return
       this.load_uploaded_file(file)
-    })
+    }, { signal })
 
     // a file dropped outside the drop zone would make the browser navigate away
     // and open it, which loses all progress. swallow those drops instead
-    window.addEventListener('dragover', (event: DragEvent) => { event.preventDefault() })
-    window.addEventListener('drop', (event: DragEvent) => { event.preventDefault() })
+    window.addEventListener('dragover', (event: DragEvent) => { event.preventDefault() }, { signal })
+    window.addEventListener('drop', (event: DragEvent) => { event.preventDefault() }, { signal })
+  }
+
+  /** Remove every listener owned by this step (including the window drag/drop guards). */
+  public dispose (): void {
+    this.listeners_abort_controller.abort()
+    this._added_event_listeners = false
   }
 
   private load_uploaded_file (file: File): void {

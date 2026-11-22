@@ -14,7 +14,7 @@ import { create_browser_sequence_ledger } from './SequenceLedger.ts'
 import { TauriSnapshotSink } from './transport/TauriSnapshotSink.ts'
 import type { SnapshotSink } from './transport/SnapshotSink.ts'
 import { get_publisher_status, update_publisher_status } from './publisherStatus.ts'
-import { is_desktop_control_enabled } from './attachControl.ts'
+import { is_desktop_control_enabled } from './desktopGate.ts'
 import type { PageValue } from './contracts.ts'
 
 /** Bounded heartbeat: at most one snapshot per second while visible. */
