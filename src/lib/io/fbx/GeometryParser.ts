@@ -15,6 +15,7 @@ import {
 import { NURBSCurve } from 'three/addons/curves/NURBSCurve.js'
 import { fbxGlobals } from './fbx-globals'
 import { generateTransform, getEulerOrder, getData, type FBXAttributeInfo } from './fbx-utils'
+import type { FBXColorLayerNode, FBXMaterialLayerNode, FBXNormalLayerNode, FBXUVLayerNode } from './FBXNodes'
 
 /**
  * Converts geometry nodes from the `FBXTree` into Three.js `BufferGeometry` objects.
@@ -158,7 +159,7 @@ class GeometryParser {
             geo.setAttribute('skinWeight', new Float32BufferAttribute(buffers.vertexWeights, 4));
 
             // used later to bind the skeleton to the model
-            (geo as any).FBX_Deformer = skeleton;
+            Object.assign(geo, { FBX_Deformer: skeleton });
 
         }
 
@@ -335,8 +336,7 @@ class GeometryParser {
         let faceWeights: number[] = [];
         let faceWeightIndices: number[] = [];
 
-        const scope = this;
-        geoInfo.vertexIndices.forEach(function (vertexIndex: number, polygonVertexIndex: number) {
+        geoInfo.vertexIndices.forEach((vertexIndex: number, polygonVertexIndex: number) => {
 
             let materialIndex;
             let endOfFace = false;
@@ -468,7 +468,7 @@ class GeometryParser {
 
                 if (materialIndex < 0) {
 
-                    scope.negativeMaterialIndices = true;
+                    this.negativeMaterialIndices = true;
                     materialIndex = 0; // fallback
 
                 }
@@ -498,7 +498,7 @@ class GeometryParser {
 
             if (endOfFace) {
 
-                scope.genFace(buffers, geoInfo, facePositionIndexes, materialIndex ?? 0, faceNormals, faceColors, faceUVs, faceWeights, faceWeightIndices, faceLength);
+                this.genFace(buffers, geoInfo, facePositionIndexes, materialIndex ?? 0, faceNormals, faceColors, faceUVs, faceWeights, faceWeightIndices, faceLength);
 
                 polygonIndex++;
                 faceLength = 0;
@@ -742,16 +742,15 @@ class GeometryParser {
         // the influence increases.
         const morphPreTransform = preTransform.clone().setPosition(0, 0, 0);
 
-        const scope = this;
-        morphTargets.forEach(function (morphTarget: any) {
+        morphTargets.forEach((morphTarget: any) => {
 
-            morphTarget.rawTargets.forEach(function (rawTarget: any) {
+            morphTarget.rawTargets.forEach((rawTarget: any) => {
 
                 const morphGeoNode = fbxGlobals.fbxTree.Objects.Geometry[rawTarget.geoID];
 
                 if (morphGeoNode !== undefined) {
 
-                    scope.genMorphGeometry(parentGeo, parentGeoNode, morphGeoNode, morphPreTransform, rawTarget.name);
+                    this.genMorphGeometry(parentGeo, parentGeoNode, morphGeoNode, morphPreTransform, rawTarget.name);
 
                 }
 
@@ -805,7 +804,7 @@ class GeometryParser {
     }
 
     // Parse normal from FBXTree.Objects.Geometry.LayerElementNormal if it exists
-    parseNormals (NormalNode: any): FBXAttributeInfo {
+    parseNormals (NormalNode: FBXNormalLayerNode): FBXAttributeInfo {
 
         const mappingType = NormalNode.MappingInformationType;
         const referenceType = NormalNode.ReferenceInformationType;
@@ -813,11 +812,11 @@ class GeometryParser {
         let indexBuffer: number[] = [];
         if (referenceType === 'IndexToDirect') {
 
-            if ('NormalIndex' in NormalNode) {
+            if (NormalNode.NormalIndex !== undefined) {
 
                 indexBuffer = NormalNode.NormalIndex.a;
 
-            } else if ('NormalsIndex' in NormalNode) {
+            } else if (NormalNode.NormalsIndex !== undefined) {
 
                 indexBuffer = NormalNode.NormalsIndex.a;
 
@@ -836,7 +835,7 @@ class GeometryParser {
     }
 
     // Parse UVs from FBXTree.Objects.Geometry.LayerElementUV if it exists
-    parseUVs (UVNode: any): FBXAttributeInfo {
+    parseUVs (UVNode: FBXUVLayerNode): FBXAttributeInfo {
 
         const mappingType = UVNode.MappingInformationType;
         const referenceType = UVNode.ReferenceInformationType;
@@ -859,7 +858,7 @@ class GeometryParser {
     }
 
     // Parse Vertex Colors from FBXTree.Objects.Geometry.LayerElementColor if it exists
-    parseVertexColors (ColorNode: any): FBXAttributeInfo {
+    parseVertexColors (ColorNode: FBXColorLayerNode): FBXAttributeInfo {
 
         const mappingType = ColorNode.MappingInformationType;
         const referenceType = ColorNode.ReferenceInformationType;
@@ -890,7 +889,7 @@ class GeometryParser {
     }
 
     // Parse mapping and material data in FBXTree.Objects.Geometry.LayerElementMaterial if it exists
-    parseMaterialIndices (MaterialNode: any): FBXAttributeInfo {
+    parseMaterialIndices (MaterialNode: FBXMaterialLayerNode): FBXAttributeInfo {
 
         const mappingType = MaterialNode.MappingInformationType;
         const referenceType = MaterialNode.ReferenceInformationType;
