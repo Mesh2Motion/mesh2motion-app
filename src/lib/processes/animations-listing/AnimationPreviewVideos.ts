@@ -75,6 +75,14 @@ export class AnimationPreviewVideos {
   private readonly debug: boolean
   private readonly max_active: number
   private readonly use_asset_protocol_on_desktop: boolean
+  private disposing = false
+  private probe_video: HTMLVideoElement | null = null
+  private probe_placeholder: HTMLElement | null = null
+  private probe_last_log = 0
+  private probe_last_time = 0
+  private probe_frame_handle: number | null = null
+  private readonly probe_ids = new WeakMap<HTMLVideoElement, number>()
+  private probe_next_id = 1
 
   constructor (options: PreviewVideoOptions = {}) {
     this.debug = diagnostics_enabled()
@@ -173,6 +181,11 @@ export class AnimationPreviewVideos {
     }
 
     const video = AnimationPreviewVideos.create_video()
+    if (this.debug && this.probe_video === null) {
+      this.probe_video = video
+      this.probe_placeholder = placeholder
+      this.probe_ids.set(video, this.probe_next_id++)
+    }
     this.attach_media_listeners(video, placeholder, src)
     placeholder.replaceChildren(video)
     this.videos.set(placeholder, video)
@@ -201,8 +214,9 @@ export class AnimationPreviewVideos {
         throw new Error('Tauri returned no preview resource path')
       }
       const asset_url = core.convertFileSrc(file_path)
+      // Assigning src already starts resource selection; an explicit load()
+      // resets the media element and can produce an avoidable blank frame.
       video.src = asset_url
-      video.load()
       this.log('source-asset', { asset_key, asset_url })
       if (this.active.has(placeholder)) {
         this.safe_play(video, placeholder)
@@ -219,6 +233,10 @@ export class AnimationPreviewVideos {
   private attach_media_listeners (video: HTMLVideoElement, placeholder: HTMLElement, src: string): void {
     // The error listener is functional, not diagnostic: it must exist in every mode.
     video.addEventListener('error', () => {
+      // Ignore errors raised by teardown or by a stale async source callback.
+      if (this.disposing || this.videos.get(placeholder) !== video) {
+        return
+      }
       this.log('media-event', {
         name: 'error',
         src,
@@ -256,9 +274,61 @@ export class AnimationPreviewVideos {
       mp4: video.canPlayType('video/mp4'),
       avc1: video.canPlayType('video/mp4; codecs="avc1.42E01E"')
     })
+    if (video === this.probe_video) {
+      this.start_probe(video, src)
+    }
+  }
+
+  /**
+   * Bounded frame-progress telemetry for one representative tile. Uses
+   * requestVideoFrameCallback where available and timeupdate otherwise;
+   * logs at most one sample per 250 ms and only in preview debug mode.
+   */
+  private start_probe (video: HTMLVideoElement, src: string): void {
+    const with_frame_callback = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: (now: number, metadata: { mediaTime: number }) => void) => number
+      cancelVideoFrameCallback?: (handle: number) => void
+    }
+    if (typeof with_frame_callback.requestVideoFrameCallback === 'function') {
+      const step = (_now: number, metadata: { mediaTime: number }): void => {
+        if (this.disposing || this.videos.get(this.probe_placeholder as HTMLElement) !== video) {
+          return
+        }
+        this.sample_probe(video, metadata.mediaTime, src)
+        this.probe_frame_handle = with_frame_callback.requestVideoFrameCallback?.(step) ?? null
+      }
+      this.probe_frame_handle = with_frame_callback.requestVideoFrameCallback(step)
+      return
+    }
+    video.addEventListener('timeupdate', () => { this.sample_probe(video, video.currentTime, src) })
+  }
+
+  private sample_probe (video: HTMLVideoElement, time: number, src: string): void {
+    const now = Date.now()
+    if (now - this.probe_last_log < 250) {
+      return
+    }
+    const looped = time < this.probe_last_time - 0.1
+    this.probe_last_log = now
+    this.probe_last_time = time
+    this.log(looped ? 'loop-boundary' : 'frame-progress', {
+      probeId: this.probe_ids.get(video),
+      src,
+      currentTime: Number(time.toFixed(3)),
+      readyState: video.readyState,
+      networkState: video.networkState,
+      paused: video.paused,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight
+    })
   }
 
   private safe_play (video: HTMLVideoElement, placeholder: HTMLElement): void {
+    // Repeated observer notifications must not re-issue play() on an already
+    // running video; WebKit can treat that as a seek/restart.
+    if (this.disposing || !video.hasAttribute('src') || (!video.paused && !video.ended)) {
+      return
+    }
     try {
       const result = video.play()
       if (result !== undefined && typeof (result as Promise<void>).then === 'function') {
@@ -317,21 +387,32 @@ export class AnimationPreviewVideos {
     }
   }
 
-  /** Stop observing, pause every video and release all object URLs. */
+  /** Stop observing, pause every video and release all video nodes. */
   public disconnect (): void {
+    this.disposing = true
     this.observer?.disconnect()
     this.observer = null
     for (const placeholder of [...this.active]) {
       this.pause_video(placeholder)
     }
     this.active.clear()
+    if (this.probe_frame_handle !== null) {
+      const with_frame_callback = this.probe_video as (HTMLVideoElement & { cancelVideoFrameCallback?: (handle: number) => void }) | null
+      with_frame_callback?.cancelVideoFrameCallback?.(this.probe_frame_handle)
+      this.probe_frame_handle = null
+    }
     for (const [placeholder, video] of this.videos) {
       video.pause()
+      // Do not call load() during teardown: it fires media events that could
+      // otherwise insert a fallback into a placeholder being removed.
       video.removeAttribute('src')
-      video.load?.()
       video.remove()
       this.videos.delete(placeholder)
     }
+    this.videos.clear()
+    this.probe_video = null
+    this.probe_placeholder = null
     this.container = null
+    this.disposing = false
   }
 }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnimationPreviewVideos } from './AnimationPreviewVideos.ts'
+import { SkeletonType } from '../../enums/SkeletonType.ts'
 
 class FakeIntersectionObserver {
   public static instances: FakeIntersectionObserver[] = []
@@ -56,7 +57,11 @@ beforeEach(() => {
     configurable: true,
     writable: true
   })
-  play_mock = vi.fn().mockResolvedValue(undefined)
+  play_mock = vi.fn(function (this: HTMLVideoElement) {
+    // Mirror the browser: play() clears paused synchronously.
+    Object.defineProperty(this, 'paused', { value: false, configurable: true })
+    return Promise.resolve()
+  })
   paused_videos = []
   pause_mock = vi.fn(function (this: HTMLVideoElement) { paused_videos.push(this) })
   Object.defineProperty(HTMLMediaElement.prototype, 'play', { value: play_mock, configurable: true, writable: true })
@@ -238,6 +243,103 @@ describe('AnimationPreviewVideos', () => {
     previews.disconnect()
 
     expect(observer.disconnect).toHaveBeenCalledOnce()
+    expect(tile.querySelector('video')).toBeNull()
+  })
+
+  it('does not recreate nodes or replay on repeated observer notifications', () => {
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    const observer = FakeIntersectionObserver.instances[0]
+
+    observer.emit([{ target: tile, isIntersecting: true }])
+    const first_node = tile.querySelector('video')
+    for (let i = 0; i < 5; i += 1) {
+      observer.emit([{ target: tile, isIntersecting: true }])
+    }
+
+    expect(tile.querySelector('video')).toBe(first_node)
+    expect(play_mock).toHaveBeenCalledOnce()
+    previews.disconnect()
+  })
+
+  it('keeps generated source URLs stable across redraws', () => {
+    const first = AnimationPreviewVideos.preview_src(SkeletonType.Human, 'dark', 'Angry')
+    const second = AnimationPreviewVideos.preview_src(SkeletonType.Human, 'dark', 'Angry')
+    expect(first).toBe(second)
+    expect(first).toBe('../animpreviews/human/dark_Angry.mp4')
+  })
+
+  it('resumes a stopped video after a loop boundary without replacing it', () => {
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    const observer = FakeIntersectionObserver.instances[0]
+    observer.emit([{ target: tile, isIntersecting: true }])
+    const video = tile.querySelector('video')!
+    Object.defineProperty(video, 'paused', { value: true, configurable: true })
+    Object.defineProperty(video, 'ended', { value: true, configurable: true })
+
+    observer.emit([{ target: tile, isIntersecting: true }])
+    expect(tile.querySelector('video')).toBe(video)
+    expect(play_mock).toHaveBeenCalledTimes(2)
+    previews.disconnect()
+  })
+
+  it('handles rapid pause/resume transitions without extra sources', () => {
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    const observer = FakeIntersectionObserver.instances[0]
+
+    observer.emit([{ target: tile, isIntersecting: true }])
+    observer.emit([{ target: tile, isIntersecting: false }])
+    Object.defineProperty(tile.querySelector('video')!, 'paused', { value: true, configurable: true })
+    observer.emit([{ target: tile, isIntersecting: true }])
+
+    expect(play_mock).toHaveBeenCalledTimes(2)
+    expect(pause_mock).toHaveBeenCalledTimes(1)
+    expect(container.querySelectorAll('video')).toHaveLength(1)
+    previews.disconnect()
+  })
+
+  it('does not leak observer instances or videos across repeated rig/theme redraws', () => {
+    const container = document.createElement('div')
+    const previews = new AnimationPreviewVideos()
+    for (let i = 0; i < 4; i += 1) {
+      container.innerHTML = ''
+      container.appendChild(placeholder(`human/dark_clip${i}.mp4`))
+      previews.observe_placeholders(container)
+      FakeIntersectionObserver.instances[i].emit([{ target: container.firstElementChild!, isIntersecting: true }])
+      expect(container.querySelectorAll('video')).toHaveLength(1)
+    }
+    previews.disconnect()
+    expect(container.querySelectorAll('video')).toHaveLength(0)
+    expect(FakeIntersectionObserver.instances.every(observer => observer.disconnect.mock.calls.length === 1)).toBe(true)
+  })
+
+  it('does not call load() or show a fallback during teardown', () => {
+    set_tauri(true)
+    const load_mock = vi.spyOn(HTMLMediaElement.prototype, 'load')
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    const video = tile.querySelector('video')!
+
+    previews.disconnect()
+    video.dispatchEvent(new Event('error'))
+
+    expect(load_mock).not.toHaveBeenCalled()
+    expect(tile.querySelector('.preview-fallback')).toBeNull()
     expect(tile.querySelector('video')).toBeNull()
   })
 
