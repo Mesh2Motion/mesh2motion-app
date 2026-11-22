@@ -74,7 +74,17 @@ beforeEach(() => {
   })
   invoke_mock = vi.fn().mockResolvedValue('/resources/animpreviews/human/dark_Angry.mp4')
   convert_file_src_mock = vi.fn((path: string) => `asset://localhost${path}`)
-  globalThis.fetch = vi.fn() as typeof fetch
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    blob: async () => new Blob(['preview'], { type: 'video/mp4' })
+  }) as unknown as typeof fetch
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: vi.fn(() => 'blob:preview-test'), configurable: true
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: vi.fn(), configurable: true
+  })
   window.history.replaceState({}, '', '/')
   set_tauri(false)
 })
@@ -100,7 +110,7 @@ describe('AnimationPreviewVideos', () => {
     previews.disconnect()
   })
 
-  it('uses the range-capable Tauri asset protocol for desktop previews', async () => {
+  it('buffers allowlisted Tauri assets into a Blob URL for desktop playback', async () => {
     set_tauri(true)
     const container = document.createElement('div')
     const tile = placeholder()
@@ -109,14 +119,30 @@ describe('AnimationPreviewVideos', () => {
 
     previews.observe_placeholders(container)
     FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
-    await Promise.resolve()
-    await Promise.resolve()
+    await vi.waitFor(() => expect(play_mock).toHaveBeenCalledOnce())
 
     expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', { assetKey: 'human/dark_Angry.mp4' })
     expect(convert_file_src_mock).toHaveBeenCalledWith('/resources/animpreviews/human/dark_Angry.mp4')
-    expect(tile.querySelector('video')?.getAttribute('src')).toBe('asset://localhost/resources/animpreviews/human/dark_Angry.mp4')
-    expect(globalThis.fetch).not.toHaveBeenCalled()
-    expect(play_mock).toHaveBeenCalledOnce()
+    expect(globalThis.fetch).toHaveBeenCalledWith('asset://localhost/resources/animpreviews/human/dark_Angry.mp4')
+    expect(tile.querySelector('video')?.getAttribute('src')).toBe('blob:preview-test')
+    expect(URL.createObjectURL).toHaveBeenCalledOnce()
+    previews.disconnect()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-test')
+  })
+
+  it('shows a fallback when the allowlisted preview transfer fails', async () => {
+    set_tauri(true)
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    await vi.waitFor(() => expect(tile.querySelector('.preview-fallback')).not.toBeNull())
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
     previews.disconnect()
   })
 

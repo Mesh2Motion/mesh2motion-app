@@ -72,6 +72,7 @@ export class AnimationPreviewVideos {
   private container: HTMLElement | null = null
   private readonly active = new Set<HTMLElement>()
   private readonly videos = new Map<HTMLElement, HTMLVideoElement>()
+  private readonly blob_urls = new Map<HTMLVideoElement, string>()
   private readonly debug: boolean
   private readonly max_active: number
   private readonly use_asset_protocol_on_desktop: boolean
@@ -214,10 +215,26 @@ export class AnimationPreviewVideos {
         throw new Error('Tauri returned no preview resource path')
       }
       const asset_url = core.convertFileSrc(file_path)
-      // Assigning src already starts resource selection; an explicit load()
-      // resets the media element and can produce an avoidable blank frame.
-      video.src = asset_url
-      this.log('source-asset', { asset_key, asset_url })
+      // WebKitGTK's GStreamer media source rejects the Tauri asset scheme for
+      // some bundled MP4s (FormatError), although the same resource works as a
+      // Blob. Fetch only the Rust-allowlisted resource, then give the media
+      // pipeline a fully buffered, seekable blob URL.
+      const response = await fetch(asset_url)
+      if (!response.ok) {
+        throw new Error(`Preview resource request failed (${response.status})`)
+      }
+      const data = await response.blob()
+      if (this.videos.get(placeholder) !== video || this.disposing) {
+        return
+      }
+      if (data.size === 0) {
+        throw new Error('Preview resource was empty')
+      }
+      const media_blob = data.type === 'video/mp4' ? data : new Blob([data], { type: 'video/mp4' })
+      const blob_url = URL.createObjectURL(media_blob)
+      this.blob_urls.set(video, blob_url)
+      video.src = blob_url
+      this.log('source-blob', { asset_key, asset_url, blob_size: media_blob.size })
       if (this.active.has(placeholder)) {
         this.safe_play(video, placeholder)
       }
@@ -357,6 +374,9 @@ export class AnimationPreviewVideos {
     const video = this.videos.get(placeholder)
     if (video !== undefined) {
       video.pause()
+      video.removeAttribute('src')
+      video.remove()
+      this.revoke_blob_url(video)
       this.videos.delete(placeholder)
     }
     this.active.delete(placeholder)
@@ -367,6 +387,14 @@ export class AnimationPreviewVideos {
     if (video !== undefined) {
       video.pause()
       this.log('paused-offscreen', { src: placeholder.getAttribute('data-src') })
+    }
+  }
+
+  private revoke_blob_url (video: HTMLVideoElement): void {
+    const blob_url = this.blob_urls.get(video)
+    if (blob_url !== undefined) {
+      URL.revokeObjectURL(blob_url)
+      this.blob_urls.delete(video)
     }
   }
 
@@ -407,6 +435,7 @@ export class AnimationPreviewVideos {
       // otherwise insert a fallback into a placeholder being removed.
       video.removeAttribute('src')
       video.remove()
+      this.revoke_blob_url(video)
       this.videos.delete(placeholder)
     }
     this.videos.clear()
