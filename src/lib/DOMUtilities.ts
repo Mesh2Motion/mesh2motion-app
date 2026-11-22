@@ -108,34 +108,8 @@ export class DOMUtilities {
           <img class="nav-icon" src="/images/mouse-middle.svg" style="vertical-align: middle" />
           Zoom
         </div>
-
-        <div class="layout-toggles" aria-label="Layout panels">
-          <button type="button" class="layout-toggle" data-layout-panel="left" aria-expanded="false">Rigs</button>
-          <button type="button" class="layout-toggle" data-layout-panel="right" aria-expanded="false">Tools</button>
-        </div>
       </div>
     `
-
-    // Narrow-window panel toggles. Buttons are hidden by CSS on wide layouts.
-    mount.querySelectorAll<HTMLButtonElement>('.layout-toggle').forEach(button => {
-      button.addEventListener('click', () => {
-        const panel = button.dataset.layoutPanel
-        if (panel !== 'left' && panel !== 'right') {
-          return
-        }
-        const class_name = panel === 'left' ? 'layout-left-open' : 'layout-right-open'
-        const open = !document.body.classList.contains(class_name)
-        // Only one drawer at a time on narrow windows.
-        document.body.classList.remove('layout-left-open', 'layout-right-open')
-        mount.querySelectorAll<HTMLButtonElement>('.layout-toggle').forEach(other => {
-          other.setAttribute('aria-expanded', 'false')
-        })
-        if (open) {
-          document.body.classList.add(class_name)
-          button.setAttribute('aria-expanded', 'true')
-        }
-      })
-    })
   }
 
   /**
