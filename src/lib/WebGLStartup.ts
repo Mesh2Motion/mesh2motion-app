@@ -10,6 +10,7 @@ import * as THREE from 'three'
 import { mark, mark_error } from './StartupDiagnostics.ts'
 
 export const FATAL_ERROR_ELEMENT_ID = 'm2m-startup-error'
+export const RENDER_LOOP_ERROR_REASON = 'render-loop'
 
 type RendererFactory = () => THREE.WebGLRenderer
 
@@ -58,7 +59,7 @@ export function install_webgl_context_handlers (
  * Display a visible, last-resort message when startup cannot continue.
  * Idempotent: repeated failures update the same panel instead of stacking.
  */
-export function display_fatal_startup_error (error: unknown): void {
+export function display_fatal_startup_error (error: unknown, reason?: string): void {
   mark_error('fatal', error)
   try {
     const message = error instanceof Error ? error.message : String(error)
@@ -83,11 +84,45 @@ export function display_fatal_startup_error (error: unknown): void {
       const host = document.body ?? document.documentElement
       host.appendChild(panel)
     }
+    // Allows recovery code to clear only its own error, never an init failure.
+    panel.dataset.m2mReason = reason ?? ''
     panel.textContent = `Mesh2Motion could not start: ${message}`
   } catch (display_error) {
     // Never throw from the error reporter itself.
     try {
       console.error('[M2M startup] failed to display fatal error', display_error)
+    } catch {
+      // Nothing else can be done.
+    }
+  }
+}
+
+/** Display the recoverable render-loop failure as a distinct panel reason. */
+export function display_render_loop_error (error: unknown): void {
+  mark_error('render-loop', error)
+  display_fatal_startup_error(error, RENDER_LOOP_ERROR_REASON)
+}
+
+/**
+ * Remove the fatal panel only when it belongs to the given reason.
+ * With no reason, remove any panel. Never throws.
+ */
+export function clear_fatal_startup_error (reason?: string): void {
+  try {
+    const panel = document.getElementById(FATAL_ERROR_ELEMENT_ID)
+    if (panel === null) {
+      return
+    }
+    if (reason !== undefined && panel.dataset.m2mReason !== reason) {
+      return
+    }
+    const parent = panel.parentNode
+    if (parent !== null) {
+      parent.removeChild(panel)
+    }
+  } catch (clear_error) {
+    try {
+      console.error('[M2M startup] failed to clear fatal error', clear_error)
     } catch {
       // Nothing else can be done.
     }

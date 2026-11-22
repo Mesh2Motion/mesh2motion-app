@@ -42,8 +42,15 @@ import { DOMUtilities } from './lib/DOMUtilities.ts'
 import { PlatformManager } from './lib/PlatformManager.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
 import { mark, mark_error } from './lib/StartupDiagnostics.ts'
-import { create_webgl_renderer, display_fatal_startup_error, install_webgl_context_handlers } from './lib/WebGLStartup.ts'
+import {
+  create_webgl_renderer,
+  display_render_loop_error,
+  clear_fatal_startup_error,
+  install_webgl_context_handlers,
+  RENDER_LOOP_ERROR_REASON
+} from './lib/WebGLStartup.ts'
 import { RenderLoopGuard } from './lib/RenderLoopGuard.ts'
+import { RenderLoopRecovery, RenderLoopScheduler } from './lib/RenderLoopRecovery.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -90,7 +97,9 @@ export class Mesh2MotionEngine {
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
   private readonly render_loop_guard = new RenderLoopGuard()
-  private context_lost = false
+  private readonly render_loop_scheduler: RenderLoopScheduler
+  private readonly render_loop_recovery: RenderLoopRecovery
+  private render_loop_error_shown = false
   private first_frame_marked = false
 
   constructor () {
@@ -106,6 +115,15 @@ export class Mesh2MotionEngine {
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
     this.animate = this.animate.bind(this)
+    this.render_loop_scheduler = new RenderLoopScheduler(
+      (callback) => requestAnimationFrame(callback),
+      this.animate
+    )
+    this.render_loop_recovery = new RenderLoopRecovery(
+      this.render_loop_guard,
+      this.render_loop_scheduler,
+      () => { console.warn('[M2M] WebGL context lost; pausing renders until it is restored') }
+    )
     this.camera_shake = new CameraShake(this.camera)
 
     this.scene = new Scene()
@@ -146,14 +164,8 @@ export class Mesh2MotionEngine {
     mark('engine-construct:environment-ready')
     install_webgl_context_handlers(
       this.renderer.domElement,
-      () => {
-        this.context_lost = true
-        console.warn('[M2M] WebGL context lost; pausing renders until it is restored')
-      },
-      () => {
-        this.context_lost = false
-        this.render_loop_guard.reset()
-      }
+      () => this.render_loop_recovery.on_context_lost(),
+      () => this.render_loop_recovery.on_context_restored()
     )
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
@@ -704,7 +716,9 @@ export class Mesh2MotionEngine {
     if (this.render_loop_guard.is_stopped()) {
       return
     }
-    requestAnimationFrame(this.animate)
+    // The scheduler guarantees exactly one pending frame, including after a
+    // context restore. Do not call requestAnimationFrame directly here.
+    this.render_loop_scheduler.schedule_next()
     const delta_time: number = this.clock.getDelta()
 
     try {
@@ -725,7 +739,7 @@ export class Mesh2MotionEngine {
 
       // While the GL context is lost, skip GL calls but keep the loop alive so
       // a `webglcontextrestored` event can resume rendering.
-      if (this.context_lost) {
+      if (this.render_loop_recovery.is_context_lost()) {
         return
       }
 
@@ -740,6 +754,11 @@ export class Mesh2MotionEngine {
       }
 
       this.render_loop_guard.note_success()
+      if (this.render_loop_error_shown) {
+        clear_fatal_startup_error(RENDER_LOOP_ERROR_REASON)
+        this.render_loop_error_shown = false
+        mark('render-loop-error-cleared')
+      }
       if (!this.first_frame_marked) {
         this.first_frame_marked = true
         mark('first-successful-frame')
@@ -748,7 +767,8 @@ export class Mesh2MotionEngine {
       mark_error('render-frame', error)
       if (this.render_loop_guard.note_failure()) {
         const detail = error instanceof Error ? error.message : String(error)
-        display_fatal_startup_error(new Error(`Rendering stopped after repeated failures: ${detail}`))
+        display_render_loop_error(new Error(`Rendering stopped after repeated failures: ${detail}`))
+        this.render_loop_error_shown = true
       }
     }
   }

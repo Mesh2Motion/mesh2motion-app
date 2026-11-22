@@ -3,7 +3,10 @@ import type { WebGLRenderer } from 'three'
 import {
   create_webgl_renderer,
   display_fatal_startup_error,
+  display_render_loop_error,
+  clear_fatal_startup_error,
   FATAL_ERROR_ELEMENT_ID,
+  RENDER_LOOP_ERROR_REASON,
   install_webgl_context_handlers
 } from './WebGLStartup.ts'
 
@@ -61,5 +64,22 @@ describe('display_fatal_startup_error', () => {
     // The panel is updated in place, so the most recent failure is shown.
     expect(panels[0]?.textContent).toContain('second failure')
     expect(panels[0]?.getAttribute('role')).toBe('alert')
+  })
+})
+
+describe('render-loop error panel', () => {
+  it('removes only its own panel after recovery', () => {
+    display_render_loop_error(new Error('loop stopped'))
+    const panel = document.getElementById(FATAL_ERROR_ELEMENT_ID)
+    expect(panel?.dataset.m2mReason).toBe(RENDER_LOOP_ERROR_REASON)
+
+    clear_fatal_startup_error(RENDER_LOOP_ERROR_REASON)
+    expect(document.getElementById(FATAL_ERROR_ELEMENT_ID)).toBeNull()
+  })
+
+  it('does not remove an initialization failure panel', () => {
+    display_fatal_startup_error(new Error('renderer init failed'))
+    clear_fatal_startup_error(RENDER_LOOP_ERROR_REASON)
+    expect(document.getElementById(FATAL_ERROR_ELEMENT_ID)).not.toBeNull()
   })
 })
