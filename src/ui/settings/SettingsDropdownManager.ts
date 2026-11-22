@@ -2,7 +2,7 @@ import { UI } from '../UI.ts'
 import { DOMUtilities } from '../../lib/DOMUtilities.ts'
 import { CustomSkeletonHelper } from '../../lib/CustomSkeletonHelper.ts'
 import { type SceneEnvironmentManager } from '../../lib/SceneEnvironmentManager.ts'
-import { mount_mcp_settings, type McpSettingsRefresh } from '../../control/McpSettingsPanel.ts'
+import { mount_mcp_settings, type McpSettingsRefresh } from '../../integrations/mcp/McpSettingsPanel.ts'
 
 export class SettingsDropdownManager {
   private readonly ui: UI = UI.getInstance()
