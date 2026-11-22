@@ -1,15 +1,2 @@
-/** Public, platform-neutral application-control API (read-only). */
-
-export * from './contracts.ts'
-export * from './ControlHost.ts'
-export * from './ControlSession.ts'
-export * from './EngineControlHost.ts'
-export * from './sanitize.ts'
-export * from './SequenceLedger.ts'
-export * from './publisherStatus.ts'
-export * from './McpSettingsPanel.ts'
-export * from './McpHostApi.ts'
-export * from './ControlPublisher.ts'
-export * from './attachControl.ts'
-export * from './transport/SnapshotSink.ts'
-export * from './transport/TauriSnapshotSink.ts'
+/** Compatibility barrel for the original read-only application control path. */
+export * from '../integrations/mcp/index.ts'

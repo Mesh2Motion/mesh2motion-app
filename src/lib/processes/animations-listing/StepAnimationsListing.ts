@@ -22,7 +22,7 @@ import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
 import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
-import { AnimationSearch } from './AnimationSearch.ts'
+import { AnimationSearch } from '../../../features/animation-catalog/AnimationSearch.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { type AnimationClipExportSelection } from './interfaces/AnimationExportSelection.ts'
 import { PropsManager } from './props/PropsManager.ts'
@@ -159,6 +159,7 @@ export class StepAnimationsListing extends EventTarget {
     this.skinned_meshes_to_animate = []
     this.animation_mixer = new AnimationMixer(new Object3D())
     this.current_playing_id = null
+    this.animation_search?.dispose()
     this.animation_search = null
     this.model_variation_pelvis_position_scale = 1.0
     this.reset_ui_elements()
@@ -564,6 +565,7 @@ export class StepAnimationsListing extends EventTarget {
   public build_animation_clip_ui (theme_manager: ThemeManager): void {
     // Initialize AnimationSearch if not already done
     // we could switch skeleton types using navigation, so need to re-create in case this happens
+    this.animation_search?.dispose()
     this.animation_search = new AnimationSearch('animation-filter', 'animations-items', theme_manager, this.skeleton_type)
 
     // Use the animation search class to handle the UI

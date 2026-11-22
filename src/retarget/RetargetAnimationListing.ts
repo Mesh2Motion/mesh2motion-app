@@ -1,6 +1,6 @@
 import { AnimationLoopController } from '../lib/AnimationLoopController.ts'
 import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
-import { AnimationSearch } from '../lib/processes/animations-listing/AnimationSearch.ts'
+import { AnimationSearch } from '../features/animation-catalog/AnimationSearch.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
 import { AnimationLibrary } from '../lib/processes/animations-listing/AnimationLibrary.ts'
 import { type AnimationLibraryLoadProgress } from '../lib/processes/animations-listing/interfaces/AnimationLibraryLoadProgress'
@@ -13,10 +13,10 @@ import { type TransformedAnimationClipPair } from '../lib/processes/animations-l
 import { type AnimationClipExportSelection } from '../lib/processes/animations-listing/interfaces/AnimationExportSelection.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
 import { StepExportRetargetedAnimations } from './steps/StepExportRetargetedAnimations.ts'
-import { UI } from '../lib/UI.ts'
+import { UI } from '../ui/UI.ts'
 import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { DownloadSettings } from '../lib/processes/export-to-file/DownloadSettings.ts'
-import { ModalDialog } from '../lib/ModalDialog.ts'
+import { ModalDialog } from '../ui/dialogs/ModalDialog.ts'
 import { type PropsManager } from '../lib/processes/animations-listing/props/PropsManager.ts'
 import { HandBoneResolver } from '../lib/processes/animations-listing/props/HandBoneResolver.ts'
 import { type PropSide } from '../lib/processes/animations-listing/props/PropSide.ts'
@@ -267,6 +267,7 @@ export class RetargetAnimationListing extends EventTarget {
 
   private build_animation_clip_ui (): void {
     // Initialize AnimationSearch with every animation in the library
+    this.animation_search?.dispose()
     this.animation_search = new AnimationSearch(
       'animation-filter',
       'animations-items',

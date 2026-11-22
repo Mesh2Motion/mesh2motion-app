@@ -9,7 +9,7 @@ import 'tippy.js/dist/tippy.css' // optional for styling
 import { Utility } from './lib/Utilities.ts'
 import { Generators } from './lib/Generators.ts'
 
-import { UI } from './lib/UI.ts'
+import { UI } from './ui/UI.ts'
 
 import { StepLoadModel } from './lib/processes/load-model/StepLoadModel.ts'
 import { StepLoadSkeleton } from './lib/processes/load-skeleton/StepLoadSkeleton.ts'
@@ -33,28 +33,25 @@ import { ModelPreviewDisplay } from './lib/enums/ModelPreviewDisplay.ts'
 import { TransformControlType } from './lib/enums/TransformControlType.ts'
 import { TransformSpace } from './lib/enums/TransformSpace.ts'
 import { ThemeManager } from './lib/ThemeManager.ts'
-import { SettingsDropdownManager } from './lib/SettingsDropdownManager.ts'
+import { SettingsDropdownManager } from './ui/settings/SettingsDropdownManager.ts'
 import { ModalDialog } from './lib/ModalDialog.ts'
 import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtility.ts'
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
 import { DOMUtilities } from './lib/DOMUtilities.ts'
-import { PlatformManager } from './lib/PlatformManager.ts'
+import { PlatformAdapter } from './platform/PlatformAdapter.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
 import { mark, mark_error } from './lib/StartupDiagnostics.ts'
 import {
-  create_webgl_renderer,
   display_render_loop_error,
   clear_fatal_startup_error,
-  install_webgl_context_handlers,
   RENDER_LOOP_ERROR_REASON
 } from './lib/WebGLStartup.ts'
-import { RenderLoopGuard } from './lib/RenderLoopGuard.ts'
-import { RenderLoopRecovery, RenderLoopScheduler } from './lib/RenderLoopRecovery.ts'
+import { RendererLifecycle } from './rendering/RendererLifecycle.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
-  public readonly renderer = create_webgl_renderer()
+  public readonly renderer = RendererLifecycle.create_renderer()
 
   public readonly transform_controls: CustomTransformControls = new CustomTransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
@@ -96,9 +93,7 @@ export class Mesh2MotionEngine {
   private readonly scene_environment: SceneEnvironmentManager
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
-  private readonly render_loop_guard = new RenderLoopGuard()
-  private readonly render_loop_scheduler: RenderLoopScheduler
-  private readonly render_loop_recovery: RenderLoopRecovery
+  private renderer_lifecycle: RendererLifecycle | null = null
   private render_loop_error_shown = false
   private first_frame_marked = false
 
@@ -108,22 +103,13 @@ export class Mesh2MotionEngine {
     mark('engine-construct:dom-mounts-ready')
 
     // this will add a platform CSS file if we are running our desktop app
-    new PlatformManager().init();
+    new PlatformAdapter().init();
     new NetworkStatusManager();
     mark('engine-construct:platform-ready')
 
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
     this.animate = this.animate.bind(this)
-    this.render_loop_scheduler = new RenderLoopScheduler(
-      (callback) => requestAnimationFrame(callback),
-      this.animate
-    )
-    this.render_loop_recovery = new RenderLoopRecovery(
-      this.render_loop_guard,
-      this.render_loop_scheduler,
-      () => { console.warn('[M2M] WebGL context lost; pausing renders until it is restored') }
-    )
     this.camera_shake = new CameraShake(this.camera)
 
     this.scene = new Scene()
@@ -162,15 +148,17 @@ export class Mesh2MotionEngine {
     mark('engine-construct:before-environment')
     this.setup_environment()
     mark('engine-construct:environment-ready')
-    install_webgl_context_handlers(
-      this.renderer.domElement,
-      () => this.render_loop_recovery.on_context_lost(),
-      () => this.render_loop_recovery.on_context_restored()
-    )
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
     mark('engine-construct:initial-step-ready')
-    this.animate() // start the render loop which will continue rendering the scene
+    this.renderer_lifecycle = new RendererLifecycle(
+      this.renderer,
+      this.camera,
+      this.scene_environment.get_viewport_container(),
+      this.animate,
+      () => { console.warn('[M2M] WebGL context lost; pausing renders until it is restored') }
+    )
+    this.renderer_lifecycle.start()
     mark('engine-construct:render-loop-started')
     this.inject_build_version()
     this.setup_tooltips()
@@ -181,6 +169,8 @@ export class Mesh2MotionEngine {
   public dispose (): void {
     this.load_model_step.dispose()
     this.scene_environment.dispose()
+    this.renderer_lifecycle?.dispose()
+    this.renderer_lifecycle = null
   }
 
   public get_theme_manager(): ThemeManager {
@@ -206,9 +196,9 @@ export class Mesh2MotionEngine {
   } {
     return {
       first_frame_rendered: this.first_frame_marked,
-      context_lost: this.render_loop_recovery.is_context_lost(),
-      render_loop_stopped: this.render_loop_guard.is_stopped(),
-      render_failures: this.render_loop_guard.failure_count()
+      context_lost: this.renderer_lifecycle?.context_lost() ?? false,
+      render_loop_stopped: this.renderer_lifecycle?.loop_stopped() ?? true,
+      render_failures: this.renderer_lifecycle?.failure_count() ?? 0
     }
   }
 
@@ -738,14 +728,13 @@ export class Mesh2MotionEngine {
 
 
   private animate (): void {
+    const lifecycle = this.renderer_lifecycle
+    if (lifecycle === null || lifecycle.loop_stopped()) return
     // Once the guard trips, stop scheduling frames instead of spinning on a
     // render error that repeats every frame.
-    if (this.render_loop_guard.is_stopped()) {
-      return
-    }
     // The scheduler guarantees exactly one pending frame, including after a
     // context restore. Do not call requestAnimationFrame directly here.
-    this.render_loop_scheduler.schedule_next()
+    lifecycle.schedule_next()
     const delta_time: number = this.clock.getDelta()
 
     try {
@@ -766,7 +755,7 @@ export class Mesh2MotionEngine {
 
       // While the GL context is lost, skip GL calls but keep the loop alive so
       // a `webglcontextrestored` event can resume rendering.
-      if (this.render_loop_recovery.is_context_lost()) {
+      if (lifecycle.context_lost()) {
         return
       }
 
@@ -780,7 +769,7 @@ export class Mesh2MotionEngine {
         }
       }
 
-      this.render_loop_guard.note_success()
+      lifecycle.note_frame_success()
       if (this.render_loop_error_shown) {
         clear_fatal_startup_error(RENDER_LOOP_ERROR_REASON)
         this.render_loop_error_shown = false
@@ -792,7 +781,7 @@ export class Mesh2MotionEngine {
       }
     } catch (error) {
       mark_error('render-frame', error)
-      if (this.render_loop_guard.note_failure()) {
+      if (lifecycle.note_frame_failure()) {
         const detail = error instanceof Error ? error.message : String(error)
         display_render_loop_error(new Error(`Rendering stopped after repeated failures: ${detail}`))
         this.render_loop_error_shown = true
