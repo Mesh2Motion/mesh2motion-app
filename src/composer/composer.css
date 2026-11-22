@@ -175,6 +175,11 @@ body.composer-is-dragging .composer-slot.is-drag-over {
     border: 1px solid var(--bg-tertiary);
 }
 
+#composer-library-items.virtualized-animation-catalog {
+    position: relative;
+    display: block;
+}
+
 /* styles.css pads every div. the Explore listing turns that off for its tiles too */
 #composer-library-items div {
     padding: 0;

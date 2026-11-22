@@ -2,6 +2,7 @@ import { type SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { type ThemeManager } from '../lib/ThemeManager.ts'
 import { type AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry.ts'
 import { AnimationPreviewVideos } from '../lib/processes/animations-listing/AnimationPreviewVideos.ts'
+import { VirtualizedAnimationCatalog } from '../features/animation-catalog/VirtualizedAnimationCatalog.ts'
 /**
  * Library of animations shown on the Composer page. Animations are not selected here.
  * They are dragged onto a slot, which reads the animation id from the drag data.
@@ -14,8 +15,12 @@ export class ComposerLibraryList {
   static readonly dragging_body_class: string = 'composer-is-dragging'
 
   private entries: AnimationEntry[] = []
+  private filtered_entries: AnimationEntry[] = []
   private readonly tile_elements = new Map<string, HTMLElement>()
   private readonly preview_videos: AnimationPreviewVideos = new AnimationPreviewVideos()
+  private readonly catalog: VirtualizedAnimationCatalog<AnimationEntry>
+  private upper_animation_id: string | null = null
+  private lower_animation_id: string | null = null
 
   constructor (
     private readonly list_container: HTMLElement,
@@ -24,6 +29,17 @@ export class ComposerLibraryList {
     private readonly theme_manager: ThemeManager,
     private readonly skeleton_type: SkeletonType
   ) {
+    this.catalog = new VirtualizedAnimationCatalog(this.list_container, {
+      get_id: entry => entry.id,
+      render_item: entry => this.render_tile(entry),
+      item_width: 103,
+      item_height: 160,
+      gap: 8,
+      overscan_rows: 2,
+      focus_target: element => element,
+      on_window_change: viewport => { this.sync_mounted_tiles(viewport) }
+    })
+    this.catalog.set_footer('<div class="composer-library-empty" style="display: none">No animations match the filter.</div>')
     this.add_event_listeners()
   }
 
@@ -36,22 +52,15 @@ export class ComposerLibraryList {
    * Marks the tiles that are in a slot, so it is clear which animations make up the result.
    */
   public set_slot_markers (upper_animation_id: string | null, lower_animation_id: string | null): void {
+    this.upper_animation_id = upper_animation_id
+    this.lower_animation_id = lower_animation_id
     this.tile_elements.forEach((tile, animation_id) => {
-      const in_upper = animation_id === upper_animation_id
-      const in_lower = animation_id === lower_animation_id
-      tile.classList.toggle('in-upper-slot', in_upper)
-      tile.classList.toggle('in-lower-slot', in_lower)
-      // Slot membership is this list's "selected" state; tell the shared
-      // scheduler so a selected preview can win a playback slot.
-      const preview = tile.querySelector<HTMLElement>('.anim-preview-placeholder')
-      if (preview !== null) {
-        this.preview_videos.set_selected(preview, in_upper || in_lower)
-      }
+      this.apply_slot_markers(tile, animation_id)
     })
   }
 
   public scroll_to_animation (animation_id: string): void {
-    this.tile_elements.get(animation_id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    this.catalog.scroll_to_id(animation_id)
   }
 
   static display_name (animation_name: string): string {
@@ -59,39 +68,52 @@ export class ComposerLibraryList {
   }
 
   private build_tiles (): void {
-    this.tile_elements.clear()
-    const theme_name: string = this.theme_manager.get_current_theme()
-
-    this.list_container.innerHTML = this.entries.map((entry) => {
-      const name: string = ComposerLibraryList.display_name(entry.name)
-      // custom imports have no preview video
-      const is_custom_import: boolean = entry.metadata.source_type === 'custom-import'
-      const preview_src: string | null = is_custom_import
-        ? null
-        : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, entry.name)
-      const data_src_attribute: string = preview_src === null ? '' : ` data-src="${preview_src}"`
-      const preview_html: string = is_custom_import
-        ? '<div class="anim-preview-placeholder composer-custom-preview"><span class="composer-imported-chip">Imported</span></div>'
-        : `<div class="anim-preview-placeholder"${data_src_attribute}></div>`
-
-      return `
-        <div class="composer-library-item" draggable="true" data-animation-id="${entry.id}" title="Drag ${name} onto a slot">
-          <span class="composer-drag-grip" aria-hidden="true"></span>
-          <span class="composer-slot-badge composer-slot-badge-upper" aria-hidden="true">Upper</span>
-          <span class="composer-slot-badge composer-slot-badge-lower" aria-hidden="true">Lower</span>
-          <div class="composer-library-item-preview">
-            ${preview_html}
-          </div>
-          <span class="composer-library-item-name">${name}</span>
-        </div>`
-    }).join('') + '<div class="composer-library-empty" style="display: none">No animations match the filter.</div>'
-
-    this.list_container.querySelectorAll<HTMLElement>('.composer-library-item').forEach((tile) => {
-      this.tile_elements.set(tile.dataset.animationId ?? '', tile)
-    })
-
+    this.preview_videos.disconnect()
     this.apply_filter()
+    this.catalog.set_items(this.filtered_entries, true)
     this.preview_videos.observe_placeholders(this.list_container)
+  }
+
+  private render_tile (entry: AnimationEntry): HTMLElement {
+    const name = ComposerLibraryList.display_name(entry.name)
+    const is_custom_import = entry.metadata.source_type === 'custom-import'
+    const preview_src = is_custom_import
+      ? null
+      : AnimationPreviewVideos.preview_src(this.skeleton_type, this.theme_manager.get_current_theme(), entry.name)
+    const preview_html = is_custom_import
+      ? '<div class="anim-preview-placeholder composer-custom-preview"><span class="composer-imported-chip">Imported</span></div>'
+      : `<div class="anim-preview-placeholder"${preview_src === null ? '' : ` data-src="${preview_src}"`}></div>`
+    const template = document.createElement('template')
+    template.innerHTML = `
+      <div class="composer-library-item" draggable="true" tabindex="0" data-animation-id="${entry.id}" title="Drag ${name} onto a slot">
+        <span class="composer-drag-grip" aria-hidden="true"></span>
+        <span class="composer-slot-badge composer-slot-badge-upper" aria-hidden="true">Upper</span>
+        <span class="composer-slot-badge composer-slot-badge-lower" aria-hidden="true">Lower</span>
+        <div class="composer-library-item-preview">${preview_html}</div>
+        <span class="composer-library-item-name">${name}</span>
+      </div>`
+    const tile = template.content.firstElementChild
+    if (!(tile instanceof HTMLElement)) throw new Error('Could not render Remix animation tile')
+    return tile
+  }
+
+  private sync_mounted_tiles (viewport: HTMLElement): void {
+    this.tile_elements.clear()
+    viewport.querySelectorAll<HTMLElement>('.composer-library-item').forEach(tile => {
+      const id = tile.dataset.animationId
+      if (id === undefined) return
+      this.tile_elements.set(id, tile)
+      this.apply_slot_markers(tile, id)
+    })
+    this.preview_videos.refresh_placeholders()
+  }
+
+  private apply_slot_markers (tile: HTMLElement, animation_id: string): void {
+    const in_slot = animation_id === this.upper_animation_id || animation_id === this.lower_animation_id
+    tile.classList.toggle('in-upper-slot', animation_id === this.upper_animation_id)
+    tile.classList.toggle('in-lower-slot', animation_id === this.lower_animation_id)
+    const preview = tile.querySelector<HTMLElement>('.anim-preview-placeholder')
+    if (preview !== null) this.preview_videos.set_selected(preview, in_slot)
   }
 
   /**
@@ -100,22 +122,14 @@ export class ComposerLibraryList {
   private apply_filter (): void {
     // names can use underscores or spaces, so compare with spaces. tags like 'combat' match too
     const search_text: string = (this.filter_input?.value ?? '').toLowerCase().replace(/_/g, ' ').trim()
-    let visible_count: number = 0
-
-    this.entries.forEach((entry) => {
-      const matches: boolean = entry.name.toLowerCase().replace(/_/g, ' ').includes(search_text) ||
+    this.filtered_entries = this.entries.filter((entry) => {
+      return entry.name.toLowerCase().replace(/_/g, ' ').includes(search_text) ||
         entry.metadata.tags.some(tag => tag.toLowerCase().includes(search_text))
-
-      const tile = this.tile_elements.get(entry.id)
-      if (tile !== undefined) {
-        tile.style.display = matches ? '' : 'none'
-      }
-      if (matches) {
-        visible_count++
-      }
     })
+    const visible_count = this.filtered_entries.length
+    this.catalog.set_items(this.filtered_entries)
 
-    const empty_message = this.list_container.querySelector<HTMLElement>('.composer-library-empty')
+    const empty_message = this.catalog.get_footer().querySelector<HTMLElement>('.composer-library-empty')
     if (empty_message !== null) {
       empty_message.style.display = visible_count === 0 ? '' : 'none'
     }
