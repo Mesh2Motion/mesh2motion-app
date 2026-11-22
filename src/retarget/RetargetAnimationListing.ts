@@ -267,6 +267,7 @@ export class RetargetAnimationListing extends EventTarget {
 
   private build_animation_clip_ui (): void {
     // Initialize AnimationSearch with every animation in the library
+    this.animation_search?.dispose()
     this.animation_search = new AnimationSearch(
       'animation-filter',
       'animations-items',

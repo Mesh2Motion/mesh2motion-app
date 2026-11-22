@@ -132,6 +132,8 @@ export class AnimationPreviewVideos {
   private container: HTMLElement | null = null
   /** Tiles currently inside the visible scroll viewport. */
   private readonly active = new Set<HTMLElement>()
+  /** Placeholder nodes currently registered with IntersectionObserver. */
+  private readonly observed_placeholders = new Set<HTMLElement>()
   /** Tiles with an interaction that currently requests playback. */
   private readonly interactions = new Map<HTMLElement, TileInteraction>()
   /** Tiles whose video is currently playing (bounded by max_active). */
@@ -221,6 +223,10 @@ export class AnimationPreviewVideos {
 
   /** Watch placeholders. Idle visible tiles remain lightweight placeholders. */
   public observe_placeholders (container: HTMLElement): void {
+    if (this.container === container && this.observer !== null) {
+      this.refresh_placeholders()
+      return
+    }
     this.disconnect()
     this.container = container
     this.failed.clear()
@@ -251,9 +257,30 @@ export class AnimationPreviewVideos {
       this.refresh_playback()
     }, { rootMargin: '0px' })
 
-    container.querySelectorAll<HTMLElement>('.anim-preview-placeholder').forEach((placeholder) => {
-      this.observer?.observe(placeholder)
-    })
+    this.refresh_placeholders()
+  }
+
+  /** Reconcile observer targets after a virtualized catalog mounts or removes rows. */
+  public refresh_placeholders (): void {
+    if (this.container === null || this.observer === null || this.disposing) return
+    const current = new Set(this.container.querySelectorAll<HTMLElement>('.anim-preview-placeholder'))
+
+    for (const placeholder of this.observed_placeholders) {
+      if (current.has(placeholder)) continue
+      this.observer.unobserve(placeholder)
+      this.observed_placeholders.delete(placeholder)
+      this.active.delete(placeholder)
+      this.cancel_interaction(placeholder)
+      this.release_video(placeholder)
+      this.failed.delete(placeholder)
+    }
+
+    for (const placeholder of current) {
+      if (this.observed_placeholders.has(placeholder)) continue
+      this.observed_placeholders.add(placeholder)
+      this.observer.observe(placeholder)
+    }
+    this.refresh_playback()
   }
 
   /**
@@ -847,6 +874,7 @@ export class AnimationPreviewVideos {
     this.disposing = true
     this.observer?.disconnect()
     this.observer = null
+    this.observed_placeholders.clear()
     for (const [placeholder, state] of this.interactions) {
       if (state.hover_timer !== null) clearTimeout(state.hover_timer)
       if (state.end_timer !== null) clearTimeout(state.end_timer)

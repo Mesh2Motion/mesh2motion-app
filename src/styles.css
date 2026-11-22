@@ -771,6 +771,19 @@ option {
      max-height: calc(100dvh - 30rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
 }
 
+#animations-items.virtualized-animation-catalog {
+    display: block;
+    position: relative;
+}
+
+.virtualized-catalog-content {
+    position: relative;
+}
+
+.virtualized-catalog-footer {
+    box-sizing: border-box;
+}
+
 #animations-items div {
     display: flex;
     padding: 0;

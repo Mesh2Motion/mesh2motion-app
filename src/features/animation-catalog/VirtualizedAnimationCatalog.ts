@@ -6,6 +6,7 @@ export interface VirtualizedCatalogOptions<T> {
   gap: number
   overscan_rows?: number
   focus_target?: (element: HTMLElement) => HTMLElement | null
+  on_window_change?: (viewport: HTMLElement) => void
 }
 
 const MAX_OVERSCAN_ROWS = 4
@@ -85,6 +86,7 @@ export class VirtualizedAnimationCatalog<T> {
       this.footer.replaceChildren(content)
     }
     this.position_footer()
+    this.options.on_window_change?.(this.viewport)
   }
 
   public get_footer (): HTMLElement {

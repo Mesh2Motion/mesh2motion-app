@@ -6,6 +6,7 @@ import { type AnimationEntry } from './interfaces/AnimationEntry'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'
 import { AnimationRequestDialog } from '../../components/animation-request/AnimationRequestDialog'
 import { ModalDialog } from '../../ModalDialog'
+import { VirtualizedAnimationCatalog } from '../../../features/animation-catalog/VirtualizedAnimationCatalog'
 
 export class AnimationSearch extends EventTarget {
   private all_animations: AnimationWithState[] = []
@@ -23,9 +24,9 @@ export class AnimationSearch extends EventTarget {
 
   private custom_event: CustomEvent | null = null
   private show_selected_only: boolean = false
+  private readonly lifetime = new AbortController()
 
-  // rows are built once per animation list and hidden when filtered out
-  private readonly row_elements = new Map<string, HTMLElement>()
+  private readonly catalog: VirtualizedAnimationCatalog<AnimationWithState> | null
   private no_animations_message: HTMLElement | null = null
   private request_animation_tile: HTMLElement | null = null
   private readonly preview_videos: AnimationPreviewVideos = new AnimationPreviewVideos()
@@ -43,6 +44,18 @@ export class AnimationSearch extends EventTarget {
     this.filter_input = document.querySelector(`#${filter_input_id}`)
     this.tag_filter_button = document.querySelector(`#${tag_filter_button_id}`)
     this.animation_list_container = document.querySelector(`#${animation_list_container_id}`)
+    this.catalog = this.animation_list_container === null
+      ? null
+      : new VirtualizedAnimationCatalog(this.animation_list_container, {
+        get_id: animation => animation.id,
+        render_item: animation => this.render_animation_tile(animation),
+        item_width: 103,
+        item_height: 160,
+        gap: 4,
+        overscan_rows: 2,
+        focus_target: element => element.querySelector<HTMLElement>('button, input[type="checkbox"]'),
+        on_window_change: () => { this.preview_videos.refresh_placeholders() }
+      })
     this.theme_manager = theme_manager
     this.skeleton_type = skeleton_type
     this.setup_event_listeners()
@@ -180,9 +193,9 @@ export class AnimationSearch extends EventTarget {
 
   private setup_theme_change_listener (): void {
     // rebuild animation previews so we have the correct theme
-    this.theme_manager.addEventListener('theme-changed', (new_theme) => {
+    this.theme_manager.addEventListener('theme-changed', () => {
       this.rebuild_animation_rows()
-    })
+    }, { signal: this.lifetime.signal })
   }
 
   private setup_filter_listener (): void {
@@ -198,7 +211,7 @@ export class AnimationSearch extends EventTarget {
       // emit an event to notify that we have filtered our animation listing
       this.custom_event = new CustomEvent('filtered-animations-listing', { detail: { selectedAnimations: this.get_selected_animation_ids() } })
       this.dispatchEvent(this.custom_event)
-    })
+    }, { signal: this.lifetime.signal })
 
     // assigned instead of added because a new AnimationSearch is created when switching rigs,
     // and older instances should not open their own copy of the dialog
@@ -251,7 +264,7 @@ export class AnimationSearch extends EventTarget {
         }
       })
       this.dispatchEvent(this.custom_event)
-    })
+    }, { signal: this.lifetime.signal })
 
     // Add event listener for tri-state mirror toggle button clicks.
     this.animation_list_container.addEventListener('click', (event) => {
@@ -282,7 +295,15 @@ export class AnimationSearch extends EventTarget {
         }
       })
       this.dispatchEvent(this.custom_event)
-    })
+    }, { signal: this.lifetime.signal })
+  }
+
+  /** Release the virtualized window, preview media and listeners when a rig is replaced. */
+  public dispose (): void {
+    this.lifetime.abort()
+    this.catalog?.dispose()
+    this.preview_videos.disconnect()
+    if (this.tag_filter_button !== null) this.tag_filter_button.onclick = null
   }
 
   private get_next_mirror_export_mode (current_mode: AnimationMirrorExportMode): AnimationMirrorExportMode {
@@ -367,10 +388,7 @@ export class AnimationSearch extends EventTarget {
 
     this.filtered_animations_list = this.get_matching_animations(filter_text)
 
-    const visible_ids = new Set(this.filtered_animations_list.map(animation => animation.id))
-    this.row_elements.forEach((row_element, animation_id) => {
-      row_element.style.display = visible_ids.has(animation_id) ? '' : 'none'
-    })
+    this.catalog?.set_items(this.filtered_animations_list)
 
     const has_results = this.filtered_animations_list.length > 0
     if (this.no_animations_message !== null) {
@@ -402,40 +420,48 @@ export class AnimationSearch extends EventTarget {
     })
   }
 
-  /**
-   * Builds a row for every animation, then applies the current filters. Only needed when the
-   * animation list or theme changes, since the preview video URLs depend on both.
-   */
+  /** Refresh mounted tiles when the rig or theme changes, keeping the catalogue virtualized. */
   private rebuild_animation_rows (): void {
-    if (this.animation_list_container === null) {
+    if (this.animation_list_container === null || this.catalog === null) {
       return
     }
 
     this.preview_videos.disconnect()
-    this.row_elements.clear()
+    this.filtered_animations_list = this.get_matching_animations(this.filter_input?.value.toLowerCase() ?? '')
+    const footer = document.createElement('div')
+    footer.innerHTML = `
+      <div class="no-animations-message">
+        No animations found.
+        <a href="#" class="request-animation-link" data-rig-type="${this.skeleton_type}">Request an animation</a>
+      </div>
+      <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
+        <span>Not finding what you want?</span>
+        <span class="anim-request-tile-action">Request an animation</span>
+      </a>`
+    this.catalog.set_items(this.filtered_animations_list, true)
+    this.catalog.set_footer(footer)
+    this.no_animations_message = this.catalog.get_footer().querySelector('.no-animations-message')
+    this.request_animation_tile = this.catalog.get_footer().querySelector('.anim-request-tile')
+    this.render_filtered_animations(this.filter_input?.value.toLowerCase() ?? '')
+    this.preview_videos.observe_placeholders(this.animation_list_container)
+  }
 
+  private render_animation_tile (animation_clip: AnimationWithState): HTMLElement {
     const theme_name: string = this.theme_manager.get_current_theme()
-
-    const rows_html = this.all_animations.map((animation_clip) => {
-      // Check if this animation was previously checked
-      const was_checked: boolean = animation_clip.isChecked ?? false
-      const checked_attribute = was_checked ? 'checked' : ''
-
-      const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
-
-      // each skeleton type has its own folder of preview videos. custom imports have none
-      const preview_src: string | null = is_custom_animation
-        ? null
-        : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
-      const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
-
-      const custom_animation_badge_html = is_custom_animation
-        ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
-        : ''
-
-      const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
-      const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)
-      return `
+    const was_checked: boolean = animation_clip.isChecked ?? false
+    const checked_attribute = was_checked ? 'checked' : ''
+    const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
+    const preview_src: string | null = is_custom_animation
+      ? null
+      : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
+    const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
+    const custom_animation_badge_html = is_custom_animation
+      ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
+      : ''
+    const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
+    const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)
+    const template = document.createElement('template')
+    template.innerHTML = `
         <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-id="${animation_clip.id}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
           <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
             ${custom_animation_badge_html}
@@ -459,32 +485,9 @@ export class AnimationSearch extends EventTarget {
             <img src="${AnimationSearch.mirror_mode_icons[mirror_export_mode]}" alt="${mirror_toggle_label}" class="action-icon">
           </button>
         </div>`
-    }).join('')
-
-    // when searching, the results might be close but not what they want (e.g. "wall" but looking for "wall run")
-    // so give them a way to request an animation at the end of the results
-    this.animation_list_container.innerHTML = `
-      ${rows_html}
-      <div class="no-animations-message">
-        No animations found.
-        <a href="#" class="request-animation-link" data-rig-type="${this.skeleton_type}">Request an animation</a>
-      </div>
-      <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
-        <span>Not finding what you want?</span>
-        <span class="anim-request-tile-action">Request an animation</span>
-      </a>`
-
-    this.animation_list_container.querySelectorAll<HTMLElement>('[data-animation-id].anim-item, [data-animation-id].anim-custom-item').forEach((row_element) => {
-      this.row_elements.set(row_element.getAttribute('data-animation-id') ?? '', row_element)
-    })
-    this.no_animations_message = this.animation_list_container.querySelector('.no-animations-message')
-    this.request_animation_tile = this.animation_list_container.querySelector('.anim-request-tile')
-
-    this.render_filtered_animations(this.filter_input?.value.toLowerCase() ?? '')
-
-    // only so many videos can be playing at the same time
-    // so this is an optimization to convert only elements in the active scroll area to video elements
-    this.preview_videos.observe_placeholders(this.animation_list_container)
+    const tile = template.content.firstElementChild
+    if (!(tile instanceof HTMLElement)) throw new Error('Could not render animation catalogue tile')
+    return tile
   }
 
   public animation_name_clean (input: string): string {
@@ -572,7 +575,7 @@ export class AnimationSearch extends EventTarget {
   // filtered-out rows stay in the DOM, so only touch the rows for the given animations
   private update_checkboxes_in_ui (animations: AnimationWithState[], checked_state: boolean): void {
     animations.forEach((animation) => {
-      const row_element = this.row_elements.get(animation.id)
+      const row_element = this.catalog?.get_element(animation.id)
       const checkbox = row_element?.querySelector<HTMLInputElement>('input[type="checkbox"]')
       if (row_element === undefined || checkbox === null || checkbox === undefined) {
         return

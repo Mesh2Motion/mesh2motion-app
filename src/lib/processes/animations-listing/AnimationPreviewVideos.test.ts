@@ -13,6 +13,7 @@ import { SkeletonType } from '../../enums/SkeletonType.ts'
 class FakeIntersectionObserver {
   public static instances: FakeIntersectionObserver[] = []
   public readonly observe = vi.fn()
+  public readonly unobserve = vi.fn()
   public readonly disconnect = vi.fn()
   public callback: IntersectionObserverCallback
 
@@ -675,13 +676,36 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
       const tile = placeholder(`human/dark_clip${i}.mp4`)
       container.appendChild(tile)
       previews.observe_placeholders(container)
-      FakeIntersectionObserver.instances[i].emit([{ target: tile, isIntersecting: true }])
+      FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
       focus_tile(tile)
       expect(container.querySelectorAll('video')).toHaveLength(1)
     }
     previews.disconnect()
     expect(container.querySelectorAll('video')).toHaveLength(0)
-    expect(FakeIntersectionObserver.instances.every(observer => observer.disconnect.mock.calls.length === 1)).toBe(true)
+    expect(FakeIntersectionObserver.instances).toHaveLength(1)
+    expect(FakeIntersectionObserver.instances[0].disconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncs newly mounted and removed virtualized placeholders without replacing the observer', () => {
+    const container = document.createElement('div')
+    const previews = new AnimationPreviewVideos()
+    previews.observe_placeholders(container)
+    const observer = FakeIntersectionObserver.instances[0]
+    const first = placeholder()
+    container.append(first)
+    previews.refresh_placeholders()
+    observer.emit([{ target: first, isIntersecting: true }])
+    focus_tile(first)
+    expect(first.querySelector('video')).not.toBeNull()
+
+    const second = placeholder()
+    container.replaceChildren(second)
+    previews.refresh_placeholders()
+    expect(observer.unobserve).toHaveBeenCalledWith(first)
+    expect(first.querySelector('video')).toBeNull()
+    expect(observer.observe).toHaveBeenCalledWith(second)
+    expect(FakeIntersectionObserver.instances).toHaveLength(1)
+    previews.disconnect()
   })
 
   it('does not call load() or show a fallback during teardown', () => {
