@@ -1,7 +1,7 @@
 import { UI } from '../../UI.ts'
 import { Object3D, type Scene, type Object3DEventMap } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { SkeletonType, type HandSkeletonType } from '../../enums/SkeletonType.js'
+import { SkeletonType, HandSkeletonType } from '../../enums/SkeletonType.js'
 import { RigConfig } from '../../RigConfig.ts'
 import { DOMUtilities } from '../../DOMUtilities.ts'
 import type GLTFResult from './interfaces/GLTFResult.ts'
@@ -101,7 +101,10 @@ export class StepLoadSkeleton extends EventTarget {
 
   private skeleton_file_path (): SkeletonType {
     // get currently selected option out of the model-selection drop-down
-    const skeleton_selection = this.ui.dom_skeleton_drop_type.options
+    const skeleton_selection = this.ui.dom_skeleton_drop_type?.options
+    if (skeleton_selection === undefined || skeleton_selection.length === 0) {
+      return SkeletonType.None
+    }
     const skeleton_file: string = skeleton_selection[skeleton_selection.selectedIndex].value
 
     if (skeleton_file === 'select-skeleton') return SkeletonType.None
@@ -116,6 +119,9 @@ export class StepLoadSkeleton extends EventTarget {
 
   private hand_skeleton_type (): HandSkeletonType {
     const hand_selection = this.ui.dom_hand_skeleton_selection?.options
+    if (hand_selection === undefined || hand_selection.length === 0) {
+      return HandSkeletonType.AllFingers
+    }
     return hand_selection[hand_selection.selectedIndex].value as HandSkeletonType
   }
 

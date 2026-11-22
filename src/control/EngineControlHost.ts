@@ -29,11 +29,15 @@ interface MeshStepLike {
   triangle_count: number
   model_meshes(): Object3DContainerLike
 }
-interface AnimationClipLike { name: string, duration: number, tracks: readonly unknown[] }
-interface AnimationMetadataLike { source_type: string, tags: readonly string[] }
+interface AnimationEntryLike {
+  name: string
+  state: string
+  metadata: { source_type: string, tags: readonly string[] }
+  clip_pair: { display_animation_clip: { duration: number, tracks: readonly unknown[] } } | null
+}
 interface AnimationStepLike {
-  animation_clips(): readonly AnimationClipLike[]
-  get_animation_metadata(index: number): AnimationMetadataLike | null
+  /** Additive read-only getter on upstream StepAnimationsListing. */
+  loaded_animation_entries(): readonly AnimationEntryLike[]
 }
 interface SkeletonLike { bones: readonly { name: string }[] }
 interface SkeletonStepLike { skeleton_type(): string }
@@ -113,7 +117,7 @@ export class EngineControlHost implements ControlHost {
       display_name: rig.rig_display_name,
       model_asset: rig.model_file,
       rig_asset: rig.rig_file,
-      animation_assets: rig.animation_files
+      animation_assets: rig.animations.map(animation => animation.file)
     }))
     const scene: SceneInfo = {
       process_step: as_process_step(engine.process_step),
@@ -165,39 +169,33 @@ export class EngineControlHost implements ControlHost {
   }
 
   private loaded_animations (rig: SkeletonTypeValue): readonly AnimationInfo[] {
-    const step = this.engine.animations_listing_step
-    return step.animation_clips().map((clip, index) => {
-      const metadata = step.get_animation_metadata(index)
-      return {
-        index,
-        name: clip.name,
-        duration_s: clip.duration,
-        track_count: clip.tracks.length,
-        source_type: as_source_type(metadata?.source_type),
-        tags: metadata?.tags ?? [],
-        rig,
-        origin: 'loaded'
-      }
-    })
+    return this.engine.animations_listing_step.loaded_animation_entries().map((entry, index) => ({
+      index,
+      name: entry.name,
+      duration_s: entry.clip_pair?.display_animation_clip.duration ?? 0,
+      track_count: entry.clip_pair?.display_animation_clip.tracks.length ?? 0,
+      source_type: as_source_type(entry.metadata.source_type),
+      tags: entry.metadata.tags,
+      rig,
+      origin: 'loaded'
+    }))
   }
 
   private manifest_animations (rig: SkeletonTypeValue): readonly AnimationInfo[] {
     if (rig === 'none') {
       return []
     }
-    return RigConfig.get_animation_file_paths(rig as SkeletonType).map((path, index) => {
-      const name = path.split('/').pop() ?? path
-      return {
-        index,
-        name: name.replace(/\.glb$/i, ''),
-        duration_s: 0,
-        track_count: 0,
-        source_type: 'default-library',
-        tags: [],
-        rig,
-        origin: 'manifest'
-      }
-    })
+    // Upstream now exposes per-animation manifest entries via animations_for().
+    return RigConfig.animations_for(rig as SkeletonType).map((animation, index) => ({
+      index,
+      name: animation.name,
+      duration_s: animation.duration,
+      track_count: 0, // manifest entries do not expose track counts
+      source_type: 'default-library',
+      tags: animation.tags,
+      rig,
+      origin: 'manifest'
+    }))
   }
 }
 

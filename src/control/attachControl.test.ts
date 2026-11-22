@@ -39,7 +39,7 @@ function mock_engine (): ControlEngineLike {
     load_model_step: { vertex_count: 0, triangle_count: 0, model_meshes: () => ({ children: [] }), ...target() },
     load_skeleton_step: { skeleton_type: () => 'none', ...target() },
     edit_skeleton_step: { skeleton: () => ({ bones: [] }) },
-    animations_listing_step: { animation_clips: () => [], get_animation_metadata: () => null },
+    animations_listing_step: { loaded_animation_entries: () => [] },
     control_state: () => ({
       first_frame_rendered: false,
       context_lost: false,

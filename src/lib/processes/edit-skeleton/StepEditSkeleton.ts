@@ -602,7 +602,7 @@ export class StepEditSkeleton extends EventTarget {
   private create_threejs_skeleton_object (): Skeleton {
     // create skeleton and helper to visualize
     this.threejs_skeleton = Generators.create_skeleton(this.edited_armature.children[0])
-    this.threejs_skeleton.name = 'Editing Skeleton'
+    ;(this.threejs_skeleton as Skeleton & { name: string }).name = 'Editing Skeleton'
 
     // update the world matrix for the skeleton
     // without this the skeleton helper won't appear when the bones are first loaded

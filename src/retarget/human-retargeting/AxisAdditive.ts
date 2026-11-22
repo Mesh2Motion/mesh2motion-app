@@ -1,38 +1,59 @@
-// Apply rotation to the first join in the chain
-// by using one of the inverse direction as the
-// rotational axis
+import Transform from './Transform'
+import Vec3 from './Vec3'
+import Quat from './Quat'
+import type { Rig } from './Rig'
+import type { Pose } from './Pose'
+
+/** Minimal retargeting context required by this additive rotation. */
+interface AxisAdditiveContext {
+  tarRig: Rig
+  pose: Pose
+}
+
+/**
+ * Apply rotation to the first joint in a chain by using one of the inverse
+ * directions as the rotational axis.
+ */
 export class AxisAdditive {
-  constructor (chName, axis = 'y', rad = 0) {
+  private readonly chainName: string
+  private readonly onAxis: string
+  private readonly angle: number
+
+  constructor (chName: string, axis: string = 'y', rad: number = 0) {
     this.chainName = chName
     this.onAxis = axis
     this.angle = rad
   }
 
-  apply (rt) {
-    if (this.angle === 0) return
+  apply (rt: AxisAdditiveContext): void {
+    if (this.angle === 0) {
+      return
+    }
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    const ch = rt.tarRig.chains[this.chainName]
-    const itm = ch[0]
-    const ptran = rt.pose.getWorld(itm.pidx)
-    const ctran = new Transform().fromMul(ptran, rt.pose.joints[itm.idx].local) // Less computive
-    // const ctran = rt.pose.getWorld( itm.idx );
+    const chain = rt.tarRig.chains[this.chainName]
+    if (chain === undefined || chain.length === 0) {
+      console.warn('AxisAdditive.apply - missing chain', this.chainName)
+      return
+    }
+    const item = chain[0]
+    const parent_transform = rt.pose.getWorld(item.pidx)
+    const current_transform = new Transform().fromMul(parent_transform, rt.pose.joints[item.idx].local)
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     const axis = new Vec3()
     switch (this.onAxis) {
-      case 'y': axis.fromQuat(ctran.rot, itm.twist); break
+      case 'y':
+        axis.fromQuat(current_transform.rot, item.twist)
+        break
       default:
         console.log('ERROR : AxisAdditive - Axis not implemented', this.onAxis)
         return
     }
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    const q = new Quat()
-      .fromAxisAngle(axis, this.angle) // Compute WS Rotation
-      .mul(ctran.rot) // Apply to joint
-      .pmulInvert(ptran.rot) // To LocalSpace
+    const rotation = new Quat()
+      .fromAxisAngle(axis, this.angle)
+      .mul(current_transform.rot)
+      .pmulInvert(parent_transform.rot)
 
-    rt.pose.setRot(itm.idx, q)
+    rt.pose.setRot(item.idx, rotation)
   }
 }

@@ -16,7 +16,7 @@ import {
   Vector3,
   Vector4
 } from 'three'
-import type { Camera, WebGLRenderer } from 'three'
+import type { Camera, Material, WebGLRenderer } from 'three'
 
 /**
  * A special type of helper that visualizes the camera's transformation
@@ -161,6 +161,9 @@ export class CustomViewHelper extends Object3D {
     if (intersects.length > 0) {
       const intersection = intersects[0]
       const object = intersection.object
+      if (!(object instanceof Sprite)) {
+        return false
+      }
       this.prepare_animation_data(object, this.center)
       this.animating = true
       return true
@@ -195,9 +198,16 @@ export class CustomViewHelper extends Object3D {
 
   public dispose = (): void => {
     this.geometry.dispose()
-    this.xAxis.material.dispose()
-    this.yAxis.material.dispose()
-    this.zAxis.material.dispose()
+    const dispose_material = (material: Material | Material[]): void => {
+      if (Array.isArray(material)) {
+        material.forEach(one => { one.dispose() })
+      } else {
+        material.dispose()
+      }
+    }
+    dispose_material(this.xAxis.material)
+    dispose_material(this.yAxis.material)
+    dispose_material(this.zAxis.material)
     this.posXAxisHelper.material.map?.dispose()
     this.posYAxisHelper.material.map?.dispose()
     this.posZAxisHelper.material.map?.dispose()

@@ -13,7 +13,7 @@ export default class Vec3 extends Array {
       this[0] = a
       this[1] = b
       this[2] = c
-    } else if (a !== undefined && typeof a === 'object') {
+    } else if (a !== undefined && a !== null && typeof a === 'object') {
       // we passed in an object, so copy/clone it
       this.copy(a)
     } else {

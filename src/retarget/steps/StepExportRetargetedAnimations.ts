@@ -199,6 +199,6 @@ export class StepExportRetargetedAnimations extends EventTarget {
   }
 
   private save_uint8_array (buffer: Uint8Array, filename: string): void {
-    this.save_file(new Blob([buffer], { type: 'application/octet-stream' }), filename)
+    this.save_file(new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: 'application/octet-stream' }), filename)
   }
 }

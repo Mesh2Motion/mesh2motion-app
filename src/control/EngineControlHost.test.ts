@@ -16,8 +16,12 @@ function mock_engine (overrides: Partial<EngineLike> = {}): EngineLike {
     load_skeleton_step: { skeleton_type: () => 'human' },
     edit_skeleton_step: { skeleton: () => ({ bones: [{ name: 'hips' }, { name: 'spine' }] }) },
     animations_listing_step: {
-      animation_clips: () => [{ name: 'Idle', duration: 1, tracks: [{}, {}] }],
-      get_animation_metadata: () => ({ source_type: 'default-library', tags: ['test'] })
+      loaded_animation_entries: () => [{
+        name: 'Idle',
+        state: 'loaded',
+        metadata: { source_type: 'default-library', tags: ['test'] },
+        clip_pair: { display_animation_clip: { duration: 1, tracks: [{}, {}] } }
+      }]
     },
     control_state: () => ({
       first_frame_rendered: true,

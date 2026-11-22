@@ -13,8 +13,9 @@ export interface SnapshotSink {
 
 /** Default sink: keeps the ordinary web build completely inert. */
 export class NoopSnapshotSink implements SnapshotSink {
-  public publish (_snapshot: ControlSnapshot): void {
-    // Intentionally empty.
+  public publish (snapshot: ControlSnapshot): void {
+    // Intentionally empty; referencing the argument keeps this a valid implementation.
+    void snapshot
   }
 }
 

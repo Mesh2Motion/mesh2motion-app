@@ -80,7 +80,7 @@ export class StepWeightSkin extends EventTarget {
 
     // when we copy over the armature with the bind, we will lose the reference in the variable
     this.binding_skeleton = Generators.create_skeleton(this.skinning_armature.children[0])
-    this.binding_skeleton.name = 'Mesh Binding Skeleton'
+    ;(this.binding_skeleton as Skeleton & { name: string }).name = 'Mesh Binding Skeleton'
   }
 
   /**

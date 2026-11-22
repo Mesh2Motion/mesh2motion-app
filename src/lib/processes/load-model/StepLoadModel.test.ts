@@ -6,7 +6,6 @@ const { show_spy } = vi.hoisted(() => ({ show_spy: vi.fn() }))
 
 vi.mock('../../ModalDialog.ts', () => ({
   ModalDialog: class {
-    constructor (_title: string, _content: string) {}
     show = show_spy
   }
 }))

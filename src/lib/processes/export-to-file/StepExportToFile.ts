@@ -155,9 +155,9 @@ export class StepExportToFile extends EventTarget {
 
       gltf_exporter.parse(
         exported_scene,
-        (result: ArrayBuffer) => {
-          // Handle the result of the export
-          if (result !== null) {
+        (result: ArrayBuffer | { [key: string]: unknown }) => {
+          // The GLTFExporter also permits a JSON object result; only binary GLB is exported here.
+          if (result instanceof ArrayBuffer) {
             const cleaned_result = GlbSkinCleanupService.remove_skin_skeleton_properties(result)
             this.save_array_buffer(cleaned_result, `${file_name}.glb`)
             resolve() // Resolve the promise when the export is complete
@@ -218,6 +218,6 @@ export class StepExportToFile extends EventTarget {
 
   // used for FBX exporter to turn content into a byte array for saving
   private save_uint8_array (buffer: Uint8Array, filename: string): void {
-    this.save_file(new Blob([buffer], { type: 'application/octet-stream' }), filename)
+    this.save_file(new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: 'application/octet-stream' }), filename)
   }
 }

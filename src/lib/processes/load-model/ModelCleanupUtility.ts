@@ -67,7 +67,8 @@ export class ModelCleanupUtility {
     // the geometry data might be stored as Interleaved buffer,  if it is
     // we need to convert the data to a reular BufferGeometry for processing later
     // this way we can normalize processing later
-    if (child.geometry.attributes.position.isInterleavedBufferAttribute) {
+    const position_attribute = child.geometry.attributes.position
+    if ('isInterleavedBufferAttribute' in position_attribute && position_attribute.isInterleavedBufferAttribute) {
       geometry_to_add.setAttribute('position', child.geometry.attributes.position.clone())
       geometry_to_add.setAttribute('normal', child.geometry.attributes.normal.clone())
       geometry_to_add.setAttribute('uv', child.geometry.attributes.uv.clone())
@@ -291,7 +292,7 @@ export class ModelCleanupUtility {
     new_scene.name = model_display_name
 
     model_data.traverse((child) => {
-      let new_mesh: Mesh
+      let new_mesh: Mesh | undefined
 
       if (child.type === 'SkinnedMesh') {
         new_mesh = new Mesh((child as SkinnedMesh).geometry, (child as SkinnedMesh).material)

@@ -10,7 +10,6 @@ import { ControlHost, ControlObservation, derive_phase, empty_observation } from
 import {
   AnimationsListData,
   ApplicationStatusData,
-  ApplicationPhase,
   CONTROL_ERROR_CODES,
   CONTROL_SCHEMA_VERSION,
   ControlCommand,

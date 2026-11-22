@@ -48,11 +48,12 @@ export class StepLoadTargetModel extends EventTarget {
       }
     })
 
-    if (first_skinned_mesh === null) {
+    const skinned_mesh = first_skinned_mesh as SkinnedMesh | null
+    if (skinned_mesh === null) {
       return bones
     }
 
-    first_skinned_mesh.skeleton.bones.forEach((bone) => {
+    skinned_mesh.skeleton.bones.forEach((bone: Bone) => {
       bones.set(bone.uuid, bone)
     })
 

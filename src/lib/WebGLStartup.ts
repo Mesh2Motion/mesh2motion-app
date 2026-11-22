@@ -31,7 +31,10 @@ export function create_webgl_renderer (factory: RendererFactory = default_render
   } catch (error) {
     mark_error('renderer-create', error)
     const detail = error instanceof Error ? error.message : String(error)
-    throw new Error(`WebGL renderer initialization failed: ${detail}`)
+    const wrapped = new Error(`WebGL renderer initialization failed: ${detail}`)
+    // Keep the original failure reachable without requiring an ES2022 lib target.
+    ;(wrapped as Error & { cause?: unknown }).cause = error
+    throw wrapped
   }
 }
 

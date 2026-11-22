@@ -58,7 +58,7 @@ function setup (options: { publish_error?: string } = {}): Harness {
     load_model_step: model_step,
     load_skeleton_step: skeleton_step,
     edit_skeleton_step: { skeleton: () => ({ bones: [{ name: 'hips' }] }) },
-    animations_listing_step: { animation_clips: () => [], get_animation_metadata: () => null },
+    animations_listing_step: { loaded_animation_entries: () => [] },
     control_state: () => ({
       first_frame_rendered: true,
       context_lost: lost,

@@ -706,7 +706,10 @@ export class Mesh2MotionEngine {
       this.download_settings.update_download_settings_ui_visibility(active_skeleton_type)
 
       // update reference of skeleton helper to use the final skinned mesh
-      this.regenerate_skeleton_helper(this.weight_skin_step.skeleton())
+      const final_skeleton = this.weight_skin_step.skeleton()
+      if (final_skeleton !== undefined) {
+        this.regenerate_skeleton_helper(final_skeleton)
+      }
       this.sync_skeleton_helper_joint_visibility()
 
       // hide skeleton by default in animations listing step
@@ -802,8 +805,10 @@ export class Mesh2MotionEngine {
     }
 
     // show/hide weight painted mesh depending on view
-    this.weight_skin_step.weight_painted_mesh_group().visible =
-      this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null) {
+      weight_painted_group.visible = this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted
+    }
 
     this.edit_skeleton_step.set_weight_paint_available(
       this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted)
@@ -904,7 +909,7 @@ export class Mesh2MotionEngine {
   public remove_weight_painted_mesh_preview (): void {
     if (this.load_model_step.model_meshes() !== undefined) {
       const weight_painted_mesh = this.scene.getObjectByName('Weight Painted Mesh Preview')
-      if (weight_painted_mesh !== null) {
+      if (weight_painted_mesh !== null && weight_painted_mesh !== undefined) {
         this.scene.remove(weight_painted_mesh)
       }
     }
@@ -915,8 +920,9 @@ export class Mesh2MotionEngine {
     this.calculate_skin_weighting_for_models()
 
     // if the weight painted mesh is not in scene, add it
-    if (this.scene.getObjectByName('Weight Painted Mesh') === undefined) {
-      this.scene.add(this.weight_skin_step.weight_painted_mesh_group())
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null && this.scene.getObjectByName('Weight Painted Mesh') === undefined) {
+      this.scene.add(weight_painted_group)
     }
   }
 
@@ -928,7 +934,10 @@ export class Mesh2MotionEngine {
     this.remove_skinned_meshes_from_scene() // clean up in case we had skinned meshes in scene previously
     this.scene.add(...this.weight_skin_step.final_skinned_meshes()) // add final skinned mesh to scene
 
-    this.weight_skin_step.weight_painted_mesh_group().visible = false // hide weight painted mesh
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null) {
+      weight_painted_group.visible = false // hide weight painted mesh
+    }
   }
 
   /**

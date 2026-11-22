@@ -48,6 +48,12 @@ export class CustomDAELoader extends EventDispatcher {
       this.loader.load(
         dae_url,
         (collada) => {
+          if (collada === null) {
+            if (onError !== undefined) {
+              onError(new Error('DAE loader returned no scene'))
+            }
+            return
+          }
           const loaded_scene = collada.scene
 
           console.log('DAE model loaded from ZIP:', loaded_scene)
@@ -68,7 +74,7 @@ export class CustomDAELoader extends EventDispatcher {
       }
     }
     // cleanup error handler
-    this.loader.manager.onError = null
+    this.loader.manager.onError = () => {}
   }
 
   /**
@@ -130,7 +136,7 @@ export class CustomDAELoader extends EventDispatcher {
         else if (/\.jpe?g$/i.test(name_only)) mime = 'image/jpeg'
         else if (/\.webp$/i.test(name_only)) mime = 'image/webp'
         else if (/\.dae$/i.test(name_only)) mime = 'model/vnd.collada+xml'
-        const blob = new Blob([buffer], { type: mime })
+        const blob = new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: mime })
         return URL.createObjectURL(blob)
       }
       return url

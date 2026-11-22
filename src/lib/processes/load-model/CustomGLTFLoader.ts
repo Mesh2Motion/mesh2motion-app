@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { EventDispatcher } from 'three'
 import { type GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { type Group } from 'three/src/objects/Group.js'
 import { type Scene } from 'three/src/scenes/Scene.js'
 import { ModalDialog } from '../../ModalDialog'
 
@@ -20,7 +21,7 @@ export class CustomGLTFLoader extends EventDispatcher {
    * Main entry: Loads a GLTF (with BIN and textures) from a ZIP file buffer, using in-memory URLs for all assets.
    */
   public async load_from_zip (zip_data: ArrayBuffer,
-    onLoad: (scene: Scene) => void,
+    onLoad: (scene: Scene | Group) => void,
     onError?: (err: any) => void
   ): Promise<void> {
     try {
@@ -50,8 +51,7 @@ export class CustomGLTFLoader extends EventDispatcher {
 
       // Load the GLTF from the in-memory URL
       this.loader.load(gltf_url, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        onLoad(loaded_scene)
+        onLoad(gltf.scene)
         URL.revokeObjectURL(gltf_url)
       },
       undefined,
@@ -67,7 +67,7 @@ export class CustomGLTFLoader extends EventDispatcher {
       }
     }
     // cleanup error handler
-    this.loader.manager.onError = null
+    this.loader.manager.onError = () => {}
   }
 
   /**
@@ -165,7 +165,7 @@ export class CustomGLTFLoader extends EventDispatcher {
         else if (/\.jpe?g$/i.test(name_only)) mime = 'image/jpeg'
         else if (/\.webp$/i.test(name_only)) mime = 'image/webp'
         else if (/\.gltf$/i.test(name_only)) mime = 'application/json'
-        const blob = new Blob([buffer], { type: mime })
+        const blob = new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: mime })
         return URL.createObjectURL(blob)
       }
 

@@ -135,7 +135,7 @@ export class EventListeners {
 
     // listen for view helper changes
     document.getElementById('view-control-hitbox')?.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (this.bootstrap.view_helper.handleClick(event)) {
+      if (this.bootstrap.view_helper?.handleClick(event) === true) {
         event.stopPropagation()
         event.preventDefault()
       }
@@ -467,7 +467,10 @@ export class EventListeners {
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {
       if (this.bootstrap.skeleton_helper !== undefined) {
-        this.bootstrap.skeleton_helper.visible = event.target.checked
+        const checkbox = event.target as HTMLInputElement | null
+        if (checkbox !== null) {
+          this.bootstrap.skeleton_helper.visible = checkbox.checked
+        }
       } else {
         console.warn('Skeleton helper is undefined, so we cannot show it')
       }
@@ -526,7 +529,7 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_type_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform type change')
@@ -537,7 +540,7 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_space_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform space change')
@@ -549,7 +552,7 @@ export class EventListeners {
 
     // changing the 3d model preview while editing the skeleton bones
     this.bootstrap.ui.dom_mesh_preview_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for mesh preview type change')

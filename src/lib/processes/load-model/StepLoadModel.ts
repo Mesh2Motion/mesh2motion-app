@@ -22,7 +22,7 @@ export class StepLoadModel extends EventTarget {
   private readonly gltf_loader = new GLTFLoader()
   private readonly custom_fbx_loader: CustomFBXLoader = new CustomFBXLoader()
   private readonly ui: UI = UI.getInstance()
-  private original_model_data: Scene | Group = new Scene()
+  private original_model_data: Scene = new Scene()
   private final_mesh_data: Scene = new Scene() // mesh data used when creating the skinned mesh
 
   // model data used for retargeting process. Only used during retargeting processes
@@ -127,7 +127,8 @@ export class StepLoadModel extends EventTarget {
     if (this.ui.dom_upload_model_button !== null) {
       // handle file upload
       this.ui.dom_upload_model_button.addEventListener('change', (event: Event) => {
-        const file = event.target.files[0]
+        const input = event.target as HTMLInputElement | null
+        const file = input?.files?.[0]
         if (file === undefined) return
         this.load_uploaded_file(file)
       })
@@ -143,7 +144,8 @@ export class StepLoadModel extends EventTarget {
 
     if (this.ui.dom_load_model_debug_checkbox !== null) {
       this.ui.dom_load_model_debug_checkbox.addEventListener('change', (event: Event) => {
-        const debug_mode = event.target.checked
+        const checkbox = event.target as HTMLInputElement | null
+        const debug_mode = checkbox?.checked ?? false
         this.debug_model_loading = debug_mode
       })
     }
@@ -151,7 +153,7 @@ export class StepLoadModel extends EventTarget {
     if (this.ui.dom_load_model_button !== null) {
       this.ui.dom_load_model_button.addEventListener('click', () => {
         // get currently selected option out of the model-selection drop-down
-        const model_selection = document.querySelector('#model-selection')
+        const model_selection = document.querySelector<HTMLSelectElement>('#model-selection')
 
         if (model_selection !== null) {
           const file_name = model_selection.options[model_selection.selectedIndex].value
@@ -264,8 +266,7 @@ export class StepLoadModel extends EventTarget {
         model_file_path as string,
         (gltf) => {
           mark('model-load:glb:loaded', String(model_file_path))
-          const loaded_scene: Scene = gltf.scene
-          this.process_loaded_scene(loaded_scene)
+          this.process_loaded_scene(new Scene().add(gltf.scene))
         },
         undefined,
         (error: unknown) => {
@@ -333,7 +334,7 @@ export class StepLoadModel extends EventTarget {
       } catch (err) {
         // if no GLTF file found, or other error, show dialog
         console.error('Failed to load model from ZIP:', err)
-        new ModalDialog('Failed to load model from ZIP: ', err?.message || err).show()
+        new ModalDialog('Failed to load model from ZIP: ', err instanceof Error ? err.message : String(err)).show()
       }
     }
 
@@ -359,16 +360,18 @@ export class StepLoadModel extends EventTarget {
     }
   }
 
-  private process_loaded_scene (loaded_scene: Scene): void {
+  private process_loaded_scene (loaded_scene: Scene | Group): void {
     // capture the file contents before any cleanup/normalization runs. this has to
     // happen first because the steps below mutate geometry that is shared with the
     // scene the loader handed us
     const imported_snapshot: SceneSnapshot = ModelAnalysisReport.snapshot_scene(loaded_scene)
+    // GLTF loaders return a Group; normalize once so all downstream steps see a Scene.
+    const normalized_scene: Scene = loaded_scene instanceof Scene ? loaded_scene : new Scene().add(loaded_scene)
 
     if (this.preserve_skinned_mesh) {
-      this.original_model_data = loaded_scene
+      this.original_model_data = normalized_scene
     } else {
-      this.original_model_data = loaded_scene.clone()
+      this.original_model_data = normalized_scene.clone()
       this.original_model_data.name = 'Cloned Scene'
     }
 

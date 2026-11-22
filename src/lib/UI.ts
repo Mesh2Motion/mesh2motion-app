@@ -106,7 +106,7 @@ export class UI {
   dom_extend_arm_range_input: HTMLInputElement | null = null
   dom_extend_arm_numeric_input: HTMLInputElement | null = null
   dom_arm_extension_options: HTMLElement | null = null
-  dom_export_button_hidden_link: HTMLElement | null = null
+  dom_export_button_hidden_link: HTMLAnchorElement | null = null
   dom_animation_count: HTMLElement | null = null
   dom_animations_listing_count: HTMLElement | null = null
 
@@ -277,7 +277,7 @@ export class UI {
     this.dom_solid_background_toggle = document.querySelector('#solid-background-toggle')
 
     // UI for exporting the animation
-    this.dom_export_button_hidden_link = document.querySelector('#download-hidden-link')
+    this.dom_export_button_hidden_link = document.querySelector<HTMLAnchorElement>('#download-hidden-link')
     this.dom_animation_count = document.querySelector('#animation-selection-count')
     this.dom_animations_listing_count = document.querySelector('#animation-listing-count')
 

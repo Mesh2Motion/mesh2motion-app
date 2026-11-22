@@ -13,7 +13,7 @@ export class Generators {
   static create_material (wireframe_value = true, color_hex = 0x00ff00): MeshPhongMaterial {
     const material = new MeshPhongMaterial({ color: color_hex, wireframe: wireframe_value })
     material.side = DoubleSide
-    material.specular = 0.0
+    material.specular.set(0x000000)
     material.shininess = 0.0
     return material
   }
@@ -138,7 +138,7 @@ export class Generators {
     const plane_width_segments = 2
     const plane_height_segments = 2
     const plane_geometry = new PlaneGeometry(plane_width, plane_height, plane_width_segments, plane_height_segments)
-    const plane_material: MeshBasicMaterial = Generators.create_material(false, color)
+    const plane_material: MeshPhongMaterial = Generators.create_material(false, color)
     const mesh_object = new Mesh(plane_geometry, plane_material)
     mesh_object.name = 'Plane Intersection Mesh'
     return mesh_object
@@ -201,7 +201,7 @@ export class Generators {
 
     // create 4 reference points around the plane that will be used for raycasting
     const plane_point_geometry = new SphereGeometry(0.002, 3, 3)
-    const plane_point_material: MeshBasicMaterial = Generators.create_material(true, 0x00ffff)
+    const plane_point_material: MeshPhongMaterial = Generators.create_material(true, 0x00ffff)
 
     for (let i = 0; i < rays_to_cast; i++) {
       // have the points go around the plane in an even circle increments

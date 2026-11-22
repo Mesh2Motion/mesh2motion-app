@@ -11,6 +11,7 @@ import { ArmExtensionControl } from './ArmExtensionControl.ts'
 import { AnimationLoader } from './AnimationLoader.ts'
 import { type AnimationLoadProgress } from './interfaces/AnimationLoadProgress'
 import { AnimationLibrary } from './AnimationLibrary.ts'
+import { type AnimationEntry } from './interfaces/AnimationEntry.ts'
 import { type AnimationLibraryLoadProgress } from './interfaces/AnimationLibraryLoadProgress'
 import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
@@ -191,6 +192,14 @@ export class StepAnimationsListing extends EventTarget {
   /** Shared timeline UI, also used by the optional weight painting step. */
   public get_animation_player (): AnimationPlayer {
     return this.animation_player
+  }
+
+  /**
+   * Read-only view of animations whose GLB has actually loaded. Used by the
+   * optional application-control API; does not mutate the library or player.
+   */
+  public loaded_animation_entries (): readonly AnimationEntry[] {
+    return this.animation_library.all().filter(entry => entry.state === 'loaded')
   }
 
   // setup in the bootstrap.ts file and only called if we are actively
