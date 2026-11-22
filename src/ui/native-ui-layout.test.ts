@@ -108,6 +108,14 @@ describe('M2M-023A Props viewport anchoring', () => {
     expect(props_css).not.toMatch(/position:\s*fixed/)
   })
 
+  it('keeps the Props dock content-sized and right-anchored in narrow viewports', () => {
+    const narrow_layout = props_css.match(/@media\s*\(max-width:\s*48rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    expect(narrow_layout).not.toMatch(/#props-dock\s*\{/)
+    expect(narrow_layout).not.toMatch(/left:\s*0\.5rem/)
+    expect(narrow_layout).not.toMatch(/right:\s*0\.5rem\s*!important/)
+    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?right:\s*0\.5rem/)
+  })
+
   it('keeps the control clickable and accessible', () => {
     expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?pointer-events:\s*none/)
     expect(props_css).toMatch(/#props-dock\s*>\s*\*\s*\{[\s\S]*?pointer-events:\s*auto/)

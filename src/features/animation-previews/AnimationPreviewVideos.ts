@@ -286,6 +286,12 @@ export class AnimationPreviewVideos {
     }
 
     for (const placeholder of current) {
+      // Virtualized items are mounted in a bounded visible/overscan window. Load
+      // their tiny static posters at mount time instead of waiting for a native
+      // IntersectionObserver delivery, which can be delayed or omitted while
+      // WebKitGTK lays out the scrolling catalog. This does not create or play
+      // video elements; playback remains interaction- and visibility-gated.
+      this.ensure_poster(placeholder)
       if (this.observed_placeholders.has(placeholder)) continue
       this.observed_placeholders.add(placeholder)
       this.observer.observe(placeholder)

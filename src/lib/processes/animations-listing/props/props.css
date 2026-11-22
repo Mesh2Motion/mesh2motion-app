@@ -214,11 +214,6 @@
 }
 
 @media (max-width: 48rem) {
-    #props-dock {
-        right: 0.5rem !important;
-        left: 0.5rem;
-    }
-
     .props-panel {
         flex: 1;
         flex-direction: column;

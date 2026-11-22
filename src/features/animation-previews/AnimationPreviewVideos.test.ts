@@ -260,7 +260,6 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     const previews = new AnimationPreviewVideos()
 
     previews.observe_placeholders(container)
-    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
     await flush()
 
     expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
@@ -270,6 +269,28 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     expect(tile.querySelector('img')?.getAttribute('src')).toBe(
       'asset://localhost/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp'
     )
+    previews.disconnect()
+  })
+
+  it('loads posters for newly mounted virtualized items before observer notification', async () => {
+    set_tauri(true)
+    invoke_mock.mockResolvedValue('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
+    const container = document.createElement('div')
+    const tile = placeholder()
+    tile.setAttribute('data-poster-src', '../animpreviews/human/dark_Angry.webp')
+    tile.innerHTML = '<img class="anim-preview-poster" alt="" aria-hidden="true">'
+    container.append(tile)
+    document.body.append(container)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    await flush()
+
+    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
+      assetKey: 'human/dark_Angry.webp'
+    })
+    expect(previews.get_stats().video_count).toBe(0)
+    expect(play_mock).not.toHaveBeenCalled()
     previews.disconnect()
   })
 
