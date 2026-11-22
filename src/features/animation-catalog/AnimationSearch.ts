@@ -469,9 +469,10 @@ export class AnimationSearch extends EventTarget {
       : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
     const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
     const poster_src = AnimationPreviewVideos.poster_src(preview_src)
-    const poster_attribute = poster_src === null
+    const poster_class = poster_src === null
       ? ' anim-preview-placeholder--no-poster'
-      : ` data-poster-src="${poster_src}"`
+      : ''
+    const poster_attribute = poster_src === null ? '' : ` data-poster-src="${poster_src}"`
     const poster_image_html = poster_src === null
       ? ''
       : '<img class="anim-preview-poster" alt="" aria-hidden="true" decoding="async">'
@@ -485,7 +486,7 @@ export class AnimationSearch extends EventTarget {
         <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-id="${animation_clip.id}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
           <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}" aria-description="Focus to preview the video; activate to play on the model.">
             ${custom_animation_badge_html}
-            <div class="anim-preview-placeholder${poster_attribute}"${preview_data_src_attribute}>${poster_image_html}</div>
+            <div class="anim-preview-placeholder${poster_class}"${poster_attribute}${preview_data_src_attribute}>${poster_image_html}</div>
           </button>
           ${poster_src === null ? '' : `<button class="anim-preview-control" type="button" data-action="preview-video" data-animation-name="${this.animation_name_clean(animation_clip.name)}" aria-label="Preview video for ${this.animation_name_clean(animation_clip.name)}" aria-pressed="false" title="Preview video">▶</button>`}
 

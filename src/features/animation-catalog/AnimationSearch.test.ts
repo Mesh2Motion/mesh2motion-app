@@ -45,4 +45,17 @@ describe('AnimationSearch virtualized catalogue integration', () => {
     const selected = viewport.querySelector<HTMLInputElement>(`input[value="${checkbox.value}"]`)
     expect(selected?.checked).toBe(true)
   })
+
+  it('renders poster paths as data attributes on bundled animation tiles', () => {
+    document.body.innerHTML = '<input id="filter"><div id="catalog"></div>'
+    search = new AnimationSearch('filter', 'catalog', new ThemeManager(), SkeletonType.Human)
+    search.initialize_animations(entries(1))
+
+    const tile = document.querySelector<HTMLElement>('.anim-preview-placeholder')
+    expect(tile).not.toBeNull()
+    expect(tile?.classList.contains('anim-preview-placeholder--no-poster')).toBe(false)
+    expect(tile?.dataset.posterSrc).toMatch(/^\.\.\/animpreviews\/human\/dark_.*\.webp$/)
+    expect(tile?.querySelector('img.anim-preview-poster')).not.toBeNull()
+    expect(tile?.dataset.src).toMatch(/^\.\.\/animpreviews\/human\/dark_.*\.mp4$/)
+  })
 })
