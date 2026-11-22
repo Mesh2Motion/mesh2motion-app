@@ -5,7 +5,7 @@ import { type AnimationWithState } from './interfaces/AnimationWithState'
 import { type AnimationEntry } from './interfaces/AnimationEntry'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'
 import { AnimationRequestDialog } from '../../components/animation-request/AnimationRequestDialog'
-import { ModalDialog } from '../../ModalDialog'
+import { ModalDialog } from '../../../ui/dialogs/ModalDialog.ts'
 import { VirtualizedAnimationCatalog } from '../../../features/animation-catalog/VirtualizedAnimationCatalog'
 
 export class AnimationSearch extends EventTarget {

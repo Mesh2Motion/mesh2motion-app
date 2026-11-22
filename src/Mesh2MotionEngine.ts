@@ -9,7 +9,7 @@ import 'tippy.js/dist/tippy.css' // optional for styling
 import { Utility } from './lib/Utilities.ts'
 import { Generators } from './lib/Generators.ts'
 
-import { UI } from './lib/UI.ts'
+import { UI } from './ui/UI.ts'
 
 import { StepLoadModel } from './lib/processes/load-model/StepLoadModel.ts'
 import { StepLoadSkeleton } from './lib/processes/load-skeleton/StepLoadSkeleton.ts'
@@ -33,7 +33,7 @@ import { ModelPreviewDisplay } from './lib/enums/ModelPreviewDisplay.ts'
 import { TransformControlType } from './lib/enums/TransformControlType.ts'
 import { TransformSpace } from './lib/enums/TransformSpace.ts'
 import { ThemeManager } from './lib/ThemeManager.ts'
-import { SettingsDropdownManager } from './lib/SettingsDropdownManager.ts'
+import { SettingsDropdownManager } from './ui/settings/SettingsDropdownManager.ts'
 import { ModalDialog } from './lib/ModalDialog.ts'
 import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtility.ts'
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
