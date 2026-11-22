@@ -3,6 +3,7 @@ import JSZip from 'jszip'
 import { CustomGLTFLoader } from './CustomGLTFLoader'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js'
+import { type Group, type Scene } from 'three'
 import { CustomDAELoader } from './CustomDAELoader'
 import { type ModelFormat } from './interfaces/ModelFormat'
 import { type ZipModelInfo } from './interfaces/ZipModelInfo'
@@ -28,9 +29,9 @@ export class ModelZipLoader {
   /**
    * Loads a model from a ZIP buffer using the appropriate loader and returns the loaded object.
    * @param buffer - ZIP file as ArrayBuffer
-   * @returns Promise<Object3D> - The loaded model object
+   * @returns Promise<Group | Scene> - The loaded model object
    */
-  public async loadModelFromZip (buffer: ArrayBuffer): Promise<any> {
+  public async loadModelFromZip (buffer: ArrayBuffer): Promise<Group | Scene> {
     const info = await this.analyzeZip(buffer)
     switch (info.format) {
       case 'gltf': {
@@ -40,7 +41,7 @@ export class ModelZipLoader {
         return await new Promise((resolve, reject) => {
           custom_gltf_loader.load_from_zip(
             buffer,
-            (scene) => { resolve(scene) },
+            (scene) => { resolve(scene as Group) },
             (err) => { reject(err) }
           )
         })
@@ -58,7 +59,7 @@ export class ModelZipLoader {
         return await new Promise((resolve, reject) => {
           collada_loader_instance.load_from_zip(
             buffer,
-            (scene) => { resolve(scene) },
+            (scene) => { resolve(scene as Group) },
             (err) => { reject(err) }
           )
         })

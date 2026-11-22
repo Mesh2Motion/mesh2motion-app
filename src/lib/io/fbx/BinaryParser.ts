@@ -1,20 +1,29 @@
 import { unzlibSync } from 'three/addons/libs/fflate.module.js'
 import { BinaryReader } from './BinaryReader'
 import { FBXTree } from './FBXTree'
+import type { FBXNodeObject, FBXNodeValue } from './FBXNodes'
 
 /** Scalar or array property value stored in an FBX node's property list. */
 type FBXPropertyValue = boolean | number | string | ArrayBuffer | boolean[] | number[]
 
 /** A parsed FBX node with well-known fields and arbitrary dynamic children. */
-interface FBXNode {
+interface FBXNode extends FBXNodeObject {
     name: string
-    id?: number
+    id?: number | string
     attrName?: string
     attrType?: string
     singleProperty?: boolean
-    propertyList: FBXPropertyValue[]
-    connections?: Array<Array<number | string>>
-    [key: string]: any
+    propertyList: FBXNodeValue[]
+    connections?: FBXNodeValue[]
+}
+
+/** Dynamic children are object-shaped even though the tree value type is a union. */
+function as_node_object (value: FBXNodeValue): FBXNodeObject {
+    return value as FBXNodeObject;
+}
+
+function as_node_array (value: FBXNodeValue): FBXNodeValue[] {
+    return value as FBXNodeValue[];
 }
 
 /**
@@ -82,7 +91,12 @@ class BinaryParser {
         const endOffset = (version >= 7500) ? reader.getUint64() : reader.getUint32();
         const numProperties = (version >= 7500) ? reader.getUint64() : reader.getUint32();
 
-        (version >= 7500) ? reader.getUint64() : reader.getUint32(); // the returned propertyListLen is not used
+        // the returned propertyListLen is not used
+        if (version >= 7500) {
+            reader.getUint64();
+        } else {
+            reader.getUint32();
+        }
 
         const nameLen = reader.getUint8();
         const name = reader.getString(nameLen);
@@ -147,9 +161,9 @@ class BinaryParser {
 
         } else if (name === 'Connections' && subNode.name === 'C') {
 
-            const array: any[] = [];
+            const array: FBXNodeValue[] = [];
 
-            subNode.propertyList.forEach(function (property: FBXPropertyValue, i: number) {
+            subNode.propertyList.forEach(function (property: FBXNodeValue, i: number) {
 
                 // first Connection is FBX type (OO, OP, etc.). We'll discard these
                 if (i !== 0) array.push(property);
@@ -214,7 +228,7 @@ class BinaryParser {
             if (typeof subNode.id === 'number') {
 
                 node[subNode.name] = {};
-                node[subNode.name][subNode.id] = subNode;
+                as_node_object(node[subNode.name])[String(subNode.id)] = subNode;
 
             } else {
 
@@ -232,11 +246,11 @@ class BinaryParser {
 
                 }
 
-                node[subNode.name].push(subNode);
+                as_node_array(node[subNode.name]).push(subNode);
 
-            } else if (subNode.id !== undefined && node[subNode.name][subNode.id] === undefined) {
+            } else if (subNode.id !== undefined && as_node_object(node[subNode.name])[String(subNode.id)] === undefined) {
 
-                node[subNode.name][subNode.id] = subNode;
+                as_node_object(node[subNode.name])[String(subNode.id)] = subNode;
 
             }
 
@@ -283,7 +297,7 @@ class BinaryParser {
             case 'f':
             case 'i':
             case 'l':
-
+            {
                 const arrayLength = reader.getUint32();
                 const encoding = reader.getUint32(); // 0: non-compressed, 1: compressed
                 const compressedLength = reader.getUint32();
@@ -336,6 +350,7 @@ class BinaryParser {
                 }
 
                 break; // cannot happen but is required by the DeepScan
+            }
 
             default:
                 throw new Error('THREE.FBXLoader: Unknown property type ' + type);

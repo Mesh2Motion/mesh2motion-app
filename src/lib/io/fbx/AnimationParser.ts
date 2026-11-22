@@ -5,6 +5,7 @@ import {
     MathUtils,
     Matrix4,
     NumberKeyframeTrack,
+    type Object3D,
     PropertyBinding,
     Quaternion,
     QuaternionKeyframeTrack,
@@ -14,7 +15,52 @@ import {
 } from 'three'
 import { fbxGlobals } from './fbx-globals'
 import { convertFBXTimeToSeconds, getEulerOrder } from './fbx-utils'
-import type { FBXAnimationCurveNode, FBXAnimationLayerNode } from './FBXNodes'
+import type {
+    FBXAnimationCurve,
+    FBXAnimationCurveNode,
+    FBXAnimationLayerNode,
+    FBXModelObject,
+    FBXNodeValue,
+    FBXRawNode
+} from './FBXNodes'
+
+/** A times/values pair for one animated axis. Synchronised curves have no id. */
+interface AnimationCurveData {
+    times: number[];
+    values: number[];
+}
+
+/** The set of animated channels attached to a curve node. */
+type AnimationCurves = Partial<Record<'x' | 'y' | 'z' | 'morph', FBXAnimationCurve>>;
+
+/** An animation layer entry whose transform channels are typed curve nodes. */
+interface RawAnimationTracks extends FBXAnimationLayerNode {
+    T?: FBXAnimationCurveNode;
+    R?: FBXAnimationCurveNode;
+    S?: FBXAnimationCurveNode;
+    DeformPercent?: FBXAnimationCurveNode;
+}
+
+/** A raw clip pairing an animation stack name with its layer entries. */
+interface RawClip {
+    name: string;
+    layer: RawAnimationTracks[];
+}
+
+/** Three.js object carrying morph target metadata. */
+interface MorphTargetObject extends Object3D {
+    morphTargetDictionary?: Record<string, number>;
+}
+
+/** Asserts that a dynamically shaped FBX value is an object-shaped raw node. */
+function as_node (value: FBXNodeValue | undefined): FBXRawNode {
+    return value as FBXRawNode;
+}
+
+/** Asserts that a dynamically shaped FBX value is an array of numbers. */
+function as_numbers (value: FBXNodeValue | undefined): number[] {
+    return value as number[];
+}
 
 /**
  * Converts animation data from the `FBXTree` into Three.js `AnimationClip` objects.
@@ -28,7 +74,7 @@ class AnimationParser {
 
         const animationClips: AnimationClip[] = [];
 
-        const rawClips: any = this.parseClips();
+        const rawClips = this.parseClips();
 
         if (rawClips !== undefined) {
 
@@ -78,12 +124,12 @@ class AnimationParser {
 
             const rawCurveNode = rawCurveNodes[nodeID];
 
-            if (rawCurveNode.attrName.match(/S|R|T|DeformPercent/) !== null) {
+            if (rawCurveNode.attrName!.match(/S|R|T|DeformPercent/) !== null) {
 
                 const curveNode: FBXAnimationCurveNode = {
 
-                    id: rawCurveNode.id,
-                    attr: rawCurveNode.attrName,
+                    id: rawCurveNode.id as number,
+                    attr: rawCurveNode.attrName!,
                     curves: {},
 
                 };
@@ -114,11 +160,13 @@ class AnimationParser {
 
         for (const nodeID in rawCurves) {
 
-            const animationCurve = {
+            const rawCurve = as_node(rawCurves[nodeID]);
 
-                id: rawCurves[nodeID].id,
-                times: rawCurves[nodeID].KeyTime.a.map(convertFBXTimeToSeconds),
-                values: rawCurves[nodeID].KeyValueFloat.a,
+            const animationCurve: FBXAnimationCurve = {
+
+                id: rawCurve.id as number,
+                times: as_numbers(as_node(rawCurve.KeyTime).a).map(convertFBXTimeToSeconds),
+                values: as_numbers(as_node(rawCurve.KeyValueFloat).a),
 
             };
 
@@ -160,11 +208,11 @@ class AnimationParser {
 
         const rawLayers = fbxGlobals.fbxTree.Objects.AnimationLayer;
 
-        const layersMap = new Map();
+        const layersMap = new Map<number, RawAnimationTracks[]>();
 
         for (const nodeID in rawLayers) {
 
-            const layerCurveNodes: FBXAnimationLayerNode[] = [];
+            const layerCurveNodes: RawAnimationTracks[] = [];
 
             const connection = fbxGlobals.connections.get(parseInt(nodeID));
 
@@ -207,16 +255,16 @@ class AnimationParser {
                                     const node: FBXAnimationLayerNode = {
 
                                         modelName: rawModel.attrName ? PropertyBinding.sanitizeNodeName(rawModel.attrName) : '',
-                                        ID: rawModel.id,
+                                        ID: rawModel.id as number,
                                         initialPosition: [0, 0, 0],
                                         initialRotation: [0, 0, 0],
                                         initialScale: [1, 1, 1],
 
                                     };
 
-                                    fbxGlobals.sceneGraph.traverse(function (child: any) {
+                                    fbxGlobals.sceneGraph.traverse((child) => {
 
-                                        if (child.ID === rawModel.id) {
+                                        if ((child as FBXModelObject).ID === rawModel.id) {
 
                                             node.transform = child.matrix;
 
@@ -236,8 +284,8 @@ class AnimationParser {
 
                                     // if the animated model is pre rotated, we'll have to apply the pre rotations to every
                                     // animation value as well
-                                    if ('PreRotation' in rawModel) node.preRotation = rawModel.PreRotation.value;
-                                    if ('PostRotation' in rawModel) node.postRotation = rawModel.PostRotation.value;
+                                    if ('PreRotation' in rawModel) node.preRotation = as_numbers(rawModel.PreRotation!.value);
+                                    if ('PostRotation' in rawModel) node.postRotation = as_numbers(rawModel.PostRotation!.value);
 
                                     layerCurveNodes[i] = node;
 
@@ -300,12 +348,12 @@ class AnimationParser {
 
     // parse nodes in FBXTree.Objects.AnimationStack. These are the top level node in the animation
     // hierarchy. Each Stack node will be used to create an AnimationClip
-    parseAnimStacks (layersMap: Map<number, any>) {
+    parseAnimStacks (layersMap: Map<number, RawAnimationTracks[]>): Record<string, RawClip> {
 
         const rawStacks = fbxGlobals.fbxTree.Objects.AnimationStack;
 
         // connect the stacks (clips) up to the layers
-        const rawClips: any = {};
+        const rawClips: Record<string, RawClip> = {};
 
         for (const nodeID in rawStacks) {
 
@@ -323,8 +371,8 @@ class AnimationParser {
 
             rawClips[nodeID] = {
 
-                name: rawStacks[nodeID].attrName,
-                layer: layer,
+                name: rawStacks[nodeID].attrName!,
+                layer: layer!,
 
             };
 
@@ -334,14 +382,13 @@ class AnimationParser {
 
     }
 
-    addClip (rawClip: any): AnimationClip {
+    addClip (rawClip: RawClip): AnimationClip {
 
         let tracks: KeyframeTrack[] = [];
 
-        const scope = this;
-        rawClip.layer.forEach(function (rawTracks: any) {
+        rawClip.layer.forEach((rawTracks) => {
 
-            tracks = tracks.concat(scope.generateTracks(rawTracks));
+            tracks = tracks.concat(this.generateTracks(rawTracks));
 
         });
 
@@ -349,7 +396,7 @@ class AnimationParser {
 
     }
 
-    generateTracks (rawTracks: any): KeyframeTrack[] {
+    generateTracks (rawTracks: RawAnimationTracks): KeyframeTrack[] {
 
         const tracks: KeyframeTrack[] = [];
 
@@ -393,7 +440,7 @@ class AnimationParser {
 
     }
 
-    generateVectorTrack (modelName: string, curves: any, initialValue: number[], type: string): VectorKeyframeTrack {
+    generateVectorTrack (modelName: string, curves: AnimationCurves, initialValue: number[], type: string): VectorKeyframeTrack {
 
         const times = this.getTimesForAllAxes(curves);
         const values = this.getKeyframeTrackValues(times, curves, initialValue);
@@ -402,10 +449,10 @@ class AnimationParser {
 
     }
 
-    generateRotationTrack (modelName: string, curves: any, preRotation: any, postRotation: any, eulerOrder: EulerOrder | undefined, initialRotation: number[]): QuaternionKeyframeTrack | undefined {
+    generateRotationTrack (modelName: string, curves: AnimationCurves, preRotation: number[] | undefined, postRotation: number[] | undefined, eulerOrder: EulerOrder | undefined, initialRotation: number[] | undefined): QuaternionKeyframeTrack | undefined {
 
-        let times;
-        let values;
+        let times: number[] | undefined;
+        let values: number[] | undefined;
 
         if (curves.x !== undefined || curves.y !== undefined || curves.z !== undefined) {
 
@@ -435,30 +482,34 @@ class AnimationParser {
         // For Maya models using "Joint Orient", Euler order only applies to rotation, not pre/post-rotations
         const defaultEulerOrder = getEulerOrder(0);
 
+        let preRotationQuaternion: Quaternion | undefined;
         if (preRotation !== undefined) {
 
-            preRotation = preRotation.map(MathUtils.degToRad);
-            preRotation.push(defaultEulerOrder);
-
-            preRotation = new Euler().fromArray(preRotation);
-            preRotation = new Quaternion().setFromEuler(preRotation);
+            preRotationQuaternion = new Quaternion().setFromEuler(new Euler().fromArray([
+                MathUtils.degToRad(preRotation[0]),
+                MathUtils.degToRad(preRotation[1]),
+                MathUtils.degToRad(preRotation[2]),
+                defaultEulerOrder
+            ]));
 
         }
 
+        let postRotationQuaternion: Quaternion | undefined;
         if (postRotation !== undefined) {
 
-            postRotation = postRotation.map(MathUtils.degToRad);
-            postRotation.push(defaultEulerOrder);
-
-            postRotation = new Euler().fromArray(postRotation);
-            postRotation = new Quaternion().setFromEuler(postRotation).invert();
+            postRotationQuaternion = new Quaternion().setFromEuler(new Euler().fromArray([
+                MathUtils.degToRad(postRotation[0]),
+                MathUtils.degToRad(postRotation[1]),
+                MathUtils.degToRad(postRotation[2]),
+                defaultEulerOrder
+            ])).invert();
 
         }
 
         const quaternion = new Quaternion();
         const euler = new Euler();
 
-        const quaternionValues: any[] = [];
+        const quaternionValues: number[] = [];
 
         if (!values || !times) return undefined;
 
@@ -467,8 +518,8 @@ class AnimationParser {
             euler.set(values[i], values[i + 1], values[i + 2], eulerOrder);
             quaternion.setFromEuler(euler);
 
-            if (preRotation !== undefined) quaternion.premultiply(preRotation);
-            if (postRotation !== undefined) quaternion.multiply(postRotation);
+            if (preRotationQuaternion !== undefined) quaternion.premultiply(preRotationQuaternion);
+            if (postRotationQuaternion !== undefined) quaternion.multiply(postRotationQuaternion);
 
             // Check unroll
             if (i > 2) {
@@ -494,16 +545,13 @@ class AnimationParser {
 
     }
 
-    generateMorphTrack (rawTracks: any): NumberKeyframeTrack {
+    generateMorphTrack (rawTracks: RawAnimationTracks): NumberKeyframeTrack {
 
-        const curves = rawTracks.DeformPercent.curves.morph;
-        const values = curves.values.map(function (val: any) {
+        const curves = rawTracks.DeformPercent!.curves.morph!;
+        const values = curves.values.map((val) => val / 100);
 
-            return val / 100;
-
-        });
-
-        const morphNum = (fbxGlobals.sceneGraph.getObjectByName(rawTracks.modelName) as any)?.morphTargetDictionary[rawTracks.morphName];
+        const morphObject = fbxGlobals.sceneGraph.getObjectByName(rawTracks.modelName) as MorphTargetObject | null | undefined;
+        const morphNum = morphObject?.morphTargetDictionary![rawTracks.morphName!];
 
         return new NumberKeyframeTrack(rawTracks.modelName + '.morphTargetInfluences[' + morphNum + ']', curves.times, values);
 
@@ -511,7 +559,7 @@ class AnimationParser {
 
     // For all animated objects, times are defined separately for each axis
     // Here we'll combine the times into one sorted array without duplicates
-    getTimesForAllAxes (curves: any): number[] {
+    getTimesForAllAxes (curves: AnimationCurves): number[] {
 
         let times: number[] = [];
 
@@ -553,7 +601,7 @@ class AnimationParser {
 
     }
 
-    getKeyframeTrackValues (times: number[], curves: any, initialValue: number[]): number[] {
+    getKeyframeTrackValues (times: number[], curves: AnimationCurves, initialValue: number[]): number[] {
 
         const prevValue = initialValue;
 
@@ -572,7 +620,7 @@ class AnimationParser {
             // if there is an x value defined for this frame, use that
             if (xIndex !== - 1) {
 
-                const xValue = curves.x.values[xIndex];
+                const xValue = curves.x!.values[xIndex];
                 values.push(xValue);
                 prevValue[0] = xValue;
 
@@ -585,7 +633,7 @@ class AnimationParser {
 
             if (yIndex !== - 1) {
 
-                const yValue = curves.y.values[yIndex];
+                const yValue = curves.y!.values[yIndex];
                 values.push(yValue);
                 prevValue[1] = yValue;
 
@@ -597,7 +645,7 @@ class AnimationParser {
 
             if (zIndex !== - 1) {
 
-                const zValue = curves.z.values[zIndex];
+                const zValue = curves.z!.values[zIndex];
                 values.push(zValue);
                 prevValue[2] = zValue;
 
@@ -615,7 +663,7 @@ class AnimationParser {
 
     // Synchronize a curve to a target time array using linear interpolation.
     // If the curve is undefined (axis not animated), returns constant values from initialValue.
-    synchronizeCurve (curve: any, targetTimes: number[], initialValue: number): { times: number[], values: number[] } {
+    synchronizeCurve (curve: FBXAnimationCurve | undefined, targetTimes: number[], initialValue: number): AnimationCurveData {
 
         if (curve === undefined) {
 
@@ -627,7 +675,7 @@ class AnimationParser {
         if (curve.times.length === targetTimes.length) return curve;
 
         // Linearly interpolate curve values at each target time
-        const values = [];
+        const values: number[] = [];
 
         for (let i = 0; i < targetTimes.length; i++) {
 
@@ -640,7 +688,7 @@ class AnimationParser {
     }
 
     // Sample a single value from a curve at a given time using linear interpolation
-    sampleCurveValue (curve: any, time: number, initialValue: number): number {
+    sampleCurveValue (curve: AnimationCurveData, time: number, initialValue: number): number {
 
         const times = curve.times;
         const values = curve.values;
@@ -672,7 +720,7 @@ class AnimationParser {
     // Rotations are defined as Euler angles which can have values of any size
     // These will be converted to quaternions which don't support values greater than
     // PI, so we'll interpolate large rotations
-    interpolateRotations (curvex: any, curvey: any, curvez: any, eulerOrder: EulerOrder | undefined): [number[], number[]] {
+    interpolateRotations (curvex: AnimationCurveData, curvey: AnimationCurveData, curvez: AnimationCurveData, eulerOrder: EulerOrder | undefined): [number[], number[]] {
 
         const times: number[] = [];
         const values: number[] = [];

@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { EventDispatcher } from 'three'
+import { EventDispatcher, type Object3D } from 'three'
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js'
 import { ModalDialog } from '../../ModalDialog'
 
@@ -20,8 +20,8 @@ export class CustomDAELoader extends EventDispatcher {
    */
   public async load_from_zip (
     zip_data: ArrayBuffer,
-    onLoad: (scene: any) => void,
-    onError?: (err: any) => void
+    onLoad: (scene: Object3D) => void,
+    onError?: (err: unknown) => void
   ): Promise<void> {
     try {
       // 1. Load and scan the ZIP for DAE file
@@ -80,8 +80,8 @@ export class CustomDAELoader extends EventDispatcher {
   /**
    * Scans the ZIP for .dae file and returns its file object.
    */
-  private find_dae_file (zip: JSZip): any {
-    let dae_file: any = null
+  private find_dae_file (zip: JSZip): JSZip.JSZipObject | null {
+    let dae_file: JSZip.JSZipObject | null = null
     zip.forEach((relativePath, file) => {
       if (relativePath.toLowerCase().endsWith('.dae')) {
         dae_file = file
@@ -107,7 +107,9 @@ export class CustomDAELoader extends EventDispatcher {
             const decoded = decodeURIComponent(nameOnly)
             fileMap[decoded] = buffer
             fileMap[decoded.toLowerCase()] = buffer
-          } catch {}
+          } catch {
+            // Keep the original name when a ZIP entry contains malformed percent escapes.
+          }
         }
       }
     })
@@ -128,7 +130,9 @@ export class CustomDAELoader extends EventDispatcher {
         try {
           const decoded = decodeURIComponent(name_only)
           buffer = file_map[decoded] || file_map[decoded.toLowerCase()]
-        } catch {}
+        } catch {
+          // Keep the original path when a URL contains malformed percent escapes.
+        }
       }
       if (buffer) {
         let mime = 'application/octet-stream'

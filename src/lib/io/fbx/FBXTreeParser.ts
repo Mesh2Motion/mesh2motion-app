@@ -34,7 +34,15 @@ import { fbxGlobals, type FBXConnectionEntry } from './fbx-globals'
 import { GeometryParser } from './GeometryParser'
 import { AnimationParser } from './AnimationParser'
 import { generateTransform, getEulerOrder } from './fbx-utils'
-import type { FBXConnectionRow, FBXModelObject, FBXTextureNode, FBXVideoNode } from './FBXNodes'
+import type { FBXConnectionRow, FBXModelObject, FBXNodeValue, FBXRawNode, FBXTextureNode, FBXVideoNode } from './FBXNodes'
+
+interface FBXPoseNode { Node: string; Matrix: { a: number[] } }
+
+function as_object (value: FBXNodeValue): FBXRawNode { return value as FBXRawNode; }
+function as_numbers (value: FBXNodeValue): number[] { return value as number[]; }
+function as_video (value: FBXRawNode): FBXVideoNode { return value as FBXVideoNode; }
+function as_texture (value: FBXRawNode): FBXTextureNode { return value as FBXTextureNode; }
+function as_pose (value: FBXNodeValue): FBXPoseNode { return value as unknown as FBXPoseNode; }
 
 /**
  * Traverses the `FBXTree` produced by `BinaryParser` or `TextParser` and builds
@@ -77,7 +85,7 @@ class FBXTreeParser {
 
             const rawConnections = fbxGlobals.fbxTree.Connections.connections;
 
-            rawConnections.forEach(function (rawConnection: FBXConnectionRow) {
+            (rawConnections as FBXConnectionRow[]).forEach(function (rawConnection: FBXConnectionRow) {
 
                 const fromID = rawConnection[0];
                 const toID = rawConnection[1];
@@ -129,7 +137,7 @@ class FBXTreeParser {
 
             for (const nodeID in videoNodes) {
 
-                const videoNode: FBXVideoNode = videoNodes[nodeID];
+                const videoNode: FBXVideoNode = as_video(videoNodes[nodeID]);
 
                 const id = parseInt(nodeID);
 
@@ -143,7 +151,7 @@ class FBXTreeParser {
 
                     if (arrayBufferContent || base64Content) {
 
-                        const image = this.parseImage(videoNodes[nodeID]);
+                        const image = this.parseImage(as_video(videoNodes[nodeID]));
 
                         if (image !== undefined) blobs[videoNode.RelativeFilename || videoNode.Filename] = image;
 
@@ -250,7 +258,7 @@ class FBXTreeParser {
             const textureNodes = fbxGlobals.fbxTree.Objects.Texture;
             for (const nodeID in textureNodes) {
 
-                const texture = this.parseTexture(textureNodes[nodeID], images);
+                const texture = this.parseTexture(as_texture(textureNodes[nodeID]), images);
                 textureMap.set(parseInt(nodeID), texture);
 
             }
@@ -1377,7 +1385,7 @@ class FBXTreeParser {
 
                     if ('Lcl_Translation' in lookAtTarget) {
 
-                        const pos = lookAtTarget.Lcl_Translation.value;
+                        const pos = as_numbers(as_object(lookAtTarget.Lcl_Translation).value);
 
                         // DirectionalLight, SpotLight
                         if (model.target !== undefined) {
@@ -1557,7 +1565,7 @@ class FBXTreeParser {
 
             for (const nodeID in BindPoseNode) {
 
-                if (BindPoseNode[nodeID].attrType === 'BindPose' && BindPoseNode[nodeID].NbPoseNodes > 0) {
+                if (BindPoseNode[nodeID].attrType === 'BindPose' && (as_object(BindPoseNode[nodeID]).NbPoseNodes as number) > 0) {
 
                     const poseNodes = BindPoseNode[nodeID].PoseNode;
 
@@ -1565,13 +1573,13 @@ class FBXTreeParser {
 
                         poseNodes.forEach(function (poseNode) {
 
-                            bindMatrices[poseNode.Node] = new Matrix4().fromArray(poseNode.Matrix.a);
+                            bindMatrices[as_pose(poseNode).Node] = new Matrix4().fromArray(as_numbers(as_pose(poseNode).Matrix.a));
 
                         });
 
                     } else {
 
-                        bindMatrices[poseNodes.Node] = new Matrix4().fromArray(poseNodes.Matrix.a);
+                        bindMatrices[as_pose(as_object(poseNodes)).Node] = new Matrix4().fromArray(as_numbers(as_pose(as_object(poseNodes)).Matrix.a));
 
                     }
 
@@ -1593,7 +1601,7 @@ class FBXTreeParser {
 
                 // Parse ambient color - if it's not set to black (default), create an ambient light
 
-                const ambientColor = fbxGlobals.fbxTree.GlobalSettings.AmbientColor.value;
+                const ambientColor = as_numbers(as_object(fbxGlobals.fbxTree.GlobalSettings.AmbientColor).value);
                 const r = ambientColor[0];
                 const g = ambientColor[1];
                 const b = ambientColor[2];

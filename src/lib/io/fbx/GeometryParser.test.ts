@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { GeometryParser } from './GeometryParser'
 
-interface GeometryFixtureNode {
+type GeometryFixtureNode = {
   Vertices: { a: number[] }
   PolygonVertexIndex: { a: number[] }
 }

@@ -1,6 +1,15 @@
 import { FBXTree } from './FBXTree'
 import { append, parseNumberArray } from './fbx-utils'
 import { type FBXNode } from './BinaryParser'
+import type { FBXNodeObject, FBXNodeValue } from './FBXNodes'
+
+function as_object (value: FBXNodeValue): FBXNodeObject {
+    return value as FBXNodeObject;
+}
+
+function as_array (value: FBXNodeValue): FBXNodeValue[] {
+    return value as FBXNodeValue[];
+}
 
 /**
  * Parses an FBX file stored in ASCII (text) format.
@@ -64,13 +73,11 @@ class TextParser {
         this.currentProp = [];
         this.currentPropName = '';
 
-        const scope = this;
-
         const split = text.split(/[\r\n]+/);
 
-        split.forEach(function (line, i) {
+        split.forEach((line, i) => {
 
-            scope.currentLineNumber = i + 1;
+            this.currentLineNumber = i + 1;
 
             const matchComment = line.match(/^[\s\t]*;/);
             const matchEmpty = line.match(/^[\s\t]*$/);
@@ -81,30 +88,32 @@ class TextParser {
             // property whose *value* contains a brace -- a Windows path with a {token}, a
             // GUID, a material name -- was read as a block delimiter, pushing or popping the
             // node stack and permanently desynchronising the indent from the file.
-            const matchBeginning = line.match('^\\t{' + scope.currentIndent + '}(\\w+):(.*)\\{\\s*$');
-            const matchProperty = line.match('^\\t{' + (scope.currentIndent) + '}(\\w+):[\\s\\t\\r\\n](.*)');
+            const matchBeginning = line.match('^\\t{' + this.currentIndent + '}(\\w+):(.*)\\{\\s*$');
+            const matchProperty = line.match('^\\t{' + (this.currentIndent) + '}(\\w+):[\\s\\t\\r\\n](.*)');
             // At indent 0 there is nothing to close, and '\t{-1}' is not a valid quantifier.
-            const matchEnd = scope.currentIndent > 0
-                ? line.match('^\\t{' + (scope.currentIndent - 1) + '}\\}\\s*$')
+            const matchEnd = this.currentIndent > 0
+                ? line.match('^\\t{' + (this.currentIndent - 1) + '}\\}\\s*$')
                 : null;
 
             if (matchBeginning) {
 
-                scope.parseNodeBegin(line, matchBeginning);
+                this.parseNodeBegin(line, matchBeginning);
 
             } else if (matchProperty) {
 
-                scope.parseNodeProperty(line, matchProperty, split[++i]);
+                // The next physical line is the property's value; forEach owns
+                // the index, so reading i+1 is equivalent to mutating i here.
+                this.parseNodeProperty(line, matchProperty, split[i + 1]);
 
             } else if (matchEnd) {
 
-                scope.popStack();
+                this.popStack();
 
             } else if (line.match(/^[^\s\t}]/)) {
 
                 // large arrays are split over multiple lines terminated with a ',' character
                 // if this is encountered the line needs to be joined to the previous line
-                scope.parseNodePropertyContinued(line);
+                this.parseNodePropertyContinued(line);
 
             }
 
@@ -124,8 +133,8 @@ class TextParser {
 
         });
 
-        const node: any = { name: nodeName };
-        const attrs: any = this.parseNodeAttr(nodeAttrs);
+        const node: FBXNode = { name: nodeName, propertyList: [] };
+        const attrs = this.parseNodeAttr(nodeAttrs);
 
         const currentNode = this.getCurrentNode();
 
@@ -142,21 +151,22 @@ class TextParser {
                 // special case Pose needs PoseNodes as an array
                 if (nodeName === 'PoseNode') {
 
-                    currentNode.PoseNode.push(node);
+                    as_array(currentNode.PoseNode).push(node);
 
-                } else if (currentNode[nodeName].id !== undefined) {
+                } else if (as_object(currentNode[nodeName]).id !== undefined) {
 
                     currentNode[nodeName] = {};
-                    currentNode[nodeName][currentNode[nodeName].id] = currentNode[nodeName];
+                    const existing = as_object(currentNode[nodeName]);
+                    existing[String(existing.id)] = existing;
 
                 }
 
-                if (attrs.id !== '') currentNode[nodeName][attrs.id] = node;
+                if (attrs.id !== '') as_object(currentNode[nodeName])[String(attrs.id)] = node;
 
             } else if (typeof attrs.id === 'number') {
 
                 currentNode[nodeName] = {};
-                currentNode[nodeName][attrs.id] = node;
+                as_object(currentNode[nodeName])[String(attrs.id)] = node;
 
             } else if (nodeName !== 'Properties70') {
 
@@ -207,7 +217,7 @@ class TextParser {
     parseNodeProperty (line: string, property: string[], contentLine: string): void {
 
         let propName: string = property[1].replace(/^"/, '').replace(/"$/, '').trim();
-        let propValue: any = property[2].replace(/^"/, '').replace(/"$/, '').trim();
+        let propValue: string | Array<number | string> = property[2].replace(/^"/, '').replace(/"$/, '').trim();
 
         // for special case: base64 image data follows "Content: ," line
         //	Content: ,
@@ -245,7 +255,7 @@ class TextParser {
 
         if (parentName === 'Properties70') {
 
-            this.parseNodeSpecialProperty(line, propName, propValue);
+            this.parseNodeSpecialProperty(line, propName, typeof propValue === 'string' ? propValue : String(propValue));
             return;
 
         }
@@ -253,21 +263,25 @@ class TextParser {
         // Connections
         if (propName === 'C') {
 
-            const connProps = propValue.split(',').slice(1);
+            // At this point a connection property is always still the raw text
+            // value; the array form is constructed just below.
+            const connectionText = typeof propValue === 'string' ? propValue : '';
+            const connProps = connectionText.split(',').slice(1);
             const from = parseInt(connProps[0]);
             const to = parseInt(connProps[1]);
 
-            let rest = propValue.split(',').slice(3);
+            let rest = connectionText.split(',').slice(3);
 
-            rest = rest.map(function (elem: any) {
+            rest = rest.map(function (elem: string) {
 
                 return elem.trim().replace(/^"/, '');
 
             });
 
             propName = 'connections';
-            propValue = [from, to];
-            append(propValue, rest);
+            const connectionValues: Array<number | string> = [from, to];
+            append(connectionValues, rest);
+            propValue = connectionValues;
 
             if (currentNode[propName] === undefined) {
 
@@ -278,12 +292,14 @@ class TextParser {
         }
 
         // Node
-        if (propName === 'Node') currentNode.id = propValue;
+        if (propName === 'Node' && (typeof propValue === 'string' || typeof propValue === 'number')) {
+            currentNode.id = propValue;
+        }
 
         // connections
         if (propName in currentNode && Array.isArray(currentNode[propName])) {
 
-            currentNode[propName].push(propValue);
+            as_array(currentNode[propName]).push(propValue);
 
         } else {
 
@@ -295,7 +311,7 @@ class TextParser {
         this.setCurrentProp(currentNode, propName);
 
         // convert string to array, unless it ends in ',' in which case more will be added to it
-        if (propName === 'a' && propValue.slice(- 1) !== ',') {
+        if (propName === 'a' && typeof propValue === 'string' && propValue.slice(- 1) !== ',') {
 
             currentNode.a = parseNumberArray(propValue);
 
@@ -322,7 +338,7 @@ class TextParser {
         // so convert the string to an array
         if (line.slice(- 1) !== ',') {
 
-            currentNode.a = parseNumberArray(currentNode.a);
+            currentNode.a = parseNumberArray(currentNode.a as string);
 
         }
 
@@ -335,9 +351,9 @@ class TextParser {
         // P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1
         // into array like below
         // ["Lcl Scaling", "Lcl Scaling", "", "A", "1,1,1" ]
-        const props = propValue.split('",').map(function (prop: any) {
+        const props = propValue.split('",').map(function (prop: string) {
 
-            return prop.trim().replace(/^\"/, '').replace(/\s/, '_');
+            return prop.trim().replace(/^"/, '').replace(/\s/, '_');
 
         });
 
@@ -345,7 +361,7 @@ class TextParser {
         const innerPropType1 = props[1];
         const innerPropType2 = props[2];
         const innerPropFlag = props[3];
-        let innerPropValue = props[4];
+        let innerPropValue: string | number | number[] = props[4];
 
         // cast values where needed, otherwise leave as strings
         switch (innerPropType1) {

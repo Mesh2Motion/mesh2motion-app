@@ -2,7 +2,6 @@ import { type AnimationClip, type Object3D, type SkinnedMesh } from 'three'
 import { BoneNamingStructure } from './DownloadSettings.ts'
 import { MixamoMapper } from '../../../retarget/bone-automap/MixamoMapper.ts'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class ExportBoneNamingService {
   public static apply_download_settings (
     skinned_meshes: SkinnedMesh[],
