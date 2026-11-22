@@ -1,4 +1,4 @@
-import { FileLoader, Loader, LoaderUtils, TextureLoader } from 'three'
+import { FileLoader, Loader, LoaderUtils, TextureLoader, type Group, type LoadingManager } from 'three'
 import { fbxGlobals } from './fbx/fbx-globals'
 import { BinaryParser } from './fbx/BinaryParser'
 import { TextParser } from './fbx/TextParser'
@@ -29,14 +29,14 @@ import { isFbxFormatBinary, isFbxFormatASCII, describeFileHead, getFbxVersion, c
  * @augments Loader
  * @three_import import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
  */
-class FBXLoader extends Loader {
+class FBXLoader extends Loader<Group> {
 
     /**
      * Constructs a new FBX loader.
      *
      * @param {LoadingManager} [manager] - The loading manager.
      */
-    constructor(manager?: any) {
+    constructor(manager?: LoadingManager) {
 
         super(manager);
 
@@ -51,28 +51,31 @@ class FBXLoader extends Loader {
      * @param {onProgressCallback} onProgress - Executed while the loading is in progress.
      * @param {onErrorCallback} onError - Executed when errors occur.
      */
-    load(url: any, onLoad: any, onProgress: any, onError: any) {
+    load(
+        url: string,
+        onLoad: (object: Group) => void,
+        onProgress?: (event: ProgressEvent) => void,
+        onError?: (error: unknown) => void
+    ): void {
 
-        const scope = this;
+        const path = (this.path === '') ? LoaderUtils.extractUrlBase(url) : this.path;
 
-        const path = (scope.path === '') ? LoaderUtils.extractUrlBase(url) : scope.path;
-
-        const loader = new FileLoader(this.manager);
-        loader.setPath(scope.path);
+        const loader = new FileLoader<ArrayBuffer>(this.manager);
+        loader.setPath(this.path);
         loader.setResponseType('arraybuffer');
-        loader.setRequestHeader(scope.requestHeader);
-        loader.setWithCredentials(scope.withCredentials);
+        loader.setRequestHeader(this.requestHeader);
+        loader.setWithCredentials(this.withCredentials);
 
-        loader.load(url, function (buffer) {
+        loader.load(url, (buffer) => {
 
 
             try {
 
-                onLoad(scope.parse(buffer, path));
+                onLoad(this.parse(buffer, path));
 
             } catch (e) {
 
-                if (onError) {
+                if (onError !== undefined) {
 
                     onError(e);
 
@@ -82,7 +85,7 @@ class FBXLoader extends Loader {
 
                 }
 
-                scope.manager.itemError(url);
+                this.manager.itemError(url);
 
             }
 
@@ -97,7 +100,7 @@ class FBXLoader extends Loader {
      * @param {string} path - The URL base path.
      * @return {Group} An object representing the parsed asset.
      */
-    parse (FBXBuffer: any, path: any) {
+    parse (FBXBuffer: ArrayBuffer, path: string): Group {
 
         if (isFbxFormatBinary(FBXBuffer)) {
 
