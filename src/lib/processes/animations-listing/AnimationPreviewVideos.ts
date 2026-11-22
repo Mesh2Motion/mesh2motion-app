@@ -7,8 +7,8 @@ import { RigConfig } from '../../RigConfig'
  *
  * Native WebKitGTK issues byte-range requests for short looping MP4s. Tauri's embedded `tauri://`
  * protocol answers those with a full 200 body (no 206/Accept-Ranges), which can leave the media
- * pipeline unable to present frames. On desktop we therefore fetch the small asset once and use a
- * Blob URL, which needs no range support. Browser builds keep the original direct URL behavior.
+ * pipeline unable to present frames. Desktop builds resolve bundled resources through Tauri's
+ * range-capable `asset://` protocol; browser builds keep the original direct URL behavior.
  * Diagnostics are opt-in with `?m2m-preview-debug=1` or localStorage `m2m-preview-debug=1`.
  */
 
@@ -19,11 +19,15 @@ const DEFAULT_MAX_ACTIVE_VIDEOS = 12
 export interface PreviewVideoOptions {
   /** Maximum number of concurrently playing preview videos. */
   max_active_videos?: number
-  /** Allow the Blob fallback on desktop builds (default true). */
-  use_blob_on_desktop?: boolean
+  /** Use the range-capable Tauri asset protocol for bundled media on desktop builds. */
+  use_asset_protocol_on_desktop?: boolean
 }
 
 type LogPayload = Record<string, unknown>
+interface TauriPreviewCore {
+  invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>
+  convertFileSrc: (filePath: string) => string
+}
 
 function diagnostics_enabled (): boolean {
   try {
@@ -51,20 +55,31 @@ function has_tauri_bridge (): boolean {
   }
 }
 
+function tauri_preview_core (): TauriPreviewCore | null {
+  try {
+    const core = (window as unknown as { __TAURI__?: { core?: Partial<TauriPreviewCore> } }).__TAURI__?.core
+    if (typeof core?.invoke !== 'function' || typeof core.convertFileSrc !== 'function') {
+      return null
+    }
+    return core as TauriPreviewCore
+  } catch {
+    return null
+  }
+}
+
 export class AnimationPreviewVideos {
   private observer: IntersectionObserver | null = null
   private container: HTMLElement | null = null
   private readonly active = new Set<HTMLElement>()
   private readonly videos = new Map<HTMLElement, HTMLVideoElement>()
-  private readonly blob_urls = new Map<HTMLElement, string>()
   private readonly debug: boolean
   private readonly max_active: number
-  private readonly use_blob_on_desktop: boolean
+  private readonly use_asset_protocol_on_desktop: boolean
 
   constructor (options: PreviewVideoOptions = {}) {
     this.debug = diagnostics_enabled()
     this.max_active = options.max_active_videos ?? DEFAULT_MAX_ACTIVE_VIDEOS
-    this.use_blob_on_desktop = options.use_blob_on_desktop ?? true
+    this.use_asset_protocol_on_desktop = options.use_asset_protocol_on_desktop ?? true
   }
 
   /** URL of the preview video for a library animation. Custom imports have no preview. */
@@ -144,7 +159,12 @@ export class AnimationPreviewVideos {
   private ensure_video (placeholder: HTMLElement): void {
     const existing = this.videos.get(placeholder)
     if (existing !== undefined) {
-      this.safe_play(existing, placeholder)
+      // A second IntersectionObserver notification can arrive while the
+      // resource-path command is still resolving. Do not call play() on a
+      // source-less element; WebKit may reject it and replace the tile.
+      if (existing.hasAttribute('src')) {
+        this.safe_play(existing, placeholder)
+      }
       return
     }
     const src = placeholder.getAttribute('data-src')
@@ -157,8 +177,8 @@ export class AnimationPreviewVideos {
     placeholder.replaceChildren(video)
     this.videos.set(placeholder, video)
 
-    if (has_tauri_bridge() && this.use_blob_on_desktop) {
-      void this.load_blob_source(video, placeholder, src)
+    if (has_tauri_bridge() && this.use_asset_protocol_on_desktop) {
+      void this.load_asset_source(video, placeholder, src)
     } else {
       video.src = src
       this.log('source-direct', { src })
@@ -166,27 +186,32 @@ export class AnimationPreviewVideos {
     }
   }
 
-  private async load_blob_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string): Promise<void> {
+  private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string): Promise<void> {
     try {
-      const response = await fetch(src)
-      this.log('fetch', {
-        src,
-        status: response.status,
-        contentType: response.headers.get('content-type'),
-        contentLength: response.headers.get('content-length')
-      })
-      if (!response.ok) {
-        this.show_fallback(placeholder, src, `fetch status ${response.status}`)
+      const core = tauri_preview_core()
+      if (core === null) {
+        throw new Error('Tauri asset API unavailable')
+      }
+      const asset_key = src.replace(/^\.\.\/animpreviews\//, '')
+      const file_path = await core.invoke('animation_preview_asset_path', { assetKey: asset_key })
+      if (this.videos.get(placeholder) !== video) {
         return
       }
-      const blob = await response.blob()
-      const object_url = URL.createObjectURL(blob)
-      this.blob_urls.set(placeholder, object_url)
-      video.src = object_url
-      this.log('source-blob', { src, blobSize: blob.size })
-      this.safe_play(video, placeholder)
+      if (typeof file_path !== 'string' || file_path.length === 0) {
+        throw new Error('Tauri returned no preview resource path')
+      }
+      const asset_url = core.convertFileSrc(file_path)
+      video.src = asset_url
+      video.load()
+      this.log('source-asset', { asset_key, asset_url })
+      if (this.active.has(placeholder)) {
+        this.safe_play(video, placeholder)
+      }
     } catch (error) {
-      this.log('fetch-error', { src, error: String(error) })
+      if (this.videos.get(placeholder) !== video) {
+        return
+      }
+      this.log('asset-error', { src, error: String(error) })
       this.show_fallback(placeholder, src, String(error))
     }
   }
@@ -276,10 +301,17 @@ export class AnimationPreviewVideos {
   }
 
   private enforce_limit (): void {
-    for (const placeholder of [...this.active]) {
-      if (this.active.size <= this.max_active) {
-        break
-      }
+    const viewport_height = window.innerHeight || document.documentElement.clientHeight
+    const viewport_width = window.innerWidth || document.documentElement.clientWidth
+    const ranked = [...this.active].map((placeholder) => {
+      const rect = placeholder.getBoundingClientRect()
+      const visible = rect.bottom > 0 && rect.top < viewport_height && rect.right > 0 && rect.left < viewport_width
+      const vertical_distance = Math.max(0, -rect.bottom, rect.top - viewport_height)
+      const horizontal_distance = Math.max(0, -rect.right, rect.left - viewport_width)
+      return { placeholder, visible, distance: Math.hypot(vertical_distance, horizontal_distance) }
+    }).sort((left, right) => Number(right.visible) - Number(left.visible) || left.distance - right.distance)
+
+    for (const { placeholder } of ranked.slice(this.max_active)) {
       this.pause_video(placeholder)
       this.active.delete(placeholder)
     }
@@ -293,14 +325,6 @@ export class AnimationPreviewVideos {
       this.pause_video(placeholder)
     }
     this.active.clear()
-    for (const [placeholder, url] of this.blob_urls) {
-      try {
-        URL.revokeObjectURL(url)
-      } catch {
-        // Ignore browsers that do not implement revocation.
-      }
-      this.blob_urls.delete(placeholder)
-    }
     for (const [placeholder, video] of this.videos) {
       video.pause()
       video.removeAttribute('src')

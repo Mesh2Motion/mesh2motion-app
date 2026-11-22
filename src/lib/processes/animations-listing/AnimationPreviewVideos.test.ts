@@ -28,18 +28,18 @@ function placeholder (src = '../animpreviews/human/dark_Angry.mp4'): HTMLElement
   return node
 }
 
-function response (ok = true, status = 200) {
-  return {
-    ok,
-    status,
-    headers: { get: vi.fn(() => 'video/mp4') },
-    blob: vi.fn().mockResolvedValue(new Blob(['video'], { type: 'video/mp4' }))
-  }
-}
+let invoke_mock: ReturnType<typeof vi.fn>
+let convert_file_src_mock: ReturnType<typeof vi.fn>
+let paused_videos: HTMLVideoElement[]
 
 function set_tauri (enabled: boolean): void {
   Object.defineProperty(window, '__TAURI_INTERNALS__', {
     value: enabled ? { invoke: vi.fn() } : undefined,
+    configurable: true,
+    writable: true
+  })
+  Object.defineProperty(window, '__TAURI__', {
+    value: enabled ? { core: { invoke: invoke_mock, convertFileSrc: convert_file_src_mock } } : undefined,
     configurable: true,
     writable: true
   })
@@ -57,7 +57,8 @@ beforeEach(() => {
     writable: true
   })
   play_mock = vi.fn().mockResolvedValue(undefined)
-  pause_mock = vi.fn()
+  paused_videos = []
+  pause_mock = vi.fn(function (this: HTMLVideoElement) { paused_videos.push(this) })
   Object.defineProperty(HTMLMediaElement.prototype, 'play', { value: play_mock, configurable: true, writable: true })
   Object.defineProperty(HTMLMediaElement.prototype, 'pause', { value: pause_mock, configurable: true, writable: true })
   Object.defineProperty(HTMLMediaElement.prototype, 'load', { value: vi.fn(), configurable: true, writable: true })
@@ -66,9 +67,9 @@ beforeEach(() => {
     configurable: true,
     writable: true
   })
-  Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:preview'), configurable: true, writable: true })
-  Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true, writable: true })
-  globalThis.fetch = vi.fn().mockResolvedValue(response()) as typeof fetch
+  invoke_mock = vi.fn().mockResolvedValue('/resources/animpreviews/human/dark_Angry.mp4')
+  convert_file_src_mock = vi.fn((path: string) => `asset://localhost${path}`)
+  globalThis.fetch = vi.fn() as typeof fetch
   window.history.replaceState({}, '', '/')
   set_tauri(false)
 })
@@ -94,7 +95,7 @@ describe('AnimationPreviewVideos', () => {
     previews.disconnect()
   })
 
-  it('uses a Blob URL on desktop so no HTTP range support is needed', async () => {
+  it('uses the range-capable Tauri asset protocol for desktop previews', async () => {
     set_tauri(true)
     const container = document.createElement('div')
     const tile = placeholder()
@@ -106,11 +107,33 @@ describe('AnimationPreviewVideos', () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(globalThis.fetch).toHaveBeenCalledOnce()
-    expect(URL.createObjectURL).toHaveBeenCalledOnce()
-    expect(tile.querySelector('video')?.getAttribute('src')).toBe('blob:preview')
+    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', { assetKey: 'human/dark_Angry.mp4' })
+    expect(convert_file_src_mock).toHaveBeenCalledWith('/resources/animpreviews/human/dark_Angry.mp4')
+    expect(tile.querySelector('video')?.getAttribute('src')).toBe('asset://localhost/resources/animpreviews/human/dark_Angry.mp4')
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(play_mock).toHaveBeenCalledOnce()
     previews.disconnect()
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview')
+  })
+
+  it('waits for the native asset path before calling play', async () => {
+    set_tauri(true)
+    let resolve_path: ((path: string) => void) | undefined
+    invoke_mock.mockImplementation(() => new Promise<string>((resolve) => { resolve_path = resolve }))
+    const container = document.createElement('div')
+    const tile = placeholder()
+    container.appendChild(tile)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    const observer = FakeIntersectionObserver.instances[0]
+    observer.emit([{ target: tile, isIntersecting: true }])
+    observer.emit([{ target: tile, isIntersecting: true }])
+    expect(play_mock).not.toHaveBeenCalled()
+
+    resolve_path?.('/resources/animpreviews/human/dark_Angry.mp4')
+    await vi.waitFor(() => expect(play_mock).toHaveBeenCalledOnce())
+    expect(tile.classList.contains('preview-failed')).toBe(false)
+    previews.disconnect()
   })
 
   it('shows a static fallback when the media source errors', () => {
@@ -145,9 +168,9 @@ describe('AnimationPreviewVideos', () => {
     previews.disconnect()
   })
 
-  it('shows a fallback when the desktop fetch fails', async () => {
+  it('shows a fallback when the desktop asset lookup fails', async () => {
     set_tauri(true)
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline')) as typeof fetch
+    invoke_mock.mockRejectedValue(new Error('resource unavailable'))
     const container = document.createElement('div')
     const tile = placeholder()
     container.appendChild(tile)
@@ -178,6 +201,29 @@ describe('AnimationPreviewVideos', () => {
     expect(pause_mock).toHaveBeenCalledTimes(1)
     previews.disconnect()
     expect(pause_mock).toHaveBeenCalled()
+  })
+
+  it('keeps viewport-visible previews when the active-video cap is reached', () => {
+    const container = document.createElement('div')
+    const visible_tile = placeholder('human/dark_visible.mp4')
+    const prefetch_tile = placeholder('human/dark_prefetch.mp4')
+    container.append(visible_tile, prefetch_tile)
+    vi.spyOn(visible_tile, 'getBoundingClientRect').mockReturnValue({
+      top: 100, bottom: 220, left: 10, right: 110, width: 100, height: 120
+    } as DOMRect)
+    vi.spyOn(prefetch_tile, 'getBoundingClientRect').mockReturnValue({
+      top: 900, bottom: 1020, left: 10, right: 110, width: 100, height: 120
+    } as DOMRect)
+    const previews = new AnimationPreviewVideos({ max_active_videos: 1 })
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([
+      { target: prefetch_tile, isIntersecting: true },
+      { target: visible_tile, isIntersecting: true }
+    ])
+
+    expect(paused_videos).toEqual([prefetch_tile.querySelector('video')])
+    previews.disconnect()
   })
 
   it('disconnects the observer exactly once and removes videos', () => {
