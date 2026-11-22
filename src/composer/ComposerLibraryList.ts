@@ -89,9 +89,10 @@ export class ComposerLibraryList {
     const preview_src = is_custom_import
       ? null
       : AnimationPreviewVideos.preview_src(this.skeleton_type, this.theme_manager.get_current_theme(), entry.name)
+    const poster_src = AnimationPreviewVideos.poster_src(preview_src)
     const preview_html = is_custom_import
       ? '<div class="anim-preview-placeholder composer-custom-preview"><span class="composer-imported-chip">Imported</span></div>'
-      : `<div class="anim-preview-placeholder"${preview_src === null ? ' anim-preview-placeholder--no-poster' : ` data-src="${preview_src}" style="background-image:url('${AnimationPreviewVideos.poster_src(preview_src)}')"`}></div>`
+      : `<div class="anim-preview-placeholder${poster_src === null ? ' anim-preview-placeholder--no-poster' : ''}"${preview_src === null ? '' : ` data-src="${preview_src}" data-poster-src="${poster_src}"`}>${poster_src === null ? '' : '<img class="anim-preview-poster" alt="" aria-hidden="true" decoding="async">'}</div>`
     const template = document.createElement('template')
     template.innerHTML = `
       <div class="composer-library-item" draggable="true" tabindex="0" data-animation-id="${entry.id}" title="Drag ${name} onto a slot">
@@ -99,6 +100,7 @@ export class ComposerLibraryList {
         <span class="composer-slot-badge composer-slot-badge-upper" aria-hidden="true">Upper</span>
         <span class="composer-slot-badge composer-slot-badge-lower" aria-hidden="true">Lower</span>
         <div class="composer-library-item-preview">${preview_html}</div>
+        ${poster_src === null ? '' : `<button class="anim-preview-control composer-preview-control" type="button" data-action="preview-video" data-animation-name="${name}" aria-label="Preview video for ${name}" aria-pressed="false" title="Preview video">▶</button>`}
         <span class="composer-library-item-name">${name}</span>
       </div>`
     const tile = template.content.firstElementChild
@@ -153,6 +155,20 @@ export class ComposerLibraryList {
 
     // preview video file names depend on the theme
     this.theme_manager.addEventListener('theme-changed', () => { this.build_tiles() }, { signal: this.lifetime.signal })
+
+    this.list_container.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement
+      const button = target.closest<HTMLButtonElement>('button[data-action="preview-video"]')
+      if (button === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      const tile = button.closest<HTMLElement>('.composer-library-item')
+      const preview = tile?.querySelector<HTMLElement>('.anim-preview-placeholder')
+      if (preview === null || preview === undefined) return
+      const active = this.preview_videos.toggle_explicit_preview(preview)
+      button.setAttribute('aria-pressed', String(active))
+      button.setAttribute('aria-label', `${active ? 'Pause' : 'Preview'} video for ${button.dataset.animationName ?? 'animation'}`)
+    }, { signal: this.lifetime.signal })
 
     this.list_container.addEventListener('dragstart', (event: DragEvent) => {
       const tile = (event.target as HTMLElement).closest<HTMLElement>('.composer-library-item')

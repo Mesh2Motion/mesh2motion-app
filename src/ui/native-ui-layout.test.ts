@@ -44,6 +44,23 @@ describe('M2M-023A preview posters', () => {
     const counts = mp4_and_poster_counts(join(project_root, 'static', 'animpreviews'))
     expect(counts.mp4).toBeGreaterThan(0)
     expect(counts.posters).toBe(counts.mp4)
+    for (const key of [
+      'human/dark_Angry.webp',
+      'fox/dark_Bark.webp',
+      'horse/dark_Walk.webp'
+    ]) {
+      expect(readFileSync(join(project_root, 'static', 'animpreviews', key)).byteLength).toBeGreaterThan(100)
+    }
+  })
+
+  it('renders an accessible image node and a separate explicit preview action', () => {
+    const search = readFileSync(join(project_root, 'src/features/animation-catalog/AnimationSearch.ts'), 'utf8')
+    const composer = readFileSync(join(project_root, 'src/composer/ComposerLibraryList.ts'), 'utf8')
+    expect(search).toContain('class="anim-preview-poster"')
+    expect(search).toContain('data-action="preview-video"')
+    expect(search).toContain('aria-pressed="false"')
+    expect(composer).toContain('class="anim-preview-poster"')
+    expect(composer).toContain('data-action="preview-video"')
   })
 })
 
@@ -54,20 +71,24 @@ describe('M2M-023A Props viewport anchoring', () => {
     join(project_root, 'src/lib/processes/animations-listing/props/PropsPanel.ts'), 'utf8'
   )
 
-  it('shares the viewport inset variables instead of window pixel math', () => {
-    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?--viewport-top/)
-    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?--viewport-left/)
-    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?--viewport-right/)
-    expect(styles).toMatch(/--viewport-top:\s*var\(--navigation-height\)/)
-    expect(styles).toMatch(/--viewport-left:\s*0px/)
-    expect(styles).toMatch(/--viewport-right:\s*0px/)
+  it('uses the renderer viewport as the real absolute positioning container', () => {
+    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?position:\s*absolute/)
+    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?top:\s*0\.5rem/)
+    expect(props_css).toMatch(/#props-dock\s*\{[\s\S]*?right:\s*0\.5rem/)
+    const scene_manager = readFileSync(join(project_root, 'src/lib/SceneEnvironmentManager.ts'), 'utf8')
+    expect(scene_manager).toMatch(/viewport\.appendChild\(props_dock\)/)
+    expect(scene_manager).toContain('viewport.getBoundingClientRect()')
+    expect(scene_manager).toContain('props_dock.getBoundingClientRect()')
+    expect(scene_manager).toContain('rightInset:')
+    expect(styles).toMatch(/body\.explore-page\s+#m2m-viewport\s*\{[\s\S]*?left:\s*var\(--explore-sidebar-width/)
+    expect(styles).toMatch(/body\.tool-panel-page\s+#m2m-viewport\s*\{[\s\S]*?right:\s*var\(--responsive-right-width/)
   })
 
   it('does not hardcode a window-relative right offset', () => {
     expect(props_css).not.toMatch(/right:\s*26rem/)
-    expect(styles).not.toMatch(/#props-dock\s*\{[^}]*right:[^;]*!important/)
     expect(panel_ts).not.toMatch(/dock\.style\.right/)
     expect(panel_ts).not.toMatch(/new ResizeObserver/)
+    expect(props_css).not.toMatch(/position:\s*fixed/)
   })
 
   it('keeps the control clickable and accessible', () => {

@@ -1,18 +1,15 @@
 /*
  * M2M-023A: the dock is anchored to the 3D viewport, not to the window.
- * The viewport inset variables are defined in styles.css next to the
- * #m2m-viewport rules, so both use exactly the same containing geometry during
- * tiling, fullscreen, sidebar changes, responsive breakpoints and DPR changes.
- * No JavaScript pixel measurement is involved.
+ * SceneEnvironmentManager reparents this dock into #m2m-viewport. Absolute
+ * positioning therefore follows the renderer's actual DOM rectangle through
+ * resize, tiling, fullscreen, sidebar changes and DPR changes.
  */
 #props-dock {
-    position: fixed;
-    top: calc(var(--viewport-top, var(--navigation-height)) + 0.5rem);
-    left: calc(var(--viewport-left, 0px) + 0.5rem);
-    right: calc(var(--viewport-right, 0px) + 0.5rem);
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
     width: max-content;
-    max-width: calc(100vw - var(--viewport-left, 0px) - var(--viewport-right, 0px) - 1rem);
-    margin-left: auto;
+    max-width: calc(100% - 1rem);
     z-index: 10;
     display: flex;
     flex-direction: row;

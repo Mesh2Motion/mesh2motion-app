@@ -5,8 +5,7 @@ import {
   INTERACTION_END_DEBOUNCE_MS,
   MAX_ACTIVE_PREVIEW_VIDEOS,
   MAX_CONCURRENT_PREVIEW_FETCHES,
-  MAX_PLAYBACK_ATTEMPTS,
-  TOUCH_PREVIEW_TIMEOUT_MS
+  MAX_PLAYBACK_ATTEMPTS
 } from './AnimationPreviewVideos.ts'
 import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
 
@@ -209,7 +208,7 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     previews.disconnect()
   })
 
-  it('allows playback from keyboard focus and selection', () => {
+  it('does not autoplay selected tiles; keyboard focus previews only the focused tile', () => {
     const container = document.createElement('div')
     const focus_tile_node = placeholder('human/dark_focus.mp4')
     const selected_tile = placeholder('human/dark_selected.mp4')
@@ -229,13 +228,12 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
 
     row.setAttribute('data-selected', 'true')
     row.dispatchEvent(new Event('change', { bubbles: true }))
-    expect(play_mock).toHaveBeenCalledTimes(2)
-    expect(previews.get_stats().playing_count).toBe(2)
+    expect(play_mock).toHaveBeenCalledTimes(1)
+    expect(previews.get_stats().playing_count).toBe(1)
     previews.disconnect()
   })
 
-  it('supports explicit tap-to-preview on touch input', () => {
-    vi.useFakeTimers()
+  it('supports an explicit preview button action and toggles playback off', () => {
     const container = document.createElement('div')
     const tile = placeholder()
     container.appendChild(tile)
@@ -243,12 +241,35 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
 
     previews.observe_placeholders(container)
     FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
-    tile.dispatchEvent(pointer_event('pointerdown', 'touch'))
+    expect(previews.toggle_explicit_preview(tile)).toBe(true)
     expect(play_mock).toHaveBeenCalledOnce()
-
-    vi.advanceTimersByTime(TOUCH_PREVIEW_TIMEOUT_MS)
-    vi.advanceTimersByTime(INTERACTION_END_DEBOUNCE_MS)
+    expect(previews.toggle_explicit_preview(tile)).toBe(false)
     expect(previews.get_stats().playing_count).toBe(0)
+    previews.disconnect()
+  })
+
+  it('resolves native poster paths through the allowlisted Tauri asset command', async () => {
+    set_tauri(true)
+    invoke_mock.mockResolvedValue('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
+    const container = document.createElement('div')
+    const tile = placeholder()
+    tile.setAttribute('data-poster-src', '../animpreviews/human/dark_Angry.webp')
+    tile.innerHTML = '<img class="anim-preview-poster" alt="" aria-hidden="true">'
+    container.appendChild(tile)
+    document.body.appendChild(container)
+    const previews = new AnimationPreviewVideos()
+
+    previews.observe_placeholders(container)
+    FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
+    await flush()
+
+    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
+      assetKey: 'human/dark_Angry.webp'
+    })
+    expect(convert_file_src_mock).toHaveBeenCalledWith('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
+    expect(tile.querySelector('img')?.getAttribute('src')).toBe(
+      'asset://localhost/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp'
+    )
     previews.disconnect()
   })
 
@@ -463,7 +484,7 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     previews.disconnect()
   })
 
-  it('prioritizes selected/focused tiles over merely hovered tiles at the cap', () => {
+  it('selection does not displace an actively hovered tile or start another video', () => {
     vi.useFakeTimers()
     const container = document.createElement('div')
     const selected = placeholder('human/dark_selected_priority.mp4')
@@ -480,18 +501,14 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     hovered.dispatchEvent(pointer_event('pointerenter', 'mouse'))
     vi.advanceTimersByTime(HOVER_DELAY_MS)
     expect(play_mock).toHaveBeenCalledOnce()
-    expect((play_mock.mock.instances[0] as HTMLVideoElement).getAttribute('src')).toBe(
-      'human/dark_hovered.mp4'
-    )
+    expect(hovered.querySelector('video')?.getAttribute('src')).toBe('human/dark_hovered.mp4')
 
-    // Selection outranks hover at the cap: hovered is released, selected plays.
+    // Selection only changes metadata; it must not create or displace playback.
     play_mock.mockClear()
     row.setAttribute('data-selected', 'true')
     row.dispatchEvent(new Event('change', { bubbles: true }))
-    expect(play_mock).toHaveBeenCalledOnce()
-    expect((play_mock.mock.instances[0] as HTMLVideoElement).getAttribute('src')).toBe(
-      'human/dark_selected_priority.mp4'
-    )
+    expect(play_mock).not.toHaveBeenCalled()
+    expect(hovered.querySelector('video')?.getAttribute('src')).toBe('human/dark_hovered.mp4')
     expect(previews.get_stats().playing_count).toBe(1)
     previews.disconnect()
   })

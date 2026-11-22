@@ -6,8 +6,8 @@ import { RigConfig } from '../../lib/RigConfig.ts'
  *
  * Visibility gates everything, but visibility alone never starts playback. A tile
  * becomes eligible only when the user interacts with it: mouse hover (after a
- * short delay), keyboard focus, selection in the visible list, or an explicit
- * touch tap. Eligible tiles compete for small, fixed caps, so resource use tracks
+ * short delay), keyboard focus, or an explicit preview-button action. Selection
+ * never starts playback. Eligible tiles compete for small, fixed caps, so resource use tracks
  * visible/interacted tiles rather than the size of the catalog.
  *
  * Native WebKitGTK issues byte-range requests for short looping MP4s. Tauri's embedded
@@ -39,8 +39,6 @@ const RETRY_BASE_DELAY_MS = 300
 export const HOVER_DELAY_MS = 200
 /** Hover/focus/selection end grace period before the thumbnail is paused. */
 export const INTERACTION_END_DEBOUNCE_MS = 250
-/** A touch tap shows a preview for this long, or until tapped again / scrolled out. */
-export const TOUCH_PREVIEW_TIMEOUT_MS = 4000
 
 export interface PreviewVideoOptions {
   /** Upper limit on concurrently playing thumbnail videos. Default 20. */
@@ -69,17 +67,14 @@ interface FetchJob {
 }
 
 interface TileInteraction {
-  /** Element that receives pointer/focus events (placeholder has pointer-events:none). */
-  target: HTMLElement
   /** Row/item that carries the selected state. */
   tile: HTMLElement
   hovered: boolean
   focused: boolean
   selected: boolean
-  tapped: boolean
+  manually_requested: boolean
   hover_timer: ReturnType<typeof setTimeout> | null
   end_timer: ReturnType<typeof setTimeout> | null
-  touch_timer: ReturnType<typeof setTimeout> | null
   listeners: Array<() => void>
 }
 
@@ -243,7 +238,10 @@ export class AnimationPreviewVideos {
     this.failed.clear()
 
     if (typeof IntersectionObserver === 'undefined') {
-      // Without an observer, create nothing rather than loading hundreds of videos.
+      // Keep static posters usable; without an observer never create videos.
+      for (const placeholder of container.querySelectorAll<HTMLElement>('.anim-preview-placeholder')) {
+        this.ensure_poster(placeholder)
+      }
       this.log('observer-unavailable', {})
       return
     }
@@ -257,6 +255,7 @@ export class AnimationPreviewVideos {
         })
         if (entry.isIntersecting) {
           this.active.add(placeholder)
+          this.ensure_poster(placeholder)
           this.ensure_interaction(placeholder)
         } else {
           // Scroll-out wins over any hover/focus/selection state.
@@ -304,12 +303,16 @@ export class AnimationPreviewVideos {
       return
     }
     state.selected = selected
-    if (selected) {
-      this.clear_end_timer(placeholder)
-    } else {
-      this.schedule_end(placeholder)
-    }
     this.refresh_playback()
+  }
+
+  /** Accessible explicit preview action; selection alone never requests playback. */
+  public toggle_explicit_preview (placeholder: HTMLElement): boolean {
+    const state = this.interactions.get(placeholder)
+    if (state === undefined || this.disposing || !this.active.has(placeholder)) return false
+    state.manually_requested = !state.manually_requested
+    this.refresh_playback()
+    return state.manually_requested
   }
 
   private ensure_interaction (placeholder: HTMLElement): TileInteraction {
@@ -318,20 +321,17 @@ export class AnimationPreviewVideos {
       return existing
     }
 
-    // The placeholder itself has pointer-events:none, so hover/focus are observed
-    // on the nearest interactive ancestor. Tests use the bare placeholder.
-    const target = placeholder.closest<HTMLElement>('button, .composer-library-item') ?? placeholder
+    // The interactive card owns hover/focus. Selection updates metadata only;
+    // it never requests playback.
     const tile = placeholder.closest<HTMLElement>('[data-selected], .anim-item, .composer-library-item') ?? placeholder
     const state: TileInteraction = {
-      target,
       tile,
       hovered: false,
       focused: false,
       selected: false,
-      tapped: false,
+      manually_requested: false,
       hover_timer: null,
       end_timer: null,
-      touch_timer: null,
       listeners: []
     }
 
@@ -340,31 +340,20 @@ export class AnimationPreviewVideos {
       state.listeners.push(() => { element.removeEventListener(type, listener) })
     }
 
-    add(target, 'pointerenter', (event: Event) => {
+    add(tile, 'pointerenter', (event: Event) => {
       if ((event as PointerEvent).pointerType !== 'touch') {
         this.set_hover(placeholder, true)
       }
     })
-    add(target, 'pointerleave', (event: Event) => {
+    add(tile, 'pointerleave', (event: Event) => {
       if ((event as PointerEvent).pointerType !== 'touch') {
         this.set_hover(placeholder, false)
       }
     })
-    add(target, 'pointerdown', (event: Event) => {
-      if ((event as PointerEvent).pointerType === 'touch') {
-        this.toggle_touch(placeholder)
-      }
-    })
-    add(target, 'focusin', () => { this.set_focus(placeholder, true) })
-    add(target, 'focusout', () => { this.set_focus(placeholder, false) })
+    add(tile, 'focusin', () => { this.set_focus(placeholder, true) })
+    add(tile, 'focusout', () => { this.set_focus(placeholder, false) })
     add(tile, 'change', () => {
       this.sync_selected(placeholder)
-      if (state.selected) {
-        this.clear_end_timer(placeholder)
-      } else {
-        this.schedule_end(placeholder)
-      }
-      this.refresh_playback()
     })
 
     this.interactions.set(placeholder, state)
@@ -420,29 +409,6 @@ export class AnimationPreviewVideos {
     this.refresh_playback()
   }
 
-  private toggle_touch (placeholder: HTMLElement): void {
-    const state = this.interactions.get(placeholder)
-    if (state === undefined || this.disposing) {
-      return
-    }
-    state.tapped = !state.tapped
-    if (state.touch_timer !== null) {
-      clearTimeout(state.touch_timer)
-      state.touch_timer = null
-    }
-    if (state.tapped && this.active.has(placeholder)) {
-      this.clear_end_timer(placeholder)
-      state.touch_timer = setTimeout(() => {
-        state.touch_timer = null
-        state.tapped = false
-        this.schedule_end(placeholder)
-      }, TOUCH_PREVIEW_TIMEOUT_MS)
-    } else {
-      this.schedule_end(placeholder)
-    }
-    this.refresh_playback()
-  }
-
   private schedule_end (placeholder: HTMLElement): void {
     const state = this.interactions.get(placeholder)
     if (state === undefined || this.disposing) {
@@ -472,7 +438,6 @@ export class AnimationPreviewVideos {
     }
     if (state.hover_timer !== null) clearTimeout(state.hover_timer)
     if (state.end_timer !== null) clearTimeout(state.end_timer)
-    if (state.touch_timer !== null) clearTimeout(state.touch_timer)
     // Listeners stay attached: a tile can scroll back into view and be hovered.
   }
 
@@ -481,7 +446,7 @@ export class AnimationPreviewVideos {
     if (state === undefined || !this.active.has(placeholder) || this.failed.has(placeholder)) {
       return false
     }
-    if (state.selected || state.focused || state.tapped || state.end_timer !== null) {
+    if (state.manually_requested || state.focused || state.end_timer !== null) {
       return true
     }
     // Hover starts playback only after the configured delay, unless this tile
@@ -497,9 +462,9 @@ export class AnimationPreviewVideos {
     if (state === undefined) {
       return 0
     }
-    if (state.selected) return 4
+    if (state.manually_requested) return 4
     if (state.focused) return 3
-    if (state.tapped) return 2
+    if (state.selected) return 2
     return 1 // hovered
   }
 
@@ -552,7 +517,7 @@ export class AnimationPreviewVideos {
       this.probe_ids.set(video, this.probe_next_id++)
     }
     this.attach_media_listeners(video, placeholder, src)
-    placeholder.replaceChildren(video)
+    placeholder.appendChild(video)
     this.videos.set(placeholder, video)
 
     if (has_tauri_bridge() && this.use_asset_protocol_on_desktop) {
@@ -562,6 +527,52 @@ export class AnimationPreviewVideos {
       this.log('source-direct', { src })
       this.safe_play(video, placeholder)
     }
+  }
+
+  /** Load only mounted/visible static posters; resolve native files through Tauri's allowlisted asset protocol. */
+  private ensure_poster (placeholder: HTMLElement): void {
+    const image = placeholder.querySelector<HTMLImageElement>('.anim-preview-poster')
+    const poster_src = placeholder.getAttribute('data-poster-src')
+    if (image === null || poster_src === null || image.dataset.requested === 'true') return
+    image.dataset.requested = 'true'
+    image.addEventListener('load', () => {
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        placeholder.classList.remove('poster-unavailable')
+        this.log('poster-decoded', { src: poster_src, width: image.naturalWidth, height: image.naturalHeight })
+      } else {
+        this.fail_poster(image, placeholder, poster_src, 'decoded with zero dimensions')
+      }
+    }, { once: true })
+    image.addEventListener('error', () => {
+      this.fail_poster(image, placeholder, poster_src, 'image load failed')
+    }, { once: true })
+
+    if (!has_tauri_bridge()) {
+      image.src = new URL(poster_src, document.baseURI).href
+      return
+    }
+
+    const core = tauri_preview_core()
+    const asset_key = poster_src.replace(/^\.\.\/animpreviews\//, '')
+    if (core === null || asset_key === poster_src) {
+      this.fail_poster(image, placeholder, poster_src, 'Tauri asset bridge unavailable')
+      return
+    }
+    void core.invoke('animation_preview_asset_path', { assetKey: asset_key }).then(file_path => {
+      if (!image.isConnected || placeholder.getAttribute('data-poster-src') !== poster_src) return
+      if (typeof file_path !== 'string' || file_path.length === 0) {
+        throw new Error('Tauri returned no poster resource path')
+      }
+      image.src = core.convertFileSrc(file_path)
+    }).catch((error: unknown) => {
+      this.fail_poster(image, placeholder, poster_src, String(error))
+    })
+  }
+
+  private fail_poster (image: HTMLImageElement, placeholder: HTMLElement, src: string, reason: string): void {
+    image.hidden = true
+    placeholder.classList.add('poster-unavailable')
+    this.log('poster-error', { src, reason })
   }
 
   private async load_asset_source (video: HTMLVideoElement, placeholder: HTMLElement, src: string, signal: AbortSignal): Promise<void> {
@@ -891,7 +902,6 @@ export class AnimationPreviewVideos {
     for (const [placeholder, state] of this.interactions) {
       if (state.hover_timer !== null) clearTimeout(state.hover_timer)
       if (state.end_timer !== null) clearTimeout(state.end_timer)
-      if (state.touch_timer !== null) clearTimeout(state.touch_timer)
       for (const remove of state.listeners) remove()
       this.release_video(placeholder)
       state.listeners.length = 0

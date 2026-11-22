@@ -859,6 +859,51 @@ option {
     image-rendering: auto;
 }
 
+.anim-preview-poster {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.anim-preview-placeholder.poster-unavailable::after {
+    content: 'Poster unavailable';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    color: var(--text-alternate);
+    background: var(--bg-alternate);
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.anim-preview-control {
+    position: absolute;
+    top: 88px;
+    left: 4px;
+    z-index: 4;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--bg-tertiary);
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+.anim-preview-control:focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+}
+
 .anim-preview-placeholder--no-poster::after {
     content: 'No preview';
     position: absolute;
@@ -875,7 +920,8 @@ option {
 }
 
 .anim-play-button .anim-preview {
-    position: relative;
+    position: absolute;
+    inset: 0;
     z-index: 1;
     display: block;
 }
@@ -1342,9 +1388,13 @@ div.modal-dialog-body p.survey-thank-you {
 
 #m2m-viewport {
     position: fixed;
-    inset: 0;
-    z-index: -1;
+    top: var(--navigation-height);
+    left: 0;
+    right: var(--responsive-right-width, 24rem);
+    bottom: 0;
+    z-index: 0;
     overflow: hidden;
+    pointer-events: none;
 }
 
 #m2m-viewport canvas {
@@ -1354,20 +1404,28 @@ div.modal-dialog-body p.survey-thank-you {
     height: 100%;
     display: block;
     z-index: -1;
+    pointer-events: auto;
 }
 
 :root {
     --responsive-left-width: 10.5rem;
     --responsive-right-width: 24rem;
-    /* Shared viewport insets; #props-dock uses the same values. */
-    --viewport-top: var(--navigation-height);
-    --viewport-left: 0px;
-    --viewport-right: 0px;
+}
+
+body.explore-page #m2m-viewport {
+    left: var(--explore-sidebar-width, var(--responsive-left-width));
+    right: var(--responsive-right-width);
+}
+
+body.tool-panel-page #m2m-viewport {
+    left: 0;
+    right: var(--responsive-right-width);
 }
 
 #tool-panel {
     width: var(--responsive-right-width);
     max-width: 100vw;
+    z-index: 2;
 }
 
 #animations-items {
@@ -1385,28 +1443,14 @@ div.modal-dialog-body p.survey-thank-you {
         --explore-sidebar-width: var(--responsive-left-width);
         --explore-tool-panel-width: var(--responsive-right-width);
     }
-    :root {
-        --viewport-right: var(--responsive-right-width);
-    }
-    body.explore-page {
-        --viewport-left: var(--responsive-left-width);
-    }
-    body.tool-panel-page {
-        --viewport-left: 0px;
-    }
-
     body.explore-page #m2m-viewport {
-        top: var(--navigation-height);
         left: var(--responsive-left-width);
         right: var(--responsive-right-width);
-        bottom: 0;
     }
 
     body.tool-panel-page #m2m-viewport {
-        top: var(--navigation-height);
         left: 0;
         right: var(--responsive-right-width);
-        bottom: 0;
     }
     .model-selection-section {
         width: var(--responsive-left-width);
@@ -1434,16 +1478,6 @@ div.modal-dialog-body p.survey-thank-you {
         --explore-sidebar-width: var(--responsive-left-width);
         --explore-tool-panel-width: var(--responsive-right-width);
     }
-    :root {
-        --viewport-right: var(--responsive-right-width);
-    }
-    body.explore-page {
-        --viewport-left: var(--responsive-left-width);
-    }
-    body.tool-panel-page {
-        --viewport-left: 0px;
-    }
-
     .model-selection-section {
         position: fixed;
         top: var(--navigation-height);

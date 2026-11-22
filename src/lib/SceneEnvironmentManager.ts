@@ -8,6 +8,15 @@ import { Generators } from './Generators.ts'
 import type { ThemeManager } from './ThemeManager.ts'
 import { type MeshDragBonePlacement } from './processes/edit-skeleton/MeshDragBonePlacement.ts'
 
+function viewport_layout_diagnostics_enabled (): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('m2m-layout-debug') === '1' ||
+      window.localStorage.getItem('m2m-layout-debug') === '1'
+  } catch {
+    return false
+  }
+}
+
 export class SceneEnvironmentManager {
   private readonly fog_near: number = 20
   private readonly fog_far: number = 80
@@ -55,6 +64,38 @@ export class SceneEnvironmentManager {
       document.body.insertBefore(viewport, document.body.firstChild)
     }
     this.viewport_container = viewport
+
+    // Props controls share the renderer's real viewport containing block. Their
+    // inset is therefore independent of browser-window and sidebar pixel math.
+    const props_dock = document.getElementById('props-dock')
+    if (props_dock !== null && props_dock.parentElement !== viewport) {
+      viewport.appendChild(props_dock)
+    }
+    if (props_dock !== null && viewport_layout_diagnostics_enabled()) {
+      const report_layout = (): void => {
+        const view = viewport.getBoundingClientRect()
+        const dock = props_dock.getBoundingClientRect()
+        console.debug('[M2M viewport layout]', {
+          viewport: { x: view.x, y: view.y, width: view.width, height: view.height },
+          props: { x: dock.x, y: dock.y, width: dock.width, height: dock.height },
+          topInset: Math.round((dock.top - view.top) * 100) / 100,
+          rightInset: Math.round((view.right - dock.right) * 100) / 100,
+          devicePixelRatio: window.devicePixelRatio,
+          fullscreen: document.fullscreenElement !== null
+        })
+      }
+      const observer = new ResizeObserver(report_layout)
+      observer.observe(viewport)
+      observer.observe(props_dock)
+      window.addEventListener('resize', report_layout)
+      document.addEventListener('fullscreenchange', report_layout)
+      window.addEventListener('pagehide', () => {
+        observer.disconnect()
+        window.removeEventListener('resize', report_layout)
+        document.removeEventListener('fullscreenchange', report_layout)
+      }, { once: true })
+      report_layout()
+    }
 
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)

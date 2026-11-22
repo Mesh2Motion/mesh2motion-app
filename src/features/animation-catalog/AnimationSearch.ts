@@ -269,6 +269,19 @@ export class AnimationSearch extends EventTarget {
     // Add event listener for tri-state mirror toggle button clicks.
     this.animation_list_container.addEventListener('click', (event) => {
       const target = event.target as HTMLElement
+      const preview_button = target.closest<HTMLButtonElement>('button[data-action="preview-video"]')
+      if (preview_button !== null) {
+        event.preventDefault()
+        event.stopPropagation()
+        const row = preview_button.closest<HTMLElement>('.anim-item, .anim-custom-item')
+        const preview = row?.querySelector<HTMLElement>('.anim-preview-placeholder')
+        if (preview !== null && preview !== undefined) {
+          const active = this.preview_videos.toggle_explicit_preview(preview)
+          preview_button.setAttribute('aria-pressed', String(active))
+          preview_button.setAttribute('aria-label', `${active ? 'Pause' : 'Preview'} video for ${preview_button.dataset.animationName ?? 'animation'}`)
+        }
+        return
+      }
       const toggle_button = target.closest('button[data-action="cycle-mirror-mode"]') as HTMLButtonElement | null
       if (toggle_button === null) {
         return
@@ -458,7 +471,10 @@ export class AnimationSearch extends EventTarget {
     const poster_src = AnimationPreviewVideos.poster_src(preview_src)
     const poster_attribute = poster_src === null
       ? ' anim-preview-placeholder--no-poster'
-      : ` style="background-image:url('${poster_src}')"`
+      : ` data-poster-src="${poster_src}"`
+    const poster_image_html = poster_src === null
+      ? ''
+      : '<img class="anim-preview-poster" alt="" aria-hidden="true" decoding="async">'
     const custom_animation_badge_html = is_custom_animation
       ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
       : ''
@@ -467,10 +483,11 @@ export class AnimationSearch extends EventTarget {
     const template = document.createElement('template')
     template.innerHTML = `
         <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-id="${animation_clip.id}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
-          <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
+          <button class="secondary-button play anim-play-button" data-action="play-animation" data-animation-id="${animation_clip.id}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}" aria-description="Focus to preview the video; activate to play on the model.">
             ${custom_animation_badge_html}
-            <div class="anim-preview-placeholder${poster_attribute}"${preview_data_src_attribute}></div>
+            <div class="anim-preview-placeholder${poster_attribute}"${preview_data_src_attribute}>${poster_image_html}</div>
           </button>
+          ${poster_src === null ? '' : `<button class="anim-preview-control" type="button" data-action="preview-video" data-animation-name="${this.animation_name_clean(animation_clip.name)}" aria-label="Preview video for ${this.animation_name_clean(animation_clip.name)}" aria-pressed="false" title="Preview video">▶</button>`}
 
           <label class="styled-checkbox anim-row-checkbox">
             <input type="checkbox" name="${animation_clip.name}" value="${animation_clip.id}" ${checked_attribute}>

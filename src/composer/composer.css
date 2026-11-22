@@ -252,9 +252,27 @@ body.composer-is-dragging .composer-slot.is-drag-over {
     pointer-events: none;
 }
 
-.composer-library-item .anim-preview {
+.composer-library-item-preview .anim-preview-placeholder {
     position: relative;
+}
+
+.composer-library-item-preview .anim-preview-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.composer-library-item .anim-preview {
+    position: absolute;
+    inset: 0;
     z-index: 1;
+}
+
+.composer-library-item .composer-preview-control {
+    top: 88px;
+    left: 4px;
 }
 
 /* imported animations have no preview video. a chip in the middle of the frame marks them.
