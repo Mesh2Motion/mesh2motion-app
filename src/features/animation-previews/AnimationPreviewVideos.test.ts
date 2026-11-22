@@ -8,7 +8,7 @@ import {
   MAX_PLAYBACK_ATTEMPTS,
   TOUCH_PREVIEW_TIMEOUT_MS
 } from './AnimationPreviewVideos.ts'
-import { SkeletonType } from '../../enums/SkeletonType.ts'
+import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
 
 class FakeIntersectionObserver {
   public static instances: FakeIntersectionObserver[] = []

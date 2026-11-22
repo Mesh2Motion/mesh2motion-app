@@ -1,6 +1,6 @@
 import { type ThemeManager } from '../../ThemeManager'
 import { SkeletonType } from '../../enums/SkeletonType'
-import { AnimationPreviewVideos } from './AnimationPreviewVideos'
+import { AnimationPreviewVideos } from '../../../features/animation-previews/AnimationPreviewVideos.ts'
 import { type AnimationWithState } from './interfaces/AnimationWithState'
 import { type AnimationEntry } from './interfaces/AnimationEntry'
 import { type AnimationExportSelection, type AnimationMirrorExportMode } from './interfaces/AnimationExportSelection'

@@ -1,7 +1,7 @@
 import { type SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { type ThemeManager } from '../lib/ThemeManager.ts'
 import { type AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry.ts'
-import { AnimationPreviewVideos } from '../lib/processes/animations-listing/AnimationPreviewVideos.ts'
+import { AnimationPreviewVideos } from '../features/animation-previews/AnimationPreviewVideos.ts'
 import { VirtualizedAnimationCatalog } from '../features/animation-catalog/VirtualizedAnimationCatalog.ts'
 /**
  * Library of animations shown on the Composer page. Animations are not selected here.
