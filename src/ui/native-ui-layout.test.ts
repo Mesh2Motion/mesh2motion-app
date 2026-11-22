@@ -27,6 +27,16 @@ function mp4_and_poster_counts (directory: string): { mp4: number, posters: numb
   return { mp4, posters }
 }
 
+function collect_relative_files (directory: string, parent = ''): string[] {
+  const paths: string[] = []
+  for (const entry of readdirSync(join(directory, parent), { withFileTypes: true })) {
+    const relative_path = join(parent, entry.name)
+    if (entry.isDirectory()) paths.push(...collect_relative_files(directory, relative_path))
+    else paths.push(relative_path)
+  }
+  return paths
+}
+
 describe('M2M-023A preview posters', () => {
   it('maps every animation MP4 to an offline poster path', () => {
     expect(AnimationPreviewVideos.poster_src('../animpreviews/human/dark_Angry.mp4'))
@@ -41,9 +51,16 @@ describe('M2M-023A preview posters', () => {
   })
 
   it('has a generated poster for every bundled animation video', () => {
-    const counts = mp4_and_poster_counts(join(project_root, 'static', 'animpreviews'))
+    const media_root = join(project_root, 'static', 'animpreviews')
+    const counts = mp4_and_poster_counts(media_root)
     expect(counts.mp4).toBeGreaterThan(0)
     expect(counts.posters).toBe(counts.mp4)
+    const paths = new Set(collect_relative_files(media_root))
+    for (const path of paths) {
+      if (path.toLowerCase().endsWith('.mp4')) {
+        expect(paths.has(path.slice(0, -4) + '.webp'), `missing poster for ${path}`).toBe(true)
+      }
+    }
     for (const key of [
       'human/dark_Angry.webp',
       'fox/dark_Bark.webp',
