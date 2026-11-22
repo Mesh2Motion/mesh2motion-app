@@ -96,8 +96,12 @@ export class ModelCleanupUtility {
 
     // calculate all the loaded mesh data
     buffer_geometry.forEach((geometry) => {
-      triangle_count += geometry.attributes.position.count / 3
-      vertex_count += geometry.attributes.position.count
+      // Only complete triples form triangles. Keep this integer: the Rust v1
+      // snapshot schema represents triangle_count as an unsigned integer.
+      const positions = geometry.attributes.position
+      const element_count = geometry.index?.count ?? positions.count
+      triangle_count += Math.floor(element_count / 3)
+      vertex_count += positions.count
     })
 
     return { vertex_count, triangle_count, objects_count: buffer_geometry.length }
