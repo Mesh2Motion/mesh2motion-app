@@ -5,7 +5,6 @@ import { type CustomTransformControls } from './components/CustomTransformContro
 
 import { CustomViewHelper } from './CustomViewHelper.ts'
 import { Generators } from './Generators.ts'
-import { ViewportManager } from './ViewportManager.ts'
 import type { ThemeManager } from './ThemeManager.ts'
 import { type MeshDragBonePlacement } from './processes/edit-skeleton/MeshDragBonePlacement.ts'
 
@@ -19,7 +18,7 @@ export class SceneEnvironmentManager {
 
   private controls: OrbitControls | undefined = undefined
   private view_helper: CustomViewHelper | undefined = undefined
-  private viewport_manager: ViewportManager | null = null
+  private viewport_container: HTMLElement | null = null
   private environment_container: Group = new Group()
 
   constructor (
@@ -55,9 +54,7 @@ export class SceneEnvironmentManager {
       viewport.id = 'm2m-viewport'
       document.body.insertBefore(viewport, document.body.firstChild)
     }
-    viewport.appendChild(this.renderer.domElement)
-    this.viewport_manager = new ViewportManager(this.renderer, this.camera, viewport)
-    this.viewport_manager.start()
+    this.viewport_container = viewport
 
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -91,6 +88,11 @@ export class SceneEnvironmentManager {
 
   public get_view_helper (): CustomViewHelper | undefined {
     return this.view_helper
+  }
+
+  public get_viewport_container (): HTMLElement {
+    if (this.viewport_container === null) throw new Error('Renderer viewport has not been created')
+    return this.viewport_container
   }
 
   public enable_orbit_controls (enabled: boolean): void {
@@ -225,8 +227,7 @@ export class SceneEnvironmentManager {
 
   /** Release the single resize observer when the page/engine is torn down. */
   public dispose (): void {
-    this.viewport_manager?.dispose()
-    this.viewport_manager = null
+    this.viewport_container = null
     this.controls?.dispose()
     this.controls = undefined
   }

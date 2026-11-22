@@ -46,16 +46,22 @@ export function install_webgl_context_handlers (
   canvas: HTMLCanvasElement,
   on_lost: () => void,
   on_restored: () => void
-): void {
-  canvas.addEventListener('webglcontextlost', (event) => {
+): () => void {
+  const on_context_lost = (event: Event): void => {
     event.preventDefault()
     mark('webgl-context-lost')
     on_lost()
-  })
-  canvas.addEventListener('webglcontextrestored', () => {
+  }
+  const on_context_restored = (): void => {
     mark('webgl-context-restored')
     on_restored()
-  })
+  }
+  canvas.addEventListener('webglcontextlost', on_context_lost)
+  canvas.addEventListener('webglcontextrestored', on_context_restored)
+  return () => {
+    canvas.removeEventListener('webglcontextlost', on_context_lost)
+    canvas.removeEventListener('webglcontextrestored', on_context_restored)
+  }
 }
 
 /**
