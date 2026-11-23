@@ -17,7 +17,7 @@ export type ProcessStepValue =
   | 'animations-export' | 'export-to-file' | 'BindPose'
 
 /** v1.0-compatible additive value for the upstream Remix/Composer page. */
-export type PageValue = 'explore' | 'create' | 'retarget' | 'remix' | 'preview-generator' | 'unknown'
+export type PageValue = 'explore' | 'create' | 'retarget' | 'remix' | 'new-animation' | 'preview-generator' | 'unknown'
 export type AnimationSourceValue = 'default-library' | 'custom-import'
 export type ApplicationPhase = 'uninitialized' | 'loading' | 'ready' | 'degraded' | 'fatal' | 'closed'
 

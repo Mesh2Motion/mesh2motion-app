@@ -38,17 +38,29 @@ export const AUTHORED_TAG = 'authored-animation-document'
 
 export class RealApplicationOwner implements AnimationApplicationOwner {
   private readonly records: AuthoredEntryRecord[] = []
+  private readonly attribution = new Map<string, string>()
 
   constructor (private readonly engine: AuthoringApplicationEngine) {}
 
+  /** M2M-031: preserve "From Existing Animation" source attribution where supported. */
+  set_attribution (document_name: string, source_name: string): void {
+    this.attribution.set(document_name, source_name)
+  }
+
   apply_committed_clip (clip: AnimationClip, document: AnimationDocument, select = true): void {
     const previous_selection = this.engine.animations_listing_step.current_selection()
+    const source = this.attribution.get(document.clip.name)
     const pair: TransformedAnimationClipPair = {
       original_animation_clip: clip,
       display_animation_clip: clip.clone(),
       metadata: {
         source_type: 'custom-import',
-        tags: [AUTHORED_TAG, `rig:${document.rig.identifier}`, `revision:${document.revision}`]
+        tags: [
+          AUTHORED_TAG,
+          `rig:${document.rig.identifier}`,
+          `revision:${document.revision}`,
+          ...(source === undefined ? [] : [`source:${source}`])
+        ]
       }
     }
     const entry = this.engine.animations_listing_step.add_authored_animation(pair)

@@ -14,8 +14,7 @@ import {
   apply_evaluated_pose,
   collect_joints,
   evaluate_document_at_time,
-  pose_digest,
-  type EvaluatedValue
+  pose_digest
 } from './poseEvaluation'
 import {
   OBSERVATION_LIMITS,

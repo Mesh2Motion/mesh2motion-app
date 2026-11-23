@@ -1,0 +1,153 @@
+/* M2M-031 — New Animation workspace. Fits the existing tool-panel layout. */
+
+#new-animation-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#new-animation-panel h1 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.new-animation-intro {
+    font-size: 0.82rem;
+    opacity: 0.85;
+    margin: 0;
+}
+
+#new-animation-status {
+    font-size: 0.78rem;
+    min-height: 1.2em;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.12);
+}
+
+#new-animation-panel fieldset {
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    border-radius: 6px;
+    min-width: 0;
+    padding: 0.5rem;
+}
+
+#new-animation-panel legend {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 0.25rem;
+}
+
+.new-animation-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+}
+
+.new-animation-fields input,
+.new-animation-fields select,
+#new-animation-source-filter {
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.new-animation-source-list,
+.new-animation-tracks {
+    max-height: 9rem;
+    overflow-y: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.m2m-track-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.m2m-track-row[aria-selected="true"],
+.m2m-track-row[aria-pressed="true"] {
+    border-color: var(--nav-active-item-bg, #4a90d9);
+    background: rgba(127, 127, 127, 0.18);
+}
+
+.new-animation-timeline-wrap {
+    position: relative;
+    min-width: 0;
+    padding-top: 1.1rem;
+}
+
+.new-animation-timeline {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.new-animation-timeline input[type="range"] {
+    width: 100%;
+    min-width: 0;
+}
+
+.m2m-keyframe-marker {
+    position: absolute;
+    top: -0.2rem;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    background: #4a90d9;
+    border: 1px solid #fff;
+}
+
+.new-animation-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+}
+
+.new-animation-values input {
+    width: 5.5rem;
+    min-width: 0;
+}
+
+.new-animation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.new-animation-actions button {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.5rem;
+}
+
+@media (max-width: 900px) {
+    #new-animation-panel {
+        gap: 0.5rem;
+    }
+    .new-animation-source-list,
+    .new-animation-tracks {
+        max-height: 6rem;
+    }
+}

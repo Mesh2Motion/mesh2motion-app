@@ -125,6 +125,11 @@ export class FrontendAuthoringBridge {
     return this.preview.fingerprint()
   }
 
+  /** M2M-031: tag a document committed from an existing animation. */
+  set_source_attribution (document_name: string, source_name: string): void {
+    this.owner.set_attribution(document_name, source_name)
+  }
+
   is_previewing (): boolean {
     return this.preview.is_previewing()
   }
