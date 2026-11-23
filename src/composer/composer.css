@@ -219,6 +219,15 @@ body.composer-is-dragging .composer-slot.is-drag-over {
 #composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-thumb {
     background-color: var(--bg-tertiary);
 }
+/* The scrollbar corner and the virtualized footer/spacer are separate paint
+   surfaces in WebKitGTK; without an explicit themed color they can stay black
+   even after the scroller and its track are correct. */
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-corner {
+    background-color: var(--bg-alternate);
+}
+#composer-library-items.virtualized-animation-catalog .virtualized-catalog-footer {
+    background-color: var(--bg-alternate);
+}
 
 /* styles.css pads every div. the Explore listing turns that off for its tiles too */
 #composer-library-items div {

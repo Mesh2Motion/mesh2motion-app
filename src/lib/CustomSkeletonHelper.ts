@@ -142,6 +142,16 @@ class CustomSkeletonHelper extends InstancedMesh {
     this.count = segment_bone_indices.length
     this.instanceMatrix.setUsage(DynamicDrawUsage)
 
+    // InstancedMesh initializes every instance matrix to identity. Until the
+    // first onBeforeRender pass writes live bone transforms and instance
+    // colors, that exposes a full-size, black stack of template bones at the
+    // origin. Start hidden so loading a rig never flashes this artifact.
+    const hidden_instance = new Matrix4().makeScale(0, 0, 0)
+    for (let index = 0; index < this.count; index++) {
+      this.setMatrixAt(index, hidden_instance)
+    }
+    this.instanceMatrix.needsUpdate = true
+
     this.follows_shared_opacity = options.opacity === undefined
     live_helpers.add(this)
 
