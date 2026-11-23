@@ -6,13 +6,13 @@
  * only documents explicitly committed or imported by the user/MCP are stored.
  */
 
-import { type Skeleton, type SkinnedMesh, type Scene, type WebGLRenderer } from 'three'
+import { Vector3, type Skeleton, type SkinnedMesh, type Scene, type WebGLRenderer } from 'three'
 import { AUTHORED_TAG } from '../authoringBridge/applicationOwner'
 import type { StepAnimationsListing } from '../lib/processes/animations-listing/StepAnimationsListing'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
 import { check_rig_compatibility, draft_document_to_clip } from './liveRigAdapter'
 import { OffscreenCapture } from '../authoringObservation/capture'
-import { compute_framing, create_observation_camera } from '../authoringObservation/cameraGeometry'
+import { compute_framing, create_observation_camera, project_joint } from '../authoringObservation/cameraGeometry'
 import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation'
 import type { AnimationDocument } from './types'
 
@@ -148,10 +148,67 @@ export function generate_authored_preview (
         pose.restore()
       }
     }
-  } catch {
-    // A renderer without WebGL2 cannot produce a preview; the tile still works.
+  } catch (error) {
+    console.warn('[M2M-031] authored preview generation failed:', error instanceof Error ? error.message : String(error))
   } finally {
     capture.dispose()
+  }
+  return frames
+}
+
+/**
+ * 2D-canvas fallback: a real projected-skeleton flipbook of the evaluated pose.
+ * Used when WebGL readback is unavailable, so authored tiles always have a preview.
+ */
+export function generate_skeleton_preview (
+  document: AnimationDocument,
+  skeleton: Skeleton,
+  frame_count = 8
+): string[] {
+  const frames: string[] = []
+  const size = 128
+  for (let index = 0; index < frame_count; index++) {
+    const ratio = frame_count > 1 ? index / (frame_count - 1) : 0
+    const pose = apply_evaluated_pose(skeleton,
+      evaluate_document_at_time(document, ratio * document.clip.duration_seconds))
+    try {
+      const framing = compute_framing(skeleton, size, size)
+      if (framing === null) continue
+      const camera = create_observation_camera({ view: 'front', framing, width: size, height: size, projection: 'orthographic' })
+      const canvas = window.document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const context = canvas.getContext('2d')
+      if (context === null) continue
+      context.clearRect(0, 0, size, size)
+      const points = skeleton.bones.map((bone) => {
+        const world = bone.getWorldPosition(new Vector3())
+        const projected = project_joint(world, camera, 'none')
+        return { x: projected.u * size, y: projected.v * size, parent: bone.parent }
+      })
+      context.strokeStyle = '#4fc3f7'
+      context.lineWidth = 2
+      for (const point of points) {
+        if (point.parent === null || !skeleton.bones.includes(point.parent as typeof skeleton.bones[number])) continue
+        const parent_world = (point.parent as typeof skeleton.bones[number]).getWorldPosition(new Vector3())
+        const parent_projected = project_joint(parent_world, camera, 'none')
+        context.beginPath()
+        context.moveTo(parent_projected.u * size, parent_projected.v * size)
+        context.lineTo(point.x, point.y)
+        context.stroke()
+      }
+      context.fillStyle = '#ffd166'
+      for (const point of points) {
+        context.beginPath()
+        context.arc(point.x, point.y, 2.5, 0, Math.PI * 2)
+        context.fill()
+      }
+      frames.push(canvas.toDataURL('image/png'))
+    } catch {
+      // skip an unprojectable frame
+    } finally {
+      pose.restore()
+    }
   }
   return frames
 }
@@ -192,17 +249,24 @@ export function restore_authored_documents (
       }
       const entry = listing.add_authored_animation(pair)
       if (renderer !== undefined && scene !== undefined && meshes !== undefined) {
-        const frames = (stored.preview_frames?.length ?? 0) > 0
+        const rendered = (stored.preview_frames?.length ?? 0) > 0
           ? stored.preview_frames!
           : generate_authored_preview(document, skeleton, renderer, scene, meshes)
+        const frames = rendered.length > 0 ? rendered : generate_skeleton_preview(document, skeleton)
         if (frames.length > 0) {
+          // Register with the catalog first: a localStorage quota failure must
+          // never prevent the tile from showing its generated poster/flipbook.
           preview_frames_by_entry.set(entry.id, frames)
           if (stored.preview_frames === undefined) {
-            const entries = load_authored_documents()
-            const index = entries.findIndex((item) => item.id === stored.id)
-            if (index >= 0) {
-              entries[index] = { ...stored, preview_frames: frames }
-              write(entries)
+            try {
+              const entries = load_authored_documents()
+              const index = entries.findIndex((item) => item.id === stored.id)
+              if (index >= 0) {
+                entries[index] = { ...stored, preview_frames: frames }
+                write(entries)
+              }
+            } catch {
+              // Preview still works for this session; persistence is best-effort.
             }
           }
         }
