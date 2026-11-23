@@ -131,6 +131,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
     const first = get_authoring_bridge_for_testing()
+    const adapter = window.m2mAuthoringAdapter
     const replacement = make_skeleton()
     expect(replacement).not.toBe(original)
     expect(compute_rig_fingerprint(replacement)).toBe(compute_rig_fingerprint(original))
@@ -139,6 +140,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     await new Promise(resolve => setTimeout(resolve, 30))
     expect(get_authoring_bridge_for_testing()).toBeDefined()
     expect(get_authoring_bridge_for_testing()).not.toBe(first)
+    expect(window.m2mAuthoringAdapter).toBe(adapter)
   })
 
   it('keeps one bridge while the mixer changes live bone pose', async () => {

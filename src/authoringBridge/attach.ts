@@ -36,14 +36,44 @@ interface AuthoringInstall {
 
 let install: AuthoringInstall | null = null
 let installing: Promise<void> | null = null
+let adapter_promise: Promise<TauriAuthoringAdapter> | null = null
+
+function unavailable_response (value: unknown): AuthoringResponse {
+  const request = value !== null && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    protocol: 'authoring-bridge/v1',
+    request_id: typeof request.request_id === 'string' ? request.request_id : '',
+    session_id: typeof request.session_id === 'string' ? request.session_id : '',
+    sequence: typeof request.sequence === 'number' ? request.sequence : 0,
+    ok: false,
+    error: { code: 'RIG_UNAVAILABLE', message: 'authoring bridge has no live rig' }
+  }
+}
+
+function dispatch_request (request: unknown): Promise<AuthoringResponse> {
+  return install?.bridge !== undefined
+    ? install.bridge.handle_mcp_request(request)
+    : Promise.resolve(unavailable_response(request))
+}
+
+function dispatch_cancel (payload: unknown): void {
+  install?.bridge.handle_cancel(payload)
+}
+
+async function ensure_adapter (): Promise<TauriAuthoringAdapter> {
+  if (adapter_promise === null) {
+    adapter_promise = attachTauriAuthoringAdapter(dispatch_request, dispatch_cancel)
+  }
+  return adapter_promise
+}
 
 async function clear_install (): Promise<void> {
   if (installing !== null) await installing.catch(() => {})
   const previous = install
   install = null
-  await previous?.adapter.dispose()
+  // The transport is stable for the page lifetime and resolves the current
+  // bridge dynamically. Dispose only rig-specific bridge state on model swaps.
   previous?.bridge.dispose()
-  if (window.m2mAuthoringAdapter === previous?.adapter) window.m2mAuthoringAdapter = undefined
 }
 
 function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void> {
@@ -55,7 +85,6 @@ function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void>
   installing = (async () => {
     const previous = install
     install = null
-    await previous?.adapter.dispose()
     previous?.bridge.dispose()
 
     const { FrontendAuthoringBridge: Bridge } = await import('./service')
@@ -63,10 +92,7 @@ function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void>
     const permission = new AuthoringPermission()
     const active_bridge = new Bridge(app, undefined, permission)
 
-    const adapter = await attachTauriAuthoringAdapter(
-      (request: unknown) => active_bridge.handle_mcp_request(request),
-      (payload: unknown) => active_bridge.handle_cancel(payload)
-    )
+    const adapter = await ensure_adapter()
     window.m2mAuthoringAdapter = adapter
     install = { bridge: active_bridge, adapter, fingerprint, identifier: app.rig_identifier, skeleton: app.skeleton }
   })().finally(() => { installing = null })
@@ -124,4 +150,8 @@ export async function teardown (): Promise<void> {
   window.m2mAuthoringRigWatch?.dispose()
   window.m2mAuthoringRigWatch = undefined
   await clear_install()
+  const adapter = await adapter_promise?.catch(() => null) ?? null
+  if (adapter !== null) await adapter.dispose()
+  adapter_promise = null
+  if (window.m2mAuthoringAdapter === adapter) window.m2mAuthoringAdapter = undefined
 }
