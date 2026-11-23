@@ -91,6 +91,19 @@ export function save_authored_document_once (
   return duplicate ? null : save_authored_document(document, source_name)
 }
 
+/** Persist preview frames for a stored authored document (best effort). */
+export function set_stored_preview_frames (id: string, frames: readonly string[]): void {
+  try {
+    const entries = load_authored_documents()
+    const index = entries.findIndex((entry) => entry.id === id)
+    if (index < 0) return
+    entries[index] = { ...entries[index], preview_frames: [...frames] }
+    write(entries)
+  } catch {
+    // A quota failure must never break the commit; the in-memory frames still work.
+  }
+}
+
 export function delete_authored_document (id: string): boolean {
   const entries = load_authored_documents()
   const remaining = entries.filter((entry) => entry.id !== id)

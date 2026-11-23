@@ -9,6 +9,7 @@
 
 import { type Bone, type Skeleton, Vector3, Quaternion } from 'three'
 import type { AnimationChannel, AnimationDocument, AnimationProperty } from '../animation-document/types'
+import { bone_rest_transforms } from '../animation-document/rigIdentity'
 import { lerp_vector, slerp_quaternion } from '../animation-document/conventions'
 import { sha256_hex } from '../animation-document/sha256'
 import type { EvaluatedJoint, ObservationPoseSource } from './types'
@@ -82,6 +83,12 @@ export interface AppliedPose {
 
 function update_world_matrices (skeleton: Skeleton): void {
   for (const bone of skeleton.bones) bone.updateWorldMatrix(true, false)
+  // Bone transforms alone are not enough: a SkinnedMesh renders from
+  // skeleton.boneMatrices / boneTexture, which three.js only refreshes once per
+  // render frame. Refresh them here so an offscreen capture of the SAME frame as
+  // the visible render can never show the previous (animation-driven) pose while
+  // joint metadata already describes the evaluated draft pose.
+  skeleton.update()
 }
 
 /** Apply a pose transaction to the live skeleton. The returned function always restores it. */
@@ -96,6 +103,24 @@ export function apply_evaluated_pose (
     scale: bone.scale.clone()
   }))
   try {
+    // A capture must describe the draft pose, not the currently playing library
+    // animation. Reset every bone to its bind-pose local transform first; the
+    // authored channels below then override the relevant bones. Without this,
+    // unauthored bones keep whatever the mixer wrote this frame, so the same
+    // draft/timestamp renders differently over time while the pose digest stays
+    // identical.
+    const rest = bone_rest_transforms(skeleton)
+    for (let index = 0; index < skeleton.bones.length; index++) {
+      const transform = rest[index]
+      const bone = skeleton.bones[index]
+      if (transform === undefined || bone === undefined) continue
+      bone.position.set(transform.position[0], transform.position[1], transform.position[2])
+      bone.quaternion.set(
+        transform.quaternion[0], transform.quaternion[1],
+        transform.quaternion[2], transform.quaternion[3]
+      )
+      bone.scale.set(transform.scale[0], transform.scale[1], transform.scale[2])
+    }
     for (const value of evaluated) {
       const bone = skeleton.bones[value.index]
       if (bone === undefined) continue

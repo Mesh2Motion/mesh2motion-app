@@ -12,7 +12,7 @@
  * different bone by a display-name lookup.
  */
 
-import { type Skeleton } from 'three'
+import { type Skeleton, QuaternionKeyframeTrack } from 'three'
 import {
   ANIMATION_DOCUMENT_SCHEMA,
   type AnimationBoneIdentity,
@@ -190,10 +190,31 @@ export function draft_document_to_clip (
   if (validated.validation.state !== 'valid') {
     throw new Error(`invalid AnimationDocument: ${validated.validation.errors.join('; ')}`)
   }
-  return document_to_animation_clip(validated, {
+  const clip = document_to_animation_clip(validated, {
     resolve_bone_name: make_bone_id_resolver(validated.bones),
     binding_prefix: options.binding_prefix
   })
+  // A from-scratch document only contains the channels the agent authored. When
+  // the clip is played, Three's mixer leaves every other bone at whatever the
+  // previously active library animation wrote, producing a contorted mix. Pin
+  // unauthored bones to their bind-pose rotation so playback matches the pose
+  // that observation captures and preview generation show.
+  const authored = new Set(validated.channels
+    .filter((channel) => channel.property === 'quaternion')
+    .map((channel) => channel.bone_id))
+  const rest = bone_rest_transforms(skeleton)
+  const prefix = options.binding_prefix ?? ''
+  for (const bone of validated.bones) {
+    if (authored.has(bone.id) || bone.display_name.length === 0) continue
+    const quaternion = rest[bone.index]?.quaternion
+    if (quaternion === undefined) continue
+    clip.tracks.push(new QuaternionKeyframeTrack(
+      `${prefix}${bone.display_name}.quaternion`,
+      [0, clip.duration],
+      [...quaternion, ...quaternion]
+    ))
+  }
+  return clip
 }
 
 /** Re-export the schema marker so downstream tooling has one import site. */

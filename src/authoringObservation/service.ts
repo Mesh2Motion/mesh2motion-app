@@ -36,6 +36,8 @@ import {
   type ViewCapture
 } from './types'
 
+const MAX_OBSERVATION_RESPONSE_BYTES = 240 * 1024
+
 export interface ObservationEngine extends CaptureHost {
   camera?: import('three').PerspectiveCamera
   load_skeleton_step?: { skeleton_type? (): string }
@@ -394,6 +396,15 @@ export class PoseObservationService {
           height,
           projection,
           views
+        }
+        // Inline pixels are optional because each view has an image_ref. Keep
+        // joint/camera metadata inside the existing bounded Tauri JSON frame.
+        if (utf8_byte_length(JSON.stringify(result)) > MAX_OBSERVATION_RESPONSE_BYTES) {
+          for (const view of result.views) delete view.image_base64
+        }
+        if (utf8_byte_length(JSON.stringify(result)) > MAX_OBSERVATION_RESPONSE_BYTES) {
+          throw new ObservationError('RESOURCE_LIMIT_EXCEEDED',
+            'pose geometry exceeds the bounded observation response size')
         }
         this.retained.push({ result, images, created_at: this.now(), expires_at: expires_at_ms, bytes })
         this.prune()

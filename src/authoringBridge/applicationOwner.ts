@@ -10,12 +10,20 @@
  * restored document is inserted, and the previous selection is restored.
  */
 
-import { type AnimationClip } from 'three'
+import { type AnimationClip, type Scene, type SkinnedMesh, type WebGLRenderer } from 'three'
 import type { AnimationApplicationOwner } from '../animation-document/applicationCommit'
 import type { AnimationDocument } from '../animation-document/types'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry'
-import { save_authored_document_once } from '../animation-document/authoredLibrary.ts'
+import {
+  generate_authored_preview,
+  generate_skeleton_preview,
+  save_authored_document_once,
+  set_authored_preview_frames,
+  set_stored_preview_frames
+} from '../animation-document/authoredLibrary.ts'
+import { check_rig_compatibility } from '../animation-document/liveRigAdapter'
+import { live_skeleton_from_engine } from './rigCatalog'
 
 export interface AuthoringApplicationEngine {
   animations_listing_step: {
@@ -24,6 +32,11 @@ export interface AuthoringApplicationEngine {
     current_selection (): string | null
     select_animation (animation_id: string | null): void
   }
+  renderer?: WebGLRenderer
+  scene?: Scene
+  active_skinned_meshes? (): SkinnedMesh[]
+  load_skeleton_step?: { skeleton_type? (): string }
+  edit_skeleton_step?: { skeleton? (): import('three').Skeleton }
 }
 
 export interface AuthoredEntryRecord {
@@ -67,7 +80,8 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
     const entry = this.engine.animations_listing_step.add_authored_animation(pair)
     // MCP-authored clips are persisted too, so they are inspectable/deletable in
     // a fresh Explore session. Deduplicated to avoid undo re-applying revisions.
-    save_authored_document_once(document, source ?? null)
+    const stored_id = save_authored_document_once(document, source ?? null)
+    this.generate_preview(entry.id, document, stored_id)
     this.records.push({
       entry_id: entry.id,
       document_name: document.clip.name,
@@ -81,6 +95,24 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
       } catch {
         // Selection failure must not turn insertion into a store/library split.
       }
+    }
+  }
+
+  /** Generate and register a real poster/flipbook as part of the commit. */
+  private generate_preview (entry_id: string, document: AnimationDocument, stored_id: string | null): void {
+    try {
+      const skeleton = live_skeleton_from_engine(this.engine)
+      if (skeleton === null || !check_rig_compatibility(document, skeleton).compatible) return
+      const meshes = this.engine.active_skinned_meshes?.() ?? []
+      const rendered = this.engine.renderer !== undefined && this.engine.scene !== undefined && meshes.length > 0
+        ? generate_authored_preview(document, skeleton, this.engine.renderer, this.engine.scene, meshes)
+        : []
+      const frames = rendered.length > 0 ? rendered : generate_skeleton_preview(document, skeleton)
+      if (frames.length === 0) return
+      set_authored_preview_frames(entry_id, frames)
+      if (stored_id !== null) set_stored_preview_frames(stored_id, frames)
+    } catch (error) {
+      console.warn('[M2M-030] authored preview generation failed:', error instanceof Error ? error.message : String(error))
     }
   }
 

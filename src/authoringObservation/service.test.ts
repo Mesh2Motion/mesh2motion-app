@@ -165,6 +165,27 @@ describe('PoseObservationService', () => {
     service.dispose()
   })
 
+  it('omits optional inline pixels when the full six-view response nears the IPC ceiling', async () => {
+    const source = make_source()
+    const { engine } = make_engine()
+    const service = new PoseObservationService({
+      engine,
+      source_provider: () => source,
+      encoder: (pixels, _width, _height, mime) => ({
+        mime,
+        bytes: new Uint8Array(48 * 1024).fill(pixels[0] === 42 ? 7 : 9)
+      }),
+      make_id: (prefix) => `${prefix}-large-inline-test`
+    })
+    const response = await service.handle(request(source, capture_payload(source)))
+    expect(response.ok).toBe(true)
+    const result = response.result as { views: Array<{ image_base64?: string, image_ref?: string }> }
+    expect(result.views).toHaveLength(6)
+    expect(result.views.every((view) => view.image_base64 === undefined && view.image_ref !== undefined)).toBe(true)
+    expect(new TextEncoder().encode(JSON.stringify(result)).byteLength).toBeLessThan(240 * 1024)
+    service.dispose()
+  })
+
   it('produces deterministic image dimensions, MIME type and bytes', async () => {
     const source = make_source()
     const { engine } = make_engine()
