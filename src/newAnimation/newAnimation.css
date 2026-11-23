@@ -168,6 +168,7 @@ html[data-theme='light'] #new-animation-panel select {
 
 .m2m-ruler {
     position: relative;
+    touch-action: none;
     height: 1.5rem;
     margin-left: 8.5rem;
     border-bottom: 1px solid rgba(127, 127, 127, 0.45);
@@ -237,7 +238,8 @@ html[data-theme='light'] #new-animation-panel select {
     transform: translateX(-50%) rotate(45deg);
     background: #7fb4e8;
     border: 1px solid #dcecff;
-    cursor: pointer;
+    cursor: ew-resize;
+    touch-action: none;
 }
 
 .m2m-keyframe-marker.selected { background: #ffd166; border-color: #fff3c4; }

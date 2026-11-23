@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { create_empty_document, with_animation_channel } from '../animation-document/create'
 import { KeyframeEditor, type KeyframeEditorDom, type PlaybackHost } from './keyframeEditor'
 import type { SharedDraftController } from '../animation-document/sharedDraft'
-import type { AnimationDocument, AnimationKeyframe } from '../animation-document/types'
+import type { AnimationChannel, AnimationDocument, AnimationKeyframe } from '../animation-document/types'
 import { make_test_rig } from '../authoringObservation/testFixtures'
 
 function make_document (): AnimationDocument {
@@ -92,6 +92,34 @@ describe('Godot-style clip editor', () => {
     expect(dom.playhead.style.left).toBe('25%')
     expect(dom.time_label.textContent).toContain('0.500 s')
     expect(applied).toBe(0.5)
+    editor.dispose()
+  })
+
+  it('moves a dragged keyframe while preserving strict time ordering', async () => {
+    const source = make_document()
+    let current: AnimationDocument | null = source
+    const writes: number[][] = []
+    const controller = {
+      attach: () => () => {},
+      subscribe: () => () => {},
+      document: () => current,
+      snapshot: () => ({ document: current, revision: source.revision, fingerprint: '', previewing: false, mcp_session_active: false }),
+      set_channel: async (_revision: number, _bone_id: string, _property: string, keyframes: AnimationKeyframe[]) => {
+        writes.push(keyframes.map((key) => key.time_seconds))
+        current = { ...source, channels: [{ ...source.channels[0], keyframes }] }
+        return current
+      },
+      preview: async () => {}
+    } as unknown as SharedDraftController
+    const editor = new KeyframeEditor(controller, make_dom(), make_host().host)
+    const mover = editor as unknown as {
+      move_keyframe: (channel: AnimationChannel, from: number, to: number) => Promise<void>
+    }
+    await mover.move_keyframe(source.channels[0], 0.5, 1.4)
+    expect(writes[0]).toEqual([0, 1, 1.4])
+    // A move onto an existing keyframe is rejected instead of duplicating time.
+    await mover.move_keyframe(source.channels[0], 0, 1)
+    expect(writes).toHaveLength(1)
     editor.dispose()
   })
 

@@ -6,7 +6,7 @@
  * the live rig through the shared authoritative AnimationDocument.
  */
 
-import type { AnimationDocument, AnimationKeyframe, AnimationProperty, KeyframeInterpolation } from '../animation-document/types'
+import type { AnimationChannel, AnimationDocument, AnimationKeyframe, AnimationProperty, KeyframeInterpolation } from '../animation-document/types'
 import { evaluate_document_at_time } from '../authoringObservation/poseEvaluation'
 import type { SharedDraftController } from '../animation-document/sharedDraft'
 
@@ -61,6 +61,18 @@ export class KeyframeEditor {
     }
     this.dom.play_button.addEventListener('click', () => { this.toggle_play() })
     this.dom.stop_button.addEventListener('click', () => { this.stop() })
+    // Drag on the ruler to scrub continuously, like Godot's time cursor.
+    this.dom.ruler.addEventListener('pointerdown', (event: PointerEvent) => {
+      this.dom.ruler.setPointerCapture?.(event.pointerId)
+      this.set_time(this.time_from_pointer(event))
+      const on_move = (move: PointerEvent): void => { this.set_time(this.time_from_pointer(move), true) }
+      const on_up = (): void => {
+        this.dom.ruler.removeEventListener('pointermove', on_move)
+        this.dom.ruler.removeEventListener('pointerup', on_up)
+      }
+      this.dom.ruler.addEventListener('pointermove', on_move)
+      this.dom.ruler.addEventListener('pointerup', on_up)
+    })
   }
 
   set_pose_applier (applier: (time: number) => void): void {
@@ -169,6 +181,30 @@ export class KeyframeEditor {
     this.selected_key_time = this.time_seconds
     await this.refresh_preview()
     this.set_status(`Keyframe at ${this.time_seconds.toFixed(3)} s written at revision ${this.controller.snapshot().revision}`)
+  }
+
+  /** Commit a dragged keyframe to a new time without breaking strict ordering. */
+  private async move_keyframe (channel: AnimationChannel, from: number, to: number): Promise<void> {
+    const document = this.controller.document()
+    if (document === null) return
+    const target = Math.max(0, Math.min(Number(to.toFixed(4)), document.clip.duration_seconds))
+    const other_times = channel.keyframes
+      .map((key) => key.time_seconds)
+      .filter((time) => Math.abs(time - from) > 1e-6)
+    if (other_times.some((time) => Math.abs(time - target) < 0.01)) {
+      this.set_status('Keyframe would overlap another keyframe; move it to a free time.')
+      this.render()
+      return
+    }
+    const keyframes = channel.keyframes.map((key) =>
+      Math.abs(key.time_seconds - from) < 1e-6 ? { ...key, time_seconds: target } : { ...key })
+    keyframes.sort((a, b) => a.time_seconds - b.time_seconds)
+    await this.controller.set_channel(document.revision, channel.bone_id, channel.property, keyframes)
+    this.selection = { bone_id: channel.bone_id, property: channel.property }
+    this.selected_key_time = target
+    await this.refresh_preview()
+    this.set_status(`Keyframe moved to ${target.toFixed(3)} s`)
+    this.render()
   }
 
   async remove_keyframe (): Promise<void> {
@@ -328,6 +364,29 @@ export class KeyframeEditor {
           this.select_track(channel.bone_id, channel.property)
           this.selected_key_time = keyframe.time_seconds
           this.set_time(keyframe.time_seconds)
+        })
+        marker.addEventListener('pointerdown', (event: PointerEvent) => {
+          event.stopPropagation()
+          event.preventDefault()
+          marker.setPointerCapture?.(event.pointerId)
+          const original_time = keyframe.time_seconds
+          let moved = false
+          let target_time = original_time
+          const on_move = (move: PointerEvent): void => {
+            moved = true
+            target_time = Math.max(0, Math.min(this.time_from_pointer(move), duration))
+            marker.style.left = `${(target_time / duration) * 100}%`
+            this.set_time(target_time, true)
+          }
+          const on_up = (): void => {
+            marker.removeEventListener('pointermove', on_move)
+            marker.removeEventListener('pointerup', on_up)
+            if (moved && Math.abs(target_time - original_time) > 1e-4) {
+              void this.move_keyframe(channel, original_time, target_time)
+            }
+          }
+          marker.addEventListener('pointermove', on_move)
+          marker.addEventListener('pointerup', on_up)
         })
         lane.appendChild(marker)
       }
