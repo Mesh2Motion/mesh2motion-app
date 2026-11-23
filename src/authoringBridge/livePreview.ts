@@ -69,7 +69,7 @@ export class LiveDraftPreview {
 
   /** Release listeners/mixer state when the app or session exits. */
   dispose (): void {
-    this.stop()
-    this.session.stop()
+    this.session.dispose()
+    this.previewing = false
   }
 }

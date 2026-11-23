@@ -240,12 +240,13 @@ export class FrontendAuthoringBridge {
           request_id: request.request_id,
           session_id: this.current_session ?? '',
           operation: 'commit',
+          rig_fingerprint: this.preview.fingerprint(),
           revision: next.revision,
           document_digest: digest,
           target_revision: null
         }
         const decision = await this.request_confirmation(request, next, binding)
-        if (!decision.approved) throw new Error(decision.rejection_reason?.includes('expired') ? 'CONFIRMATION_EXPIRED' : 'CONFIRMATION_DENIED')
+        if (!decision.approved) throw new Error(decision.rejection_reason?.toLowerCase().includes('expired') ? 'CONFIRMATION_EXPIRED' : 'CONFIRMATION_DENIED')
         this.verify_binding(decision.binding, binding)
         this.preview.stop()
         const receipt = this.store.commit(next)
@@ -281,12 +282,13 @@ export class FrontendAuthoringBridge {
           request_id: request.request_id,
           session_id: this.current_session ?? '',
           operation: 'undo',
+          rig_fingerprint: this.preview.fingerprint(),
           revision: this.store.current().revision + 1,
           document_digest: digest,
           target_revision: target
         }
         const decision = await this.request_confirmation(request, snapshot, binding)
-        if (!decision.approved) throw new Error(decision.rejection_reason?.includes('expired') ? 'CONFIRMATION_EXPIRED' : 'CONFIRMATION_DENIED')
+        if (!decision.approved) throw new Error(decision.rejection_reason?.toLowerCase().includes('expired') ? 'CONFIRMATION_EXPIRED' : 'CONFIRMATION_DENIED')
         this.verify_binding(decision.binding, binding)
         this.preview.stop()
         const current = this.store.current()
@@ -352,6 +354,7 @@ export class FrontendAuthoringBridge {
         actual.request_id !== expected.request_id ||
         actual.session_id !== expected.session_id ||
         actual.operation !== expected.operation ||
+        actual.rig_fingerprint !== expected.rig_fingerprint ||
         actual.revision !== expected.revision ||
         actual.document_digest !== expected.document_digest ||
         actual.target_revision !== expected.target_revision) {
