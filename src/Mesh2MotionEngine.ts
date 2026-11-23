@@ -48,6 +48,7 @@ import {
   RENDER_LOOP_ERROR_REASON
 } from './lib/WebGLStartup.ts'
 import { RendererLifecycle } from './rendering/RendererLifecycle.ts'
+import { restore_authored_documents } from './animation-document/authoredLibrary.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
@@ -723,6 +724,12 @@ export class Mesh2MotionEngine {
       this.update_a_pose_options_visibility()
 
       this.animations_listing_step.load_and_apply_default_animation_to_skinned_mesh(this.weight_skin_step.final_skinned_meshes())
+
+      // M2M-031: rehydrate persisted user/MCP authored clips into this engine's
+      // application-owned library so they are inspectable in the Explore tab.
+      if (final_skeleton !== undefined) {
+        restore_authored_documents(this.animations_listing_step, final_skeleton, active_skeleton_type)
+      }
 
       if (this.skeleton_helper !== undefined) {
         this.skeleton_helper.hide() // hide skeleton helper in animations listing step

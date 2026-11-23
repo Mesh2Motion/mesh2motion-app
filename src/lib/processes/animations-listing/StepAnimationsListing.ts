@@ -26,6 +26,7 @@ import { AnimationSearch } from '../../../features/animation-catalog/AnimationSe
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { type AnimationClipExportSelection } from './interfaces/AnimationExportSelection.ts'
 import { PropsManager } from './props/PropsManager.ts'
+import { authored_id_from_tags, can_delete_animation, delete_authored_document } from '../../../animation-document/authoredLibrary.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -240,6 +241,19 @@ export class StepAnimationsListing extends EventTarget {
       this.play_animation(fallback?.id ?? null)
     }
     return true
+  }
+
+  /**
+   * User-facing deletion. Bundled manifest animations are protected: only
+   * custom-import entries (user imports or MCP/authored clips) can be deleted.
+   */
+  public delete_animation (animation_id: string): { deleted: boolean, protected?: boolean } {
+    const entry = this.animation_library.find(animation_id)
+    if (entry === undefined) return { deleted: false }
+    if (!can_delete_animation(entry)) return { deleted: false, protected: true }
+    const authored_id = authored_id_from_tags(entry.metadata?.tags)
+    if (authored_id !== null) delete_authored_document(authored_id)
+    return { deleted: this.remove_authored_animation(animation_id) }
   }
 
   // setup in the bootstrap.ts file and only called if we are actively
@@ -547,13 +561,20 @@ export class StepAnimationsListing extends EventTarget {
         this.update_download_button_enabled()
 
         if (event.target != null) {
-          const play_button = (event.target as HTMLElement).closest('button[data-action="play-animation"]')
-          if (play_button === null) {
+          const target_button = (event.target as HTMLElement).closest('button[data-action]')
+          if (target_button === null) return
+          const animation_id = target_button.getAttribute('data-animation-id')
+          if (animation_id === null) return
+
+          if (target_button.getAttribute('data-action') === 'delete-animation') {
+            event.stopPropagation()
+            const outcome = this.delete_animation(animation_id)
+            if (outcome.protected === true) {
+              window.alert('Bundled animations are protected and cannot be deleted.')
+            }
             return
           }
-
-          const animation_id = play_button.getAttribute('data-animation-id')
-          if (animation_id != null) {
+          if (target_button.getAttribute('data-action') === 'play-animation') {
             this.play_animation(animation_id)
           }
         }

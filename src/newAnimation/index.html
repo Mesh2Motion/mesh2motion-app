@@ -122,13 +122,18 @@
             </fieldset>
 
             <div class="new-animation-actions">
-                <button id="new-animation-save" type="button">Save draft</button>
-                <button id="new-animation-export" type="button">Export</button>
+                <button id="new-animation-save" type="button">Export JSON</button>
                 <button id="new-animation-import" type="button">Import document</button>
                 <input id="new-animation-import-input" type="file" accept=".json,application/json" hidden>
-                <button id="new-animation-commit" class="primary-button" type="button" disabled>Commit animation</button>
+                <button id="new-animation-commit" class="primary-button" type="button" disabled>Save clip</button>
                 <button id="new-animation-cancel" type="button">Cancel draft</button>
             </div>
+
+            <fieldset>
+                <legend>Saved clips</legend>
+                <p class="new-animation-hint">Saved clips are added to the application library and can be inspected in the Explore tab. Only user/MCP clips can be deleted; bundled animations are protected.</p>
+                <div id="new-animation-saved-list" class="new-animation-saved-list" aria-label="Saved clips"></div>
+            </fieldset>
         </div>
     </div>
 

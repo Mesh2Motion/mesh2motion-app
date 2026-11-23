@@ -22,6 +22,7 @@ import { SharedDraftController } from '../animation-document/sharedDraft.ts'
 import { get_active_authoring_bridge } from '../authoringBridge/attach.ts'
 import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation.ts'
 import { stable_bone_id } from '../animation-document/rigIdentity.ts'
+import { delete_authored_document, load_authored_documents, save_authored_document } from '../animation-document/authoredLibrary.ts'
 import { is_animation_document } from '../authoringBridge/types.ts'
 import { KeyframeEditor } from './keyframeEditor.ts'
 
@@ -88,6 +89,7 @@ export class NewAnimationWorkspace {
     })
     this.bind_controls()
     this.bind_bone_tools()
+    this.render_saved_clips()
   }
 
   async start (): Promise<void> {
@@ -138,7 +140,6 @@ export class NewAnimationWorkspace {
     by_id('new-animation-undo').addEventListener('click', () => { void this.controller.undo_edit() })
     by_id('new-animation-redo').addEventListener('click', () => { void this.controller.redo_edit() })
     by_id('new-animation-save').addEventListener('click', () => { void this.save_draft() })
-    by_id('new-animation-export').addEventListener('click', () => { void this.save_draft() })
     by_id('new-animation-commit').addEventListener('click', () => { void this.commit() })
     by_id('new-animation-cancel').addEventListener('click', () => { void this.cancel() })
 
@@ -458,12 +459,45 @@ export class NewAnimationWorkspace {
 
   private async commit (): Promise<void> {
     try {
+      const document = await this.controller.export_document()
       const result = await this.controller.commit()
+      save_authored_document(document, this.controller.source())
       this.previewing = false
-      this.set_status(`Committed animation to the library (revision ${String(result.revision ?? '')}).`)
+      this.set_status(`Saved "${document.clip.name}" to the library (revision ${String(result.revision ?? '')}). Open Explore to inspect and play it.`)
+      this.render_saved_clips()
       this.sync_controls()
     } catch (error) {
-      this.set_status(`Commit failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.set_status(`Save clip failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  private render_saved_clips (): void {
+    const list = by_id('new-animation-saved-list')
+    list.replaceChildren()
+    const entries = load_authored_documents().slice().reverse()
+    if (entries.length === 0) {
+      list.textContent = 'No saved clips yet.'
+      return
+    }
+    for (const entry of entries) {
+      const row = window.document.createElement('div')
+      row.className = 'new-animation-saved-row'
+      const label = window.document.createElement('span')
+      label.textContent = `${entry.document.clip.name} · rev ${entry.document.revision}`
+      const remove = window.document.createElement('button')
+      remove.type = 'button'
+      remove.textContent = 'Delete'
+      remove.setAttribute('aria-label', `Delete ${entry.document.clip.name}`)
+      remove.addEventListener('click', () => {
+        if (window.confirm(`Delete "${entry.document.clip.name}"? Bundled animations are never affected.`)) {
+          delete_authored_document(entry.id)
+          this.render_saved_clips()
+          this.set_status(`Deleted saved clip "${entry.document.clip.name}".`)
+        }
+      })
+      row.appendChild(label)
+      row.appendChild(remove)
+      list.appendChild(row)
     }
   }
 

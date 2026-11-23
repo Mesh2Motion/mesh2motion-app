@@ -928,6 +928,33 @@ option {
     display: none;
 }
 
+/* Only custom/user-authored tiles carry the delete affordance. Bundled
+   animations have no such button and cannot be removed from the library. */
+.anim-delete-button {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 3;
+}
+
+.anim-delete-button:hover {
+    background: #9b2c2c;
+    color: #fff;
+}
+
 .anim-mirror-mode-toggle {
     position: absolute;
     top: 0.25rem;

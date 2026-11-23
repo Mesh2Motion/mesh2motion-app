@@ -292,6 +292,32 @@ html[data-theme='light'] #new-animation-panel select {
     min-width: 0;
 }
 
+.new-animation-saved-list {
+    max-height: 8rem;
+    overflow-y: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.new-animation-saved-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.76rem;
+    min-height: 1.6rem;
+    flex: 0 0 auto;
+}
+
+.new-animation-saved-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
 .new-animation-bone-tools {
     display: flex;
     flex-direction: column;

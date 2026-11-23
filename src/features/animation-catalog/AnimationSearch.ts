@@ -492,6 +492,16 @@ export class AnimationSearch extends EventTarget {
           >
             <img src="${AnimationSearch.mirror_mode_icons[mirror_export_mode]}" alt="${mirror_toggle_label}" class="action-icon">
           </button>
+          ${is_custom_animation
+            ? `<button
+                class="no-style-button anim-delete-button"
+                type="button"
+                data-action="delete-animation"
+                data-animation-id="${animation_clip.id}"
+                aria-label="Delete ${this.animation_name_clean(animation_clip.name)}"
+                title="Delete this user or MCP authored animation"
+              >✕</button>`
+            : ''}
         </div>`
     const tile = template.content.firstElementChild
     if (!(tile instanceof HTMLElement)) throw new Error('Could not render animation catalogue tile')
