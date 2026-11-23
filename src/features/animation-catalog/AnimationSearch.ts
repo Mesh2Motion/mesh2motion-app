@@ -457,15 +457,18 @@ export class AnimationSearch extends EventTarget {
       : AnimationPreviewVideos.preview_src(this.skeleton_type, theme_name, animation_clip.name)
     const preview_data_src_attribute = preview_src === null ? '' : ` data-src="${preview_src}"`
     const poster_src = AnimationPreviewVideos.poster_src(preview_src)
-    const poster_class = poster_src === null
-      ? ' anim-preview-placeholder--no-poster'
-      : ''
-    const poster_attribute = poster_src === null ? '' : ` data-poster-src="${poster_src}"`
     // Authored/MCP clips have no bundled MP4; use the frames rendered from the
     // live rig by the internal observation cameras instead of a blank tile.
     const authored_frames = is_custom_animation
       ? get_authored_preview_frames(animation_clip.id)
       : null
+    const has_authored_poster = authored_frames !== null && authored_frames.length > 0
+    // The --no-poster class paints a "No preview" ::after overlay on top of the
+    // image, so it must not be applied when a generated poster is available.
+    const poster_class = poster_src === null && !has_authored_poster
+      ? ' anim-preview-placeholder--no-poster'
+      : ''
+    const poster_attribute = poster_src === null ? '' : ` data-poster-src="${poster_src}"`
     const poster_image_html = authored_frames !== null && authored_frames.length > 0
       ? `<img class="anim-preview-poster" src="${authored_frames[0]}" alt="" aria-hidden="true" decoding="async">`
       : poster_src === null

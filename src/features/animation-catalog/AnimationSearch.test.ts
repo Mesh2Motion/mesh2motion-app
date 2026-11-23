@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ThemeManager } from '../../lib/ThemeManager.ts'
 import { SkeletonType } from '../../lib/enums/SkeletonType.ts'
 import { AnimationSearch } from './AnimationSearch'
+import { set_authored_preview_frames } from '../../animation-document/authoredLibrary.ts'
 import type { AnimationEntry } from '../../lib/processes/animations-listing/interfaces/AnimationEntry.ts'
 
 function entries (count: number): AnimationEntry[] {
@@ -57,5 +58,24 @@ describe('AnimationSearch virtualized catalogue integration', () => {
     expect(tile?.dataset.posterSrc).toMatch(/^\.\.\/animpreviews\/human\/dark_.*\.webp$/)
     expect(tile?.querySelector('img.anim-preview-poster')).not.toBeNull()
     expect(tile?.dataset.src).toMatch(/^\.\.\/animpreviews\/human\/dark_.*\.mp4$/)
+  })
+
+  it('shows generated authored previews instead of the No preview overlay', () => {
+    document.body.innerHTML = '<input id="filter"><div id="catalog"></div>'
+    search = new AnimationSearch('filter', 'catalog', new ThemeManager(), SkeletonType.Human)
+    const custom: AnimationEntry = {
+      id: 'custom-import-1',
+      name: 'Agent Authored',
+      metadata: { source_type: 'custom-import', tags: ['authored-animation-document'] },
+      state: 'loaded',
+      clip_pair: null
+    }
+    set_authored_preview_frames(custom.id, ['data:image/png;base64,AAAA', 'data:image/png;base64,BBBB'])
+    search.initialize_animations([custom])
+
+    const placeholder = document.querySelector<HTMLElement>('.anim-preview-placeholder')
+    expect(placeholder?.classList.contains('anim-preview-placeholder--no-poster')).toBe(false)
+    expect(placeholder?.querySelector<HTMLImageElement>('img.anim-preview-poster')?.getAttribute('src'))
+      .toBe('data:image/png;base64,AAAA')
   })
 })

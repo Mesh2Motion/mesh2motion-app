@@ -38,6 +38,11 @@ export function get_authored_preview_frames (entry_id: string): readonly string[
   return preview_frames_by_entry.get(entry_id) ?? null
 }
 
+/** Register generated preview frames for a library entry (used by restore and tests). */
+export function set_authored_preview_frames (entry_id: string, frames: readonly string[]): void {
+  preview_frames_by_entry.set(entry_id, [...frames])
+}
+
 function is_stored (value: unknown): value is StoredAuthoredDocument {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Partial<StoredAuthoredDocument>
