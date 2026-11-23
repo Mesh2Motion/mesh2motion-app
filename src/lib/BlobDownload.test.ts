@@ -18,7 +18,7 @@ afterEach(() => {
 describe('download_blob', () => {
   it('clicks the link and revokes the object URL after the download is dispatched', () => {
     const link = document.createElement('a')
-    const click = vi.spyOn(link, 'click')
+    const click = vi.spyOn(link, 'click').mockImplementation(() => {})
 
     download_blob(new Blob(['x']), 'model.glb', link)
 
