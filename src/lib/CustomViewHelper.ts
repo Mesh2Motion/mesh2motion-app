@@ -40,6 +40,21 @@ interface ViewHelperOptions {
   radius?: number
 }
 
+type ViewportRect = Pick<DOMRectReadOnly, 'left' | 'top' | 'width' | 'height'>
+
+/**
+ * Compute the helper viewport in renderer-local coordinates. The hitbox is
+ * positioned in the page, while the renderer canvas may start after the
+ * Explore sidebar. Using offsetLeft directly double-counts that page offset
+ * once the canvas is hosted in #m2m-viewport.
+ */
+export function get_view_helper_viewport (hitbox: ViewportRect, canvas: ViewportRect, dim: number, is_webgpu: boolean): { x: number, y: number } {
+  return {
+    x: hitbox.left - canvas.left + hitbox.width - dim,
+    y: is_webgpu ? hitbox.height - dim : 0
+  }
+}
+
 export class CustomViewHelper extends Object3D {
   public is_view_helper: boolean
   public center: Vector3
@@ -135,11 +150,15 @@ export class CustomViewHelper extends Object3D {
     this.updateMatrixWorld()
     this.point.set(0, 0, 1)
     this.point.applyQuaternion(this.camera.quaternion)
-    const x = this.domElement.offsetLeft + this.domElement.offsetWidth - this.dim
-    const y = ('isWebGPURenderer' in renderer) ? this.domElement.offsetHeight - this.dim : 0
+    const viewport = get_view_helper_viewport(
+      this.domElement.getBoundingClientRect(),
+      renderer.domElement.getBoundingClientRect(),
+      this.dim,
+      'isWebGPURenderer' in renderer
+    )
     renderer.clearDepth()
     renderer.getViewport(this.viewport)
-    renderer.setViewport(x, y, this.dim, this.dim)
+    renderer.setViewport(viewport.x, viewport.y, this.dim, this.dim)
     renderer.render(this, this.orthoCamera)
     renderer.setViewport(this.viewport.x, this.viewport.y, this.viewport.z, this.viewport.w)
   }
