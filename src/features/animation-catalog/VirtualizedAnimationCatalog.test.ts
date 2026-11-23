@@ -38,6 +38,17 @@ function make_catalog (viewport: HTMLElement): VirtualizedAnimationCatalog<Entry
 }
 
 describe('VirtualizedAnimationCatalog', () => {
+  it('forces a two-frame repaint of the scroller after the first populated render', async () => {
+    const viewport = make_viewport()
+    const catalog = make_catalog(viewport)
+    catalog.set_items(make_entries(234))
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    expect(viewport.classList.contains('m2m-catalog-first-paint-repaint')).toBe(true)
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    expect(viewport.classList.contains('m2m-catalog-first-paint-repaint')).toBe(false)
+    catalog.dispose()
+  })
+
   it('mounts a themed content wrapper that fills the viewport from the first frame', () => {
     const viewport = make_viewport()
     const catalog = make_catalog(viewport)

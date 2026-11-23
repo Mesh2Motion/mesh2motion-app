@@ -178,46 +178,46 @@ body.composer-is-dragging .composer-slot.is-drag-over {
 #composer-library-items.virtualized-animation-catalog {
     position: relative;
     display: block;
-    isolation: isolate;
-}
-
-/* WebKitGTK can leave a virtualized scroller's own padding/scrollbar layer
-   black on its first frame even though computed background-color is correct.
-   Paint the scrollport from an explicit child layer, including the padding. */
-#composer-library-items.virtualized-animation-catalog::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background-color: var(--bg-alternate);
-    pointer-events: none;
-}
-
-#composer-library-items.virtualized-animation-catalog .virtualized-catalog-content,
-#composer-library-items.virtualized-animation-catalog .virtualized-catalog-footer {
-    position: relative;
-    z-index: 1;
-}
-
-#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar,
-#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-track {
-    background-color: var(--bg-alternate);
+    /* NATIVE-005: the scroller's own padding was painted black on first frame.
+       Move all padding into the themed content wrapper instead. */
+    padding: 0;
+    background-image: linear-gradient(var(--bg-alternate), var(--bg-alternate));
 }
 
 /*
- * M2M-025D (NATIVE-005): WebKitGTK can leave the scroll container's own
- * background layer unpainted on the first frame after the virtualized catalog
- * mounts, so the whole rectangle appears black until a scroll invalidates it.
- * The computed background color is already correct (verified in WebKitGTK), so
- * this is a repaint/layer problem, not a CSS-variable timing problem.
+ * M2M-025D (NATIVE-005): WebKitGTK leaves the scroll container's own background
+ * layer unpainted on the first frame after virtualization mounts. The computed
+ * color is already correct, so this is a repaint/layer problem, not CSS timing.
  *
- * Give the virtualized content wrapper an explicit themed background and make
- * it cover the viewport from the very first frame. The visible pixels then
- * come from a normally painted child instead of the scroller's layer.
+ * The content wrapper now carries the padding, fills the viewport from the
+ * first frame and paints the theme through an explicit background-image as
+ * well as background-color (WebKitGTK paints images more reliably here).
  */
 #composer-library-items.virtualized-animation-catalog .virtualized-catalog-content {
+    box-sizing: border-box;
     min-height: 100%;
+    padding: 0.75rem;
     background-color: var(--bg-alternate);
+    background-image: linear-gradient(var(--bg-alternate), var(--bg-alternate));
+}
+
+/* Two-frame, visually harmless style change applied by VirtualizedAnimationCatalog
+   after the first populated frame. It invalidates the scroller's own layer so
+   the padding box and scrollbar stop rendering black on first display. */
+#composer-library-items.virtualized-animation-catalog.m2m-catalog-first-paint-repaint {
+    box-shadow: inset 0 0 0 0.5px transparent;
+}
+
+/* Scope the scrollbar colors to this scroller so they follow the selected theme
+   even when the global scroller layer has not been repainted yet. */
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar {
+    background-color: var(--bg-alternate);
+}
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-track {
+    background-color: var(--bg-alternate);
+}
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
 }
 
 /* styles.css pads every div. the Explore listing turns that off for its tiles too */
