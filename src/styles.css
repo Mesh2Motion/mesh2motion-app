@@ -1412,6 +1412,9 @@ body.tool-panel-page #m2m-viewport {
 /* Tool-panel pages always reserve the right rail at every breakpoint, so
    viewport-anchored controls cannot sit under (be occluded by) the panel. */
 body.tool-panel-page {
+    /* Match the upstream two-column rigging/import layout: the tool rail takes
+       roughly half the window so both bone-map columns fit without clipping. */
+    --responsive-right-width: clamp(32rem, 46vw, 54rem);
     --viewport-right: var(--responsive-right-width);
     --viewport-left: 0px;
     --viewport-top: var(--navigation-height);

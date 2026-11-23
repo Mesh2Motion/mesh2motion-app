@@ -150,6 +150,10 @@ describe('M2M-023D native layout fixes', () => {
     expect(styles).toMatch(/#tool-panel\s*\{[^}]*z-index:\s*2/)
   })
 
+  it('gives tool-panel pages an upstream-width right rail', () => {
+    expect(styles).toMatch(/body\.tool-panel-page\s*\{[^}]*--responsive-right-width:\s*clamp\(32rem, 46vw, 54rem\)/)
+  })
+
   it('keeps bone-map columns side by side and shrinks them to fit the panel', () => {
     expect(retarget_html).toContain('class="bone-map-grid"')
     expect(retarget_css).toMatch(/\.bone-map-grid\s*\{[^}]*flex-wrap:\s*nowrap/)
