@@ -14,6 +14,7 @@ export const OBSERVATION_RESPOND_COMMAND = 'mcp_pose_observation_respond'
 export const OBSERVATION_IMAGE_REQUEST_EVENT = 'm2m-pose-observation-image-request'
 export const OBSERVATION_IMAGE_RESPOND_COMMAND = 'mcp_pose_observation_image_respond'
 const MAX_IMAGE_CHUNK_BYTES = 32 * 1024
+const MAX_CAPTURE_SESSIONS = 4
 const OBSERVATION_VIEWS: readonly ObservationView[] = ['front', 'back', 'left', 'right', 'top', 'bottom']
 
 export interface PoseImageChunkRequest {
@@ -75,7 +76,14 @@ export async function attachTauriPoseObservationAdapter (
       if (request?.operation === 'pose.capture' && response.ok &&
           typeof response.result === 'object' && response.result !== null &&
           typeof (response.result as { capture_id?: unknown }).capture_id === 'string') {
-        capture_sessions.set((response.result as { capture_id: string }).capture_id, request.session_id ?? '')
+        const capture_id = (response.result as { capture_id: string }).capture_id
+        capture_sessions.delete(capture_id)
+        capture_sessions.set(capture_id, request.session_id ?? '')
+        while (capture_sessions.size > MAX_CAPTURE_SESSIONS) {
+          const oldest = capture_sessions.keys().next().value as string | undefined
+          if (oldest === undefined) break
+          capture_sessions.delete(oldest)
+        }
       } else if ((request?.operation === 'pose.dispose' || request?.operation === 'pose.cancel') &&
           typeof request.payload === 'object' && request.payload !== null) {
         const capture_id = (request.payload as { capture_id?: unknown }).capture_id
