@@ -248,9 +248,8 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     previews.disconnect()
   })
 
-  it('resolves native poster paths through the allowlisted Tauri asset command', async () => {
+  it('loads native posters from the embedded frontend dist by relative URL', async () => {
     set_tauri(true)
-    invoke_mock.mockResolvedValue('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
     const container = document.createElement('div')
     const tile = placeholder()
     tile.setAttribute('data-poster-src', '../animpreviews/human/dark_Angry.webp')
@@ -262,19 +261,15 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     previews.observe_placeholders(container)
     await flush()
 
-    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
-      assetKey: 'human/dark_Angry.mp4'
-    })
-    expect(convert_file_src_mock).toHaveBeenCalledWith('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
+    expect(invoke_mock).not.toHaveBeenCalled()
     expect(tile.querySelector('img')?.getAttribute('src')).toBe(
-      'asset://localhost/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp'
+      new URL('../animpreviews/human/dark_Angry.webp', document.baseURI).href
     )
     previews.disconnect()
   })
 
   it('loads posters for newly mounted virtualized items before observer notification', async () => {
     set_tauri(true)
-    invoke_mock.mockResolvedValue('/usr/lib/Mesh2Motion/animpreviews/human/dark_Angry.webp')
     const container = document.createElement('div')
     const tile = placeholder()
     tile.setAttribute('data-poster-src', '../animpreviews/human/dark_Angry.webp')
@@ -286,9 +281,10 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     previews.observe_placeholders(container)
     await flush()
 
-    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', {
-      assetKey: 'human/dark_Angry.mp4'
-    })
+    expect(invoke_mock).not.toHaveBeenCalled()
+    expect(tile.querySelector('img')?.getAttribute('src')).toBe(
+      new URL('../animpreviews/human/dark_Angry.webp', document.baseURI).href
+    )
     expect(previews.get_stats().video_count).toBe(0)
     expect(play_mock).not.toHaveBeenCalled()
     previews.disconnect()
@@ -797,9 +793,8 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     expect(first).toBe('../animpreviews/human/dark_Angry.mp4')
   })
 
-  it('resolves native posters through the allowlisted video path (no .webp key)', async () => {
+  it('loads native posters without any Rust asset command call', async () => {
     set_tauri(true)
-    invoke_mock.mockResolvedValue('/resources/animpreviews/human/dark_Angry.mp4')
     const container = document.createElement('div')
     const tile = placeholder()
     const image = document.createElement('img')
@@ -814,9 +809,10 @@ describe('AnimationPreviewVideos — interaction-gated scheduler', () => {
     FakeIntersectionObserver.instances[0].emit([{ target: tile, isIntersecting: true }])
     await flush()
 
-    expect(invoke_mock).toHaveBeenCalledWith('animation_preview_asset_path', { assetKey: 'human/dark_Angry.mp4' })
-    expect(convert_file_src_mock).toHaveBeenCalledWith('/resources/animpreviews/human/dark_Angry.webp')
-    expect(image.getAttribute('src')).toBe('asset://localhost/resources/animpreviews/human/dark_Angry.webp')
+    expect(invoke_mock).not.toHaveBeenCalled()
+    expect(image.getAttribute('src')).toBe(
+      new URL('../animpreviews/human/dark_Angry.webp', document.baseURI).href
+    )
     expect(tile.classList.contains('poster-unavailable')).toBe(false)
     previews.disconnect()
   })

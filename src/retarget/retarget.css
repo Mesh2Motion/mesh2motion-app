@@ -2,9 +2,19 @@ h1 {
     font-size: 1.7rem;
 }
 
+/* M2M-023D: the bone-map columns must fit inside the right tool panel.
+   Without a flex basis they stayed side by side and the second column was
+   clipped by #tool-panel's overflow-x: hidden on narrow/tiled windows. */
+.bone-map-grid {
+    flex-wrap: wrap;
+}
+
 .bone-map-section {
-    display: inline-flex; 
+    display: inline-flex;
     flex-direction: column;
+    flex: 1 1 14rem;
+    min-width: 0;
+    max-width: 100%;
     border: 1px solid var(--bg-tertiary);
     padding: 0;
 }

@@ -535,7 +535,7 @@ export class AnimationPreviewVideos {
     }
   }
 
-  /** Load only mounted/visible static posters; resolve native files through Tauri's allowlisted asset protocol. */
+  /** Load only mounted/visible static posters from the embedded frontend dist. */
   private ensure_poster (placeholder: HTMLElement): void {
     const image = placeholder.querySelector<HTMLImageElement>('.anim-preview-poster')
     const poster_src = placeholder.getAttribute('data-poster-src')
@@ -553,35 +553,11 @@ export class AnimationPreviewVideos {
       this.fail_poster(image, placeholder, poster_src, 'image load failed')
     }, { once: true })
 
-    if (!has_tauri_bridge()) {
-      image.src = new URL(poster_src, document.baseURI).href
-      return
-    }
-
-    const core = tauri_preview_core()
-    if (core === null) {
-      this.fail_poster(image, placeholder, poster_src, 'Tauri asset bridge unavailable')
-      return
-    }
-    // The Rust allowlist validates the bundled video keys (.mp4 only). Resolve
-    // the allowlisted video path first, then derive its sibling poster path and
-    // convert that local file through the same bridge. No Rust/MCP change and no
-    // arbitrary frontend-supplied filesystem path is used.
-    const video_asset_key = poster_src.replace(/^\.\.\/animpreviews\//, '').replace(/\.webp$/i, '.mp4')
-    if (video_asset_key === poster_src || !video_asset_key.toLowerCase().endsWith('.mp4')) {
-      this.fail_poster(image, placeholder, poster_src, 'poster has no matching preview video')
-      return
-    }
-    void core.invoke('animation_preview_asset_path', { assetKey: video_asset_key }).then(file_path => {
-      if (!image.isConnected || placeholder.getAttribute('data-poster-src') !== poster_src) return
-      if (typeof file_path !== 'string' || file_path.length === 0) {
-        throw new Error('Tauri returned no preview resource path')
-      }
-      const poster_path = file_path.replace(/\.mp4$/i, '.webp')
-      image.src = core.convertFileSrc(poster_path)
-    }).catch((error: unknown) => {
-      this.fail_poster(image, placeholder, poster_src, String(error))
-    })
+    // Posters live in the frontend public directory (static/animpreviews) and
+    // are embedded into the Tauri binary with the rest of the dist. A relative
+    // URL therefore works in both the browser and the native app, without
+    // depending on the OS resource directory or the allowlisted video command.
+    image.src = new URL(poster_src, document.baseURI).href
   }
 
   private fail_poster (image: HTMLImageElement, placeholder: HTMLElement, src: string, reason: string): void {

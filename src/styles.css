@@ -74,7 +74,9 @@ nav {
     justify-content: space-between;
     border-bottom: 1px solid grey;
     position: relative;
-    z-index: 1;
+    /* The settings dropdown lives inside nav. It must outrank the fixed tool
+       panel (z-index 2) and props dock, otherwise it opens but is hidden. */
+    z-index: 30;
 }
 nav a, nav span {
     font-size: 1rem;

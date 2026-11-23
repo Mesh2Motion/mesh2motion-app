@@ -139,3 +139,28 @@ describe('M2M-023A settings text layout', () => {
     expect(settings_css).toMatch(/#settings-dropdown-content\s*\{[\s\S]*?overflow-y:\s*auto/)
   })
 })
+
+describe('M2M-023D native layout fixes', () => {
+  const styles = css('src/styles.css')
+  const retarget_css = css('src/retarget/retarget.css')
+  const retarget_html = readFileSync(join(project_root, 'src/retarget/index.html'), 'utf8')
+
+  it('keeps the settings dropdown above the fixed tool panel', () => {
+    expect(styles).toMatch(/nav\s*\{[^}]*z-index:\s*30/)
+    expect(styles).toMatch(/#tool-panel\s*\{[^}]*z-index:\s*2/)
+  })
+
+  it('lets bone-map columns wrap inside the rigging tool panel', () => {
+    expect(retarget_html).toContain('class="bone-map-grid"')
+    expect(retarget_css).toMatch(/\.bone-map-grid\s*\{[^}]*flex-wrap:\s*wrap/)
+    expect(retarget_css).toMatch(/\.bone-map-section\s*\{[^}]*min-width:\s*0/)
+  })
+
+  it('loads posters from the embedded dist without a Rust asset command', () => {
+    const videos = readFileSync(
+      join(project_root, 'src/features/animation-previews/AnimationPreviewVideos.ts'), 'utf8'
+    )
+    expect(videos).toMatch(/image\.src = new URL\(poster_src, document\.baseURI\)\.href/)
+    expect(videos).not.toMatch(/invoke\('animation_preview_asset_path'.*poster/)
+  })
+})
