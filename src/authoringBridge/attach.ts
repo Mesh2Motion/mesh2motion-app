@@ -105,6 +105,15 @@ export function attachAuthoringBridge (engine: RigLifecycleEngine): void {
   window.addEventListener('pagehide', () => { void teardown() }, { once: true })
 }
 
+/**
+ * Same-origin access for trusted application modules (New Animation workspace
+ * and MCP pose observations). Never exposed on `window`; browser CustomEvents
+ * and page scripts still cannot reach it.
+ */
+export function get_active_authoring_bridge (): FrontendAuthoringBridge | undefined {
+  return install?.bridge
+}
+
 /** @internal Test-only inspection; the bridge is not exposed on `window`. */
 export function get_authoring_bridge_for_testing (): FrontendAuthoringBridge | undefined {
   return install?.bridge

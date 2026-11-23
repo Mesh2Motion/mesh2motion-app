@@ -72,6 +72,8 @@ export class FrontendAuthoringBridge {
   private current_session: string | null = null
   private trusted_mcp_request: AuthoringRequest | null = null
   private deadline_at = 0
+  /** M2M-031: same-origin GUI/MCP change notifications for the shared draft. */
+  private readonly change_listeners = new Set<() => void>()
 
   constructor (
     app: AuthoringBridgeApp,
@@ -92,6 +94,48 @@ export class FrontendAuthoringBridge {
 
   is_permission_enabled (): boolean {
     return this.permission.is_enabled()
+  }
+
+  /**
+   * M2M-031 — subscribe to authoritative draft changes. MCP edits, GUI edits,
+   * preview and session teardown all notify here so the New Animation workspace
+   * and MCP always observe the same AnimationDocument.
+   */
+  on_change (listener: () => void): () => void {
+    this.change_listeners.add(listener)
+    return () => { this.change_listeners.delete(listener) }
+  }
+
+  private notify_change (): void {
+    for (const listener of this.change_listeners) listener()
+  }
+
+  /** M2M-031 — authoritative current document snapshot (GUI + MCP share this). */
+  current_document (): AnimationDocument | null {
+    return this.draft === null
+      ? (this.store === null ? null : this.store.current())
+      : JSON.parse(JSON.stringify(this.draft)) as AnimationDocument
+  }
+
+  current_revision (): number {
+    return this.store?.current().revision ?? 0
+  }
+
+  rig_fingerprint (): string {
+    return this.preview.fingerprint()
+  }
+
+  is_previewing (): boolean {
+    return this.preview.is_previewing()
+  }
+
+  /**
+   * M2M-031 — GUI-originated operations are trusted by construction and do not
+   * grant MCP permission. They run through the exact same dispatcher/store as
+   * MCP operations, so there is only one authoritative document.
+   */
+  handle_gui_request (request: unknown): Promise<AuthoringResponse> {
+    return this.dispatcher.handle(request)
   }
 
   handle (request: unknown): Promise<AuthoringResponse> {
@@ -146,6 +190,7 @@ export class FrontendAuthoringBridge {
   }
 
   private cleanup_session (): void {
+    const had_draft = this.draft !== null || this.store !== null
     this.preview.stop()
     this.preview.dispose()
     this.panel.dispose()
@@ -154,6 +199,7 @@ export class FrontendAuthoringBridge {
     this.trusted_mcp_request = null
     this.draft = null
     this.store = null
+    if (had_draft) this.notify_change()
   }
 
   private remaining_ms (): number {
@@ -201,6 +247,7 @@ export class FrontendAuthoringBridge {
         }
         this.store = new InMemoryAnimationDocumentStore(validated)
         this.draft = this.store.current()
+        this.notify_change()
         return { revision: this.draft.revision, validation: this.draft.validation } as unknown as Record<string, unknown>
       },
       draft_set_keyframes: async (payload) => {
@@ -234,6 +281,7 @@ export class FrontendAuthoringBridge {
         }
         const receipt = this.store.commit(validated)
         this.draft = receipt.document
+        this.notify_change()
         return { revision: receipt.revision, validation: receipt.document.validation } as unknown as Record<string, unknown>
       },
       draft_validate: async (payload) => {
@@ -247,10 +295,12 @@ export class FrontendAuthoringBridge {
         const document = payload.document == null ? this.draft : this.require_document(payload)
         if (document === null) throw new Error('INVALID_DOCUMENT')
         this.preview.start(document)
+        this.notify_change()
         return { previewing: true, clip_name: document.clip.name } as unknown as Record<string, unknown>
       },
       draft_preview_stop: async () => {
         this.preview.stop()
+        this.notify_change()
         return { previewing: false }
       },
       draft_commit: async (payload) => {
@@ -286,6 +336,7 @@ export class FrontendAuthoringBridge {
           throw Object.assign(new Error(`COMMIT_FAILED: ${error instanceof Error ? error.message : String(error)}`), { cause: error })
         }
         this.draft = null
+        this.notify_change()
         return { revision: receipt.revision, entry_id: this.owner.authored_entries().slice(-1)[0]?.entry_id ?? '' } as unknown as Record<string, unknown>
       },
       draft_cancel: async () => {
@@ -294,6 +345,7 @@ export class FrontendAuthoringBridge {
         this.owner.restore_selection(this.owner.capture_selection())
         this.draft = null
         this.store = null
+        this.notify_change()
         return { cancelled: true }
       },
       draft_undo: async (payload) => {
@@ -344,6 +396,7 @@ export class FrontendAuthoringBridge {
           this.store.rollback(receipt)
           throw new Error('UNDO_FAILED: application library could not replace the current revision')
         }
+        this.notify_change()
         return { revision: receipt.revision, entry_id: this.owner.authored_entries().slice(-1)[0]?.entry_id ?? '' } as unknown as Record<string, unknown>
       },
       draft_export: async () => {
@@ -357,6 +410,7 @@ export class FrontendAuthoringBridge {
         const validated = with_validation(document, { live_fingerprint: this.preview.fingerprint() })
         this.store = new InMemoryAnimationDocumentStore(validated)
         this.draft = this.store.current()
+        this.notify_change()
         return { revision: this.draft.revision, validation: this.draft.validation } as unknown as Record<string, unknown>
       },
       session_status: async (session_id) => ({

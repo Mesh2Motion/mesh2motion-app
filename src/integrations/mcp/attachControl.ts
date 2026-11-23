@@ -18,6 +18,7 @@ export { has_tauri_bridge, is_desktop_control_enabled } from './desktopGate.ts'
  * attaches desktop control. It is a no-op until a live skeleton exists.
  */
 import { attachAuthoringBridge } from '../../authoringBridge/attach.ts'
+import { attachPoseObservation } from '../../authoringObservation/attach.ts'
 
 /**
  * Attach the publisher when enabled. No-op otherwise. Failures are swallowed
@@ -28,6 +29,8 @@ export function maybe_attach_desktop_control (
   options: ControlPublisherOptions = {}
 ): Promise<ControlPublisherHandle | null> {
   attachAuthoringBridge(engine as unknown as Parameters<typeof attachAuthoringBridge>[0])
+  // M2M-030A: internal-only pose observation cameras. No UI is created.
+  attachPoseObservation(engine as unknown as Parameters<typeof attachPoseObservation>[0])
   if (!is_desktop_control_enabled()) {
     return Promise.resolve(null)
   }
