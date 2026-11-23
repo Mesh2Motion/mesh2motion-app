@@ -21,7 +21,7 @@ export interface AuthoringApplicationEngine {
     add_authored_animation (pair: TransformedAnimationClipPair): AnimationEntry
     remove_authored_animation (animation_id: string): boolean
     current_selection (): string | null
-    select_animation (animation_id: string): void
+    select_animation (animation_id: string | null): void
   }
 }
 
@@ -30,6 +30,7 @@ export interface AuthoredEntryRecord {
   document_name: string
   rig_identifier: string
   revision: number
+  previous_selection: string | null
 }
 
 /** Metadata tag marking authored entries; distinct from Remix/default clips. */
@@ -40,7 +41,8 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
 
   constructor (private readonly engine: AuthoringApplicationEngine) {}
 
-  apply_committed_clip (clip: AnimationClip, document: AnimationDocument): void {
+  apply_committed_clip (clip: AnimationClip, document: AnimationDocument, select = true): void {
+    const previous_selection = this.engine.animations_listing_step.current_selection()
     const pair: TransformedAnimationClipPair = {
       original_animation_clip: clip,
       display_animation_clip: clip.clone(),
@@ -54,31 +56,39 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
       entry_id: entry.id,
       document_name: document.clip.name,
       rig_identifier: document.rig.identifier,
-      revision: document.revision
+      revision: document.revision,
+      previous_selection
     })
-    try {
-      this.engine.animations_listing_step.select_animation(entry.id)
-    } catch {
-      // Selection failure must not turn a successful library insertion into a
-      // thrown error that would desynchronise the store from the library.
+    if (select) {
+      try {
+        this.engine.animations_listing_step.select_animation(entry.id)
+      } catch {
+        // Selection failure must not turn insertion into a store/library split.
+      }
     }
   }
 
   /** M2M-028B: remove the library entry created by a failed commit. */
   rollback_last (): boolean {
-    const record = this.records.pop()
+    const record = this.records[this.records.length - 1]
     if (record === undefined) return false
-    return this.engine.animations_listing_step.remove_authored_animation(record.entry_id)
+    const removed = this.engine.animations_listing_step.remove_authored_animation(record.entry_id)
+    if (!removed) return false
+    this.records.pop()
+    this.restore_selection(record.previous_selection)
+    return true
   }
 
   /** M2M-028B: undo really removes the undone entry before applying the restored one. */
-  remove_revision (revision: number): boolean {
+  remove_revision (revision: number): { previous_selection: string | null } | null {
     const index = this.records.findIndex((record) => record.revision === revision)
-    if (index < 0) return false
+    if (index < 0) return null
     const record = this.records[index]
     const removed = this.engine.animations_listing_step.remove_authored_animation(record.entry_id)
-    if (removed) this.records.splice(index, 1)
-    return removed
+    if (!removed) return null
+    this.records.splice(index, 1)
+    this.restore_selection(record.previous_selection)
+    return { previous_selection: record.previous_selection }
   }
 
   capture_selection (): unknown {
@@ -86,8 +96,12 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
   }
 
   restore_selection (snapshot: unknown): void {
-    if (typeof snapshot === 'string' && snapshot.length > 0) {
-      this.engine.animations_listing_step.select_animation(snapshot)
+    if (snapshot === null || typeof snapshot === 'string') {
+      try {
+        this.engine.animations_listing_step.select_animation(snapshot)
+      } catch {
+        // A previously selected entry may have been removed by an undo.
+      }
     }
   }
 

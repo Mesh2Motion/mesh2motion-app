@@ -8,18 +8,29 @@
 
 export const AUTHORING_TOGGLE_ID = 'm2m-authoring-toggle'
 
+export type NativePermissionSetter = (enabled: boolean) => Promise<boolean>
+
 export class AuthoringPermission {
   private enabled = false
   private readonly button: HTMLButtonElement
+  private readonly set_native_permission: NativePermissionSetter
+  private readonly on_change: (enabled: boolean) => void
+  private busy = false
 
-  constructor (host: HTMLElement = document.body) {
+  constructor (
+    host: HTMLElement = document.body,
+    set_native_permission: NativePermissionSetter = async () => false,
+    on_change: (enabled: boolean) => void = () => {}
+  ) {
+    this.set_native_permission = set_native_permission
+    this.on_change = on_change
     this.button = document.createElement('button')
     this.button.type = 'button'
     this.button.id = AUTHORING_TOGGLE_ID
     this.button.className = 'm2m-authoring-toggle'
     this.button.textContent = 'Enable authoring'
     this.button.setAttribute('aria-pressed', 'false')
-    this.button.addEventListener('click', () => { this.set_enabled(true) })
+    this.button.addEventListener('click', () => { void this.toggle_from_user_click() })
     host.append(this.button)
   }
 
@@ -28,14 +39,34 @@ export class AuthoringPermission {
   }
 
   /** Programmatic enabling is intentionally not exposed to MCP requests. */
-  set_enabled (value: boolean): void {
+  private set_enabled (value: boolean): void {
     this.enabled = value
     this.button.setAttribute('aria-pressed', value ? 'true' : 'false')
-    this.button.textContent = value ? 'Authoring enabled' : 'Enable authoring'
-    this.button.disabled = value
+    this.button.textContent = value ? 'Disable authoring' : 'Enable authoring'
+    this.button.disabled = false
+    this.on_change(value)
+  }
+
+  private async toggle_from_user_click (): Promise<void> {
+    if (this.busy) return
+    this.busy = true
+    this.button.disabled = true
+    const next = !this.enabled
+    try {
+      const synchronized = await this.set_native_permission(next)
+      if (!synchronized) throw new Error('native authoring permission command unavailable')
+      this.set_enabled(next)
+    } catch {
+      this.button.textContent = this.enabled ? 'Disable authoring' : 'Authoring unavailable'
+      this.button.setAttribute('aria-pressed', this.enabled ? 'true' : 'false')
+    } finally {
+      this.busy = false
+      this.button.disabled = false
+    }
   }
 
   dispose (): void {
+    if (this.enabled) void this.set_native_permission(false).catch(() => {})
     this.button.remove()
     this.enabled = false
   }

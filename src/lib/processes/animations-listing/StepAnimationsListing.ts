@@ -221,7 +221,7 @@ export class StepAnimationsListing extends EventTarget {
   }
 
   /** M2M-028A: select an existing entry through the normal playback path. */
-  public select_animation (animation_id: string): void {
+  public select_animation (animation_id: string | null): void {
     this.play_animation(animation_id)
   }
 

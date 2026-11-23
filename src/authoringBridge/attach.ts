@@ -9,7 +9,11 @@
 import './confirmationPanel.css'
 import type { AuthoringBridgeApp, FrontendAuthoringBridge } from './service'
 import { live_rig_identifier, live_skeleton_from_engine } from './rigCatalog'
-import { attachTauriAuthoringAdapter, type TauriAuthoringAdapter } from './tauriAdapter'
+import {
+  attachTauriAuthoringAdapter,
+  set_tauri_authoring_enabled,
+  type TauriAuthoringAdapter
+} from './tauriAdapter'
 import type { AuthoringRequest, AuthoringResponse } from './types'
 
 export const AUTHORING_REQUEST_EVENT = 'm2m-authoring-request'
@@ -32,26 +36,30 @@ export function attachAuthoringBridge (engine: AuthoringBridgeApp['engine']): vo
     const { FrontendAuthoringBridge: Bridge } = await import('./service')
     const { AuthoringPermission } = await import('./permission')
     if (window.m2mAuthoringBridge !== undefined) return
-    const permission = new AuthoringPermission()
-    const bridge = new Bridge(app, undefined, permission)
-    window.m2mAuthoringBridge = bridge
+    let bridge: FrontendAuthoringBridge | null = null
+    const permission = new AuthoringPermission(document.body, set_tauri_authoring_enabled, (enabled) => {
+      if (!enabled) bridge?.permission_revoked()
+    })
+    const active_bridge = new Bridge(app, undefined, permission)
+    bridge = active_bridge
+    window.m2mAuthoringBridge = active_bridge
 
     // Native Tauri path (authoritative).
     window.m2mAuthoringAdapter = await attachTauriAuthoringAdapter(
-      (request: unknown) => bridge.handle(request),
-      (payload: unknown) => bridge.handle_cancel(payload)
+      (request: unknown) => active_bridge.handle(request),
+      (payload: unknown) => active_bridge.handle_cancel(payload)
     )
 
     // Browser compatibility path for tests/dev only.
     window.addEventListener(AUTHORING_REQUEST_EVENT, (event: Event) => {
       const request = (event as CustomEvent<AuthoringRequest>).detail
-      void bridge.handle(request).then((response: AuthoringResponse) => {
+      void active_bridge.handle(request).then((response: AuthoringResponse) => {
         window.dispatchEvent(new CustomEvent(AUTHORING_RESPONSE_EVENT, { detail: response }))
       })
     })
     window.addEventListener('pagehide', () => {
       void window.m2mAuthoringAdapter?.dispose()
-      bridge.dispose()
+      active_bridge.dispose()
     }, { once: true })
   }
   void load()

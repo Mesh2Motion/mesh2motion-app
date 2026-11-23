@@ -85,6 +85,11 @@ export class FrontendAuthoringBridge {
     return this.permission.is_enabled()
   }
 
+  /** Native opt-out also releases the draft, preview and confirmation state. */
+  permission_revoked (): void {
+    this.cleanup_session()
+  }
+
   handle (request: unknown): Promise<AuthoringResponse> {
     const typed = request as AuthoringRequest | null
     if (typed !== null && typeof typed === 'object' && PERMISSION_GATED.includes(typed.operation) &&
@@ -284,10 +289,31 @@ export class FrontendAuthoringBridge {
         if (!decision.approved) throw new Error(decision.rejection_reason?.includes('expired') ? 'CONFIRMATION_EXPIRED' : 'CONFIRMATION_DENIED')
         this.verify_binding(decision.binding, binding)
         this.preview.stop()
+        const current = this.store.current()
         const receipt = this.store.undo(target)
-        // Real undo: remove the entry representing the revision being undone.
-        this.owner.remove_revision(target + 1)
-        this.owner.apply_committed_clip(draft_document_to_clip(receipt.document, this.app.skeleton), receipt.document)
+        const authored_count = this.owner.authored_entries().length
+        try {
+          // Insert the restored clip first so a failed insertion leaves the
+          // current application entry intact.
+          this.owner.apply_committed_clip(
+            draft_document_to_clip(receipt.document, this.app.skeleton),
+            receipt.document,
+            false
+          )
+        } catch (error) {
+          this.store.rollback(receipt)
+          if (error instanceof Error) {
+            error.message = `UNDO_FAILED: ${error.message}`
+            throw error
+          }
+          throw error
+        }
+        const restored_record = this.owner.authored_entries().length > authored_count
+        if (!restored_record || this.owner.remove_revision(current.revision) === null) {
+          if (restored_record) this.owner.remove_revision(receipt.revision)
+          this.store.rollback(receipt)
+          throw new Error('UNDO_FAILED: application library could not replace the current revision')
+        }
         return { revision: receipt.revision, entry_id: this.owner.authored_entries().slice(-1)[0]?.entry_id ?? '' } as unknown as Record<string, unknown>
       },
       draft_export: async () => {

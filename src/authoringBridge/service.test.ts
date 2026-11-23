@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Bone, Skeleton } from 'three'
 import { FrontendAuthoringBridge, type AuthoringBridgeApp } from './service'
 import { NativeConfirmationPanel } from './confirmationPanel'
+import { AuthoringPermission } from './permission'
 import { publish_live_rig_catalog } from './rigCatalog'
 import { create_live_agent_wave } from './liveWave'
 import { AUTHORING_BRIDGE_PROTOCOL, type AuthoringRequest } from './types'
@@ -76,7 +77,7 @@ function make_app (): AuthoringBridgeApp & { entries: AnimationEntry[], selectio
           return true
         },
         current_selection: () => state.selection,
-        select_animation: (id: string) => { state.selection = id }
+        select_animation: (id: string | null) => { state.selection = id }
       }
     },
     entries,
@@ -102,10 +103,12 @@ function req (operation: string, payload: Record<string, unknown> = {}, id = 're
 async function create_wave_bridge (): Promise<{ bridge: FrontendAuthoringBridge, app: ReturnType<typeof make_app>, document: ReturnType<typeof create_live_agent_wave>['document'] }> {
   const app = make_app()
   const panel = new NativeConfirmationPanel(document.body)
-  const bridge = new FrontendAuthoringBridge(app, panel)
+  const permission = new AuthoringPermission(document.body, async () => true)
+  const bridge = new FrontendAuthoringBridge(app, panel, permission)
   expect(bridge.is_permission_enabled()).toBe(false)
   const toggles = document.querySelectorAll<HTMLButtonElement>('#m2m-authoring-toggle')
   toggles[toggles.length - 1]?.click()
+  await new Promise((resolve) => setTimeout(resolve, 0))
   expect(bridge.is_permission_enabled()).toBe(true)
   const { document: wave } = create_live_agent_wave(app.skeleton, 'human')
   const response = await bridge.handle(req('draft.create', { document: wave }, 'setup'))
@@ -200,6 +203,7 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
     panel?.querySelector<HTMLButtonElement>('[data-m2m-confirm="approve"]')?.click()
     const committed = await pending
     expect(committed.ok).toBe(true)
+    const committed_entry_id = (committed.result as { entry_id: string }).entry_id
     expect(app.entries).toHaveLength(1)
     expect(app.entries[0].metadata.tags).toContain('authored-animation-document')
 
@@ -209,9 +213,12 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
     undo_panel?.querySelector<HTMLButtonElement>('[data-m2m-confirm="approve"]')?.click()
     const undone = await undo_pending
     expect(undone.ok).toBe(true)
+    const undone_entry_id = (undone.result as { entry_id: string }).entry_id
     // Real undo: the undone entry is removed, not merely appended over.
     expect(app.entries).toHaveLength(1)
     expect(app.entries[0].name).toBe('Agent_Wave_01')
+    expect(undone_entry_id).not.toBe(committed_entry_id)
+    expect(app.selection).toBe('existing-animation')
     bridge.dispose()
   })
 

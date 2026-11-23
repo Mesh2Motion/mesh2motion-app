@@ -29,6 +29,14 @@ export interface TauriAuthoringAdapter {
   listening (): boolean
 }
 
+/** Synchronize the native write permission; returns false outside Tauri. */
+export async function set_tauri_authoring_enabled (enabled: boolean): Promise<boolean> {
+  const internals = (window as TauriWindow).__TAURI_INTERNALS__
+  if (internals?.invoke === undefined) return false
+  await internals.invoke('mcp_authoring_set_enabled', { enabled })
+  return true
+}
+
 /** Install the adapter. Returns an inert handle in non-Tauri builds. */
 export async function attachTauriAuthoringAdapter (
   handle: (request: unknown) => Promise<AuthoringResponse>,
