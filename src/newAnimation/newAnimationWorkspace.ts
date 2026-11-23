@@ -53,6 +53,7 @@ export class NewAnimationWorkspace {
   private selected_bone_index: number | null = null
   private bone_listener_bound = false
   private bone_filter = ''
+  private preview_stop_in_flight = false
 
   constructor () {
     this.engine = new Mesh2MotionEngine()
@@ -309,7 +310,15 @@ export class NewAnimationWorkspace {
   private apply_pose_at_time (time: number): void {
     const authored = this.controller.document()
     if (authored === null || this.skinned_meshes.length === 0) return
-    if (this.controller.snapshot().previewing) return // the mixer owns the bones
+    // The GUI timeline owns the live bones while scrubbing/playing. If a stale
+    // MCP preview is still flagged, stop it (its mixer would overwrite our pose
+    // on the next frame) but never skip applying the authored pose.
+    if (this.controller.snapshot().previewing && !this.preview_stop_in_flight) {
+      this.preview_stop_in_flight = true
+      void this.controller.preview(false)
+        .catch(() => {})
+        .finally(() => { this.preview_stop_in_flight = false })
+    }
     const evaluated = evaluate_document_at_time(authored, Math.min(time, authored.clip.duration_seconds))
     // Intentionally keep the applied pose: it is the current editing state.
     apply_evaluated_pose(this.skinned_meshes[0].skeleton, evaluated)
