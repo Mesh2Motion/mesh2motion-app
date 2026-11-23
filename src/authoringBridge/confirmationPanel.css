@@ -1,0 +1,68 @@
+/* M2M-028B — explicit authoring opt-in control. */
+.m2m-authoring-toggle {
+    position: fixed;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    z-index: 1001;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+}
+
+.m2m-authoring-toggle:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
+/* M2M-028A — native authoring confirmation panel. Scoped to this panel only. */
+.m2m-authoring-confirmation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    min-width: 22rem;
+    max-width: calc(100vw - 2rem);
+    padding: 1.25rem;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 0.4rem;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.5);
+}
+
+.m2m-authoring-confirmation h2 {
+    margin: 0 0 1rem;
+    font-size: 1.2rem;
+}
+
+.m2m-authoring-confirmation dl {
+    margin: 0 0 1rem;
+    display: grid;
+    gap: 0.4rem;
+}
+
+.m2m-authoring-confirmation dl > div {
+    display: grid;
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 0.5rem;
+}
+
+.m2m-authoring-confirmation dt {
+    color: var(--text-alternate);
+}
+
+.m2m-authoring-confirmation dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.m2m-authoring-confirmation-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.m2m-authoring-confirmation-actions button {
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+}

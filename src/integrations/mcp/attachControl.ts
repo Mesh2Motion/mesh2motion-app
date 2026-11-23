@@ -14,6 +14,12 @@ import { is_desktop_control_enabled } from './desktopGate.ts'
 export { has_tauri_bridge, is_desktop_control_enabled } from './desktopGate.ts'
 
 /**
+ * M2M-028A: install the typed authoring bridge on every page that already
+ * attaches desktop control. It is a no-op until a live skeleton exists.
+ */
+import { attachAuthoringBridge } from '../../authoringBridge/attach.ts'
+
+/**
  * Attach the publisher when enabled. No-op otherwise. Failures are swallowed
  * because application-control is strictly auxiliary.
  */
@@ -21,6 +27,7 @@ export function maybe_attach_desktop_control (
   engine: ControlEngineLike,
   options: ControlPublisherOptions = {}
 ): Promise<ControlPublisherHandle | null> {
+  attachAuthoringBridge(engine as unknown as Parameters<typeof attachAuthoringBridge>[0])
   if (!is_desktop_control_enabled()) {
     return Promise.resolve(null)
   }

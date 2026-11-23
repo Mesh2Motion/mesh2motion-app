@@ -203,6 +203,45 @@ export class StepAnimationsListing extends EventTarget {
     return this.animation_library.all().filter(entry => entry.state === 'loaded')
   }
 
+  /**
+   * M2M-028A: application-owned insertion of an authored AnimationClip.
+   * Keeps the library, the search UI and the count label in sync; no external
+   * code touches private library state.
+   */
+  public add_authored_animation (clip_pair: TransformedAnimationClipPair): AnimationEntry {
+    const entries = this.animation_library.add_loaded_clips([clip_pair])
+    this.animation_search?.add_animations(entries)
+    this.update_filtered_animation_listing_ui()
+    return entries[0]
+  }
+
+  /** M2M-028A: current selection id, for preview/cancel restoration. */
+  public current_selection (): string | null {
+    return this.current_playing_id
+  }
+
+  /** M2M-028A: select an existing entry through the normal playback path. */
+  public select_animation (animation_id: string): void {
+    this.play_animation(animation_id)
+  }
+
+  /**
+   * M2M-028B: remove an authored entry as part of an undo. The search UI and
+   * count label are refreshed; if the removed entry was selected, fall back to
+   * the first remaining animation (or nothing when the library is empty).
+   */
+  public remove_authored_animation (animation_id: string): boolean {
+    if (!this.animation_library.remove_entry(animation_id)) return false
+    const remaining = this.animation_library.all()
+    this.animation_search?.initialize_animations(remaining)
+    this.update_filtered_animation_listing_ui()
+    if (this.current_playing_id === animation_id) {
+      const fallback = remaining[0]
+      this.play_animation(fallback?.id ?? null)
+    }
+    return true
+  }
+
   // setup in the bootstrap.ts file and only called if we are actively
   // on this step
   public frame_change (delta_time: number): void {
