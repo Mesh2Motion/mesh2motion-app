@@ -82,6 +82,10 @@ export interface AppliedPose {
 
 function update_world_matrices (skeleton: Skeleton): void {
   for (const bone of skeleton.bones) bone.updateWorldMatrix(true, false)
+  // Refresh GPU skinning data synchronously with the evaluated bone transforms.
+  // Offscreen rendering and joint projection must observe the same pose before
+  // the next normal render frame updates the skeleton texture.
+  skeleton.update()
 }
 
 /** Apply a pose transaction to the live skeleton. The returned function always restores it. */

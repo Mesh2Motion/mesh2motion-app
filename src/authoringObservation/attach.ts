@@ -43,7 +43,8 @@ async function clear_install (): Promise<void> {
 
 function apply_snapshot (engine: ObservationAttachEngine, snapshot: RigSnapshot): Promise<void> {
   if (install !== null && install.snapshot.fingerprint === snapshot.fingerprint &&
-      install.snapshot.identifier === snapshot.identifier) {
+      install.snapshot.identifier === snapshot.identifier &&
+      install.snapshot.skeleton === snapshot.skeleton) {
     return Promise.resolve()
   }
   if (installing !== null) return installing

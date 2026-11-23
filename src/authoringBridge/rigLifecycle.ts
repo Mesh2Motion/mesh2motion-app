@@ -55,8 +55,13 @@ export function watch_rig_lifecycle (
   const check = (): void => {
     if (disposed) return
     const next = snapshot(engine)
+    // Fingerprints describe rig structure, not the lifetime of the Three.js
+    // objects. A model can be reloaded with an identical rig fingerprint while
+    // its SkinnedMesh and Skeleton instances are replaced. Keep the bridge and
+    // observation source bound to the exact skeleton the renderer now uses.
     const same = next !== null && last !== null &&
-      next.identifier === last.identifier && next.fingerprint === last.fingerprint
+      next.identifier === last.identifier && next.fingerprint === last.fingerprint &&
+      next.skeleton === last.skeleton
     if (same) return
     last = next
     on_change(next)

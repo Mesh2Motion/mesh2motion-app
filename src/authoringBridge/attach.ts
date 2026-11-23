@@ -31,6 +31,7 @@ interface AuthoringInstall {
   adapter: TauriAuthoringAdapter
   fingerprint: string
   identifier: string
+  skeleton: AuthoringBridgeApp['skeleton']
 }
 
 let install: AuthoringInstall | null = null
@@ -47,7 +48,7 @@ async function clear_install (): Promise<void> {
 
 function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void> {
   if (install !== null && install.fingerprint === fingerprint &&
-      install.identifier === app.rig_identifier) {
+      install.identifier === app.rig_identifier && install.skeleton === app.skeleton) {
     return Promise.resolve()
   }
   if (installing !== null) return installing
@@ -67,7 +68,7 @@ function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void>
       (payload: unknown) => active_bridge.handle_cancel(payload)
     )
     window.m2mAuthoringAdapter = adapter
-    install = { bridge: active_bridge, adapter, fingerprint, identifier: app.rig_identifier }
+    install = { bridge: active_bridge, adapter, fingerprint, identifier: app.rig_identifier, skeleton: app.skeleton }
   })().finally(() => { installing = null })
   return installing
 }

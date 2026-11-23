@@ -45,4 +45,19 @@ describe('pose evaluation drives real movement', () => {
     const digest1 = pose_digest(evaluate_document_at_time(document, 0.5))
     expect(digest0).not.toBe(digest1)
   })
+
+  it('refreshes GPU skin matrices for the evaluated and restored poses', () => {
+    const { document, skeleton } = make_document()
+    const identity = document.bones.find((entry) => entry.display_name === 'upperarm_r')!
+    const offset = identity.index * 16
+    skeleton.update()
+    const matrices = skeleton.boneMatrices!
+    const before = Array.from(matrices.slice(offset, offset + 16))
+
+    const applied = apply_evaluated_pose(skeleton, evaluate_document_at_time(document, 0.5))
+    expect(Array.from(matrices.slice(offset, offset + 16))).not.toEqual(before)
+    applied.restore()
+
+    expect(Array.from(matrices.slice(offset, offset + 16))).toEqual(before)
+  })
 })

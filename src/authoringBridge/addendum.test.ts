@@ -11,6 +11,7 @@ import { AuthoringDispatcher } from './dispatcher'
 import { AUTHORING_BRIDGE_PROTOCOL, type AuthoringRequest, type AuthoringResponse } from './types'
 import { FrontendAuthoringBridge, type AuthoringBridgeApp } from './service'
 import { DraftPreviewSession } from '../animation-document/preview'
+import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
 
 function make_skeleton (): Skeleton {
   const names = ['hips', 'spine', 'RightShoulder', 'RightUpperArm', 'RightForeArm', 'RightHand']
@@ -120,6 +121,23 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     fake.meshes.push({ skeleton: replacement })
     fake.frame_listeners.forEach(listener => listener(0.016))
     await new Promise(resolve => setTimeout(resolve, 30))
+    expect(get_authoring_bridge_for_testing()).not.toBe(first)
+  })
+
+  it('rebinds to a replacement skeleton with the same rig fingerprint', async () => {
+    const fake = fake_engine()
+    const original = make_skeleton()
+    fake.meshes.push({ skeleton: original })
+    attachAuthoringBridge(fake.engine as never)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    const first = get_authoring_bridge_for_testing()
+    const replacement = make_skeleton()
+    expect(replacement).not.toBe(original)
+    expect(compute_rig_fingerprint(replacement)).toBe(compute_rig_fingerprint(original))
+    fake.meshes[0] = { skeleton: replacement }
+    fake.frame_listeners.forEach(listener => listener(0.016))
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(get_authoring_bridge_for_testing()).toBeDefined()
     expect(get_authoring_bridge_for_testing()).not.toBe(first)
   })
 
