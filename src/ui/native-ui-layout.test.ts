@@ -169,3 +169,24 @@ describe('M2M-023D native layout fixes', () => {
     expect(videos).not.toMatch(/invoke\('animation_preview_asset_path'.*poster/)
   })
 })
+
+describe('M2M-025D Remix catalog first-paint background', () => {
+  const composer_styles = css('src/composer/composer.css')
+
+  it('paints the virtualized content wrapper with the theme background', () => {
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog\s+\.virtualized-catalog-content\s*\{[^}]*background-color:\s*var\(--bg-alternate\)/
+    )
+  })
+
+  it('makes the content wrapper cover the viewport from the first frame', () => {
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog\s+\.virtualized-catalog-content\s*\{[^}]*min-height:\s*100%/
+    )
+  })
+
+  it('keeps the original scroller background and does not introduce a black literal', () => {
+    expect(composer_styles).toMatch(/#composer-library-items\s*\{[^}]*background:\s*var\(--bg-alternate\)/)
+    expect(composer_styles).not.toMatch(/#composer-library-items[^{]*\{[^}]*background(-color)?:\s*(#000|black|rgb\(0,\s*0,\s*0)/)
+  })
+})
