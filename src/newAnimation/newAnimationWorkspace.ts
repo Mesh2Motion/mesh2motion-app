@@ -6,7 +6,7 @@
  * keep the normal 3D viewport. No MCP observation camera is ever shown here.
  */
 
-import { SkinnedMesh, Vector3, type AnimationClip, type Bone } from 'three'
+import { SkinnedMesh, Vector2, Vector3, type AnimationClip, type Bone } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine.ts'
 import { maybe_attach_desktop_control } from '../control/attachControl.ts'
@@ -168,6 +168,34 @@ export class NewAnimationWorkspace {
     })
   }
 
+  /**
+   * Canvas-relative bone picking. Utility.normalized_mouse_position() uses page
+   * coordinates, which are wrong for the sidebar-aware viewport (the same class
+   * of bug that moved the XYZ helper to the viewport centre). Using the canvas
+   * rect keeps left/right joints on the correct side of the model.
+   */
+  private pick_bone (event: PointerEvent, skeleton: { bones: Bone[] }): { bone: Bone, index: number } | null {
+    const canvas = this.engine.renderer.domElement
+    const rect = canvas.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return null
+    const mouse = new Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    )
+    let best: { bone: Bone, index: number } | null = null
+    let best_distance = Infinity
+    skeleton.bones.forEach((bone, index) => {
+      const projected = bone.getWorldPosition(new Vector3()).project(this.engine.camera)
+      const distance = mouse.distanceTo(new Vector2(projected.x, projected.y))
+      if (distance < best_distance) {
+        best_distance = distance
+        best = { bone, index }
+      }
+    })
+    if (best === null || best_distance > this.engine.transform_controls_hover_distance) return null
+    return best
+  }
+
   /** Explicit, reliable selection path; the viewport click is only a convenience. */
   private select_bone (bone: Bone, skeleton_index: number): void {
     if (this.controller.snapshot().previewing) void this.toggle_preview()
@@ -216,9 +244,9 @@ export class NewAnimationWorkspace {
       if (event.button !== 0 || controls.axis !== null || controls.dragging) return
       if (this.skinned_meshes.length === 0) return
       const skeleton = this.skinned_meshes[0].skeleton
-      const [bone] = Utility.raycast_closest_bone_test(this.engine.camera, event, skeleton)
-      if (bone === null || bone.name === 'root') return
-      this.select_bone(bone, skeleton.bones.indexOf(bone))
+      const picked = this.pick_bone(event, skeleton)
+      if (picked === null || picked.bone.name === 'root') return
+      this.select_bone(picked.bone, picked.index)
     })
 
     controls.addEventListener('dragging-changed', (event: Record<string, unknown>) => {
