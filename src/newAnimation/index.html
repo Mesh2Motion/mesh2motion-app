@@ -83,6 +83,10 @@
                 <div class="new-animation-bone-tools">
                     <strong>Bone editing</strong>
                     <span id="new-animation-selected-bone" aria-live="polite">no bone selected</span>
+                    <label for="new-animation-bone-filter">Bone list</label>
+                    <input type="search" id="new-animation-bone-filter" placeholder="Filter bones by name" aria-label="Filter bones by name">
+                    <div id="new-animation-bone-list" class="new-animation-bone-list" aria-label="Live rig bones"></div>
+                    <button id="new-animation-clear-bone" type="button">Clear bone selection</button>
                     <div class="new-animation-actions" role="group" aria-label="Transform mode">
                         <button type="button" data-bone-mode="translate">Move</button>
                         <button type="button" data-bone-mode="rotate" aria-pressed="true">Rotate</button>
@@ -94,7 +98,7 @@
                             <option value="world">World</option>
                         </select>
                     </label>
-                    <p class="new-animation-hint">Click a joint in the viewport to select a bone, then drag the gizmo. Dragging writes a keyframe at the current time.</p>
+                    <p class="new-animation-hint">Select a bone from the filtered list (most reliable), or click a joint in the viewport. Then drag the gizmo to write a keyframe at the current time. Create a clip first to save edits.</p>
                 </div>
                 <div class="new-animation-actions">
                     <button id="new-animation-add-key" type="button" disabled>Add keyframe</button>

@@ -51,6 +51,7 @@ export class NewAnimationWorkspace {
   private selected_bone: Bone | null = null
   private selected_bone_index: number | null = null
   private bone_listener_bound = false
+  private bone_filter = ''
 
   constructor () {
     this.engine = new Mesh2MotionEngine()
@@ -154,6 +155,48 @@ export class NewAnimationWorkspace {
       const space = (event.target as HTMLSelectElement).value
       controls.setSpace(space === 'world' ? 'world' : 'local')
     })
+    by_id<HTMLInputElement>('new-animation-bone-filter').addEventListener('input', (event) => {
+      this.bone_filter = (event.target as HTMLInputElement).value.trim().toLowerCase()
+      this.render_bone_list()
+    })
+    by_id('new-animation-clear-bone').addEventListener('click', () => {
+      controls.detach()
+      this.selected_bone = null
+      this.selected_bone_index = null
+      by_id('new-animation-selected-bone').textContent = 'no bone selected'
+      this.render_bone_list()
+    })
+  }
+
+  /** Explicit, reliable selection path; the viewport click is only a convenience. */
+  private select_bone (bone: Bone, skeleton_index: number): void {
+    if (this.controller.snapshot().previewing) void this.toggle_preview()
+    this.selected_bone = bone
+    this.selected_bone_index = skeleton_index
+    this.engine.transform_controls.attach(bone)
+    by_id('new-animation-selected-bone').textContent = `selected: ${bone.name || `bone ${skeleton_index}`}`
+    this.render_bone_list()
+    this.apply_pose_at_time(this.editor.current_time())
+  }
+
+  private render_bone_list (): void {
+    const list = by_id('new-animation-bone-list')
+    list.replaceChildren()
+    if (this.skinned_meshes.length === 0) return
+    const bones = this.skinned_meshes[0].skeleton.bones
+    const filtered = bones
+      .map((bone, index) => ({ bone, index }))
+      .filter(({ bone }) => bone.name.toLowerCase().includes(this.bone_filter))
+    for (const { bone, index } of filtered) {
+      const button = window.document.createElement('button')
+      button.type = 'button'
+      button.className = 'm2m-track-row'
+      button.textContent = bone.name || `bone ${index}`
+      button.setAttribute('aria-pressed', String(this.selected_bone_index === index))
+      button.addEventListener('click', () => { this.select_bone(bone, index) })
+      list.appendChild(button)
+    }
+    if (filtered.length === 0) list.textContent = 'No bones match this filter.'
   }
 
   private setup_bone_editing (): void {
@@ -161,6 +204,9 @@ export class NewAnimationWorkspace {
     controls.enabled = true
     controls.setMode('rotate')
     controls.setSpace('local')
+    // The default 1.0 gizmo dwarfs this rig and covers neighbouring joints;
+    // a smaller handle makes joint picking practical.
+    controls.size = 0.45
     if (this.bone_listener_bound) return
     this.bone_listener_bound = true
 
@@ -172,11 +218,7 @@ export class NewAnimationWorkspace {
       const skeleton = this.skinned_meshes[0].skeleton
       const [bone] = Utility.raycast_closest_bone_test(this.engine.camera, event, skeleton)
       if (bone === null || bone.name === 'root') return
-      if (this.controller.snapshot().previewing) void this.toggle_preview()
-      this.selected_bone = bone
-      this.selected_bone_index = skeleton.bones.indexOf(bone)
-      controls.attach(bone)
-      by_id('new-animation-selected-bone').textContent = `selected: ${bone.name}`
+      this.select_bone(bone, skeleton.bones.indexOf(bone))
     })
 
     controls.addEventListener('dragging-changed', (event: Record<string, unknown>) => {
@@ -233,6 +275,7 @@ export class NewAnimationWorkspace {
     this.selected_bone = null
     this.selected_bone_index = null
     by_id('new-animation-selected-bone').textContent = 'no bone selected'
+    this.render_bone_list()
     this.setup_bone_editing()
     await this.controller.cancel().catch(() => {})
     this.set_status(`Loaded ${rig.rig_display_name}.`)
