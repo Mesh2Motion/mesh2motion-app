@@ -1060,6 +1060,9 @@ export class Mesh2MotionEngine {
     // PropsManager as a field initializer, before this engine), so it cached null refs for
     // every element injected above. Re-query the DOM so those controls work.
     UI.getInstance().initialize_dom_elements()
+    // The settings manager was constructed before this markup existed, so it
+    // cached null element refs. Bind it now that the nav has been injected.
+    this.settings_dropdown_manager?.initialize()
   }
 
 } // end Mesh2Motion Engine

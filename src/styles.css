@@ -1407,6 +1407,14 @@ body.tool-panel-page #m2m-viewport {
     z-index: 2;
 }
 
+/* Tool-panel pages always reserve the right rail at every breakpoint, so
+   viewport-anchored controls cannot sit under (be occluded by) the panel. */
+body.tool-panel-page {
+    --viewport-right: var(--responsive-right-width);
+    --viewport-left: 0px;
+    --viewport-top: var(--navigation-height);
+}
+
 #animations-items {
     width: 100%;
     max-height: calc(100dvh - 23rem);

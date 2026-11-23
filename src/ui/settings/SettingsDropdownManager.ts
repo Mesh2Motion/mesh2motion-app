@@ -16,7 +16,12 @@ export class SettingsDropdownManager {
     this.initialize()
   }
 
-  private initialize (): void {
+  /**
+   * Bind listeners once the shared nav markup exists. The engine builds this
+   * manager before DOMUtilities injects the dropdown, so it is safe to call
+   * again after UI.getInstance().initialize_dom_elements().
+   */
+  public initialize (): void {
     if (this.initialized) {
       return
     }
