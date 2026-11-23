@@ -189,4 +189,13 @@ describe('M2M-025D Remix catalog first-paint background', () => {
     expect(composer_styles).toMatch(/#composer-library-items\s*\{[^}]*background:\s*var\(--bg-alternate\)/)
     expect(composer_styles).not.toMatch(/#composer-library-items[^{]*\{[^}]*background(-color)?:\s*(#000|black|rgb\(0,\s*0,\s*0)/)
   })
+
+  it('repaints the scroller layer and themes its scrollbar', () => {
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog\.m2m-catalog-first-paint-repaint\s*\{[^}]*box-shadow/
+    )
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog::-\webkit-scrollbar-track\s*\{[^}]*var\(--bg-alternate\)/
+    )
+  })
 })

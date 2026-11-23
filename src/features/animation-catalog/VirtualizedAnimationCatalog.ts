@@ -11,6 +11,14 @@ export interface VirtualizedCatalogOptions<T> {
 
 const MAX_OVERSCAN_ROWS = 4
 
+/**
+ * M2M-025D: WebKitGTK can leave the scroller's own background layer black on
+ * the first frame after the virtualized content is mounted. A harmless style
+ * change over two frames forces the scroller (including its padding box and
+ * scrollbar) to repaint, without waiting for a user scroll.
+ */
+const FIRST_PAINT_REPAINT_CLASS = 'm2m-catalog-first-paint-repaint'
+
 /** Renders only the fixed-size animation tiles near the scroll viewport. */
 export class VirtualizedAnimationCatalog<T> {
   private readonly content: HTMLDivElement
@@ -21,6 +29,7 @@ export class VirtualizedAnimationCatalog<T> {
   private disposed = false
   private resize_observer: ResizeObserver | null = null
   private render_frame: number | null = null
+  private first_paint_repaint_done = false
   private readonly overscan_rows: number
 
   constructor (
@@ -43,6 +52,24 @@ export class VirtualizedAnimationCatalog<T> {
       window.addEventListener('resize', this.schedule_render)
     }
     this.render()
+  }
+
+  /**
+   * Force one scroller repaint after the first populated frame. WebKitGTK
+   * otherwise paints the scroller's padding box and scrollbar black until the
+   * user scrolls, even though the computed background color is already correct.
+   */
+  private readonly schedule_first_paint_repaint = (): void => {
+    if (this.disposed || this.first_paint_repaint_done || this.items.length === 0) return
+    this.first_paint_repaint_done = true
+    requestAnimationFrame(() => {
+      if (this.disposed) return
+      this.viewport.classList.add(FIRST_PAINT_REPAINT_CLASS)
+      requestAnimationFrame(() => {
+        if (this.disposed) return
+        this.viewport.classList.remove(FIRST_PAINT_REPAINT_CLASS)
+      })
+    })
   }
 
   public set_items (items: T[], refresh = false): void {
@@ -77,6 +104,7 @@ export class VirtualizedAnimationCatalog<T> {
       this.viewport.scrollTop = Math.min(previous_scroll_top, this.max_scroll_top())
     }
     this.render()
+    this.schedule_first_paint_repaint()
   }
 
   public set_footer (content: Node | string): void {

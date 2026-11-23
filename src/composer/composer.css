@@ -196,6 +196,25 @@ body.composer-is-dragging .composer-slot.is-drag-over {
     background-color: var(--bg-alternate);
 }
 
+/* Two-frame, visually harmless style change applied by VirtualizedAnimationCatalog
+   after the first populated frame. It invalidates the scroller's own layer so
+   the padding box and scrollbar stop rendering black on first display. */
+#composer-library-items.virtualized-animation-catalog.m2m-catalog-first-paint-repaint {
+    box-shadow: inset 0 0 0 0.5px transparent;
+}
+
+/* Scope the scrollbar colors to this scroller so they follow the selected theme
+   even when the global scroller layer has not been repainted yet. */
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar {
+    background-color: var(--bg-alternate);
+}
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-track {
+    background-color: var(--bg-alternate);
+}
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
+}
+
 /* styles.css pads every div. the Explore listing turns that off for its tiles too */
 #composer-library-items div {
     padding: 0;
