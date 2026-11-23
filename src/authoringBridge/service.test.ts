@@ -69,6 +69,12 @@ function make_app (): AuthoringBridgeApp & { entries: AnimationEntry[], selectio
           entries.push(entry)
           return entry
         },
+        remove_authored_animation: (id: string): boolean => {
+          const index = entries.findIndex((entry) => entry.id === id)
+          if (index < 0) return false
+          entries.splice(index, 1)
+          return true
+        },
         current_selection: () => state.selection,
         select_animation: (id: string) => { state.selection = id }
       }
@@ -79,11 +85,14 @@ function make_app (): AuthoringBridgeApp & { entries: AnimationEntry[], selectio
   return app
 }
 
+let sequence_counter = 0
 function req (operation: string, payload: Record<string, unknown> = {}, id = 'req-1'): AuthoringRequest {
+  sequence_counter += 1
   return {
     protocol: AUTHORING_BRIDGE_PROTOCOL,
     request_id: id,
     session_id: 'session-1',
+    sequence: sequence_counter,
     deadline_ms: 5000,
     operation: operation as AuthoringRequest['operation'],
     payload
@@ -94,6 +103,10 @@ async function create_wave_bridge (): Promise<{ bridge: FrontendAuthoringBridge,
   const app = make_app()
   const panel = new NativeConfirmationPanel(document.body)
   const bridge = new FrontendAuthoringBridge(app, panel)
+  expect(bridge.is_permission_enabled()).toBe(false)
+  const toggles = document.querySelectorAll<HTMLButtonElement>('#m2m-authoring-toggle')
+  toggles[toggles.length - 1]?.click()
+  expect(bridge.is_permission_enabled()).toBe(true)
   const { document: wave } = create_live_agent_wave(app.skeleton, 'human')
   const response = await bridge.handle(req('draft.create', { document: wave }, 'setup'))
   expect(response.ok).toBe(true)
@@ -196,7 +209,9 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
     undo_panel?.querySelector<HTMLButtonElement>('[data-m2m-confirm="approve"]')?.click()
     const undone = await undo_pending
     expect(undone.ok).toBe(true)
-    expect(app.entries).toHaveLength(2)
+    // Real undo: the undone entry is removed, not merely appended over.
+    expect(app.entries).toHaveLength(1)
+    expect(app.entries[0].name).toBe('Agent_Wave_01')
     bridge.dispose()
   })
 

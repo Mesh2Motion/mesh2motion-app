@@ -6,6 +6,7 @@ function handlers (): AuthoringHandlers {
   return {
     rig_catalog_get: async () => ({ rig: { identifier: 'human', fingerprint: 'abc' }, bones: [] }),
     draft_create: async () => ({ revision: 2 }),
+    draft_set_keyframes: async () => ({ revision: 2, validation: { state: 'valid', errors: [] } }),
     draft_validate: async () => ({ state: 'valid' }),
     draft_preview_start: async () => ({ previewing: true }),
     draft_preview_stop: async () => ({ previewing: false }),
@@ -19,11 +20,14 @@ function handlers (): AuthoringHandlers {
   }
 }
 
+let sequence_counter = 0
 function request (overrides: Partial<AuthoringRequest> = {}): AuthoringRequest {
+  sequence_counter += 1
   return {
     protocol: AUTHORING_BRIDGE_PROTOCOL,
     request_id: 'req-1',
     session_id: 'session-1',
+    sequence: sequence_counter,
     deadline_ms: 1000,
     operation: 'rig.catalog.get',
     payload: {},

@@ -79,6 +79,17 @@ export class AnimationLibrary extends EventTarget {
   }
 
   /**
+   * M2M-028B: remove an authored entry during a compensating undo.
+   * Returns true only when an entry with that id existed.
+   */
+  public remove_entry (id: string): boolean {
+    const index = this.entries.findIndex((entry) => entry.id === id)
+    if (index < 0) return false
+    this.entries.splice(index, 1)
+    return true
+  }
+
+  /**
    * Adds clips that are already loaded, like custom imports.
    * @returns the new entries
    */

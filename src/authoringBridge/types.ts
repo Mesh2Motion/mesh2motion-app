@@ -10,16 +10,19 @@ import type { AnimationDocument } from '../animation-document/types'
 export const AUTHORING_BRIDGE_PROTOCOL = 'authoring-bridge/v1' as const
 
 export const BRIDGE_LIMITS = {
-  max_request_bytes: 512 * 1024,
+  /** M2M-028B: hard ceiling for the WHOLE serialized IPC frame, in UTF-8 bytes. */
+  max_request_bytes: 256 * 1024,
   max_id_length: 64,
   min_deadline_ms: 100,
   max_deadline_ms: 30000,
-  max_sessions: 1
+  max_sessions: 1,
+  max_retained_request_ids: 4096
 } as const
 
 export type AuthoringOperation =
   | 'rig.catalog.get'
   | 'draft.create'
+  | 'draft.set_keyframes'
   | 'draft.validate'
   | 'draft.preview.start'
   | 'draft.preview.stop'
@@ -32,7 +35,7 @@ export type AuthoringOperation =
   | 'session.cancel'
 
 export const AUTHORING_OPERATIONS: readonly AuthoringOperation[] = [
-  'rig.catalog.get', 'draft.create', 'draft.validate', 'draft.preview.start',
+  'rig.catalog.get', 'draft.create', 'draft.set_keyframes', 'draft.validate', 'draft.preview.start',
   'draft.preview.stop', 'draft.commit', 'draft.cancel', 'draft.undo',
   'draft.export', 'draft.import', 'session.status', 'session.cancel'
 ]
@@ -60,6 +63,8 @@ export interface AuthoringRequest {
   protocol: typeof AUTHORING_BRIDGE_PROTOCOL
   request_id: string
   session_id: string
+  /** Strictly increasing u64-compatible integer, per session. */
+  sequence: number
   deadline_ms: number
   operation: AuthoringOperation
   payload: Record<string, unknown>
@@ -74,6 +79,7 @@ export interface AuthoringResponse {
   protocol: typeof AUTHORING_BRIDGE_PROTOCOL
   request_id: string
   session_id: string
+  sequence: number
   ok: boolean
   result?: Record<string, unknown>
   error?: AuthoringError
@@ -98,6 +104,7 @@ export function is_authoring_request (value: unknown): value is AuthoringRequest
   return request.protocol === AUTHORING_BRIDGE_PROTOCOL &&
     typeof request.request_id === 'string' &&
     typeof request.session_id === 'string' &&
+    typeof request.sequence === 'number' && Number.isSafeInteger(request.sequence) && request.sequence > 0 &&
     typeof request.deadline_ms === 'number' &&
     typeof request.operation === 'string' &&
     (AUTHORING_OPERATIONS as readonly string[]).includes(request.operation) &&

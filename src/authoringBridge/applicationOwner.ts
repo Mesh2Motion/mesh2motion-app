@@ -1,10 +1,13 @@
 /**
- * M2M-028A — AnimationApplicationOwner bound to the real animation library.
+ * M2M-028B — AnimationApplicationOwner bound to the real animation library.
  *
- * Committed documents are inserted through StepAnimationsListing's new
- * application-owned `add_authored_animation()` method, which updates the
- * library, the search UI and the count label. Entries are tagged so they can
- * never be confused with a Remix clip or a default-library animation.
+ * Committed documents are inserted through StepAnimationsListing's
+ * application-owned `add_authored_animation()` method. Entries are tagged so
+ * they can never be confused with a Remix clip or a default-library animation.
+ *
+ * M2M-028B adds a compensating rollback boundary and real undo: the entry that
+ * represented the undone revision is removed from the library (and UI), the
+ * restored document is inserted, and the previous selection is restored.
  */
 
 import { type AnimationClip } from 'three'
@@ -16,6 +19,7 @@ import type { AnimationEntry } from '../lib/processes/animations-listing/interfa
 export interface AuthoringApplicationEngine {
   animations_listing_step: {
     add_authored_animation (pair: TransformedAnimationClipPair): AnimationEntry
+    remove_authored_animation (animation_id: string): boolean
     current_selection (): string | null
     select_animation (animation_id: string): void
   }
@@ -32,7 +36,7 @@ export interface AuthoredEntryRecord {
 export const AUTHORED_TAG = 'authored-animation-document'
 
 export class RealApplicationOwner implements AnimationApplicationOwner {
-  private readonly last_entries: AuthoredEntryRecord[] = []
+  private readonly records: AuthoredEntryRecord[] = []
 
   constructor (private readonly engine: AuthoringApplicationEngine) {}
 
@@ -46,13 +50,35 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
       }
     }
     const entry = this.engine.animations_listing_step.add_authored_animation(pair)
-    this.last_entries.push({
+    this.records.push({
       entry_id: entry.id,
       document_name: document.clip.name,
       rig_identifier: document.rig.identifier,
       revision: document.revision
     })
-    this.engine.animations_listing_step.select_animation(entry.id)
+    try {
+      this.engine.animations_listing_step.select_animation(entry.id)
+    } catch {
+      // Selection failure must not turn a successful library insertion into a
+      // thrown error that would desynchronise the store from the library.
+    }
+  }
+
+  /** M2M-028B: remove the library entry created by a failed commit. */
+  rollback_last (): boolean {
+    const record = this.records.pop()
+    if (record === undefined) return false
+    return this.engine.animations_listing_step.remove_authored_animation(record.entry_id)
+  }
+
+  /** M2M-028B: undo really removes the undone entry before applying the restored one. */
+  remove_revision (revision: number): boolean {
+    const index = this.records.findIndex((record) => record.revision === revision)
+    if (index < 0) return false
+    const record = this.records[index]
+    const removed = this.engine.animations_listing_step.remove_authored_animation(record.entry_id)
+    if (removed) this.records.splice(index, 1)
+    return removed
   }
 
   capture_selection (): unknown {
@@ -66,7 +92,7 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
   }
 
   authored_entries (): ReadonlyArray<AuthoredEntryRecord> {
-    return this.last_entries.map((entry) => ({ ...entry }))
+    return this.records.map((entry) => ({ ...entry }))
   }
 }
 

@@ -8,7 +8,7 @@
 
 import {
   NATIVE_CONFIRMATION_SCHEMA,
-  type NativeConfirmationBridge,
+  type ConfirmationBinding,
   type NativeConfirmationRequest,
   type NativeConfirmationResult
 } from '../animation-document/confirmation'
@@ -23,12 +23,13 @@ export interface ConfirmationDetails {
   operation: string
 }
 
-const CONFIRMATION_TIMEOUT_MS = 30000
+const DEFAULT_CONFIRMATION_TIMEOUT_MS = 30000
 
-export class NativeConfirmationPanel implements NativeConfirmationBridge {
+export class NativeConfirmationPanel {
   private panel: HTMLElement | null = null
   private pending: {
     request: NativeConfirmationRequest
+    binding: ConfirmationBinding
     resolve: (result: NativeConfirmationResult) => void
     timer: ReturnType<typeof setTimeout>
   } | null = null
@@ -45,16 +46,17 @@ export class NativeConfirmationPanel implements NativeConfirmationBridge {
       track_count: 0,
       keyframe_count: 0,
       operation: request.operation
-    }
-  ): Promise<NativeConfirmationResult> {
+    }, binding: ConfirmationBinding, timeout_ms: number = DEFAULT_CONFIRMATION_TIMEOUT_MS): Promise<NativeConfirmationResult> {
     this.reject_pending('CONFIRMATION_REQUIRED')
-    const panel = this.build_panel(details)
+    const panel = this.build_panel(details, binding)
     this.host.append(panel)
     this.panel = panel
 
     return new Promise<NativeConfirmationResult>((resolve) => {
-      const timer = setTimeout(() => this.reject_pending('CONFIRMATION_EXPIRED'), CONFIRMATION_TIMEOUT_MS)
-      this.pending = { request, resolve, timer }
+      // Use the caller's REMAINING deadline, never a detached fixed timer.
+      const remaining = Math.max(1, Math.min(DEFAULT_CONFIRMATION_TIMEOUT_MS, timeout_ms))
+      const timer = setTimeout(() => this.reject_pending('CONFIRMATION_EXPIRED'), remaining)
+      this.pending = { request, binding, resolve, timer }
       panel.querySelector<HTMLButtonElement>('[data-m2m-confirm="approve"]')?.addEventListener('click', () => {
         this.finish(true)
       })
@@ -85,6 +87,7 @@ export class NativeConfirmationPanel implements NativeConfirmationBridge {
       approved,
       decided_by: 'user',
       decided_at_utc: new Date().toISOString(),
+      binding: approved ? { ...pending.binding } : undefined,
       ...(approved ? {} : { rejection_reason: 'rejected in native confirmation panel' })
     })
   }
@@ -106,7 +109,7 @@ export class NativeConfirmationPanel implements NativeConfirmationBridge {
     })
   }
 
-  private build_panel (details: ConfirmationDetails): HTMLElement {
+  private build_panel (details: ConfirmationDetails, binding: ConfirmationBinding): HTMLElement {
     const panel = document.createElement('section')
     panel.className = 'm2m-authoring-confirmation'
     panel.setAttribute('role', 'dialog')
@@ -118,6 +121,7 @@ export class NativeConfirmationPanel implements NativeConfirmationBridge {
         <div><dt>Target rig</dt><dd data-detail="rig"></dd></div>
         <div><dt>Duration</dt><dd data-detail="duration"></dd></div>
         <div><dt>Tracks / keyframes</dt><dd data-detail="tracks"></dd></div>
+        <div><dt>Revision / digest</dt><dd data-detail="binding"></dd></div>
       </dl>
       <div class="m2m-authoring-confirmation-actions">
         <button type="button" data-m2m-confirm="reject">Reject</button>
@@ -131,6 +135,8 @@ export class NativeConfirmationPanel implements NativeConfirmationBridge {
     set('rig', `${details.rig_identifier} (${details.fingerprint_prefix})`)
     set('duration', `${details.duration_seconds.toFixed(2)} s`)
     set('tracks', `${details.track_count} / ${details.keyframe_count}`)
+    set('binding', `r${binding.revision} / ${binding.document_digest.slice(0, 12)}${
+      binding.target_revision === null ? '' : ` → r${binding.target_revision}`}`)
     return panel
   }
 }

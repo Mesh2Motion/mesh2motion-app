@@ -1,16 +1,18 @@
 /**
- * M2M-028A — typed, bounded request dispatcher for authoring-bridge/v1.
+ * M2M-028B — typed, bounded request dispatcher for authoring-bridge/v1.
  *
- * It only parses data and calls injected typed handlers. It never evaluates
- * code, imports modules by name, or interprets filesystem paths supplied by a
- * client. All timers are owned here and cleared on dispose.
+ * Transport rules (M2M-028B amendments):
+ * - maximum 256 KiB for the ENTIRE serialized UTF-8 request (byte count, not JS char count);
+ * - strictly increasing per-session `sequence`, echoed in every response;
+ * - at most 4096 distinct request IDs retained per app launch, then fail closed;
+ * - one in-flight request, closed operation set, bounded deadlines.
+ * No eval, no dynamic import by client data, no filesystem paths.
  */
 
 import {
   AUTHORING_BRIDGE_PROTOCOL,
   BRIDGE_LIMITS,
   is_authoring_request,
-  type AuthoringError,
   type AuthoringErrorCode,
   type AuthoringOperation,
   type AuthoringRequest,
@@ -20,6 +22,7 @@ import {
 export interface AuthoringHandlers {
   rig_catalog_get (): Promise<Record<string, unknown>>
   draft_create (payload: Record<string, unknown>): Promise<Record<string, unknown>>
+  draft_set_keyframes (payload: Record<string, unknown>): Promise<Record<string, unknown>>
   draft_validate (payload: Record<string, unknown>): Promise<Record<string, unknown>>
   draft_preview_start (payload: Record<string, unknown>): Promise<Record<string, unknown>>
   draft_preview_stop (): Promise<Record<string, unknown>>
@@ -33,13 +36,13 @@ export interface AuthoringHandlers {
 }
 
 function error_response (request: AuthoringRequest, code: AuthoringErrorCode, message: string): AuthoringResponse {
-  const error: AuthoringError = { code, message }
   return {
     protocol: AUTHORING_BRIDGE_PROTOCOL,
     request_id: request.request_id,
     session_id: request.session_id,
+    sequence: request.sequence,
     ok: false,
-    error
+    error: { code, message }
   }
 }
 
@@ -48,6 +51,7 @@ function success_response (request: AuthoringRequest, result: Record<string, unk
     protocol: AUTHORING_BRIDGE_PROTOCOL,
     request_id: request.request_id,
     session_id: request.session_id,
+    sequence: request.sequence,
     ok: true,
     result
   }
@@ -70,7 +74,7 @@ function with_deadline<T> (promise: Promise<T>, deadline_ms: number, timers: Set
 export class AuthoringDispatcher {
   private readonly handlers: AuthoringHandlers
   private readonly seen_request_ids = new Set<string>()
-  private readonly active_sessions = new Set<string>()
+  private readonly last_sequence = new Map<string, number>()
   private readonly timers = new Set<ReturnType<typeof setTimeout>>()
   private in_flight: string | null = null
   private current_session: string | null = null
@@ -83,11 +87,11 @@ export class AuthoringDispatcher {
   /** Validate and dispatch one request. Never throws; always returns a typed response. */
   async handle (input: unknown): Promise<AuthoringResponse> {
     if (!is_authoring_request(input)) {
-      // A malformed envelope has no trustworthy IDs; echo empty strings.
       return {
         protocol: AUTHORING_BRIDGE_PROTOCOL,
         request_id: '',
         session_id: '',
+        sequence: 0,
         ok: false,
         error: { code: 'BAD_PROTOCOL', message: 'request does not match authoring-bridge/v1' }
       }
@@ -98,61 +102,84 @@ export class AuthoringDispatcher {
         request.session_id.length === 0 || request.session_id.length > BRIDGE_LIMITS.max_id_length) {
       return error_response(request, 'BAD_REQUEST', 'invalid request_id or session_id length')
     }
-    if (!Number.isInteger(request.deadline_ms) ||
+    if (!Number.isSafeInteger(request.deadline_ms) ||
         request.deadline_ms < BRIDGE_LIMITS.min_deadline_ms ||
         request.deadline_ms > BRIDGE_LIMITS.max_deadline_ms) {
       return error_response(request, 'BAD_REQUEST', 'deadline_ms out of bounds')
     }
+
+    let serialized: string
     try {
-      if (JSON.stringify(request).length > BRIDGE_LIMITS.max_request_bytes) {
-        return error_response(request, 'PAYLOAD_TOO_LARGE', 'request exceeds 512 KiB')
-      }
+      serialized = JSON.stringify(request)
     } catch {
       return error_response(request, 'BAD_REQUEST', 'payload is not serializable data')
     }
+    const byte_length = new TextEncoder().encode(serialized).byteLength
+    if (byte_length > BRIDGE_LIMITS.max_request_bytes) {
+      return error_response(request, 'PAYLOAD_TOO_LARGE', 'request exceeds 256 KiB UTF-8 frame limit')
+    }
+
+    if (this.seen_request_ids.size >= BRIDGE_LIMITS.max_retained_request_ids &&
+        !this.seen_request_ids.has(request.request_id)) {
+      return error_response(request, 'SESSION_CONFLICT', 'request-ID retention cap reached; restart required')
+    }
     if (this.seen_request_ids.has(request.request_id)) {
       return error_response(request, 'DUPLICATE_REQUEST_ID', 'request_id already used')
+    }
+    const previous_sequence = this.last_sequence.get(request.session_id) ?? 0
+    if (request.sequence <= previous_sequence) {
+      return error_response(request, 'BAD_REQUEST', 'sequence must be strictly increasing per session')
     }
     if (this.in_flight !== null) {
       return error_response(request, 'SESSION_CONFLICT', 'another request is in flight')
     }
     if (this.current_session !== null && this.current_session !== request.session_id &&
-        this.active_sessions.size >= BRIDGE_LIMITS.max_sessions &&
-        request.operation !== 'session.status' && request.operation !== 'session.cancel') {
+        this.activeSessionLimitReached(request.operation)) {
       return error_response(request, 'SESSION_CONFLICT', 'another authoring session is active')
     }
 
     this.seen_request_ids.add(request.request_id)
+    this.last_sequence.set(request.session_id, request.sequence)
     this.in_flight = request.request_id
-    if (this.current_session === null) {
-      this.current_session = request.session_id
-      this.active_sessions.add(request.session_id)
-    }
+    if (this.current_session === null) this.current_session = request.session_id
+
     try {
       const result = await with_deadline(this.dispatch(request), request.deadline_ms, this.timers)
       return success_response(request, result)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       if (message === 'DEADLINE_EXCEEDED') return error_response(request, 'DEADLINE_EXCEEDED', message)
-      const code = this.is_bridge_error_code(message) ? message as AuthoringErrorCode : 'INTERNAL'
+      const code_candidate = message.split(':')[0].trim()
+      const code = this.is_bridge_error_code(code_candidate) ? code_candidate as AuthoringErrorCode : 'INTERNAL'
       return error_response(request, code, message)
     } finally {
       this.in_flight = null
       if (request.operation === 'session.cancel' && this.current_session === request.session_id) {
         this.current_session = null
-        this.active_sessions.delete(request.session_id)
       }
     }
   }
 
-  /** Release all timers and session state. Safe to call repeatedly. */
-  dispose (): void {
-    this.disposed = true
+  /** Cancel/disconnect/shutdown: clear session state and all pending timers. */
+  cancel_session (session_id: string): void {
     this.timers.forEach((timer) => clearTimeout(timer))
     this.timers.clear()
-    this.active_sessions.clear()
-    this.current_session = null
-    this.in_flight = null
+    if (this.current_session === session_id) {
+      this.current_session = null
+      this.in_flight = null
+    }
+    this.last_sequence.delete(session_id)
+  }
+
+  dispose (): void {
+    this.disposed = true
+    this.cancel_session(this.current_session ?? '')
+    this.seen_request_ids.clear()
+  }
+
+  private activeSessionLimitReached (operation: AuthoringOperation): boolean {
+    return this.current_session !== null && BRIDGE_LIMITS.max_sessions === 1 &&
+      operation !== 'session.status' && operation !== 'session.cancel'
   }
 
   private is_bridge_error_code (value: string): boolean {
@@ -167,10 +194,10 @@ export class AuthoringDispatcher {
   }
 
   private dispatch (request: AuthoringRequest): Promise<Record<string, unknown>> {
-    const operation: AuthoringOperation = request.operation
-    switch (operation) {
+    switch (request.operation) {
       case 'rig.catalog.get': return this.handlers.rig_catalog_get()
       case 'draft.create': return this.handlers.draft_create(request.payload)
+      case 'draft.set_keyframes': return this.handlers.draft_set_keyframes(request.payload)
       case 'draft.validate': return this.handlers.draft_validate(request.payload)
       case 'draft.preview.start': return this.handlers.draft_preview_start(request.payload)
       case 'draft.preview.stop': return this.handlers.draft_preview_stop()

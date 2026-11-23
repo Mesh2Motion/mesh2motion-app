@@ -25,6 +25,18 @@ export interface NativeConfirmationRequest {
   created_at_utc: string
 }
 
+/** M2M-028B — immutable binding returned with an approval acknowledgement. */
+export interface ConfirmationBinding {
+  request_id: string
+  session_id: string
+  operation: 'commit' | 'undo'
+  revision: number
+  /** SHA-256 of the serialized document the approval applies to. */
+  document_digest: string
+  /** Undo only: revision being restored. */
+  target_revision: number | null
+}
+
 export interface NativeConfirmationResult {
   schema_version: typeof NATIVE_CONFIRMATION_SCHEMA
   request_id: string
@@ -32,6 +44,8 @@ export interface NativeConfirmationResult {
   decided_by: 'user'
   decided_at_utc: string | null
   rejection_reason?: string
+  /** Present only when a native panel click produced this result. */
+  binding?: ConfirmationBinding
 }
 
 /**

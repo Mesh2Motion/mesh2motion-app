@@ -225,6 +225,23 @@ export class StepAnimationsListing extends EventTarget {
     this.play_animation(animation_id)
   }
 
+  /**
+   * M2M-028B: remove an authored entry as part of an undo. The search UI and
+   * count label are refreshed; if the removed entry was selected, fall back to
+   * the first remaining animation (or nothing when the library is empty).
+   */
+  public remove_authored_animation (animation_id: string): boolean {
+    if (!this.animation_library.remove_entry(animation_id)) return false
+    const remaining = this.animation_library.all()
+    this.animation_search?.initialize_animations(remaining)
+    this.update_filtered_animation_listing_ui()
+    if (this.current_playing_id === animation_id) {
+      const fallback = remaining[0]
+      this.play_animation(fallback?.id ?? null)
+    }
+    return true
+  }
+
   // setup in the bootstrap.ts file and only called if we are actively
   // on this step
   public frame_change (delta_time: number): void {

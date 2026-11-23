@@ -1,3 +1,18 @@
+/* M2M-028B — explicit authoring opt-in control. */
+.m2m-authoring-toggle {
+    position: fixed;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    z-index: 1001;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+}
+
+.m2m-authoring-toggle:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
 /* M2M-028A — native authoring confirmation panel. Scoped to this panel only. */
 .m2m-authoring-confirmation {
     position: fixed;

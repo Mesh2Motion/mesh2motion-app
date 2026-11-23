@@ -102,6 +102,16 @@ export class InMemoryAnimationDocumentStore implements AnimationDocumentStore {
   history (): ReadonlyArray<AnimationDocument> {
     return this.revisions.map((document) => deep_copy(document))
   }
+
+  /**
+   * M2M-028B: compensating rollback of a failed application commit.
+   * Drops the named receipt and every later snapshot so the store returns to
+   * the document that was current before the failed owner insertion.
+   */
+  rollback (receipt: DocumentCommitReceipt): void {
+    const index = this.revisions.findIndex((document) => document.revision === receipt.revision)
+    if (index >= 0) this.revisions.length = index
+  }
 }
 
 function deep_copy (document: AnimationDocument): AnimationDocument {
