@@ -6,7 +6,7 @@ import type { TransformedAnimationClipPair } from '../lib/processes/animations-l
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry'
 import { FrontendAuthoringBridge, type AuthoringBridgeApp } from './service'
 import { NativeConfirmationPanel } from './confirmationPanel'
-import { attachTauriAuthoringAdapter, set_tauri_authoring_enabled, TAURI_REQUEST_EVENT, TAURI_RESPOND_COMMAND } from './tauriAdapter'
+import { attachTauriAuthoringAdapter, set_tauri_authoring_enabled, TAURI_CANCEL_EVENT, TAURI_REQUEST_EVENT, TAURI_RESPOND_COMMAND } from './tauriAdapter'
 import { AuthoringPermission } from './permission'
 import { create_confirmation_request } from '../animation-document/confirmation'
 
@@ -190,7 +190,20 @@ describe('M2M-028B Tauri adapter', () => {
     const cancel = vi.fn()
     const adapter = await attachTauriAuthoringAdapter(async () => response, cancel)
     expect(adapter.listening()).toBe(true)
-    expect(calls[0].command).toBe('plugin:event|listen')
+    expect(calls[0]).toEqual({
+      command: 'mcp_authoring_frontend_set_ready',
+      args: { ready: false }
+    })
+    const listens = calls.filter((call) => call.command === 'plugin:event|listen')
+    expect(listens).toHaveLength(2)
+    expect(listens.map((call) => call.args)).toEqual([
+      { event: TAURI_REQUEST_EVENT, target: { kind: 'Any' }, handler: 1 },
+      { event: TAURI_CANCEL_EVENT, target: { kind: 'Any' }, handler: 2 }
+    ])
+    expect(calls).toContainEqual({
+      command: 'mcp_authoring_frontend_set_ready',
+      args: { ready: true }
+    })
     callbacks[0]({ event: TAURI_REQUEST_EVENT, payload: { request_id: 'r1' } })
     await new Promise(resolve => setTimeout(resolve, 0))
     const ack = calls.find((call) => call.command === TAURI_RESPOND_COMMAND)
@@ -199,6 +212,14 @@ describe('M2M-028B Tauri adapter', () => {
     expect(cancel).toHaveBeenCalled()
     await adapter.dispose()
     expect(adapter.listening()).toBe(false)
+    expect(calls.filter((call) => call.command === 'plugin:event|unlisten').map((call) => call.args)).toEqual([
+      { event: TAURI_REQUEST_EVENT, eventId: 1 },
+      { event: TAURI_CANCEL_EVENT, eventId: 2 }
+    ])
+    expect(calls[calls.length - 1]).toEqual({
+      command: 'mcp_authoring_frontend_set_ready',
+      args: { ready: false }
+    })
   })
 
   it('synchronizes native permission only after the toggle click', async () => {

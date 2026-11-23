@@ -173,6 +173,8 @@ describe('FrontendAuthoringBridge — preview and validation', () => {
     const { bridge, app, document: wave } = await create_wave_bridge()
     await bridge.handle(req('draft.preview.start', { document: wave }))
     app.skeleton.bones[0].position.x += 0.5
+    app.skeleton.bones[0].updateWorldMatrix(true, true)
+    app.skeleton.calculateInverses()
     const response = await bridge.handle(req('draft.validate', {}, 'req-2'))
     expect(response.error?.code).toBe('RIG_MISMATCH')
     bridge.dispose()

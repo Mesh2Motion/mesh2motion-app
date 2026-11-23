@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { Bone, Skeleton } from 'three'
+import { Bone, Skeleton, Vector3 } from 'three'
 import {
   bone_identities,
+  bone_rest_transforms,
   compute_rig_fingerprint,
   make_bone_id_resolver,
   rig_descriptor,
@@ -35,7 +36,19 @@ describe('rig identity', () => {
     expect(fingerprint).toMatch(/^[0-9a-f]{64}$/)
     expect(compute_rig_fingerprint(create_agent_wave_skeleton())).toBe(fingerprint)
     skeleton.bones[10].position.x += 0.01
+    skeleton.bones[0].updateWorldMatrix(true, true)
+    skeleton.calculateInverses()
     expect(compute_rig_fingerprint(skeleton)).not.toBe(fingerprint)
+  })
+
+  it('keeps the rig fingerprint and catalog rest transforms stable while bones are animated', () => {
+    const skeleton = create_agent_wave_skeleton()
+    const fingerprint = compute_rig_fingerprint(skeleton)
+    const rest = bone_rest_transforms(skeleton)
+    skeleton.bones[10].position.x += 0.4
+    skeleton.bones[10].quaternion.setFromAxisAngle(new Vector3(0, 1, 0), 0.8)
+    expect(compute_rig_fingerprint(skeleton)).toBe(fingerprint)
+    expect(bone_rest_transforms(skeleton)[10]).toEqual(rest[10])
   })
 
   it('produces identical fingerprints for structurally identical skeletons', () => {

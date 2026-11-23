@@ -47,17 +47,40 @@ export async function attachTauriAuthoringAdapter (
     return { dispose: async () => {}, listening: () => false }
   }
 
+  await internals.invoke('mcp_authoring_frontend_set_ready', { ready: false })
+
   const request_handler = internals.transformCallback((event) => {
     void handle(event.payload).then((response) => {
-      void internals.invoke?.(TAURI_RESPOND_COMMAND, { response })
+      void internals.invoke?.(TAURI_RESPOND_COMMAND, { response }).catch((error: unknown) => {
+        console.error('M2M authoring response acknowledgement failed', error)
+      })
     })
   })
   const cancel_handler = internals.transformCallback((event) => {
     handle_cancel(event.payload)
   })
 
-  await internals.invoke('plugin:event|listen', { event: TAURI_REQUEST_EVENT, handler: request_handler })
-  await internals.invoke('plugin:event|listen', { event: TAURI_CANCEL_EVENT, handler: cancel_handler })
+  try {
+    await internals.invoke('mcp_authoring_frontend_stage', { stage: 'listener_start' })
+    await internals.invoke('plugin:event|listen', {
+      event: TAURI_REQUEST_EVENT,
+      target: { kind: 'Any' },
+      handler: request_handler
+    })
+    await internals.invoke('mcp_authoring_frontend_stage', { stage: 'request_listener_ok' })
+    await internals.invoke('plugin:event|listen', {
+      event: TAURI_CANCEL_EVENT,
+      target: { kind: 'Any' },
+      handler: cancel_handler
+    })
+    await internals.invoke('mcp_authoring_frontend_stage', { stage: 'cancel_listener_ok' })
+    await internals.invoke('mcp_authoring_frontend_set_ready', { ready: true })
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    await internals.invoke('mcp_authoring_frontend_stage', { stage: 'ready_failed', detail }).catch(() => {})
+    await internals.invoke('mcp_authoring_frontend_set_ready', { ready: false }).catch(() => {})
+    throw error
+  }
 
   let active = true
   return {
@@ -65,8 +88,9 @@ export async function attachTauriAuthoringAdapter (
     dispose: async () => {
       if (!active) return
       active = false
-      await internals.invoke?.('plugin:event|unlisten', { event: TAURI_REQUEST_EVENT, handlerId: request_handler })
-      await internals.invoke?.('plugin:event|unlisten', { event: TAURI_CANCEL_EVENT, handlerId: cancel_handler })
+      await internals.invoke?.('plugin:event|unlisten', { event: TAURI_REQUEST_EVENT, eventId: request_handler })
+      await internals.invoke?.('plugin:event|unlisten', { event: TAURI_CANCEL_EVENT, eventId: cancel_handler })
+      await internals.invoke?.('mcp_authoring_frontend_set_ready', { ready: false })
     }
   }
 }

@@ -19,7 +19,7 @@ import {
   type AnimationDocument,
   type AnimationDocumentRig
 } from './types'
-import { bone_identities, compute_rig_fingerprint, make_bone_id_resolver, rig_descriptor } from './rigIdentity'
+import { bone_identities, bone_rest_transforms, compute_rig_fingerprint, make_bone_id_resolver, rig_descriptor } from './rigIdentity'
 import { create_empty_document } from './create'
 import { document_to_animation_clip } from './conversion'
 import { with_validation } from './validation'
@@ -61,13 +61,14 @@ export function read_live_rig (skeleton: Skeleton, identifier: string): RigBoneC
     throw new UnsupportedRigError(identifier)
   }
   const rig = rig_descriptor(skeleton, identifier)
+  const rest_transforms = bone_rest_transforms(skeleton)
   const bones = bone_identities(skeleton, identifier).map((identity, index) => {
-    const bone = skeleton.bones[index]
+    const rest = rest_transforms[index]
     return {
       ...identity,
-      local_position: [bone.position.x, bone.position.y, bone.position.z] as [number, number, number],
-      local_quaternion: [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w] as [number, number, number, number],
-      local_scale: [bone.scale.x, bone.scale.y, bone.scale.z] as [number, number, number]
+      local_position: rest.position,
+      local_quaternion: rest.quaternion,
+      local_scale: rest.scale
     }
   })
   return { rig, bones }

@@ -114,6 +114,8 @@ describe('check_rig_compatibility', () => {
       skeleton, rig_identifier: 'human', clip_name: 'draft', duration_seconds: 1
     })
     skeleton.bones[2].position.x = 0.5
+    skeleton.bones[0].updateWorldMatrix(true, true)
+    skeleton.calculateInverses()
     const result = check_rig_compatibility(document, skeleton)
     expect(result.compatible).toBe(false)
     expect(result.kind).toBe('rest-transform-changed')

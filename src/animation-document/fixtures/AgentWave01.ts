@@ -58,6 +58,7 @@ export function create_agent_wave_skeleton (): Skeleton {
   attach('forearm.R', 'upperarm.R', -0.25, 0, 0)
   attach('hand.R', 'forearm.R', -0.25, 0, 0)
 
+  bones[0]?.updateWorldMatrix(true, true)
   return new Skeleton(bones)
 }
 
