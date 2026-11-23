@@ -4,8 +4,9 @@
  * Wires the frozen AnimationDocument domain to the real running engine and
  * animation library. All client input is data-only and bounded by the
  * dispatcher. MCP requests grant an in-memory app-session permission.
- * Commit/undo approvals are bound to request, session, revision and a SHA-256
- * document digest.
+ * Trusted Rust-to-Tauri MCP requests grant commit/undo against an exact
+ * request, session, rig, revision, target and SHA-256 document digest. Browser
+ * and test transports continue to require the native confirmation panel.
  */
 
 import { type Skeleton } from 'three'
@@ -31,7 +32,11 @@ import { check_rig_compatibility, draft_document_to_clip } from '../animation-do
 import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
 import { create_document_from_live_rig } from '../animation-document/liveRigAdapter'
 import { sha256_hex } from '../animation-document/sha256'
-import { create_confirmation_request, type ConfirmationBinding } from '../animation-document/confirmation'
+import {
+  create_confirmation_request,
+  NATIVE_CONFIRMATION_SCHEMA,
+  type ConfirmationBinding
+} from '../animation-document/confirmation'
 import type { PreviewEngine } from '../animation-document/enginePreview'
 import type { AnimationDocument, AnimationProperty, AnimationKeyframe } from '../animation-document/types'
 import type { AuthoringApplicationEngine } from './applicationOwner'
@@ -65,6 +70,7 @@ export class FrontendAuthoringBridge {
   private store: InMemoryAnimationDocumentStore | null = null
   private draft: AnimationDocument | null = null
   private current_session: string | null = null
+  private trusted_mcp_request: AuthoringRequest | null = null
   private deadline_at = 0
 
   constructor (
@@ -110,10 +116,17 @@ export class FrontendAuthoringBridge {
 
   /** Called only by the Rust-to-Tauri MCP event adapter, never by DOM events. */
   handle_mcp_request (request: unknown): Promise<AuthoringResponse> {
-    if (is_authoring_request(request) && request.operation !== 'rig.catalog.get') {
+    if (!is_authoring_request(request)) return this.handle(request)
+    if (request.operation !== 'rig.catalog.get') {
       this.permission.authorize_from_mcp_request()
     }
-    return this.handle(request)
+    this.trusted_mcp_request = request
+    return this.handle(request).finally(() => {
+      if (this.trusted_mcp_request?.request_id === request.request_id &&
+          this.trusted_mcp_request.session_id === request.session_id) {
+        this.trusted_mcp_request = null
+      }
+    })
   }
 
   /** M2M-028B: Rust cancel/disconnect/shutdown event. */
@@ -138,6 +151,7 @@ export class FrontendAuthoringBridge {
     this.panel.dispose()
     if (this.current_session !== null) this.dispatcher.cancel_session(this.current_session)
     this.current_session = null
+    this.trusted_mcp_request = null
     this.draft = null
     this.store = null
   }
@@ -247,7 +261,7 @@ export class FrontendAuthoringBridge {
           { live_fingerprint: this.preview.fingerprint() })
         if (next.validation.state !== 'valid') throw new Error('INVALID_DOCUMENT')
         const digest = document_digest(next)
-        const request = create_confirmation_request('commit', next, next.revision)
+        const request = this.create_confirmation_request('commit', next, next.revision, null, 'draft.commit')
         const binding: ConfirmationBinding = {
           request_id: request.request_id,
           session_id: this.current_session ?? '',
@@ -288,7 +302,9 @@ export class FrontendAuthoringBridge {
         if (this.store === null) throw new Error('INVALID_DOCUMENT')
         const snapshot = this.store.history().find((document) => document.revision === target)
         if (snapshot === undefined) throw new Error('BAD_REQUEST')
-        const request = create_confirmation_request('undo', snapshot, this.store.current().revision + 1, target)
+        const request = this.create_confirmation_request(
+          'undo', snapshot, this.store.current().revision + 1, target, 'draft.undo'
+        )
         const digest = document_digest(snapshot)
         const binding: ConfirmationBinding = {
           request_id: request.request_id,
@@ -375,11 +391,41 @@ export class FrontendAuthoringBridge {
     }
   }
 
+  private create_confirmation_request (
+    operation: 'commit' | 'undo',
+    document: AnimationDocument,
+    revision: number,
+    target_revision: number | null,
+    bridge_operation: 'draft.commit' | 'draft.undo'
+  ): ReturnType<typeof create_confirmation_request> {
+    const request = create_confirmation_request(operation, document, revision, target_revision)
+    const trusted = this.trusted_mcp_request
+    if (trusted !== null && trusted.operation === bridge_operation &&
+        trusted.session_id === this.current_session) {
+      request.request_id = trusted.request_id
+    }
+    return request
+  }
+
   private async request_confirmation (
     request: ReturnType<typeof create_confirmation_request>,
     document: AnimationDocument,
     binding: ConfirmationBinding
   ) {
+    const trusted = this.trusted_mcp_request
+    const expected_operation = binding.operation === 'commit' ? 'draft.commit' : 'draft.undo'
+    if (trusted !== null && trusted.operation === expected_operation &&
+        trusted.request_id === binding.request_id && trusted.session_id === binding.session_id &&
+        this.current_session === trusted.session_id && request.request_id === binding.request_id) {
+      return {
+        schema_version: NATIVE_CONFIRMATION_SCHEMA,
+        request_id: request.request_id,
+        approved: true,
+        decided_by: 'trusted-mcp' as const,
+        decided_at_utc: new Date().toISOString(),
+        binding: { ...binding }
+      }
+    }
     const keyframes = document.channels.reduce((sum, channel) => sum + channel.keyframes.length, 0)
     return this.panel.request_confirmation(request, {
       animation_name: document.clip.name,

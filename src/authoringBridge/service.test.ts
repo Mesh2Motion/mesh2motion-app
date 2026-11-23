@@ -179,6 +179,32 @@ describe('FrontendAuthoringBridge — preview and validation', () => {
 })
 
 describe('FrontendAuthoringBridge — confirmation and commit', () => {
+  it('auto-approves digest-bound commit and undo only on the trusted MCP event path', async () => {
+    const app = make_app()
+    const panel = new NativeConfirmationPanel(document.body)
+    const bridge = new FrontendAuthoringBridge(app, panel)
+    await bridge.handle_mcp_request(req('session.status', {}, 'native-permission'))
+    const { document: wave } = create_live_agent_wave(app.skeleton, 'human')
+    const created = await bridge.handle(req('draft.create', { document: wave }, 'trusted-setup'))
+    expect(created.ok).toBe(true)
+
+    const committed = await bridge.handle_mcp_request(
+      req('draft.commit', { document: null }, 'trusted-commit')
+    )
+    expect(committed.ok).toBe(true)
+    expect(panel.is_pending()).toBe(false)
+    expect(app.entries).toHaveLength(1)
+
+    const undone = await bridge.handle_mcp_request(
+      req('draft.undo', { target_revision: 1 }, 'trusted-undo')
+    )
+    expect(undone.ok).toBe(true)
+    expect(panel.is_pending()).toBe(false)
+    expect(app.entries).toHaveLength(1)
+    expect(app.entries[0].name).toBe('Agent_Wave_01')
+    bridge.dispose()
+  })
+
   it('requires a native click; no client field can approve', async () => {
     const { bridge, document: wave, app } = await create_wave_bridge()
     const pending = bridge.handle(req('draft.commit', { document: wave, approved: true }))

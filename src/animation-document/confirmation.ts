@@ -43,7 +43,8 @@ export interface NativeConfirmationResult {
   schema_version: typeof NATIVE_CONFIRMATION_SCHEMA
   request_id: string
   approved: boolean
-  decided_by: 'user'
+  /** MCP is trusted only when Rust delivers the request through the native Tauri event adapter. */
+  decided_by: 'user' | 'trusted-mcp'
   decided_at_utc: string | null
   rejection_reason?: string
   /** Present only when a native panel click produced this result. */
