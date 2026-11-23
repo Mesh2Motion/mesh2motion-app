@@ -182,14 +182,18 @@ export class FrontendAuthoringBridge {
             duration_seconds: typeof payload.duration_seconds === 'number' ? payload.duration_seconds : 2
           })
         const validated = with_validation(document, { live_fingerprint: this.preview.fingerprint() })
-        if (validated.validation.state !== 'valid') throw new Error('INVALID_DOCUMENT')
+        if (validated.validation.state !== 'valid') {
+          throw new Error(`INVALID_DOCUMENT: ${validated.validation.errors.join('; ')}`)
+        }
         this.store = new InMemoryAnimationDocumentStore(validated)
         this.draft = this.store.current()
         return { revision: this.draft.revision, validation: this.draft.validation } as unknown as Record<string, unknown>
       },
       draft_set_keyframes: async (payload) => {
         this.assert_live_rig()
-        if (this.store === null || this.draft === null) throw new Error('INVALID_DOCUMENT')
+        if (this.store === null || this.draft === null) {
+          throw new Error('INVALID_DOCUMENT: no active draft in the current live-rig attachment')
+        }
         const expected_revision = payload.expected_revision
         if (typeof expected_revision !== 'number' || expected_revision !== this.store.current().revision) {
           throw new Error('BAD_REQUEST: stale expected_revision')
@@ -200,7 +204,7 @@ export class FrontendAuthoringBridge {
         if (typeof bone_id !== 'string' || !this.draft.bones.some((bone) => bone.id === bone_id) ||
             (property !== 'position' && property !== 'quaternion' && property !== 'scale') ||
             !Array.isArray(keyframes) || keyframes.length === 0) {
-          throw new Error('INVALID_DOCUMENT')
+          throw new Error('INVALID_DOCUMENT: unknown bone_id, unsupported property, or empty keyframes')
         }
         const candidate = with_animation_channel(this.draft, {
           bone_id,
@@ -211,7 +215,9 @@ export class FrontendAuthoringBridge {
           { ...candidate, revision: expected_revision + 1 },
           { live_fingerprint: this.preview.fingerprint() }
         )
-        if (validated.validation.state !== 'valid') throw new Error('INVALID_DOCUMENT')
+        if (validated.validation.state !== 'valid') {
+          throw new Error(`INVALID_DOCUMENT: ${validated.validation.errors.join('; ')}`)
+        }
         const receipt = this.store.commit(validated)
         this.draft = receipt.document
         return { revision: receipt.revision, validation: receipt.document.validation } as unknown as Record<string, unknown>
@@ -224,7 +230,7 @@ export class FrontendAuthoringBridge {
       },
       draft_preview_start: async (payload) => {
         this.assert_live_rig()
-        const document = payload.document === undefined ? this.draft : this.require_document(payload)
+        const document = payload.document == null ? this.draft : this.require_document(payload)
         if (document === null) throw new Error('INVALID_DOCUMENT')
         this.preview.start(document)
         return { previewing: true, clip_name: document.clip.name } as unknown as Record<string, unknown>
@@ -235,7 +241,7 @@ export class FrontendAuthoringBridge {
       },
       draft_commit: async (payload) => {
         this.assert_live_rig()
-        const document = payload.document === undefined ? this.draft : this.require_document(payload)
+        const document = payload.document == null ? this.draft : this.require_document(payload)
         if (document === null || this.store === null) throw new Error('INVALID_DOCUMENT')
         const next = with_validation({ ...document, revision: this.store.current().revision + 1 },
           { live_fingerprint: this.preview.fingerprint() })

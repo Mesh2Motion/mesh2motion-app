@@ -147,8 +147,9 @@ describe('FrontendAuthoringBridge — live Agent_Wave_01', () => {
 
 describe('FrontendAuthoringBridge — preview and validation', () => {
   it('previews a valid live document and stops cleanly', async () => {
-    const { bridge, document: wave } = await create_wave_bridge()
-    const started = await bridge.handle(req('draft.preview.start', { document: wave }))
+    const { bridge } = await create_wave_bridge()
+    // serde serializes absent Option<AnimationDocument> values as null.
+    const started = await bridge.handle(req('draft.preview.start', { action: 'start', document: null }))
     expect(started.ok).toBe(true)
     expect(started.result?.previewing).toBe(true)
     const stopped = await bridge.handle(req('draft.preview.stop', {}, 'req-2'))
@@ -194,7 +195,8 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
 
   it('commits to the real library only after approval and supports undo', async () => {
     const { bridge, document: wave, app } = await create_wave_bridge()
-    const pending = bridge.handle(req('draft.commit', { document: wave }))
+    // The Rust MCP tool sends document:null when the optional argument is omitted.
+    const pending = bridge.handle(req('draft.commit', { document: null }))
     await new Promise(resolve => setTimeout(resolve, 0))
     const panel = document.body.querySelector<HTMLElement>('.m2m-authoring-confirmation')
     expect(panel?.textContent).toContain('Agent_Wave_01')
