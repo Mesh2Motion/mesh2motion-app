@@ -245,7 +245,7 @@ describe('M2M-028B state integrity', () => {
     const bridge = new FrontendAuthoringBridge(app())
     expect(bridge.is_permission_enabled()).toBe(false)
     const result = await bridge.handle(req('draft.create', { name: 'x', duration_seconds: 1 }, 'blocked'))
-    expect(result.error?.code).toBe('BAD_REQUEST')
+    expect(result.error?.code).toBe('AUTHORING_DISABLED')
     bridge.dispose()
   })
 

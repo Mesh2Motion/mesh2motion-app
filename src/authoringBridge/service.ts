@@ -100,7 +100,7 @@ export class FrontendAuthoringBridge {
         session_id: typeof typed.session_id === 'string' ? typed.session_id : '',
         sequence: typeof typed.sequence === 'number' ? typed.sequence : 0,
         ok: false,
-        error: { code: 'BAD_REQUEST', message: 'animation authoring is disabled; enable it in the application first' }
+        error: { code: 'AUTHORING_DISABLED', message: 'animation authoring is disabled; enable it in the application first' }
       })
     }
     if (typed !== null && typeof typed === 'object') {

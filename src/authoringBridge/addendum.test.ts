@@ -155,7 +155,7 @@ describe('M2M-028A addendum — authorization boundaries', () => {
     const fake = fake_engine()
     const bridge = new FrontendAuthoringBridge(bridge_app(fake.engine))
     const result = await bridge.handle({ ...req('draft.commit'), approved: true, payload: { approved: true } })
-    expect(result.error?.code).toBe('BAD_REQUEST')
+    expect(result.error?.code).toBe('AUTHORING_DISABLED')
     bridge.dispose()
   })
 

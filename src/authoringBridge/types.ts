@@ -58,12 +58,15 @@ export type AuthoringErrorCode =
   | 'COMMIT_FAILED'
   | 'UNDO_FAILED'
   | 'INTERNAL'
+  /** Rust host additions (authoring_bridge.rs) — keep in sync. */
+  | 'AUTHORING_DISABLED'
+  | 'APP_DISCONNECTED'
 
 export interface AuthoringRequest {
   protocol: typeof AUTHORING_BRIDGE_PROTOCOL
   request_id: string
   session_id: string
-  /** Strictly increasing u64-compatible integer, per session. */
+  /** Strictly increasing per session; JSON-safe subset of Rust u64 (1..2^53-1). */
   sequence: number
   deadline_ms: number
   operation: AuthoringOperation
@@ -101,6 +104,9 @@ export interface RigCatalogResult {
 export function is_authoring_request (value: unknown): value is AuthoringRequest {
   if (typeof value !== 'object' || value === null) return false
   const request = value as Record<string, unknown>
+  // Rust uses #[serde(deny_unknown_fields)] on the envelope; match it exactly.
+  const allowed_keys = ['protocol', 'request_id', 'session_id', 'sequence', 'deadline_ms', 'operation', 'payload']
+  if (Object.keys(request).some((key) => !allowed_keys.includes(key))) return false
   return request.protocol === AUTHORING_BRIDGE_PROTOCOL &&
     typeof request.request_id === 'string' &&
     typeof request.session_id === 'string' &&
