@@ -325,8 +325,9 @@ export class FrontendAuthoringBridge {
         return { revision: receipt.revision, entry_id: this.owner.authored_entries().slice(-1)[0]?.entry_id ?? '' } as unknown as Record<string, unknown>
       },
       draft_export: async () => {
-        if (this.draft === null) throw new Error('INVALID_DOCUMENT')
-        return { document: JSON.parse(JSON.stringify(this.draft)) } as Record<string, unknown>
+        const document = this.draft ?? this.store?.current() ?? null
+        if (document === null) throw new Error('INVALID_DOCUMENT')
+        return { document: JSON.parse(JSON.stringify(document)) } as Record<string, unknown>
       },
       draft_import: async (payload) => {
         this.assert_live_rig()

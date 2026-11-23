@@ -204,6 +204,10 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
     const committed_entry_id = (committed.result as { entry_id: string }).entry_id
     expect(app.entries).toHaveLength(1)
     expect(app.entries[0].metadata.tags).toContain('authored-animation-document')
+    const committed_export = await bridge.handle(req('draft.export', {}, 'export-committed'))
+    const committed_document = (committed_export.result as { document: typeof wave }).document
+    expect(committed_document.revision).toBe((committed.result as { revision: number }).revision)
+    expect(committed_document.channels).toEqual(wave.channels)
 
     const undo_pending = bridge.handle(req('draft.undo', { target_revision: 1 }, 'req-2'))
     await new Promise(resolve => setTimeout(resolve, 0))
