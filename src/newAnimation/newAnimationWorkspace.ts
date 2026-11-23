@@ -316,6 +316,10 @@ export class NewAnimationWorkspace {
   }
 
   private async load_rig (type: SkeletonType): Promise<void> {
+    // The bridge derives the rig identifier from the load-skeleton step. This
+    // page loads pre-rigged GLBs directly, so publish the chosen type here or
+    // draft.create/draft.set_keyframes fail with "unsupported rig none".
+    this.engine.load_skeleton_step.set_skeleton_type(type)
     const rig = RigConfig.by_skeleton_type(type)
     if (rig === undefined) throw new Error(`unsupported rig ${type}`)
     const variation = rig.model_variations.find((item) => item.name === 'base') ?? rig.model_variations[0]
