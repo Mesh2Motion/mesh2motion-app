@@ -68,7 +68,8 @@ function apply_snapshot (engine: ObservationAttachEngine, snapshot: RigSnapshot)
         const data = payload as { capture_id?: string, request_id?: string } | null
         if (data === null || typeof data !== 'object') return
         service.cancel(data.capture_id ?? data.request_id)
-      }
+      },
+      (capture_id, view) => service.getCaptureImage(capture_id, view)
     )
     window.m2mPoseObservationAdapter = adapter
     install = { service, snapshot, adapter }
