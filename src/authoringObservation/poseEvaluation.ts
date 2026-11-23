@@ -9,6 +9,7 @@
 
 import { type Bone, type Skeleton, Vector3, Quaternion } from 'three'
 import type { AnimationChannel, AnimationDocument, AnimationProperty } from '../animation-document/types'
+import { bone_rest_transforms } from '../animation-document/rigIdentity'
 import { lerp_vector, slerp_quaternion } from '../animation-document/conventions'
 import { sha256_hex } from '../animation-document/sha256'
 import type { EvaluatedJoint, ObservationPoseSource } from './types'
@@ -100,6 +101,18 @@ export function apply_evaluated_pose (
     scale: bone.scale.clone()
   }))
   try {
+    // A live mixer can change bones that have no channel in this document.
+    // Start from the bind-pose transforms recovered from the skeleton's bone
+    // inverses so the same document/time always produces the same full pose.
+    const rest_transforms = bone_rest_transforms(skeleton)
+    for (let index = 0; index < skeleton.bones.length; index++) {
+      const bone = skeleton.bones[index]
+      const rest = rest_transforms[index]
+      if (bone === undefined || rest === undefined) continue
+      bone.position.set(...rest.position)
+      bone.quaternion.set(...rest.quaternion)
+      bone.scale.set(...rest.scale)
+    }
     for (const value of evaluated) {
       const bone = skeleton.bones[value.index]
       if (bone === undefined) continue

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { Vector3 } from 'three'
 import { create_empty_document, with_animation_channel } from '../animation-document/create'
 import { apply_evaluated_pose, evaluate_document_at_time, pose_digest } from './poseEvaluation'
 import { make_test_rig } from './testFixtures'
+import { bone_rest_transforms } from '../animation-document/rigIdentity'
 
 function make_document () {
   const { skeleton } = make_test_rig()
@@ -59,5 +61,24 @@ describe('pose evaluation drives real movement', () => {
     applied.restore()
 
     expect(Array.from(matrices.slice(offset, offset + 16))).toEqual(before)
+  })
+
+  it('resets unkeyed live-mixer transforms to bind pose for deterministic captures', () => {
+    const { document, skeleton } = make_document()
+    skeleton.calculateInverses()
+    const head_index = document.bones.find((entry) => entry.display_name === 'head')!.index
+    const unkeyed = skeleton.bones[head_index]!
+    const live_mixer_quaternion = unkeyed.quaternion.clone().setFromAxisAngle(new Vector3(0, 1, 0), 1.2)
+    unkeyed.quaternion.copy(live_mixer_quaternion)
+    const bind_pose = bone_rest_transforms(skeleton)
+    const expected = bind_pose[head_index]!
+
+    const applied = apply_evaluated_pose(skeleton, evaluate_document_at_time(document, 0.5))
+    expect(unkeyed.quaternion.x).toBeCloseTo(expected.quaternion[0])
+    expect(unkeyed.quaternion.y).toBeCloseTo(expected.quaternion[1])
+    expect(unkeyed.quaternion.z).toBeCloseTo(expected.quaternion[2])
+    expect(unkeyed.quaternion.w).toBeCloseTo(expected.quaternion[3])
+    applied.restore()
+    expect(unkeyed.quaternion.equals(live_mixer_quaternion)).toBe(true)
   })
 })

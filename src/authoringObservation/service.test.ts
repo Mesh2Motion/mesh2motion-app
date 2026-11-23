@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Color, PerspectiveCamera, Scene, Vector4, type WebGLRenderer } from 'three'
+import { Color, PerspectiveCamera, Scene, Vector3, Vector4, type WebGLRenderer } from 'three'
 import { PoseObservationService, type ObservationEngine } from './service'
 import { create_empty_document, with_animation_channel } from '../animation-document/create'
 import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
@@ -162,6 +162,28 @@ describe('PoseObservationService', () => {
     expect(result.revision).toBe(source.document.revision)
     expect(typeof result.pose_digest).toBe('string')
     expect(state.render_calls).toBe(6)
+    service.dispose()
+  })
+
+  it('keeps geometry identical when unrelated live animation changes between captures', async () => {
+    const source = make_source()
+    source.skeleton.calculateInverses()
+    const head_index = source.document.bones.find((bone) => bone.display_name === 'head')!.index
+    const head = source.skeleton.bones[head_index]!
+    const { engine } = make_engine()
+    const service = make_service(source, engine)
+    const first = await service.handle(request(source, { ...capture_payload(source), views: ['front'] }))
+    const first_result = first.result as { views: Array<{ joints: Array<{ bone_id: string, world_position: number[] }> }> }
+    const first_head = first_result.views[0]!.joints.find((joint) => joint.bone_id === source.document.bones[head_index]!.id)!
+
+    // Simulate a live mixer changing an unkeyed bone while no draft channel
+    // targets it. Observation must still restart from the same bind pose.
+    head.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), 1.2)
+    const second = await service.handle(request(source, { ...capture_payload(source), views: ['front'] }))
+    const second_result = second.result as { views: Array<{ joints: Array<{ bone_id: string, world_position: number[] }> }> }
+    const second_head = second_result.views[0]!.joints.find((joint) => joint.bone_id === source.document.bones[head_index]!.id)!
+    expect(second_head.world_position).toEqual(first_head.world_position)
+    expect(head.quaternion.y).toBeCloseTo(Math.sin(1.2 / 2))
     service.dispose()
   })
 
