@@ -180,6 +180,22 @@ body.composer-is-dragging .composer-slot.is-drag-over {
     display: block;
 }
 
+/*
+ * M2M-025D (NATIVE-005): WebKitGTK can leave the scroll container's own
+ * background layer unpainted on the first frame after the virtualized catalog
+ * mounts, so the whole rectangle appears black until a scroll invalidates it.
+ * The computed background color is already correct (verified in WebKitGTK), so
+ * this is a repaint/layer problem, not a CSS-variable timing problem.
+ *
+ * Give the virtualized content wrapper an explicit themed background and make
+ * it cover the viewport from the very first frame. The visible pixels then
+ * come from a normally painted child instead of the scroller's layer.
+ */
+#composer-library-items.virtualized-animation-catalog .virtualized-catalog-content {
+    min-height: 100%;
+    background-color: var(--bg-alternate);
+}
+
 /* styles.css pads every div. the Explore listing turns that off for its tiles too */
 #composer-library-items div {
     padding: 0;
