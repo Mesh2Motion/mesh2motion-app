@@ -81,4 +81,21 @@ describe('pose evaluation drives real movement', () => {
     applied.restore()
     expect(unkeyed.quaternion.equals(live_mixer_quaternion)).toBe(true)
   })
+
+  it('renders the same evaluated pose identically after an animation frame', () => {
+    const { document, skeleton } = make_document()
+    const head_index = document.bones.find((entry) => entry.display_name === 'head')!.index
+    const head = skeleton.bones[head_index]!
+    const evaluated = evaluate_document_at_time(document, 0.5)
+    const first = apply_evaluated_pose(skeleton, evaluated)
+    const matrices = Array.from(skeleton.boneMatrices!)
+    const world_position = head.getWorldPosition(new Vector3()).toArray()
+    first.restore()
+
+    head.quaternion.set(0.5, 0.5, 0.5, 0.5)
+    const second = apply_evaluated_pose(skeleton, evaluated)
+    expect(Array.from(skeleton.boneMatrices!)).toEqual(matrices)
+    expect(head.getWorldPosition(new Vector3()).toArray()).toEqual(world_position)
+    second.restore()
+  })
 })

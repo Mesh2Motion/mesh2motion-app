@@ -140,4 +140,22 @@ describe('draft_document_to_clip', () => {
     expect(clip.name).toBe('Live Draft')
     expect(clip.tracks[0].name).toBe('upperarm.R.quaternion')
   })
+
+  it('pins unauthored bones to their bind pose so playback is not contorted', () => {
+    const skeleton = create_agent_wave_skeleton()
+    const document = create_document_from_live_rig({
+      skeleton, rig_identifier: 'human', clip_name: 'Rest Baseline', duration_seconds: 1
+    })
+    document.channels.push({
+      bone_id: 'human:bone:010',
+      property: 'quaternion',
+      keyframes: [{ time_seconds: 0, values: [0, 0, 0, 1], interpolation: 'slerp' }]
+    })
+    const clip = draft_document_to_clip(document, skeleton)
+    const unauthored = document.bones.find((bone) => bone.id !== 'human:bone:010')!
+    const rest_track = clip.tracks.find((track) => track.name === `${unauthored.display_name}.quaternion`)
+    expect(rest_track).toBeDefined()
+    expect(Array.from(rest_track!.times)).toEqual([0, clip.duration])
+    expect(rest_track!.values.length).toBe(8)
+  })
 })
