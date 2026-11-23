@@ -568,6 +568,11 @@ export class StepAnimationsListing extends EventTarget {
 
           if (target_button.getAttribute('data-action') === 'delete-animation') {
             event.stopPropagation()
+            const entry = this.animation_library.find(animation_id)
+            const label = entry?.name ?? 'this animation'
+            if (!window.confirm(`Delete "${label}"? This cannot be undone. Bundled animations are protected.`)) {
+              return
+            }
             const outcome = this.delete_animation(animation_id)
             if (outcome.protected === true) {
               window.alert('Bundled animations are protected and cannot be deleted.')

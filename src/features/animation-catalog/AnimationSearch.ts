@@ -7,6 +7,7 @@ import { type AnimationExportSelection, type AnimationMirrorExportMode } from '.
 import { AnimationRequestDialog } from '../../lib/components/animation-request/AnimationRequestDialog.ts'
 import { ModalDialog } from '../../ui/dialogs/ModalDialog.ts'
 import { VirtualizedAnimationCatalog } from './VirtualizedAnimationCatalog.ts'
+import { get_authored_preview_frames } from '../../animation-document/authoredLibrary.ts'
 
 export class AnimationSearch extends EventTarget {
   private all_animations: AnimationWithState[] = []
@@ -460,9 +461,16 @@ export class AnimationSearch extends EventTarget {
       ? ' anim-preview-placeholder--no-poster'
       : ''
     const poster_attribute = poster_src === null ? '' : ` data-poster-src="${poster_src}"`
-    const poster_image_html = poster_src === null
-      ? ''
-      : '<img class="anim-preview-poster" alt="" aria-hidden="true" decoding="async">'
+    // Authored/MCP clips have no bundled MP4; use the frames rendered from the
+    // live rig by the internal observation cameras instead of a blank tile.
+    const authored_frames = is_custom_animation
+      ? get_authored_preview_frames(animation_clip.id)
+      : null
+    const poster_image_html = authored_frames !== null && authored_frames.length > 0
+      ? `<img class="anim-preview-poster" src="${authored_frames[0]}" alt="" aria-hidden="true" decoding="async">`
+      : poster_src === null
+        ? ''
+        : '<img class="anim-preview-poster" alt="" aria-hidden="true" decoding="async">'
     const custom_animation_badge_html = is_custom_animation
       ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
       : ''
@@ -505,6 +513,25 @@ export class AnimationSearch extends EventTarget {
         </div>`
     const tile = template.content.firstElementChild
     if (!(tile instanceof HTMLElement)) throw new Error('Could not render animation catalogue tile')
+    if (authored_frames !== null && authored_frames.length > 1) {
+      const poster = tile.querySelector<HTMLImageElement>('.anim-preview-poster')
+      let flip_timer: number | null = null
+      let frame = 0
+      tile.addEventListener('mouseenter', () => {
+        if (poster === null || flip_timer !== null) return
+        flip_timer = window.setInterval(() => {
+          frame = (frame + 1) % authored_frames.length
+          poster.src = authored_frames[frame]
+        }, 160)
+      })
+      tile.addEventListener('mouseleave', () => {
+        if (flip_timer !== null) {
+          window.clearInterval(flip_timer)
+          flip_timer = null
+        }
+        if (poster !== null && authored_frames.length > 0) poster.src = authored_frames[0]
+      })
+    }
     return tile
   }
 

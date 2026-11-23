@@ -728,7 +728,14 @@ export class Mesh2MotionEngine {
       // M2M-031: rehydrate persisted user/MCP authored clips into this engine's
       // application-owned library so they are inspectable in the Explore tab.
       if (final_skeleton !== undefined) {
-        restore_authored_documents(this.animations_listing_step, final_skeleton, active_skeleton_type)
+        restore_authored_documents(
+          this.animations_listing_step,
+          final_skeleton,
+          active_skeleton_type,
+          this.renderer,
+          this.scene,
+          this.weight_skin_step.final_skinned_meshes()
+        )
       }
 
       if (this.skeleton_helper !== undefined) {

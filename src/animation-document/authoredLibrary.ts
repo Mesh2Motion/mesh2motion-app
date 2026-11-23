@@ -6,11 +6,14 @@
  * only documents explicitly committed or imported by the user/MCP are stored.
  */
 
-import type { Skeleton } from 'three'
+import { type Skeleton, type SkinnedMesh, type Scene, type WebGLRenderer } from 'three'
 import { AUTHORED_TAG } from '../authoringBridge/applicationOwner'
 import type { StepAnimationsListing } from '../lib/processes/animations-listing/StepAnimationsListing'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
 import { check_rig_compatibility, draft_document_to_clip } from './liveRigAdapter'
+import { OffscreenCapture } from '../authoringObservation/capture'
+import { compute_framing, create_observation_camera } from '../authoringObservation/cameraGeometry'
+import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation'
 import type { AnimationDocument } from './types'
 
 const STORAGE_KEY = 'm2m.authored-animations.v1'
@@ -23,9 +26,17 @@ export interface StoredAuthoredDocument {
   document: AnimationDocument
   source_name: string | null
   saved_at: number
+  /** Small PNG data URLs rendered from the live rig for the catalog poster/flipbook. */
+  preview_frames?: string[]
 }
 
 const restored_ids = new Set<string>()
+/** Maps a library entry id to its generated preview frames. */
+const preview_frames_by_entry = new Map<string, string[]>()
+
+export function get_authored_preview_frames (entry_id: string): readonly string[] | null {
+  return preview_frames_by_entry.get(entry_id) ?? null
+}
 
 function is_stored (value: unknown): value is StoredAuthoredDocument {
   if (typeof value !== 'object' || value === null) return false
@@ -100,6 +111,51 @@ export function authored_id_from_tags (tags: readonly string[] | undefined): str
   return tag === undefined ? null : tag.slice(AUTHORED_ID_TAG_PREFIX.length)
 }
 
+function to_base64 (bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+/**
+ * Render a small front-view flipbook from the authored pose. Uses the same
+ * offscreen capture path as MCP observations and never touches the visible camera.
+ */
+export function generate_authored_preview (
+  document: AnimationDocument,
+  skeleton: Skeleton,
+  renderer: WebGLRenderer,
+  scene: Scene,
+  meshes: readonly SkinnedMesh[],
+  frame_count = 8
+): string[] {
+  const capture = new OffscreenCapture({ renderer, scene, active_skinned_meshes: () => meshes })
+  const frames: string[] = []
+  try {
+    for (let index = 0; index < frame_count; index++) {
+      const ratio = frame_count > 1 ? index / (frame_count - 1) : 0
+      const time = ratio * document.clip.duration_seconds
+      const pose = apply_evaluated_pose(skeleton, evaluate_document_at_time(document, time))
+      try {
+        const framing = compute_framing(skeleton, 128, 128)
+        if (framing === null) continue
+        const camera = create_observation_camera({
+          view: 'front', framing, width: 128, height: 128, projection: 'orthographic'
+        })
+        const encoded = capture.render(camera, 128, 128, 'image/png', 0.8, null)
+        frames.push(`data:${encoded.mime};base64,${to_base64(encoded.bytes)}`)
+      } finally {
+        pose.restore()
+      }
+    }
+  } catch {
+    // A renderer without WebGL2 cannot produce a preview; the tile still works.
+  } finally {
+    capture.dispose()
+  }
+  return frames
+}
+
 /**
  * Rehydrate persisted documents into an engine's application-owned library.
  * Mismatched rigs are skipped, never remapped by bone name.
@@ -107,7 +163,10 @@ export function authored_id_from_tags (tags: readonly string[] | undefined): str
 export function restore_authored_documents (
   listing: StepAnimationsListing,
   skeleton: Skeleton,
-  rig_identifier: string
+  rig_identifier: string,
+  renderer?: WebGLRenderer,
+  scene?: Scene,
+  meshes?: readonly SkinnedMesh[]
 ): number {
   let restored = 0
   for (const stored of load_authored_documents()) {
@@ -131,7 +190,23 @@ export function restore_authored_documents (
           ]
         }
       }
-      listing.add_authored_animation(pair)
+      const entry = listing.add_authored_animation(pair)
+      if (renderer !== undefined && scene !== undefined && meshes !== undefined) {
+        const frames = (stored.preview_frames?.length ?? 0) > 0
+          ? stored.preview_frames!
+          : generate_authored_preview(document, skeleton, renderer, scene, meshes)
+        if (frames.length > 0) {
+          preview_frames_by_entry.set(entry.id, frames)
+          if (stored.preview_frames === undefined) {
+            const entries = load_authored_documents()
+            const index = entries.findIndex((item) => item.id === stored.id)
+            if (index >= 0) {
+              entries[index] = { ...stored, preview_frames: frames }
+              write(entries)
+            }
+          }
+        }
+      }
       restored_ids.add(stored.id)
       restored++
     } catch {
