@@ -72,12 +72,24 @@
             </div>
 
             <fieldset>
-                <legend>Keyframe editor</legend>
+                <legend>Clip editor</legend>
                 <div id="new-animation-revision" aria-live="polite">no active draft</div>
-                <div id="new-animation-tracks" class="new-animation-tracks" aria-label="Bone channels"></div>
-                <div class="new-animation-timeline-wrap">
+
+                <div class="m2m-clip-toolbar">
+                    <button id="new-animation-play" type="button" disabled aria-label="Play or pause">▶</button>
+                    <button id="new-animation-stop" type="button" disabled aria-label="Stop and rewind">■</button>
                     <span id="new-animation-time" aria-live="off">0.000 s</span>
-                    <div id="new-animation-timeline" class="new-animation-timeline" aria-label="Keyframe timeline"></div>
+                    <span class="m2m-clip-hint">Click the ruler to scrub · double-click a lane to add a keyframe</span>
+                </div>
+
+                <div id="new-animation-timeline" class="new-animation-timeline" aria-label="Keyframe timeline">
+                    <div id="new-animation-ruler" class="m2m-ruler" aria-label="Time ruler"></div>
+                    <div class="m2m-clip-body">
+                        <div id="new-animation-tracks" class="new-animation-tracks" aria-label="Bone channels"></div>
+                        <div id="new-animation-lanes" class="m2m-lanes" aria-label="Keyframe lanes">
+                            <div id="new-animation-playhead" class="m2m-playhead" aria-hidden="true"></div>
+                        </div>
+                    </div>
                 </div>
                 <div id="new-animation-values" class="new-animation-values" aria-label="Local transform values"></div>
                 <div class="new-animation-bone-tools">

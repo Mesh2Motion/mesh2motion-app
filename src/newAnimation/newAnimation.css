@@ -91,12 +91,30 @@ html[data-theme='light'] #new-animation-panel select {
 
 .new-animation-source-list,
 .new-animation-tracks {
-    max-height: 9rem;
     overflow-y: auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+/* Flex containers shrink their children by default; with 66 bones that turned
+   the list into unreadable slivers. Keep every row at its natural height. */
+.new-animation-bone-list .m2m-track-row {
+    flex: 0 0 auto;
+    min-height: 1.65rem;
+    line-height: 1.2;
+}
+
+#new-animation-panel input[type="search"] {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 4px;
+    padding: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .m2m-track-row {
@@ -120,35 +138,138 @@ html[data-theme='light'] #new-animation-panel select {
     background: rgba(127, 127, 127, 0.18);
 }
 
-.new-animation-timeline-wrap {
-    position: relative;
-    min-width: 0;
-    padding-top: 1.1rem;
+/* Godot-style clip editor: time ruler over per-channel lanes with a playhead. */
+.m2m-clip-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
 }
+
+.m2m-clip-toolbar button {
+    min-width: 2rem;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.m2m-clip-hint { opacity: 0.72; }
 
 .new-animation-timeline {
     position: relative;
     width: 100%;
     min-width: 0;
-    display: flex;
-    align-items: center;
+    border: 1px solid rgba(127, 127, 127, 0.4);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.14);
+    user-select: none;
 }
 
-.new-animation-timeline input[type="range"] {
-    width: 100%;
-    min-width: 0;
+.m2m-ruler {
+    position: relative;
+    height: 1.5rem;
+    margin-left: 8.5rem;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.45);
+    cursor: ew-resize;
+    overflow: hidden;
 }
+
+.m2m-ruler-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid rgba(127, 127, 127, 0.4);
+    font-size: 0.65rem;
+    padding-left: 2px;
+    pointer-events: none;
+}
+
+.m2m-clip-body {
+    position: relative;
+    display: flex;
+    height: 15rem;
+    max-height: 15rem;
+    overflow: hidden;
+}
+
+.new-animation-tracks {
+    flex: 0 0 8.5rem;
+    width: 8.5rem;
+    border-right: 1px solid rgba(127, 127, 127, 0.45);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.m2m-lanes {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.m2m-lane {
+    position: relative;
+    height: 1.65rem;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.18);
+    cursor: crosshair;
+}
+
+.m2m-lane:nth-child(even) { background: rgba(127, 127, 127, 0.07); }
+
+.m2m-lane.selected { background: rgba(74, 144, 217, 0.18); }
 
 .m2m-keyframe-marker {
     position: absolute;
-    top: -0.2rem;
-    width: 8px;
-    height: 8px;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin-top: -4.5px;
     padding: 0;
-    border-radius: 50%;
-    transform: translateX(-50%);
-    background: #4a90d9;
-    border: 1px solid #fff;
+    border-radius: 2px;
+    transform: translateX(-50%) rotate(45deg);
+    background: #7fb4e8;
+    border: 1px solid #dcecff;
+    cursor: pointer;
+}
+
+.m2m-keyframe-marker.selected { background: #ffd166; border-color: #fff3c4; }
+
+.m2m-lane-label {
+    flex: 0 0 auto;
+    height: 1.65rem;
+    line-height: 1.65rem;
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.m2m-lane-label.selected { background: rgba(74, 144, 217, 0.25); }
+
+.m2m-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #6ee7b7;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.m2m-playhead::before {
+    content: '';
+    position: absolute;
+    top: -1.5rem;
+    left: -4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #6ee7b7;
 }
 
 .new-animation-values {

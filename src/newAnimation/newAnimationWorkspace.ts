@@ -65,10 +65,15 @@ export class NewAnimationWorkspace {
     this.editor = new KeyframeEditor(this.controller, {
       tracks: by_id('new-animation-tracks'),
       timeline: by_id('new-animation-timeline'),
+      ruler: by_id('new-animation-ruler'),
+      lanes: by_id('new-animation-lanes'),
+      playhead: by_id('new-animation-playhead'),
+      play_button: by_id<HTMLButtonElement>('new-animation-play'),
+      stop_button: by_id<HTMLButtonElement>('new-animation-stop'),
       time_label: by_id('new-animation-time'),
       values: by_id('new-animation-values'),
       status: by_id('new-animation-status')
-    })
+    }, this.engine)
     this.editor.set_pose_applier((time) => { this.apply_pose_at_time(time) })
     this.editor.set_time(0)
     this.controller.subscribe(() => {
@@ -368,6 +373,7 @@ export class NewAnimationWorkspace {
 
   private async toggle_preview (): Promise<void> {
     try {
+      if (this.previewing === false) this.editor.stop() // local timeline playback vs bridge preview
       this.previewing = !this.previewing
       await this.controller.preview(this.previewing)
       this.set_status(this.previewing ? 'Previewing the authored draft.' : 'Preview stopped.')
