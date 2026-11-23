@@ -25,15 +25,6 @@ export default defineConfig({
       emptyOutDir: true,
       sourcemap: true,
       rollupOptions: {
-        output: {
-          codeSplitting: {
-            groups: [
-              { name: 'three', test: /node_modules[\\/]three[\\/]/, minSize: 0, maxSize: 400_000, priority: 20 },
-              { name: 'zip-vendor', test: /node_modules[\\/](jszip|fflate)[\\/]/, minSize: 0, maxSize: 300_000, priority: 15 },
-              { name: 'vendor', test: /node_modules[\\/]/, minSize: 0, maxSize: 400_000, priority: 10 }
-            ]
-          }
-        },
         input: {
           main: resolve(import.meta.dirname, 'src/index.html'),
           create: resolve(import.meta.dirname, 'src/create.html'),
