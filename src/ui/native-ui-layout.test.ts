@@ -150,9 +150,10 @@ describe('M2M-023D native layout fixes', () => {
     expect(styles).toMatch(/#tool-panel\s*\{[^}]*z-index:\s*2/)
   })
 
-  it('lets bone-map columns wrap inside the rigging tool panel', () => {
+  it('keeps bone-map columns side by side and shrinks them to fit the panel', () => {
     expect(retarget_html).toContain('class="bone-map-grid"')
-    expect(retarget_css).toMatch(/\.bone-map-grid\s*\{[^}]*flex-wrap:\s*wrap/)
+    expect(retarget_css).toMatch(/\.bone-map-grid\s*\{[^}]*flex-wrap:\s*nowrap/)
+    expect(retarget_css).toMatch(/\.bone-map-section\s*\{[^}]*flex:\s*1 1 0/)
     expect(retarget_css).toMatch(/\.bone-map-section\s*\{[^}]*min-width:\s*0/)
   })
 
