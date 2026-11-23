@@ -38,6 +38,20 @@ function make_catalog (viewport: HTMLElement): VirtualizedAnimationCatalog<Entry
 }
 
 describe('VirtualizedAnimationCatalog', () => {
+  it('mounts a themed content wrapper that fills the viewport from the first frame', () => {
+    const viewport = make_viewport()
+    const catalog = make_catalog(viewport)
+    catalog.set_items(make_entries(234))
+    const content = viewport.querySelector<HTMLElement>('.virtualized-catalog-content')
+    expect(content).not.toBeNull()
+    expect(viewport.classList.contains('virtualized-animation-catalog')).toBe(true)
+    expect(content?.style.height).not.toBe('')
+    expect(content?.style.width).toBe('100%')
+    // No inline background may override the CSS rule that fixes NATIVE-005.
+    expect(content?.style.backgroundColor).toBe('')
+    catalog.dispose()
+  })
+
   let catalog: VirtualizedAnimationCatalog<Entry> | undefined
   let viewport: HTMLElement | undefined
 
