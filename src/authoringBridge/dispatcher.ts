@@ -158,7 +158,13 @@ export class AuthoringDispatcher {
       return error_response(request, code, message)
     } finally {
       this.in_flight = null
-      if (request.operation === 'session.cancel' && this.current_session === request.session_id) {
+      if (request.operation === 'session.cancel') {
+        // A trusted Rust/Tauri cancellation can arrive from a new sidecar
+        // process after the previous MCP peer disconnected before sending its
+        // own cancel. Clear the single app-owned session regardless of which
+        // MCP generation supplied the authorized cancellation request.
+        const active_session = this.current_session
+        if (active_session !== null) this.cancel_session(active_session)
         this.current_session = null
       }
     }
