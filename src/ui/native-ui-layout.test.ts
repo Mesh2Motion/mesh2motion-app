@@ -198,4 +198,13 @@ describe('M2M-025D Remix catalog first-paint background', () => {
       /#composer-library-items\.virtualized-animation-catalog::-\webkit-scrollbar-track\s*\{[^}]*var\(--bg-alternate\)/
     )
   })
+
+  it('themes the scrollbar corner and virtualized footer spacer', () => {
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog::-\webkit-scrollbar-corner\s*\{[^}]*var\(--bg-alternate\)/
+    )
+    expect(composer_styles).toMatch(
+      /#composer-library-items\.virtualized-animation-catalog \.virtualized-catalog-footer\s*\{[^}]*var\(--bg-alternate\)/
+    )
+  })
 })
