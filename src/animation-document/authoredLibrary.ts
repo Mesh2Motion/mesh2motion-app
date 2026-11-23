@@ -63,6 +63,18 @@ export function save_authored_document (
   return id
 }
 
+/** Avoid duplicate persistence when commit/undo re-applies the same revision. */
+export function save_authored_document_once (
+  document: AnimationDocument,
+  source_name: string | null = null
+): string | null {
+  const duplicate = load_authored_documents().some((entry) =>
+    entry.document.clip.name === document.clip.name &&
+    entry.document.revision === document.revision &&
+    entry.document.channels.length === document.channels.length)
+  return duplicate ? null : save_authored_document(document, source_name)
+}
+
 export function delete_authored_document (id: string): boolean {
   const entries = load_authored_documents()
   const remaining = entries.filter((entry) => entry.id !== id)

@@ -15,6 +15,7 @@ import type { AnimationApplicationOwner } from '../animation-document/applicatio
 import type { AnimationDocument } from '../animation-document/types'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry'
+import { save_authored_document_once } from '../animation-document/authoredLibrary.ts'
 
 export interface AuthoringApplicationEngine {
   animations_listing_step: {
@@ -64,6 +65,9 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
       }
     }
     const entry = this.engine.animations_listing_step.add_authored_animation(pair)
+    // MCP-authored clips are persisted too, so they are inspectable/deletable in
+    // a fresh Explore session. Deduplicated to avoid undo re-applying revisions.
+    save_authored_document_once(document, source ?? null)
     this.records.push({
       entry_id: entry.id,
       document_name: document.clip.name,
