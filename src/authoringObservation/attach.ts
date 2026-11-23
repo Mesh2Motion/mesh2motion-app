@@ -8,6 +8,8 @@
  */
 
 import { get_active_authoring_bridge } from '../authoringBridge/attach'
+import { live_skeleton_from_engine } from '../authoringBridge/rigCatalog'
+import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
 import { watch_rig_lifecycle, type RigLifecycleEngine, type RigSnapshot } from '../authoringBridge/rigLifecycle'
 import { PoseObservationService, type ObservationEngine, set_pose_observation_service } from './service'
 import { attachTauriPoseObservationAdapter, type TauriPoseObservationAdapter } from './tauriAdapter'
@@ -55,9 +57,15 @@ function apply_snapshot (engine: ObservationAttachEngine, snapshot: RigSnapshot)
       const bridge = get_active_authoring_bridge()
       const document = bridge?.current_document()
       if (current === null || current === undefined || document === undefined || document === null) return null
+      // Bind each observation to the currently rendered mesh skeleton. A
+      // lifecycle snapshot may have been captured before the page's SkinnedMesh
+      // replaced a helper skeleton with its live render skeleton.
+      const skeleton = live_skeleton_from_engine(engine)
+      if (skeleton === null || skeleton.bones.length === 0) return null
+      if (compute_rig_fingerprint(skeleton) !== current.fingerprint) return null
       return {
         document,
-        skeleton: current.skeleton,
+        skeleton,
         rig_identifier: current.identifier,
         fingerprint: current.fingerprint
       }

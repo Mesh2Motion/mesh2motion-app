@@ -165,7 +165,7 @@ describe('PoseObservationService', () => {
     service.dispose()
   })
 
-  it('omits optional inline pixels when the full six-view response nears the IPC ceiling', async () => {
+  it('omits optional inline pixels when six-view metadata nears the IPC ceiling', async () => {
     const source = make_source()
     const { engine } = make_engine()
     const service = new PoseObservationService({

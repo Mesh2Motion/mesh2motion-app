@@ -70,6 +70,25 @@ describe('AuthoringDispatcher', () => {
     dispatcher.dispose()
   })
 
+  it('clears a stale previous MCP session when a new sidecar cancels', async () => {
+    const dispatcher = new AuthoringDispatcher(handlers())
+    const first = await dispatcher.handle(request({
+      request_id: 'old-session-request', session_id: 'old-session', operation: 'rig.catalog.get', sequence: 1
+    }))
+    expect(first.ok).toBe(true)
+
+    const cancelled = await dispatcher.handle(request({
+      request_id: 'new-session-cancel', session_id: 'new-session', operation: 'session.cancel', sequence: 1
+    }))
+    expect(cancelled.ok).toBe(true)
+
+    const next = await dispatcher.handle(request({
+      request_id: 'next-session-request', session_id: 'next-session', operation: 'rig.catalog.get', sequence: 1
+    }))
+    expect(next.ok).toBe(true)
+    dispatcher.dispose()
+  })
+
   it('rejects oversized payloads and bad deadlines', async () => {
     const dispatcher = new AuthoringDispatcher(handlers())
     const big = await dispatcher.handle(request({ payload: { data: 'x'.repeat(600 * 1024) } }))
@@ -98,25 +117,6 @@ describe('AuthoringDispatcher', () => {
     expect(denied.error?.code).toBe('CONFIRMATION_DENIED')
     const cancelled = await dispatcher.handle(request({ request_id: 'req-2', operation: 'session.cancel' }))
     expect(cancelled.ok).toBe(true)
-    dispatcher.dispose()
-  })
-
-  it('clears a stale previous MCP session when a new sidecar sends session cancel', async () => {
-    const dispatcher = new AuthoringDispatcher(handlers())
-    const first = await dispatcher.handle(request({
-      request_id: 'old-session-request', session_id: 'old-session', operation: 'rig.catalog.get', sequence: 1
-    }))
-    expect(first.ok).toBe(true)
-
-    const cancelled = await dispatcher.handle(request({
-      request_id: 'new-session-cancel', session_id: 'new-session', operation: 'session.cancel', sequence: 1
-    }))
-    expect(cancelled.ok).toBe(true)
-
-    const next = await dispatcher.handle(request({
-      request_id: 'next-session-request', session_id: 'next-session', operation: 'rig.catalog.get', sequence: 1
-    }))
-    expect(next.ok).toBe(true)
     dispatcher.dispose()
   })
 
