@@ -178,6 +178,30 @@ body.composer-is-dragging .composer-slot.is-drag-over {
 #composer-library-items.virtualized-animation-catalog {
     position: relative;
     display: block;
+    isolation: isolate;
+}
+
+/* WebKitGTK can leave a virtualized scroller's own padding/scrollbar layer
+   black on its first frame even though computed background-color is correct.
+   Paint the scrollport from an explicit child layer, including the padding. */
+#composer-library-items.virtualized-animation-catalog::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: var(--bg-alternate);
+    pointer-events: none;
+}
+
+#composer-library-items.virtualized-animation-catalog .virtualized-catalog-content,
+#composer-library-items.virtualized-animation-catalog .virtualized-catalog-footer {
+    position: relative;
+    z-index: 1;
+}
+
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar,
+#composer-library-items.virtualized-animation-catalog::-webkit-scrollbar-track {
+    background-color: var(--bg-alternate);
 }
 
 /*
