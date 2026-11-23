@@ -263,8 +263,9 @@ test-only and never authorize a capture. No filesystem path, shell command, or `
 
 | Version | Frontend commit | Note |
 | --- | --- | --- |
-| `mcp-pose-observation/v1` (initial) | **_pending first commit on `m2m-030-031-observation-animation`_** | contract published to Codex via handoff channel |
+| `mcp-pose-observation/v1` (initial) | **`9683e96`** | contract published to Codex via handoff channel |
+| `mcp-pose-observation/v1` (implementation) | **`d4fd2b5`** … **`badb511`** | six cameras, capture service, New Animation workspace; no frozen rule changed |
 
-The exact SHA is appended to this table and to `coordination/handoffs/M2M-030-031-observation-channel.md`
-in the first implementation commit. No frozen rule of `animation-document/v1` or `authoring-bridge/v1`
-is changed by this contract.
+The exact SHAs are recorded in the table above and in
+`coordination/handoffs/M2M-030-031-observation-channel.md`. No frozen rule of
+`animation-document/v1` or `authoring-bridge/v1` is changed by this contract.
