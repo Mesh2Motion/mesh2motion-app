@@ -6,8 +6,7 @@ import type { TransformedAnimationClipPair } from '../lib/processes/animations-l
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry'
 import { FrontendAuthoringBridge, type AuthoringBridgeApp } from './service'
 import { NativeConfirmationPanel } from './confirmationPanel'
-import { attachTauriAuthoringAdapter, set_tauri_authoring_enabled, TAURI_CANCEL_EVENT, TAURI_REQUEST_EVENT, TAURI_RESPOND_COMMAND } from './tauriAdapter'
-import { AuthoringPermission } from './permission'
+import { attachTauriAuthoringAdapter, TAURI_CANCEL_EVENT, TAURI_REQUEST_EVENT, TAURI_RESPOND_COMMAND } from './tauriAdapter'
 import { create_confirmation_request } from '../animation-document/confirmation'
 
 let sequence = 0
@@ -88,16 +87,13 @@ function app (fail_insertion = false): AuthoringBridgeApp & { entries: string[],
 
 async function enabled_bridge (target: AuthoringBridgeApp = app()): Promise<FrontendAuthoringBridge> {
   const panel = new NativeConfirmationPanel(document.body)
-  const permission = new AuthoringPermission(document.body, async () => true)
-  const bridge = new FrontendAuthoringBridge(target, panel, permission)
-  const toggles = document.querySelectorAll<HTMLButtonElement>('#m2m-authoring-toggle')
-  toggles[toggles.length - 1]?.click()
+  const bridge = new FrontendAuthoringBridge(target, panel)
+  await bridge.handle_mcp_request(req('session.status'))
   return bridge
 }
 
 afterEach(() => {
   document.querySelectorAll('.m2m-authoring-confirmation').forEach((node) => node.remove())
-  document.querySelectorAll('#m2m-authoring-toggle').forEach((node) => node.remove())
 })
 
 describe('M2M-028B transport amendments', () => {
@@ -222,30 +218,29 @@ describe('M2M-028B Tauri adapter', () => {
     })
   })
 
-  it('synchronizes native permission only after the toggle click', async () => {
+  it('does not expose a UI permission toggle', async () => {
     const calls: Array<{ command: string, args: unknown }> = []
     Object.defineProperty(window, '__TAURI_INTERNALS__', {
       configurable: true,
       writable: true,
       value: { invoke: async (command: string, args: unknown) => { calls.push({ command, args }) } }
     })
-    const permission = new AuthoringPermission(document.body, set_tauri_authoring_enabled)
-    const toggle = document.querySelector<HTMLButtonElement>('#m2m-authoring-toggle')
-    expect(permission.is_enabled()).toBe(false)
-    toggle?.click()
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(calls).toContainEqual({ command: 'mcp_authoring_set_enabled', args: { enabled: true } })
-    expect(permission.is_enabled()).toBe(true)
-    permission.dispose()
+    const permission_controls = document.querySelectorAll('#m2m-authoring-toggle')
+    expect(permission_controls).toHaveLength(0)
+    expect(calls).toEqual([])
   })
 })
 
 describe('M2M-028B state integrity', () => {
-  it('permission is default-off and cannot be enabled by a request', async () => {
+  it('enables permission only through a valid native MCP request', async () => {
     const bridge = new FrontendAuthoringBridge(app())
     expect(bridge.is_permission_enabled()).toBe(false)
     const result = await bridge.handle(req('draft.create', { name: 'x', duration_seconds: 1 }, 'blocked'))
     expect(result.error?.code).toBe('AUTHORING_DISABLED')
+    expect(bridge.is_permission_enabled()).toBe(false)
+    const native_result = await bridge.handle_mcp_request(req('session.status', {}, 'native'))
+    expect(native_result.ok).toBe(true)
+    expect(bridge.is_permission_enabled()).toBe(true)
     bridge.dispose()
   })
 

@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Bone, Skeleton, Vector3, type SkinnedMesh } from 'three'
-import { attachAuthoringBridge, teardown } from './attach'
+import {
+  attachAuthoringBridge,
+  AUTHORING_REQUEST_EVENT,
+  AUTHORING_RESPONSE_EVENT,
+  get_authoring_bridge_for_testing,
+  teardown
+} from './attach'
 import { AuthoringDispatcher } from './dispatcher'
-import { AUTHORING_BRIDGE_PROTOCOL, type AuthoringRequest } from './types'
+import { AUTHORING_BRIDGE_PROTOCOL, type AuthoringRequest, type AuthoringResponse } from './types'
 import { FrontendAuthoringBridge, type AuthoringBridgeApp } from './service'
 import { DraftPreviewSession } from '../animation-document/preview'
-import { AuthoringPermission } from './permission'
 
 function make_skeleton (): Skeleton {
   const names = ['hips', 'spine', 'RightShoulder', 'RightUpperArm', 'RightForeArm', 'RightHand']
@@ -65,7 +70,6 @@ function req (operation: string, payload: Record<string, unknown> = {}, id?: str
 
 afterEach(async () => {
   await teardown()
-  document.querySelectorAll('#m2m-authoring-toggle').forEach((node) => node.remove())
   document.querySelectorAll('.m2m-authoring-confirmation').forEach((node) => node.remove())
 })
 
@@ -74,11 +78,11 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     const fake = fake_engine()
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).toBeUndefined()
+    expect(get_authoring_bridge_for_testing()).toBeUndefined()
     fake.meshes.push({ skeleton: make_skeleton() })
     fake.skeleton_step.dispatchEvent(new Event('skeletonLoaded'))
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).toBeDefined()
+    expect(get_authoring_bridge_for_testing()).toBeDefined()
   })
 
   it('does not create duplicate bridges on repeated page entry', async () => {
@@ -87,7 +91,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     attachAuthoringBridge(fake.engine as never)
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(document.querySelectorAll('#m2m-authoring-toggle')).toHaveLength(1)
+    expect(document.querySelectorAll('#m2m-authoring-toggle')).toHaveLength(0)
   })
 
   it('teardown removes frame listeners and the authoring bridge', async () => {
@@ -99,7 +103,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     expect(before).toBeGreaterThan(0)
     await teardown()
     expect(fake.frame_listeners.length).toBe(0)
-    expect(window.m2mAuthoringBridge).toBeUndefined()
+    expect(get_authoring_bridge_for_testing()).toBeUndefined()
   })
 
   it('replaces the session when the rig fingerprint changes', async () => {
@@ -107,7 +111,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     fake.meshes.push({ skeleton: make_skeleton() })
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
-    const first = window.m2mAuthoringBridge
+    const first = get_authoring_bridge_for_testing()
     const replacement = make_skeleton()
     replacement.bones[0].position.x += 1
     replacement.bones[0].updateWorldMatrix(true, true)
@@ -116,7 +120,7 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     fake.meshes.push({ skeleton: replacement })
     fake.frame_listeners.forEach(listener => listener(0.016))
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).not.toBe(first)
+    expect(get_authoring_bridge_for_testing()).not.toBe(first)
   })
 
   it('keeps one bridge while the mixer changes live bone pose', async () => {
@@ -125,11 +129,11 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     fake.meshes.push({ skeleton })
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
-    const first = window.m2mAuthoringBridge
+    const first = get_authoring_bridge_for_testing()
     skeleton.bones[3].quaternion.setFromAxisAngle(new Vector3(0, 0, 1), 0.6)
     fake.frame_listeners.forEach(listener => listener(0.016))
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).toBe(first)
+    expect(get_authoring_bridge_for_testing()).toBe(first)
   })
 
   it('keeps watching after unload and attaches again when a new rig loads', async () => {
@@ -137,16 +141,16 @@ describe('M2M-028A addendum — rig lifecycle attachment', () => {
     fake.meshes.push({ skeleton: make_skeleton() })
     attachAuthoringBridge(fake.engine as never)
     await new Promise(resolve => setTimeout(resolve, 30))
-    const first = window.m2mAuthoringBridge
+    const first = get_authoring_bridge_for_testing()
     fake.meshes.length = 0
     fake.skeleton_step.dispatchEvent(new Event('skeletonLoaded'))
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).toBeUndefined()
+    expect(get_authoring_bridge_for_testing()).toBeUndefined()
     fake.meshes.push({ skeleton: make_skeleton() })
     fake.skeleton_step.dispatchEvent(new Event('skeletonLoaded'))
     await new Promise(resolve => setTimeout(resolve, 30))
-    expect(window.m2mAuthoringBridge).toBeDefined()
-    expect(window.m2mAuthoringBridge).not.toBe(first)
+    expect(get_authoring_bridge_for_testing()).toBeDefined()
+    expect(get_authoring_bridge_for_testing()).not.toBe(first)
   })
 })
 
@@ -159,17 +163,32 @@ describe('M2M-028A addendum — authorization boundaries', () => {
     bridge.dispose()
   })
 
-  it('permission toggles only through the native control', async () => {
+  it('DOM events cannot grant MCP authoring permission', async () => {
     const fake = fake_engine()
-    const permission = new AuthoringPermission(document.body, async () => true)
-    const bridge = new FrontendAuthoringBridge(bridge_app(fake.engine), undefined, permission)
+    const bridge = new FrontendAuthoringBridge(bridge_app(fake.engine))
     expect(bridge.is_permission_enabled()).toBe(false)
-    const toggles = document.querySelectorAll<HTMLButtonElement>('#m2m-authoring-toggle')
-    toggles[toggles.length - 1]?.click()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const event_request = await bridge.handle(req('session.status'))
+    expect(event_request.error?.code).toBe('AUTHORING_DISABLED')
+    expect(bridge.is_permission_enabled()).toBe(false)
+    await bridge.handle_mcp_request(req('session.status'))
     expect(bridge.is_permission_enabled()).toBe(true)
-    expect(toggles[toggles.length - 1]?.textContent).toBe('Disable authoring')
     bridge.dispose()
+  })
+
+  it('browser CustomEvents stay on the untrusted handler path', async () => {
+    const fake = fake_engine()
+    fake.meshes.push({ skeleton: make_skeleton() })
+    attachAuthoringBridge(fake.engine as never)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    const bridge = get_authoring_bridge_for_testing()
+    expect(bridge).toBeDefined()
+    const response = new Promise<AuthoringResponse>((resolve) => {
+      window.addEventListener(AUTHORING_RESPONSE_EVENT, (event) => resolve((event as CustomEvent<AuthoringResponse>).detail), { once: true })
+    })
+    window.dispatchEvent(new CustomEvent(AUTHORING_REQUEST_EVENT, { detail: req('session.status') }))
+    const result = await response
+    expect(result.error?.code).toBe('AUTHORING_DISABLED')
+    expect(bridge?.is_permission_enabled()).toBe(false)
   })
 
   it('rejects cross-session requests while a session is active', async () => {
@@ -189,11 +208,8 @@ describe('M2M-028A addendum — authorization boundaries', () => {
 
   it('expires a confirmation using the request deadline', async () => {
     const fake = fake_engine()
-    const permission = new AuthoringPermission(document.body, async () => true)
-    const bridge = new FrontendAuthoringBridge(bridge_app(fake.engine), undefined, permission)
-    const toggles = document.querySelectorAll<HTMLButtonElement>('#m2m-authoring-toggle')
-    toggles[toggles.length - 1]?.click()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const bridge = new FrontendAuthoringBridge(bridge_app(fake.engine))
+    await bridge.handle_mcp_request(req('session.status'))
     const created = await bridge.handle(req('draft.create', { name: 'Wave', duration_seconds: 1 }))
     expect(created.ok).toBe(true)
     const result = await bridge.handle(req('draft.commit', {}, undefined, 100))

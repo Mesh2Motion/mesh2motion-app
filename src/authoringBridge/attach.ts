@@ -3,8 +3,8 @@
  *
  * The engine watcher survives unloads and model switches. A native Tauri
  * adapter is attached only while a real supported rig exists; it is disposed
- * when that rig goes away. Permission remains native-click-only and disabled
- * on each new bridge instance.
+ * when that rig goes away. MCP authoring requests enable the new bridge's
+ * in-memory permission state.
  */
 
 import './confirmationPanel.css'
@@ -12,7 +12,6 @@ import type { AuthoringBridgeApp, FrontendAuthoringBridge } from './service'
 import { watch_rig_lifecycle, type RigLifecycleEngine, type RigLifecycleHandle } from './rigLifecycle'
 import {
   attachTauriAuthoringAdapter,
-  set_tauri_authoring_enabled,
   type TauriAuthoringAdapter
 } from './tauriAdapter'
 import type { AuthoringRequest, AuthoringResponse } from './types'
@@ -22,7 +21,6 @@ export const AUTHORING_RESPONSE_EVENT = 'm2m-authoring-response'
 
 declare global {
   interface Window {
-    m2mAuthoringBridge?: FrontendAuthoringBridge
     m2mAuthoringAdapter?: TauriAuthoringAdapter
     m2mAuthoringRigWatch?: RigLifecycleHandle
   }
@@ -44,7 +42,6 @@ async function clear_install (): Promise<void> {
   install = null
   await previous?.adapter.dispose()
   previous?.bridge.dispose()
-  if (window.m2mAuthoringBridge === previous?.bridge) window.m2mAuthoringBridge = undefined
   if (window.m2mAuthoringAdapter === previous?.adapter) window.m2mAuthoringAdapter = undefined
 }
 
@@ -62,16 +59,11 @@ function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void>
 
     const { FrontendAuthoringBridge: Bridge } = await import('./service')
     const { AuthoringPermission } = await import('./permission')
-    let bridge: FrontendAuthoringBridge | null = null
-    const permission = new AuthoringPermission(document.body, set_tauri_authoring_enabled, (enabled) => {
-      if (!enabled) bridge?.permission_revoked()
-    })
+    const permission = new AuthoringPermission()
     const active_bridge = new Bridge(app, undefined, permission)
-    bridge = active_bridge
-    window.m2mAuthoringBridge = active_bridge
 
     const adapter = await attachTauriAuthoringAdapter(
-      (request: unknown) => active_bridge.handle(request),
+      (request: unknown) => active_bridge.handle_mcp_request(request),
       (payload: unknown) => active_bridge.handle_cancel(payload)
     )
     window.m2mAuthoringAdapter = adapter
@@ -104,13 +96,18 @@ export function attachAuthoringBridge (engine: RigLifecycleEngine): void {
   // Browser compatibility path (tests/dev only). Not an approval boundary.
   window.addEventListener(AUTHORING_REQUEST_EVENT, (event: Event) => {
     const request = (event as CustomEvent<AuthoringRequest>).detail
-    const bridge = window.m2mAuthoringBridge
+    const bridge = install?.bridge
     if (bridge === undefined) return
     void bridge.handle(request).then((response: AuthoringResponse) => {
       window.dispatchEvent(new CustomEvent(AUTHORING_RESPONSE_EVENT, { detail: response }))
     })
   })
   window.addEventListener('pagehide', () => { void teardown() }, { once: true })
+}
+
+/** @internal Test-only inspection; the bridge is not exposed on `window`. */
+export function get_authoring_bridge_for_testing (): FrontendAuthoringBridge | undefined {
+  return install?.bridge
 }
 
 export async function teardown (): Promise<void> {

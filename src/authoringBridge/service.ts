@@ -2,14 +2,16 @@
  * M2M-028B — frontend authoring bridge service.
  *
  * Wires the frozen AnimationDocument domain to the real running engine and
- * animation library. All client input is data-only, bounded by the dispatcher,
- * and gated by an explicit native permission. Commit/undo approvals are bound
- * to request, session, revision and a SHA-256 document digest.
+ * animation library. All client input is data-only and bounded by the
+ * dispatcher. MCP requests grant an in-memory app-session permission.
+ * Commit/undo approvals are bound to request, session, revision and a SHA-256
+ * document digest.
  */
 
 import { type Skeleton } from 'three'
 import {
   AUTHORING_BRIDGE_PROTOCOL,
+  is_authoring_request,
   is_animation_document,
   type AuthoringOperation,
   type AuthoringRequest,
@@ -45,7 +47,8 @@ export interface AuthoringBridgeApp {
 
 const PERMISSION_GATED: readonly AuthoringOperation[] = [
   'draft.create', 'draft.set_keyframes', 'draft.preview.start', 'draft.preview.stop',
-  'draft.commit', 'draft.cancel', 'draft.undo', 'draft.export', 'draft.import', 'session.cancel'
+  'draft.commit', 'draft.cancel', 'draft.undo', 'draft.export', 'draft.import',
+  'session.status', 'session.cancel'
 ]
 
 function document_digest (document: AnimationDocument): string {
@@ -85,11 +88,6 @@ export class FrontendAuthoringBridge {
     return this.permission.is_enabled()
   }
 
-  /** Native opt-out also releases the draft, preview and confirmation state. */
-  permission_revoked (): void {
-    this.cleanup_session()
-  }
-
   handle (request: unknown): Promise<AuthoringResponse> {
     const typed = request as AuthoringRequest | null
     if (typed !== null && typeof typed === 'object' && PERMISSION_GATED.includes(typed.operation) &&
@@ -100,7 +98,7 @@ export class FrontendAuthoringBridge {
         session_id: typeof typed.session_id === 'string' ? typed.session_id : '',
         sequence: typeof typed.sequence === 'number' ? typed.sequence : 0,
         ok: false,
-        error: { code: 'AUTHORING_DISABLED', message: 'animation authoring is disabled; enable it in the application first' }
+        error: { code: 'AUTHORING_DISABLED', message: 'authoring permission is granted by a valid native MCP authoring request' }
       })
     }
     if (typed !== null && typeof typed === 'object') {
@@ -108,6 +106,14 @@ export class FrontendAuthoringBridge {
       this.deadline_at = Date.now() + (typeof typed.deadline_ms === 'number' ? typed.deadline_ms : 30000)
     }
     return this.dispatcher.handle(request)
+  }
+
+  /** Called only by the Rust-to-Tauri MCP event adapter, never by DOM events. */
+  handle_mcp_request (request: unknown): Promise<AuthoringResponse> {
+    if (is_authoring_request(request) && request.operation !== 'rig.catalog.get') {
+      this.permission.authorize_from_mcp_request()
+    }
+    return this.handle(request)
   }
 
   /** M2M-028B: Rust cancel/disconnect/shutdown event. */
