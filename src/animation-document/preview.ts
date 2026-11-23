@@ -15,6 +15,8 @@ export interface PreviewHost {
   active_skinned_meshes (): readonly SkinnedMesh[]
   /** Register the per-frame callback (engine's add_frame_listener). */
   add_frame_listener (listener: (delta_time: number) => void): void
+  /** M2M-028A addendum: unregister the callback when the session is disposed. */
+  remove_frame_listener? (listener: (delta_time: number) => void): void
   /** Optional application-owned hooks around a preview session. */
   pause_regular_playback? (): void
   resume_regular_playback? (): void
@@ -26,20 +28,19 @@ export interface PreviewHost {
  */
 export class DraftPreviewSession {
   private readonly host: PreviewHost
+  private readonly frame_listener: (delta_time: number) => void
   private mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private actions: AnimationAction[] = []
   private active: boolean = false
   private current_clip: AnimationClip | null = null
+  private disposed: boolean = false
 
   constructor (host: PreviewHost) {
     this.host = host
-    // The engine has no remove_frame_listener; the callback self-gates on
-    // `active`, so a stopped session is a no-op for the rest of the app life.
-    host.add_frame_listener((delta_time: number) => {
-      if (this.active) {
-        this.mixer.update(delta_time)
-      }
-    })
+    this.frame_listener = (delta_time: number): void => {
+      if (this.active) this.mixer.update(delta_time)
+    }
+    host.add_frame_listener(this.frame_listener)
   }
 
   /** Show a draft clip without touching application selection state. */
@@ -80,5 +81,16 @@ export class DraftPreviewSession {
     if (this.active) {
       this.mixer.update(delta_time)
     }
+  }
+
+  /** Release the mixer and unregister the per-frame callback. */
+  dispose (): void {
+    if (this.disposed) return
+    this.stop()
+    this.disposed = true
+    this.host.remove_frame_listener?.(this.frame_listener)
+    this.mixer.stopAllAction()
+    this.actions = []
+    this.current_clip = null
   }
 }

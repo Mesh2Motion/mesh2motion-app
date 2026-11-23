@@ -1,14 +1,16 @@
 /**
- * M2M-028A/028B — install the frontend authoring bridge in the real application.
+ * M2M-028A addendum — install/reinstall the authoring bridge with the live rig.
  *
- * The Rust side emits Tauri events; this module wires them to the actual bridge
- * and returns responses via `mcp_authoring_respond`. The browser CustomEvent
- * path is retained only for internal compatibility/tests.
+ * The bridge is created as soon as a real rig finishes loading and is disposed
+ * when the rig is unloaded, replaced or the model switches. Re-entering a page
+ * is not required. Tauri events are the authoritative transport; the browser
+ * CustomEvent path exists only for tests/internal compatibility and is not an
+ * authorization or confirmation boundary.
  */
 
 import './confirmationPanel.css'
 import type { AuthoringBridgeApp, FrontendAuthoringBridge } from './service'
-import { live_rig_identifier, live_skeleton_from_engine } from './rigCatalog'
+import { watch_rig_lifecycle, type RigLifecycleEngine, type RigLifecycleHandle } from './rigLifecycle'
 import { attachTauriAuthoringAdapter, type TauriAuthoringAdapter } from './tauriAdapter'
 import type { AuthoringRequest, AuthoringResponse } from './types'
 
@@ -19,40 +21,85 @@ declare global {
   interface Window {
     m2mAuthoringBridge?: FrontendAuthoringBridge
     m2mAuthoringAdapter?: TauriAuthoringAdapter
+    m2mAuthoringRigWatch?: RigLifecycleHandle
   }
 }
 
-export function attachAuthoringBridge (engine: AuthoringBridgeApp['engine']): void {
-  const identifier = live_rig_identifier(engine)
-  const skeleton = live_skeleton_from_engine(engine)
-  if (identifier === null || skeleton === null) return
+interface AuthoringInstall {
+  bridge: FrontendAuthoringBridge
+  adapter: TauriAuthoringAdapter
+  fingerprint: string
+  identifier: string
+}
 
-  const app: AuthoringBridgeApp = { engine, skeleton, rig_identifier: identifier }
-  const load = async (): Promise<void> => {
+let install: AuthoringInstall | null = null
+let installing: Promise<void> | null = null
+
+function apply_app (app: AuthoringBridgeApp, fingerprint: string): Promise<void> {
+  if (install !== null && install.fingerprint === fingerprint &&
+      install.identifier === app.rig_identifier) {
+    return Promise.resolve()
+  }
+  if (installing !== null) return installing
+  installing = (async () => {
+    const previous = install
+    install = null
+    await previous?.adapter.dispose()
+    previous?.bridge.dispose()
+
     const { FrontendAuthoringBridge: Bridge } = await import('./service')
     const { AuthoringPermission } = await import('./permission')
-    if (window.m2mAuthoringBridge !== undefined) return
     const permission = new AuthoringPermission()
     const bridge = new Bridge(app, undefined, permission)
     window.m2mAuthoringBridge = bridge
 
-    // Native Tauri path (authoritative).
-    window.m2mAuthoringAdapter = await attachTauriAuthoringAdapter(
+    const adapter = await attachTauriAuthoringAdapter(
       (request: unknown) => bridge.handle(request),
       (payload: unknown) => bridge.handle_cancel(payload)
     )
+    window.m2mAuthoringAdapter = adapter
+    install = { bridge, adapter, fingerprint, identifier: app.rig_identifier }
+  })().finally(() => { installing = null })
+  return installing
+}
 
-    // Browser compatibility path for tests/dev only.
-    window.addEventListener(AUTHORING_REQUEST_EVENT, (event: Event) => {
-      const request = (event as CustomEvent<AuthoringRequest>).detail
-      void bridge.handle(request).then((response: AuthoringResponse) => {
-        window.dispatchEvent(new CustomEvent(AUTHORING_RESPONSE_EVENT, { detail: response }))
-      })
-    })
-    window.addEventListener('pagehide', () => {
-      void window.m2mAuthoringAdapter?.dispose()
-      bridge.dispose()
-    }, { once: true })
+/** Install a rig watcher. Safe to call from every page bootstrap. */
+export function attachAuthoringBridge (engine: RigLifecycleEngine): void {
+  if (window.m2mAuthoringRigWatch !== undefined) return
+
+  const on_change = (snapshot: import('./rigLifecycle').RigSnapshot | null): void => {
+    if (snapshot === null) {
+      void teardown()
+      return
+    }
+    const app: AuthoringBridgeApp = {
+      engine: engine as unknown as AuthoringBridgeApp['engine'],
+      skeleton: snapshot.skeleton,
+      rig_identifier: snapshot.identifier
+    }
+    void apply_app(app, snapshot.fingerprint)
   }
-  void load()
+
+  window.m2mAuthoringRigWatch = watch_rig_lifecycle(engine, on_change)
+
+  // Browser compatibility path (tests/dev only). Not an approval boundary.
+  window.addEventListener(AUTHORING_REQUEST_EVENT, (event: Event) => {
+    const request = (event as CustomEvent<AuthoringRequest>).detail
+    const bridge = window.m2mAuthoringBridge
+    if (bridge === undefined) return
+    void bridge.handle(request).then((response: AuthoringResponse) => {
+      window.dispatchEvent(new CustomEvent(AUTHORING_RESPONSE_EVENT, { detail: response }))
+    })
+  })
+  window.addEventListener('pagehide', () => { void teardown() }, { once: true })
+}
+
+export async function teardown (): Promise<void> {
+  window.m2mAuthoringRigWatch?.dispose()
+  window.m2mAuthoringRigWatch = undefined
+  await window.m2mAuthoringAdapter?.dispose()
+  window.m2mAuthoringBridge?.dispose()
+  window.m2mAuthoringAdapter = undefined
+  window.m2mAuthoringBridge = undefined
+  install = null
 }

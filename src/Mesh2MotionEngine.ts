@@ -243,6 +243,12 @@ export class Mesh2MotionEngine {
     this.frame_listeners.push(listener)
   }
 
+  /** M2M-028A addendum: remove a per-frame callback when its owner is disposed. */
+  public remove_frame_listener (listener: (delta_time: number) => void): void {
+    const index = this.frame_listeners.indexOf(listener)
+    if (index >= 0) this.frame_listeners.splice(index, 1)
+  }
+
   public set_active_skinned_meshes_provider (provider: () => THREE.SkinnedMesh[]): void {
     this.active_skinned_meshes_provider = provider
   }

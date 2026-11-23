@@ -30,6 +30,8 @@ export interface ConfirmationBinding {
   request_id: string
   session_id: string
   operation: 'commit' | 'undo'
+  /** Fingerprint of the live rig the approval was requested against. */
+  rig_fingerprint: string
   revision: number
   /** SHA-256 of the serialized document the approval applies to. */
   document_digest: string

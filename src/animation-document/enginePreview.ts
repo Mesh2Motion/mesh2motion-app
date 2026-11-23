@@ -16,6 +16,7 @@ import { DraftPreviewSession, type PreviewHost } from './preview'
 export interface PreviewEngine {
   active_skinned_meshes (): SkinnedMesh[]
   add_frame_listener (listener: (delta_time: number) => void): void
+  remove_frame_listener? (listener: (delta_time: number) => void): void
   get_animation_player? (): { pause (): void, play (): void }
 }
 
@@ -30,6 +31,7 @@ export function create_engine_preview (engine: PreviewEngine): DraftPreviewSessi
   const host: PreviewHost = {
     active_skinned_meshes: () => engine.active_skinned_meshes(),
     add_frame_listener: (listener) => engine.add_frame_listener(listener),
+    remove_frame_listener: (listener) => engine.remove_frame_listener?.(listener),
     pause_regular_playback: () => engine.get_animation_player?.().pause(),
     resume_regular_playback: () => engine.get_animation_player?.().play()
   }

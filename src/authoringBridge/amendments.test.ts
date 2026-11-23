@@ -240,6 +240,7 @@ describe('M2M-028B state integrity', () => {
       request_id: request.request_id,
       session_id: 'session-1',
       operation: 'commit' as const,
+      rig_fingerprint: 'deadbeef',
       revision: 3,
       document_digest: 'abc123',
       target_revision: null
