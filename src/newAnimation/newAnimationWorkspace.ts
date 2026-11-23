@@ -21,6 +21,7 @@ import { import_clip_as_document } from '../animation-document/clipImport.ts'
 import { SharedDraftController } from '../animation-document/sharedDraft.ts'
 import { get_active_authoring_bridge } from '../authoringBridge/attach.ts'
 import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation.ts'
+import { stable_bone_id } from '../animation-document/rigIdentity.ts'
 import { is_animation_document } from '../authoringBridge/types.ts'
 import { KeyframeEditor } from './keyframeEditor.ts'
 
@@ -75,6 +76,10 @@ export class NewAnimationWorkspace {
       status: by_id('new-animation-status')
     }, this.engine)
     this.editor.set_pose_applier((time) => { this.apply_pose_at_time(time) })
+    this.editor.set_autostart(
+      () => this.create_draft(),
+      (bone_id, property) => this.live_bone_values(bone_id, property)
+    )
     this.editor.set_time(0)
     this.controller.subscribe(() => {
       this.sync_controls()
@@ -150,7 +155,13 @@ export class NewAnimationWorkspace {
     for (const button of window.document.querySelectorAll<HTMLButtonElement>('[data-bone-mode]')) {
       button.addEventListener('click', () => {
         const mode = button.dataset.boneMode
-        if (mode === 'translate' || mode === 'rotate' || mode === 'scale') controls.setMode(mode)
+        if (mode === 'translate' || mode === 'rotate' || mode === 'scale') {
+          controls.setMode(mode)
+          if (this.selected_bone !== null && this.selected_bone_index !== null) {
+            const rig = this.controller.document()?.rig.identifier ?? this.rig_type
+            this.editor.select_channel(stable_bone_id(rig, this.selected_bone_index), this.current_gizmo_property())
+          }
+        }
         for (const other of window.document.querySelectorAll<HTMLButtonElement>('[data-bone-mode]')) {
           other.setAttribute('aria-pressed', String(other === button))
         }
@@ -201,6 +212,19 @@ export class NewAnimationWorkspace {
     return best
   }
 
+  /** Current local transform of a live bone, used for brand-new keyframes. */
+  private live_bone_values (bone_id: string, property: 'position' | 'quaternion' | 'scale'): number[] | null {
+    const authored = this.controller.document()
+    if (authored === null || this.skinned_meshes.length === 0) return null
+    const identity = authored.bones.find((bone) => bone.id === bone_id)
+    if (identity === undefined) return null
+    const bone = this.skinned_meshes[0].skeleton.bones[identity.index]
+    if (bone === undefined) return null
+    if (property === 'position') return [bone.position.x, bone.position.y, bone.position.z]
+    if (property === 'quaternion') return [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w]
+    return [bone.scale.x, bone.scale.y, bone.scale.z]
+  }
+
   /** Explicit, reliable selection path; the viewport click is only a convenience. */
   private select_bone (bone: Bone, skeleton_index: number): void {
     if (this.controller.snapshot().previewing) void this.toggle_preview()
@@ -208,8 +232,15 @@ export class NewAnimationWorkspace {
     this.selected_bone_index = skeleton_index
     this.engine.transform_controls.attach(bone)
     by_id('new-animation-selected-bone').textContent = `selected: ${bone.name || `bone ${skeleton_index}`}`
+    const rig = this.controller.document()?.rig.identifier ?? this.rig_type
+    this.editor.select_channel(stable_bone_id(rig, skeleton_index), this.current_gizmo_property())
     this.render_bone_list()
     this.apply_pose_at_time(this.editor.current_time())
+  }
+
+  private current_gizmo_property (): 'position' | 'quaternion' | 'scale' {
+    const mode = this.engine.transform_controls.getMode()
+    return mode === 'translate' ? 'position' : mode === 'rotate' ? 'quaternion' : 'scale'
   }
 
   private render_bone_list (): void {
@@ -438,7 +469,6 @@ export class NewAnimationWorkspace {
     const snapshot = this.controller.snapshot()
     const has_draft = snapshot.document !== null
     by_id<HTMLButtonElement>('new-animation-preview').disabled = !has_draft
-    by_id<HTMLButtonElement>('new-animation-add-key').disabled = !has_draft
     by_id<HTMLButtonElement>('new-animation-commit').disabled = !has_draft
     by_id<HTMLButtonElement>('new-animation-undo').disabled = !this.controller.can_undo()
     by_id<HTMLButtonElement>('new-animation-redo').disabled = !this.controller.can_redo()

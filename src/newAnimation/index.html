@@ -79,7 +79,9 @@
                     <button id="new-animation-play" type="button" disabled aria-label="Play or pause">▶</button>
                     <button id="new-animation-stop" type="button" disabled aria-label="Stop and rewind">■</button>
                     <span id="new-animation-time" aria-live="off">0.000 s</span>
-                    <span class="m2m-clip-hint">Click the ruler to scrub · double-click a lane to add a keyframe</span>
+                    <button id="new-animation-add-key" type="button" disabled>+ Keyframe</button>
+                    <button id="new-animation-remove-key" type="button">− Keyframe</button>
+                    <span class="m2m-clip-hint">Select a bone, scrub, then + Keyframe (or double-click a lane)</span>
                 </div>
 
                 <div id="new-animation-timeline" class="new-animation-timeline" aria-label="Keyframe timeline">
@@ -113,8 +115,6 @@
                     <p class="new-animation-hint">Select a bone from the filtered list (most reliable), or click a joint in the viewport. Then drag the gizmo to write a keyframe at the current time. Create a clip first to save edits.</p>
                 </div>
                 <div class="new-animation-actions">
-                    <button id="new-animation-add-key" type="button" disabled>Add keyframe</button>
-                    <button id="new-animation-remove-key" type="button">Remove keyframe</button>
                     <button id="new-animation-undo" type="button" disabled>Undo</button>
                     <button id="new-animation-redo" type="button" disabled>Redo</button>
                     <button id="new-animation-preview" type="button" disabled>Preview</button>

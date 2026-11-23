@@ -40,6 +40,8 @@ export class KeyframeEditor {
   private playing = false
   private readonly unsubscribe: () => void
   private pose_applier: ((time: number) => void) | null = null
+  private draft_factory: (() => Promise<void>) | null = null
+  private bone_values_provider: ((bone_id: string, property: AnimationProperty) => number[] | null) | null = null
   private readonly frame_listener: (delta_time: number) => void
 
   constructor (
@@ -63,6 +65,20 @@ export class KeyframeEditor {
 
   set_pose_applier (applier: (time: number) => void): void {
     this.pose_applier = applier
+  }
+
+  /** Lets the editor start an empty draft on demand and read the live bone TRS. */
+  set_autostart (factory: () => Promise<void>, values: (bone_id: string, property: AnimationProperty) => number[] | null): void {
+    this.draft_factory = factory
+    this.bone_values_provider = values
+  }
+
+  /** Called by the workspace when a bone is selected or the gizmo mode changes. */
+  select_channel (bone_id: string, property: AnimationProperty): void {
+    this.select_track(bone_id, property)
+    this.render_tracks()
+    this.render_lanes()
+    this.render_values()
   }
 
   dispose (): void {
@@ -121,16 +137,26 @@ export class KeyframeEditor {
 
   private update_playhead (): void {
     const duration = this.controller.document()?.clip.duration_seconds ?? 0
+    this.dom.playhead.style.display = duration > 0 ? 'block' : 'none'
     const percent = duration > 0 ? (this.time_seconds / duration) * 100 : 0
     this.dom.playhead.style.left = `${percent}%`
   }
 
   async add_keyframe (): Promise<void> {
+    if (this.controller.document() === null && this.draft_factory !== null) {
+      await this.draft_factory()
+    }
     const document = this.controller.document()
-    if (document === null || this.selection === null) return
+    if (document === null || this.selection === null) {
+      this.set_status('Select a bone first, then add a keyframe.')
+      return
+    }
     const channel = document.channels.find((entry) =>
       entry.bone_id === this.selection!.bone_id && entry.property === this.selection!.property)
-    const values = this.values_at_time(document)
+    // Prefer the live bone's actual local transform: a brand-new channel has no
+    // authored values, and identity would destroy non-identity rest poses.
+    const values = this.bone_values_provider?.(this.selection.bone_id, this.selection.property)
+      ?? this.values_at_time(document)
     if (values === null) return
     const keyframes = channel === undefined ? [] : channel.keyframes.map((key) => ({ ...key, values: [...key.values] }))
     const keyframe: AnimationKeyframe = {
@@ -260,9 +286,16 @@ export class KeyframeEditor {
   }
 
   private render_lanes (): void {
-    for (const existing of Array.from(this.dom.lanes.querySelectorAll('.m2m-lane'))) existing.remove()
+    for (const existing of Array.from(this.dom.lanes.querySelectorAll('.m2m-lane, .m2m-lane-empty'))) existing.remove()
     const document = this.controller.document()
     if (document === null) return
+    if (document.channels.length === 0) {
+      const hint = window.document.createElement('div')
+      hint.className = 'm2m-lane-empty'
+      hint.textContent = 'No keyframes yet — select a bone and click + Keyframe (or double-click here).'
+      this.dom.lanes.appendChild(hint)
+      return
+    }
     const duration = Math.max(document.clip.duration_seconds, 1e-6)
     for (const channel of document.channels) {
       const lane = window.document.createElement('div')

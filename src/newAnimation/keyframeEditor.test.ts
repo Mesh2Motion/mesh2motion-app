@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { create_empty_document, with_animation_channel } from '../animation-document/create'
 import { KeyframeEditor, type KeyframeEditorDom, type PlaybackHost } from './keyframeEditor'
 import type { SharedDraftController } from '../animation-document/sharedDraft'
-import type { AnimationDocument } from '../animation-document/types'
+import type { AnimationDocument, AnimationKeyframe } from '../animation-document/types'
 import { make_test_rig } from '../authoringObservation/testFixtures'
 
 function make_document (): AnimationDocument {
@@ -108,6 +108,33 @@ describe('Godot-style clip editor', () => {
     editor.stop()
     expect(editor.is_playing()).toBe(false)
     expect(listeners).toHaveLength(0)
+    editor.dispose()
+  })
+
+  it('auto-starts a draft and uses the live bone transform for new keyframes', async () => {
+    const document_data = make_document()
+    const empty: AnimationDocument = { ...document_data, channels: [] }
+    let current: AnimationDocument | null = null
+    let started = false
+    let written_values: number[] | null = null
+    const lazy = {
+      attach: () => () => {},
+      subscribe: () => () => {},
+      document: () => current,
+      snapshot: () => ({ document: current, revision: 1, fingerprint: '', previewing: false, mcp_session_active: false }),
+      set_channel: async (_revision: number, _bone_id: string, _property: string, keyframes: AnimationKeyframe[]) => {
+        written_values = keyframes[0].values
+        current = { ...empty, channels: [{ bone_id: document_data.bones[0].id, property: 'quaternion', keyframes }] }
+        return current
+      },
+      preview: async () => {}
+    } as unknown as SharedDraftController
+    const editor = new KeyframeEditor(lazy, make_dom(), make_host().host)
+    editor.set_autostart(async () => { started = true; current = empty }, () => [0.1, 0.2, 0.3, 0.9])
+    editor.select_channel(document_data.bones[0].id, 'quaternion')
+    await editor.add_keyframe()
+    expect(started).toBe(true)
+    expect(written_values).toEqual([0.1, 0.2, 0.3, 0.9])
     editor.dispose()
   })
 
