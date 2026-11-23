@@ -30,7 +30,9 @@ export default defineConfig({
           create: resolve(__dirname, 'src/create.html'),
           retarget: resolve(__dirname, 'src/retarget/index.html'),
           composer: resolve(__dirname, 'src/composer/index.html'),
-          'new-animation': resolve(__dirname, 'src/newAnimation/index.html')
+          'new-animation': resolve(__dirname, 'src/newAnimation/index.html'),
+          // Developer-only internal camera harness; deliberately not linked in the UI.
+          'pose-inspect': resolve(__dirname, 'src/authoringObservation/inspect.html')
         }
       }
     },

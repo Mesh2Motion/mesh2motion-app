@@ -80,6 +80,22 @@
                     <div id="new-animation-timeline" class="new-animation-timeline" aria-label="Keyframe timeline"></div>
                 </div>
                 <div id="new-animation-values" class="new-animation-values" aria-label="Local transform values"></div>
+                <div class="new-animation-bone-tools">
+                    <strong>Bone editing</strong>
+                    <span id="new-animation-selected-bone" aria-live="polite">no bone selected</span>
+                    <div class="new-animation-actions" role="group" aria-label="Transform mode">
+                        <button type="button" data-bone-mode="translate">Move</button>
+                        <button type="button" data-bone-mode="rotate" aria-pressed="true">Rotate</button>
+                        <button type="button" data-bone-mode="scale">Scale</button>
+                    </div>
+                    <label for="new-animation-bone-space">Space
+                        <select id="new-animation-bone-space" aria-label="Transform space">
+                            <option value="local">Local</option>
+                            <option value="world">World</option>
+                        </select>
+                    </label>
+                    <p class="new-animation-hint">Click a joint in the viewport to select a bone, then drag the gizmo. Dragging writes a keyframe at the current time.</p>
+                </div>
                 <div class="new-animation-actions">
                     <button id="new-animation-add-key" type="button" disabled>Add keyframe</button>
                     <button id="new-animation-remove-key" type="button">Remove keyframe</button>

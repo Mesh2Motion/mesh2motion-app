@@ -26,10 +26,16 @@ export class KeyframeEditor {
   private selection: Selection | null = null
   private time_seconds = 0
   private readonly unsubscribe: () => void
+  private pose_applier: ((time: number) => void) | null = null
 
   constructor (private readonly controller: SharedDraftController, private readonly dom: KeyframeEditorDom) {
     this.unsubscribe = controller.attach()
     controller.subscribe(() => this.render())
+  }
+
+  /** The workspace supplies this to evaluate the pose onto the live rig at the cursor time. */
+  set_pose_applier (applier: (time: number) => void): void {
+    this.pose_applier = applier
   }
 
   dispose (): void { this.unsubscribe() }
@@ -40,8 +46,21 @@ export class KeyframeEditor {
     const document = this.controller.document()
     this.time_seconds = Math.max(0, Math.min(time, document?.clip.duration_seconds ?? 0))
     this.dom.time_label.textContent = `${this.time_seconds.toFixed(3)} s`
+    this.pose_applier?.(this.time_seconds)
     this.render_timeline()
     this.render_values()
+  }
+
+  /** Write a bone's local TRS (from a gizmo drag) at the current timeline cursor. */
+  async upsert_channel_key (bone_id: string, property: AnimationProperty, values: number[]): Promise<void> {
+    const document = this.controller.document()
+    if (document === null) throw new Error('no active draft')
+    const keyframes = upsert_keyframe(document, { bone_id, property }, this.time_seconds, values)
+    await this.controller.set_channel(document.revision, bone_id, property, keyframes)
+    this.selection = { bone_id, property }
+    await this.refresh_preview()
+    this.set_status(`Gizmo edit written to ${property} at ${this.time_seconds.toFixed(3)} s`)
+    this.render()
   }
 
   async add_keyframe (): Promise<void> {

@@ -163,6 +163,19 @@ html[data-theme='light'] #new-animation-panel select {
     min-width: 0;
 }
 
+.new-animation-bone-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(127, 127, 127, 0.3);
+    font-size: 0.78rem;
+}
+
+.new-animation-bone-tools strong { font-size: 0.8rem; }
+.new-animation-hint { margin: 0; opacity: 0.8; }
+
 .new-animation-actions {
     display: flex;
     flex-wrap: wrap;

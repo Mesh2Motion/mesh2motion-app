@@ -6,7 +6,7 @@
  * keep the normal 3D viewport. No MCP observation camera is ever shown here.
  */
 
-import { SkinnedMesh, Vector3, type AnimationClip } from 'three'
+import { SkinnedMesh, Vector3, type AnimationClip, type Bone } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine.ts'
 import { maybe_attach_desktop_control } from '../control/attachControl.ts'
@@ -20,6 +20,7 @@ import { create_empty_document } from '../animation-document/create.ts'
 import { import_clip_as_document } from '../animation-document/clipImport.ts'
 import { SharedDraftController } from '../animation-document/sharedDraft.ts'
 import { get_active_authoring_bridge } from '../authoringBridge/attach.ts'
+import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation.ts'
 import { is_animation_document } from '../authoringBridge/types.ts'
 import { KeyframeEditor } from './keyframeEditor.ts'
 
@@ -47,6 +48,9 @@ export class NewAnimationWorkspace {
   private mode: 'scratch' | 'existing' = 'scratch'
   private selected_source: AnimationEntry | null = null
   private previewing = false
+  private selected_bone: Bone | null = null
+  private selected_bone_index: number | null = null
+  private bone_listener_bound = false
 
   constructor () {
     this.engine = new Mesh2MotionEngine()
@@ -64,9 +68,14 @@ export class NewAnimationWorkspace {
       values: by_id('new-animation-values'),
       status: by_id('new-animation-status')
     })
+    this.editor.set_pose_applier((time) => { this.apply_pose_at_time(time) })
     this.editor.set_time(0)
-    this.controller.subscribe(() => this.sync_controls())
+    this.controller.subscribe(() => {
+      this.sync_controls()
+      this.apply_pose_at_time(this.editor.current_time())
+    })
     this.bind_controls()
+    this.bind_bone_tools()
   }
 
   async start (): Promise<void> {
@@ -129,6 +138,77 @@ export class NewAnimationWorkspace {
     import_input.addEventListener('change', () => { void this.import_document(import_input.files?.[0]) })
   }
 
+  /** Reuse the rigging tab's gizmo/selection machinery on the LIVE GLB bones. */
+  private bind_bone_tools (): void {
+    const controls = this.engine.transform_controls
+    for (const button of window.document.querySelectorAll<HTMLButtonElement>('[data-bone-mode]')) {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.boneMode
+        if (mode === 'translate' || mode === 'rotate' || mode === 'scale') controls.setMode(mode)
+        for (const other of window.document.querySelectorAll<HTMLButtonElement>('[data-bone-mode]')) {
+          other.setAttribute('aria-pressed', String(other === button))
+        }
+      })
+    }
+    by_id<HTMLSelectElement>('new-animation-bone-space').addEventListener('change', (event) => {
+      const space = (event.target as HTMLSelectElement).value
+      controls.setSpace(space === 'world' ? 'world' : 'local')
+    })
+  }
+
+  private setup_bone_editing (): void {
+    const controls = this.engine.transform_controls
+    controls.enabled = true
+    controls.setMode('rotate')
+    controls.setSpace('local')
+    if (this.bone_listener_bound) return
+    this.bone_listener_bound = true
+
+    // Engine EventListeners already own orbit enable/disable during drags; our
+    // handler only maps the LIVE skeleton bone into the gizmo and writes keys.
+    this.engine.renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+      if (event.button !== 0 || controls.axis !== null || controls.dragging) return
+      if (this.skinned_meshes.length === 0) return
+      const skeleton = this.skinned_meshes[0].skeleton
+      const [bone] = Utility.raycast_closest_bone_test(this.engine.camera, event, skeleton)
+      if (bone === null || bone.name === 'root') return
+      if (this.controller.snapshot().previewing) void this.toggle_preview()
+      this.selected_bone = bone
+      this.selected_bone_index = skeleton.bones.indexOf(bone)
+      controls.attach(bone)
+      by_id('new-animation-selected-bone').textContent = `selected: ${bone.name}`
+    })
+
+    controls.addEventListener('dragging-changed', (event: Record<string, unknown>) => {
+      if (Boolean(event.value) || this.selected_bone === null || this.selected_bone_index === null) return
+      const authored = this.controller.document()
+      if (authored === null) return
+      const identity = authored.bones.find((bone) => bone.index === this.selected_bone_index)
+      if (identity === undefined) return
+      const mode = controls.getMode()
+      const property = mode === 'translate' ? 'position' : mode === 'rotate' ? 'quaternion' : 'scale'
+      const bone = this.selected_bone
+      const values = property === 'position'
+        ? [bone.position.x, bone.position.y, bone.position.z]
+        : property === 'quaternion'
+          ? [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w]
+          : [bone.scale.x, bone.scale.y, bone.scale.z]
+      void this.editor.upsert_channel_key(identity.id, property, values).catch((error: unknown) => {
+        this.set_status(`Bone edit failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    })
+  }
+
+  /** Show the authored pose at the timeline cursor so gizmo edits start from it. */
+  private apply_pose_at_time (time: number): void {
+    const authored = this.controller.document()
+    if (authored === null || this.skinned_meshes.length === 0) return
+    if (this.controller.snapshot().previewing) return // the mixer owns the bones
+    const evaluated = evaluate_document_at_time(authored, Math.min(time, authored.clip.duration_seconds))
+    // Intentionally keep the applied pose: it is the current editing state.
+    apply_evaluated_pose(this.skinned_meshes[0].skeleton, evaluated)
+  }
+
   private async load_rig (type: SkeletonType): Promise<void> {
     const rig = RigConfig.by_skeleton_type(type)
     if (rig === undefined) throw new Error(`unsupported rig ${type}`)
@@ -147,6 +227,13 @@ export class NewAnimationWorkspace {
     const skeleton = meshes[0].skeleton
     this.engine.regenerate_skeleton_helper(skeleton)
     this.engine.sync_skeleton_helper_joint_visibility()
+    // The New Animation tab is not the rigging ProcessStep, so make joints visible
+    // explicitly to give the gizmo a clear click target.
+    this.engine.skeleton_helper?.setJointsVisible(true)
+    this.selected_bone = null
+    this.selected_bone_index = null
+    by_id('new-animation-selected-bone').textContent = 'no bone selected'
+    this.setup_bone_editing()
     await this.controller.cancel().catch(() => {})
     this.set_status(`Loaded ${rig.rig_display_name}.`)
   }
