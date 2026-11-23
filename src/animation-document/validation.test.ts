@@ -64,6 +64,15 @@ describe('validate_document', () => {
     expect(validate_document(document).errors.some((error) => error.includes('schema_version'))).toBe(true)
   })
 
+  it('accepts every positive duration and rejects zero', () => {
+    const document = base_document()
+    document.clip.duration_seconds = 0.0005
+    document.channels[0].keyframes[1].time_seconds = 0.0005
+    expect(validate_document(document).state).toBe('valid')
+    document.clip.duration_seconds = 0
+    expect(validate_document(document).errors).toContain('clip.duration_seconds: out of bounds')
+  })
+
   it('rejects invalid bones and unknown bone references', () => {
     const document = base_document()
     document.channels[0].bone_id = 'human:bone:999'
@@ -83,6 +92,8 @@ describe('validate_document', () => {
   it('enforces value arity and quaternion normalization', () => {
     const document = base_document()
     document.channels[0].property = 'quaternion'
+    document.channels[0].keyframes[0].interpolation = 'slerp'
+    document.channels[0].keyframes[1].interpolation = 'slerp'
     document.channels[0].keyframes[0].values = [0, 0, 0]
     expect(validate_document(document).errors.some((error) => error.includes('expected 4 values'))).toBe(true)
     document.channels[0].keyframes[0].values = [0, 0, 0, 0]
@@ -90,6 +101,20 @@ describe('validate_document', () => {
     document.channels[0].keyframes[0].values = [0, 0, 0, 1]
     document.channels[0].keyframes[1].values = [0, 0, 0, 1]
     expect(validate_document(document).state).toBe('valid')
+    document.channels[0].keyframes[0].values = [0, 0, 0, 2]
+    expect(validate_document(document).errors).toContain(
+      'channel human:bone:000.quaternion keyframe 0: quaternion must be normalized')
+    document.channels[0].keyframes[0].values = [0, 0, 0, 1]
+    document.channels[0].keyframes[0].interpolation = 'linear'
+    expect(validate_document(document).errors).toContain(
+      'channel human:bone:000.quaternion keyframe 0: quaternion interpolation must be slerp or step')
+  })
+
+  it('rejects slerp on position and scale channels', () => {
+    const document = base_document()
+    document.channels[0].keyframes[0].interpolation = 'slerp'
+    expect(validate_document(document).errors).toContain(
+      'channel human:bone:000.position keyframe 0: slerp is only valid for quaternion channels')
   })
 
   it('with_validation returns a copy and does not mutate input', () => {

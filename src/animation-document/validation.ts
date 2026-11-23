@@ -85,12 +85,18 @@ function validate_channel (channel: AnimationChannel, duration: number, bone_ids
         const length_squared = x * x + y * y + z * z + w * w
         if (!is_finite_number(length_squared) || length_squared <= 0) {
           errors.push(`${label}: zero-length quaternion`)
+        } else if (Math.abs(Math.sqrt(length_squared) - 1) > 1e-4) {
+          errors.push(`${label}: quaternion must be normalized`)
         }
       }
     }
 
     if (!['linear', 'step', 'slerp'].includes(keyframe.interpolation)) {
       errors.push(`${label}: invalid interpolation "${keyframe.interpolation}"`)
+    } else if (channel.property === 'quaternion' && keyframe.interpolation === 'linear') {
+      errors.push(`${label}: quaternion interpolation must be slerp or step`)
+    } else if (channel.property !== 'quaternion' && keyframe.interpolation === 'slerp') {
+      errors.push(`${label}: slerp is only valid for quaternion channels`)
     }
   }
   return keyframes.length
@@ -110,7 +116,7 @@ export function validate_document (document: AnimationDocument, options: Validat
     errors.push('clip.name: empty clip name')
   }
   if (!is_finite_number(document.clip.duration_seconds) ||
-      document.clip.duration_seconds < DOCUMENT_LIMITS.min_duration_seconds ||
+      document.clip.duration_seconds <= DOCUMENT_LIMITS.min_duration_seconds ||
       document.clip.duration_seconds > DOCUMENT_LIMITS.max_duration_seconds) {
     errors.push('clip.duration_seconds: out of bounds')
   }

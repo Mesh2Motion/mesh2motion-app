@@ -13,7 +13,7 @@ export const DOCUMENT_LIMITS = {
   max_bones: 256,
   max_channels: 512,
   max_keyframes: 4096,
-  min_duration_seconds: 0.001,
+  min_duration_seconds: 0,
   max_duration_seconds: 3600
 } as const
 
