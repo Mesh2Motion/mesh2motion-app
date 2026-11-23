@@ -50,7 +50,10 @@ export class NewAnimationWorkspace {
 
   constructor () {
     this.engine = new Mesh2MotionEngine()
-    maybe_attach_desktop_control(this.engine, { page: 'new-animation' })
+    // Rust's frozen PageValue currently has no 'new-animation' variant; use the
+    // existing 'unknown' value so MCP snapshots are not rejected. Codex can add
+    // a named variant later without breaking this page.
+    maybe_attach_desktop_control(this.engine, { page: 'unknown' })
     this.engine.set_camera_position(new Vector3(5.367, 3.298, 13.687))
     this.engine.set_active_skinned_meshes_provider(() => this.skinned_meshes)
     this.controller = new SharedDraftController(() => get_active_authoring_bridge())
