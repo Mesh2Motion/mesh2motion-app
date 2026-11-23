@@ -98,8 +98,12 @@ export class AuthoringDispatcher {
     }
     const request = input
     if (this.disposed) return error_response(request, 'SESSION_CONFLICT', 'dispatcher disposed')
-    if (request.request_id.length === 0 || request.request_id.length > BRIDGE_LIMITS.max_id_length ||
-        request.session_id.length === 0 || request.session_id.length > BRIDGE_LIMITS.max_id_length) {
+    // Rust validates ID byte length (str::len), not JS code-unit length.
+    const encoder = new TextEncoder()
+    if (encoder.encode(request.request_id).byteLength === 0 ||
+        encoder.encode(request.request_id).byteLength > BRIDGE_LIMITS.max_id_length ||
+        encoder.encode(request.session_id).byteLength === 0 ||
+        encoder.encode(request.session_id).byteLength > BRIDGE_LIMITS.max_id_length) {
       return error_response(request, 'BAD_REQUEST', 'invalid request_id or session_id length')
     }
     if (!Number.isSafeInteger(request.deadline_ms) ||
@@ -188,7 +192,7 @@ export class AuthoringDispatcher {
       'DEADLINE_EXCEEDED', 'DUPLICATE_REQUEST_ID', 'SESSION_CONFLICT',
       'RIG_UNAVAILABLE', 'RIG_MISMATCH', 'INVALID_DOCUMENT', 'PREVIEW_ACTIVE',
       'CONFIRMATION_REQUIRED', 'CONFIRMATION_DENIED', 'CONFIRMATION_EXPIRED',
-      'COMMIT_FAILED', 'UNDO_FAILED', 'INTERNAL'
+      'COMMIT_FAILED', 'UNDO_FAILED', 'INTERNAL', 'AUTHORING_DISABLED', 'APP_DISCONNECTED'
     ]
     return codes.includes(value as AuthoringErrorCode)
   }
