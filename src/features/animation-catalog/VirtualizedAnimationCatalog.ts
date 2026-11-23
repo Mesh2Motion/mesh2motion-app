@@ -65,8 +65,12 @@ export class VirtualizedAnimationCatalog<T> {
     requestAnimationFrame(() => {
       if (this.disposed) return
       this.viewport.classList.add(FIRST_PAINT_REPAINT_CLASS)
+      // A visually negligible opacity change forces WebKitGTK to repaint the
+      // whole content subtree (including the wrapper background), not just tiles.
+      this.content.style.opacity = '0.9999'
       requestAnimationFrame(() => {
         if (this.disposed) return
+        this.content.style.removeProperty('opacity')
         this.viewport.classList.remove(FIRST_PAINT_REPAINT_CLASS)
       })
     })

@@ -178,22 +178,27 @@ body.composer-is-dragging .composer-slot.is-drag-over {
 #composer-library-items.virtualized-animation-catalog {
     position: relative;
     display: block;
+    /* NATIVE-005: the scroller's own padding was painted black on first frame.
+       Move all padding into the themed content wrapper instead. */
+    padding: 0;
+    background-image: linear-gradient(var(--bg-alternate), var(--bg-alternate));
 }
 
 /*
- * M2M-025D (NATIVE-005): WebKitGTK can leave the scroll container's own
- * background layer unpainted on the first frame after the virtualized catalog
- * mounts, so the whole rectangle appears black until a scroll invalidates it.
- * The computed background color is already correct (verified in WebKitGTK), so
- * this is a repaint/layer problem, not a CSS-variable timing problem.
+ * M2M-025D (NATIVE-005): WebKitGTK leaves the scroll container's own background
+ * layer unpainted on the first frame after virtualization mounts. The computed
+ * color is already correct, so this is a repaint/layer problem, not CSS timing.
  *
- * Give the virtualized content wrapper an explicit themed background and make
- * it cover the viewport from the very first frame. The visible pixels then
- * come from a normally painted child instead of the scroller's layer.
+ * The content wrapper now carries the padding, fills the viewport from the
+ * first frame and paints the theme through an explicit background-image as
+ * well as background-color (WebKitGTK paints images more reliably here).
  */
 #composer-library-items.virtualized-animation-catalog .virtualized-catalog-content {
+    box-sizing: border-box;
     min-height: 100%;
+    padding: 0.75rem;
     background-color: var(--bg-alternate);
+    background-image: linear-gradient(var(--bg-alternate), var(--bg-alternate));
 }
 
 /* Two-frame, visually harmless style change applied by VirtualizedAnimationCatalog
