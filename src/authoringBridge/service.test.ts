@@ -7,6 +7,7 @@ import { create_live_agent_wave } from './liveWave'
 import { AUTHORING_BRIDGE_PROTOCOL, type AuthoringRequest } from './types'
 import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
 import { draft_document_to_clip } from '../animation-document/liveRigAdapter'
+import { load_authored_documents } from '../animation-document/authoredLibrary'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry'
 
@@ -220,6 +221,7 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
   })
 
   it('commits to the real library only after approval and supports undo', async () => {
+    window.localStorage.clear()
     const { bridge, document: wave, app } = await create_wave_bridge()
     // The Rust MCP tool sends document:null when the optional argument is omitted.
     const pending = bridge.handle(req('draft.commit', { document: null }))
@@ -232,6 +234,8 @@ describe('FrontendAuthoringBridge — confirmation and commit', () => {
     const committed_entry_id = (committed.result as { entry_id: string }).entry_id
     expect(app.entries).toHaveLength(1)
     expect(app.entries[0].metadata.tags).toContain('authored-animation-document')
+    expect(load_authored_documents()).toHaveLength(1)
+    expect(load_authored_documents()[0].document.clip.name).toBe(wave.clip.name)
     const committed_export = await bridge.handle(req('draft.export', {}, 'export-committed'))
     const committed_document = (committed_export.result as { document: typeof wave }).document
     expect(committed_document.revision).toBe((committed.result as { revision: number }).revision)

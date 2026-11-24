@@ -21,7 +21,7 @@ import { SharedDraftController } from '../animation-document/sharedDraft.ts'
 import { get_active_authoring_bridge } from '../authoringBridge/attach.ts'
 import { apply_evaluated_pose, evaluate_document_at_time } from '../authoringObservation/poseEvaluation.ts'
 import { stable_bone_id } from '../animation-document/rigIdentity.ts'
-import { delete_authored_document, load_authored_documents, save_authored_document } from '../animation-document/authoredLibrary.ts'
+import { delete_authored_document, load_authored_documents } from '../animation-document/authoredLibrary.ts'
 import { is_animation_document } from '../authoringBridge/types.ts'
 import { KeyframeEditor } from './keyframeEditor.ts'
 
@@ -472,7 +472,6 @@ export class NewAnimationWorkspace {
     try {
       const document = await this.controller.export_document()
       const result = await this.controller.commit()
-      save_authored_document(document, this.controller.source())
       this.previewing = false
       this.set_status(`Saved "${document.clip.name}" to the library (revision ${String(result.revision ?? '')}). Open Explore to inspect and play it.`)
       this.render_saved_clips()
