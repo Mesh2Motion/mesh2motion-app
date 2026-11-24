@@ -31,6 +31,7 @@ export interface AuthoringApplicationEngine {
     remove_authored_animation (animation_id: string): boolean
     current_selection (): string | null
     select_animation (animation_id: string | null): void
+    refresh_animation_listing_ui? (): void
   }
   renderer?: WebGLRenderer
   scene?: Scene
@@ -81,7 +82,9 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
     // MCP-authored clips are persisted too, so they are inspectable/deletable in
     // a fresh Explore session. Deduplicated to avoid undo re-applying revisions.
     const stored_id = save_authored_document_once(document, source ?? null)
-    this.generate_preview(entry.id, document, stored_id)
+    if (this.generate_preview(entry.id, document, stored_id)) {
+      this.engine.animations_listing_step.refresh_animation_listing_ui?.()
+    }
     this.records.push({
       entry_id: entry.id,
       document_name: document.clip.name,
@@ -99,20 +102,22 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
   }
 
   /** Generate and register a real poster/flipbook as part of the commit. */
-  private generate_preview (entry_id: string, document: AnimationDocument, stored_id: string | null): void {
+  private generate_preview (entry_id: string, document: AnimationDocument, stored_id: string | null): boolean {
     try {
       const skeleton = live_skeleton_from_engine(this.engine)
-      if (skeleton === null || !check_rig_compatibility(document, skeleton).compatible) return
+      if (skeleton === null || !check_rig_compatibility(document, skeleton).compatible) return false
       const meshes = this.engine.active_skinned_meshes?.() ?? []
       const rendered = this.engine.renderer !== undefined && this.engine.scene !== undefined && meshes.length > 0
         ? generate_authored_preview(document, skeleton, this.engine.renderer, this.engine.scene, meshes)
         : []
       const frames = rendered.length > 0 ? rendered : generate_skeleton_preview(document, skeleton)
-      if (frames.length === 0) return
+      if (frames.length === 0) return false
       set_authored_preview_frames(entry_id, frames)
       if (stored_id !== null) set_stored_preview_frames(stored_id, frames)
+      return true
     } catch (error) {
       console.warn('[M2M-030] authored preview generation failed:', error instanceof Error ? error.message : String(error))
+      return false
     }
   }
 

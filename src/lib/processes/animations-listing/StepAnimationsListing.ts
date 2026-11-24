@@ -428,6 +428,11 @@ export class StepAnimationsListing extends EventTarget {
     // }
   }
 
+  /** Re-render tiles after asynchronously generated authored preview frames arrive. */
+  public refresh_animation_listing_ui (): void {
+    this.update_filtered_animation_listing_ui()
+  }
+
   private update_filtered_animation_listing_ui (): void {
     const animation_length_string: string = this.animation_search?.filtered_animations().length.toString() ?? '0'
     if (this.ui.dom_animations_listing_count != null) {
