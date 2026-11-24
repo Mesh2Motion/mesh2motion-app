@@ -166,6 +166,38 @@ describe('Godot-style clip editor', () => {
     editor.dispose()
   })
 
+  it('edits and removes the keyframe selected in the graph, not the playhead', async () => {
+    const source = make_document()
+    let current: AnimationDocument | null = source
+    let written: AnimationKeyframe[] | null = null
+    const controller = {
+      attach: () => () => {},
+      subscribe: () => () => {},
+      document: () => current,
+      snapshot: () => ({ document: current, revision: source.revision, fingerprint: '', previewing: false, mcp_session_active: false }),
+      set_channel: async (_revision: number, _bone_id: string, _property: string, keyframes: AnimationKeyframe[]) => {
+        written = keyframes
+        current = { ...source, channels: [{ ...source.channels[0], keyframes }] }
+        return current
+      },
+      preview: async () => {}
+    } as unknown as SharedDraftController
+    const editor = new KeyframeEditor(controller, make_dom(), make_host().host)
+    editor.select_channel(source.bones[0].id, 'quaternion')
+    const private_editor = editor as unknown as { selected_key_time: number | null, time_seconds: number }
+    private_editor.time_seconds = 0 // playhead at 0, but keyframe 0.5 is selected
+    private_editor.selected_key_time = 0.5
+
+    await editor.upsert_channel_key(source.bones[0].id, 'quaternion', [1, 0, 0, 0])
+    expect(written).not.toBeNull()
+    expect(written!.map((key) => key.time_seconds)).toEqual([0, 0.5, 1])
+    expect(written!.find((key) => key.time_seconds === 0.5)!.values).toEqual([1, 0, 0, 0])
+
+    await editor.remove_keyframe()
+    expect(written!.map((key) => key.time_seconds)).toEqual([0, 1])
+    editor.dispose()
+  })
+
   it('shows an empty editor until a draft exists', () => {
     const dom = make_dom()
     const editor = new KeyframeEditor(make_controller(null), dom, make_host().host)

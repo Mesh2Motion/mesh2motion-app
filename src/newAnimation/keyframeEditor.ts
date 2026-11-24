@@ -207,27 +207,50 @@ export class KeyframeEditor {
     this.render()
   }
 
+  /** The keyframe the user selected in the graph, if it still exists. */
+  private selected_key (): { time: number, values: number[], interpolation: KeyframeInterpolation } | null {
+    const document = this.controller.document()
+    if (document === null || this.selection === null || this.selected_key_time === null) return null
+    const channel = document.channels.find((entry) =>
+      entry.bone_id === this.selection!.bone_id && entry.property === this.selection!.property)
+    const key = channel?.keyframes.find((entry) => Math.abs(entry.time_seconds - this.selected_key_time!) < 1e-6)
+    return key === undefined ? null
+      : { time: key.time_seconds, values: [...key.values], interpolation: key.interpolation }
+  }
+
   async remove_keyframe (): Promise<void> {
     const document = this.controller.document()
     if (document === null || this.selection === null) return
     const channel = document.channels.find((entry) =>
       entry.bone_id === this.selection!.bone_id && entry.property === this.selection!.property)
-    if (channel === undefined) return
-    const keyframes = channel.keyframes.filter((key) => Math.abs(key.time_seconds - this.time_seconds) >= 1e-6)
+    if (channel === undefined || channel.keyframes.length === 0) return
+    const selected = this.selected_key()
+    // Prefer the keyframe selected in the graph; only fall back to the playhead
+    // time when no keyframe is selected.
+    const target_time = selected?.time ?? this.time_seconds
+    let keyframes = channel.keyframes.filter((key) => Math.abs(key.time_seconds - target_time) >= 1e-6)
+    if (keyframes.length === channel.keyframes.length) {
+      const nearest = channel.keyframes.reduce((best, key) =>
+        Math.abs(key.time_seconds - target_time) < Math.abs(best - target_time) ? key.time_seconds : best,
+      channel.keyframes[0].time_seconds)
+      keyframes = channel.keyframes.filter((key) => Math.abs(key.time_seconds - nearest) >= 1e-6)
+    }
     await this.controller.set_channel(document.revision, this.selection.bone_id, this.selection.property, keyframes)
     this.selected_key_time = null
     await this.refresh_preview()
     this.set_status('Keyframe removed')
+    this.render()
   }
 
   /** Write a bone's local TRS (from a gizmo drag) at the current timeline cursor. */
   async upsert_channel_key (bone_id: string, property: AnimationProperty, values: number[]): Promise<void> {
     const document = this.controller.document()
     if (document === null) throw new Error('no active draft')
-    const keyframes = upsert_keyframe(document, { bone_id, property }, this.time_seconds, values)
+    const edit_time = this.selected_key()?.time ?? this.time_seconds
+    const keyframes = upsert_keyframe(document, { bone_id, property }, edit_time, values)
     await this.controller.set_channel(document.revision, bone_id, property, keyframes)
     this.selection = { bone_id, property }
-    this.selected_key_time = this.time_seconds
+    this.selected_key_time = edit_time
     await this.refresh_preview()
     this.set_status(`Gizmo edit written to ${property} at ${this.time_seconds.toFixed(3)} s`)
     this.render()
@@ -401,7 +424,9 @@ export class KeyframeEditor {
       this.dom.values.textContent = 'Select a channel to edit its local transform.'
       return
     }
-    const values = this.values_at_time(document)
+    const selected = this.selected_key()
+    const edit_time = selected?.time ?? this.time_seconds
+    const values = selected?.values ?? this.values_at_time(document)
     if (values === null) return
     const labels = this.selection.property === 'quaternion' ? ['X', 'Y', 'Z', 'W'] : ['X', 'Y', 'Z']
     for (let index = 0; index < values.length; index++) {
@@ -413,14 +438,17 @@ export class KeyframeEditor {
       input.value = values[index].toFixed(4)
       input.setAttribute('aria-label', `${this.selection.property} ${labels[index]}`)
       input.addEventListener('change', async () => {
-        const next = this.values_at_time(document) ?? [...values]
-        next[index] = Number(input.value)
         const current = this.controller.document()
         if (current === null) return
+        const base = this.selected_key()?.values ?? this.values_at_time(current) ?? [...values]
+        const next = [...base]
+        next[index] = Number(input.value)
         await this.controller.set_channel(current.revision, this.selection!.bone_id, this.selection!.property,
-          upsert_keyframe(current, this.selection!, this.time_seconds, next))
+          upsert_keyframe(current, this.selection!, edit_time, next))
+        this.selected_key_time = edit_time
         await this.refresh_preview()
-        this.set_status(`Local ${this.selection!.property} updated at revision ${this.controller.snapshot().revision}`)
+        this.set_status(`Local ${this.selection!.property} updated at ${edit_time.toFixed(3)} s (revision ${this.controller.snapshot().revision})`)
+        this.render()
       })
       label.appendChild(input)
       this.dom.values.appendChild(label)
@@ -432,7 +460,7 @@ export class KeyframeEditor {
     interpolation.setAttribute('aria-label', 'Keyframe interpolation')
     const channel = document.channels.find((entry) =>
       entry.bone_id === this.selection!.bone_id && entry.property === this.selection!.property)
-    const current = channel?.keyframes.find((key) => Math.abs(key.time_seconds - this.time_seconds) < 1e-6)
+    const current = channel?.keyframes.find((key) => Math.abs(key.time_seconds - edit_time) < 1e-6)
     for (const option of ['linear', 'step', 'slerp'] as const) {
       const element = window.document.createElement('option')
       element.value = option
@@ -447,11 +475,14 @@ export class KeyframeEditor {
         current_document.revision,
         this.selection.bone_id,
         this.selection.property,
-        upsert_keyframe(current_document, this.selection, this.time_seconds,
-          this.values_at_time(current_document) ?? [], interpolation.value as KeyframeInterpolation)
+        upsert_keyframe(current_document, this.selection, edit_time,
+          this.selected_key()?.values ?? this.values_at_time(current_document) ?? [],
+          interpolation.value as KeyframeInterpolation)
       )
+      this.selected_key_time = edit_time
       await this.refresh_preview()
       this.set_status(`Interpolation set to ${interpolation.value}`)
+      this.render()
     })
     interpolation_label.appendChild(interpolation)
     this.dom.values.appendChild(interpolation_label)
