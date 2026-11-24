@@ -38,10 +38,22 @@ class FakeBridge {
   rig_fingerprint (): string { return 'a'.repeat(64) }
   is_previewing (): boolean { return this.previewing }
   is_permission_enabled (): boolean { return true }
+  active_session: string | null = null
+  sequence_by_session = new Map<string, number>()
+  active_session_id (): string | null { return this.active_session }
+  peek_authoring_sequence (session_id: string): number { return (this.sequence_by_session.get(session_id) ?? 0) + 1 }
   set_source_attribution (_name: string, source: string): void { this.source_attribution = source }
 
   async handle_gui_request (request: unknown): Promise<AuthoringResponse> {
     const typed = request as FakeBridgeRequest
+    if (this.active_session !== null && typed.session_id !== this.active_session) {
+      return {
+        protocol: 'authoring-bridge/v1', request_id: typed.request_id, session_id: typed.session_id,
+        sequence: typed.sequence, ok: false,
+        error: { code: 'SESSION_CONFLICT', message: 'competing session' }
+      }
+    }
+    this.sequence_by_session.set(typed.session_id, typed.sequence)
     const payload = typed.payload
     const ok = (result: Record<string, unknown>): AuthoringResponse => ({
       protocol: 'authoring-bridge/v1', request_id: typed.request_id, session_id: typed.session_id,
@@ -182,6 +194,17 @@ describe('SharedDraftController — one authoritative document', () => {
     expect(controller.can_redo()).toBe(true)
     const redone = await controller.redo_edit()
     expect(redone?.channels).toHaveLength(1)
+  })
+
+  it('edits the same draft while an MCP session owns the bridge', async () => {
+    const bridge = new FakeBridge()
+    const controller = new SharedDraftController(() => bridge as unknown as FrontendAuthoringBridge, 'gui-edit')
+    bridge.active_session = 'mcp-session'
+    bridge.sequence_by_session.set('mcp-session', 4)
+    const document = await controller.create_from_scratch('Wave', 2)
+    expect(bridge.document?.clip.name).toBe('Wave')
+    expect(controller.snapshot().revision).toBe(document.revision)
+    expect(bridge.sequence_by_session.get('mcp-session')).toBeGreaterThan(4)
   })
 
   it('rejects stale GUI edits after an MCP mutation and notifies subscribers', async () => {

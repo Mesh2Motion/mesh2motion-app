@@ -205,6 +205,11 @@ export class AuthoringDispatcher {
     return codes.includes(value as AuthoringErrorCode)
   }
 
+  /** Next legal sequence for a session, without consuming it (the handle() call does). */
+  peek_sequence (session_id: string): number {
+    return (this.last_sequence.get(session_id) ?? 0) + 1
+  }
+
   private dispatch (request: AuthoringRequest): Promise<Record<string, unknown>> {
     switch (request.operation) {
       case 'rig.catalog.get': return this.handlers.rig_catalog_get()

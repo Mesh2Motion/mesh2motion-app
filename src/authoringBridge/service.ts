@@ -92,6 +92,15 @@ export class FrontendAuthoringBridge {
     this.dispatcher = new AuthoringDispatcher(this.build_handlers())
   }
 
+  /** Session currently owning the bridge (MCP or GUI); null when none is active. */
+  active_session_id (): string | null {
+    return this.current_session
+  }
+
+  peek_authoring_sequence (session_id: string): number {
+    return this.dispatcher.peek_sequence(session_id)
+  }
+
   is_permission_enabled (): boolean {
     return this.permission.is_enabled()
   }

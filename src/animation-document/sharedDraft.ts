@@ -44,6 +44,7 @@ export function compose_rest_delta (
 
 export class SharedDraftController {
   private sequence = 0
+  private request_counter = 0
   private readonly undo_stack: AnimationDocument[] = []
   private readonly redo_stack: AnimationDocument[] = []
   private readonly listeners = new Set<() => void>()
@@ -80,11 +81,21 @@ export class SharedDraftController {
   private async operation (operation: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     const bridge = this.bridge_provider()
     if (bridge === undefined) throw new Error('RIG_UNAVAILABLE: load a rig before authoring an animation')
+    // An MCP session may own the single bridge slot while the user edits the
+    // same draft in the GUI. Share that session and continue its sequence so
+    // the dispatcher accepts GUI edits instead of rejecting them as a stale
+    // competing session.
+    const active = bridge.active_session_id?.() ?? null
+    const session_id = active ?? this.session_id
+    const sequence = active !== null && bridge.peek_authoring_sequence !== undefined
+      ? bridge.peek_authoring_sequence(active)
+      : ++this.sequence
+    if (active === null) this.sequence = sequence
     const response: AuthoringResponse = await bridge.handle_gui_request({
       protocol: 'authoring-bridge/v1',
-      request_id: `gui-${++this.sequence}`,
-      session_id: this.session_id,
-      sequence: this.sequence,
+      request_id: `gui-${++this.request_counter}-${session_id.slice(0, 12)}`,
+      session_id,
+      sequence,
       deadline_ms: 30000,
       operation,
       payload
