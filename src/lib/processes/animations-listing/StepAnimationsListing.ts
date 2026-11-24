@@ -36,6 +36,16 @@ export class StepAnimationsListing extends EventTarget {
   private readonly animation_loader: AnimationLoader = new AnimationLoader()
   private readonly animation_library: AnimationLibrary = new AnimationLibrary(this.animation_loader)
 
+  /** Entries in the application's authoritative animation library. */
+  public library_entries (): AnimationEntry[] {
+    return this.animation_library.all()
+  }
+
+  /** Load a library entry so its AnimationClip tracks can be copied. */
+  public async load_library_entry (id: string): Promise<AnimationEntry> {
+    return this.animation_library.load(id)
+  }
+
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
   private skinned_meshes_to_animate: SkinnedMesh[] = []
   private model_variation_switcher: ModelVariationSwitcher | null = null

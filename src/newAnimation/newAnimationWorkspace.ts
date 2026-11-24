@@ -14,7 +14,6 @@ import { SkeletonType } from '../lib/enums/SkeletonType.ts'
 import { RigConfig } from '../lib/RigConfig.ts'
 import { Utility } from '../lib/Utilities.ts'
 import { AnimationLoader } from '../lib/processes/animations-listing/AnimationLoader.ts'
-import { AnimationLibrary } from '../lib/processes/animations-listing/AnimationLibrary.ts'
 import type { AnimationEntry } from '../lib/processes/animations-listing/interfaces/AnimationEntry.ts'
 import { create_empty_document } from '../animation-document/create.ts'
 import { import_clip_as_document } from '../animation-document/clipImport.ts'
@@ -50,7 +49,6 @@ export class NewAnimationWorkspace {
   private readonly controller: SharedDraftController
   private readonly editor: KeyframeEditor
   private readonly animation_loader = new AnimationLoader()
-  private readonly animation_library = new AnimationLibrary(this.animation_loader)
   private skinned_meshes: SkinnedMesh[] = []
   private rig_type: SkeletonType = SkeletonType.Human
   private mode: 'scratch' | 'existing' = 'scratch'
@@ -367,16 +365,17 @@ export class NewAnimationWorkspace {
 
   private refresh_library (): void {
     this.animation_loader.set_static_root_path(STATIC_ROOT)
-    this.animation_library.reset(this.rig_type, 1)
+    const listing = this.engine.animations_listing_step
+    if (listing.library_entries().length === 0) listing.begin(this.rig_type, 1)
     this.render_library('')
   }
 
   private render_library (filter: string): void {
     const list = by_id('new-animation-source-list')
     list.replaceChildren()
-    const entries = this.animation_library.all().filter((entry) =>
+    const entries = this.engine.animations_listing_step.library_entries().filter((entry) =>
       entry.name.toLowerCase().includes(filter))
-    for (const entry of entries.slice(0, 100)) {
+    for (const entry of entries) {
       const button = window.document.createElement('button')
       button.type = 'button'
       button.className = 'm2m-track-row'
@@ -407,7 +406,7 @@ export class NewAnimationWorkspace {
         this.set_status(`Created empty original clip "${name}" — no source animation was used.`)
       } else {
         if (this.selected_source === null) throw new Error('select a source animation first')
-        const entry = await this.animation_library.load(this.selected_source.id)
+        const entry = await this.engine.animations_listing_step.load_library_entry(this.selected_source.id)
         const clip: AnimationClip | undefined = entry.clip_pair?.original_animation_clip
           ?? entry.clip_pair?.display_animation_clip
         if (clip === undefined) throw new Error(`source animation ${entry.name} has no loadable clip`)
