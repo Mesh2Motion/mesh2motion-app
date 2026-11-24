@@ -67,6 +67,13 @@ export interface ApplicationInfo {
   build: string
   uptime_ms: number
   diagnostics_enabled: boolean
+  phase_inputs?: {
+    first_frame_rendered: boolean
+    has_loaded_model: boolean
+    engine_attached: boolean
+    active_meshes: number
+    vertex_count: number
+  }
   last_error?: string
 }
 

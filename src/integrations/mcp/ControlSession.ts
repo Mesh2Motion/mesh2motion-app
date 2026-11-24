@@ -122,6 +122,13 @@ export class ControlSession {
         build: observation.build,
         uptime_ms: Math.max(0, this.clock() - (this.started_at ?? this.clock())),
         diagnostics_enabled: observation.diagnostics_enabled,
+        phase_inputs: {
+          first_frame_rendered: observation.first_frame_rendered,
+          has_loaded_model: observation.has_loaded_model,
+          engine_attached: observation.engine_attached,
+          active_meshes: observation.active_meshes ?? 0,
+          vertex_count: observation.vertex_count ?? 0
+        },
         ...info
       },
       renderer: {

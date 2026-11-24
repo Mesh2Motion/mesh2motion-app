@@ -22,6 +22,8 @@ export interface ControlObservation {
   engine_attached: boolean
   first_frame_rendered: boolean
   has_loaded_model: boolean
+  active_meshes?: number
+  vertex_count?: number
   renderer_created: boolean
   context_lost: boolean
   render_loop_stopped: boolean
@@ -53,6 +55,8 @@ export function empty_observation (): ControlObservation {
     engine_attached: false,
     first_frame_rendered: false,
     has_loaded_model: false,
+    active_meshes: 0,
+    vertex_count: 0,
     renderer_created: false,
     context_lost: false,
     render_loop_stopped: false,

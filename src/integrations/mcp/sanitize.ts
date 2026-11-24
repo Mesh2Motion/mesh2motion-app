@@ -46,6 +46,9 @@ export function sanitize_snapshot (snapshot: ControlSnapshot): ControlSnapshot {
       build: redact(snapshot.application.build),
       uptime_ms: snapshot.application.uptime_ms,
       diagnostics_enabled: snapshot.application.diagnostics_enabled,
+      ...(snapshot.application.phase_inputs === undefined
+        ? {}
+        : { phase_inputs: snapshot.application.phase_inputs }),
       ...(snapshot.application.last_error === undefined
         ? {}
         : { last_error: redact(snapshot.application.last_error) })

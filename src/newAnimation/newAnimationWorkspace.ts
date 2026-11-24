@@ -338,14 +338,20 @@ export class NewAnimationWorkspace {
     this.engine.load_skeleton_step.set_skeleton_type(type)
     const rig = RigConfig.by_skeleton_type(type)
     if (rig === undefined) throw new Error(`unsupported rig ${type}`)
-    const variation = rig.model_variations.find((item) => item.name === 'base') ?? rig.model_variations[0]
-    if (variation === undefined) throw new Error(`rig ${rig.rig_display_name} has no rigged model`)
-    const gltf = await new GLTFLoader().loadAsync(`${STATIC_ROOT}${variation.model_file}`)
+    // Several rigs ship a single model without named variations; RigConfig's
+    // model_variations is then empty even though rig.model_file is available.
+    const model_file = rig.model_variations.find((item) => item.name === 'base')?.model_file
+      ?? rig.model_variations[0]?.model_file
+      ?? rig.model_file
+    if (typeof model_file !== 'string' || model_file.length === 0) {
+      throw new Error(`rig ${rig.rig_display_name} has no rigged model`)
+    }
+    const gltf = await new GLTFLoader().loadAsync(`${STATIC_ROOT}${model_file}`)
     const meshes: SkinnedMesh[] = []
     gltf.scene.traverse((child) => {
       if (child instanceof SkinnedMesh) meshes.push(child)
     })
-    if (meshes.length === 0) throw new Error(`no skinned meshes in ${variation.model_file}`)
+    if (meshes.length === 0) throw new Error(`no skinned meshes in ${model_file}`)
     Utility.parent_root_bones_to_skinned_meshes(meshes)
     this.skinned_meshes.forEach((mesh) => { Utility.remove_object_with_children(mesh) })
     this.skinned_meshes = meshes

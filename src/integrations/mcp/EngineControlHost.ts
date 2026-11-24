@@ -38,6 +38,8 @@ interface AnimationEntryLike {
 interface AnimationStepLike {
   /** Additive read-only getter on upstream StepAnimationsListing. */
   loaded_animation_entries(): readonly AnimationEntryLike[]
+  /** Set by pages that load pre-rigged GLBs directly (e.g. New Animation). */
+  active_skinned_meshes?(): readonly unknown[]
 }
 interface SkeletonLike { bones: readonly { name: string }[] }
 interface SkeletonStepLike { skeleton_type(): string }
@@ -59,6 +61,7 @@ export interface EngineLike {
   load_skeleton_step: SkeletonStepLike
   edit_skeleton_step: EditStepLike
   animations_listing_step: AnimationStepLike
+  active_skinned_meshes?(): readonly unknown[]
   control_state(): EngineStateLike
 }
 
@@ -110,7 +113,8 @@ export class EngineControlHost implements ControlHost {
     const engine = this.engine
     const state = engine.control_state()
     const skeleton_type = as_skeleton_type(engine.load_skeleton_step.skeleton_type())
-    const has_model = engine.load_model_step.vertex_count > 0
+    const active_meshes = engine.active_skinned_meshes?.() ?? []
+    const has_model = engine.load_model_step.vertex_count > 0 || active_meshes.length > 0
     const loaded_animations = this.loaded_animations(skeleton_type)
     const rigs: readonly RigInfo[] = RigConfig.all.map(rig => ({
       key: as_skeleton_type(rig.skeleton_type),
@@ -123,7 +127,9 @@ export class EngineControlHost implements ControlHost {
       process_step: as_process_step(engine.process_step),
       model: {
         loaded: has_model,
-        mesh_count: has_model ? engine.load_model_step.model_meshes().children.length : 0,
+        mesh_count: engine.load_model_step.vertex_count > 0
+          ? engine.load_model_step.model_meshes().children.length
+          : active_meshes.length,
         vertex_count: engine.load_model_step.vertex_count,
         triangle_count: engine.load_model_step.triangle_count
       },
@@ -153,6 +159,8 @@ export class EngineControlHost implements ControlHost {
       engine_attached: true,
       first_frame_rendered: state.first_frame_rendered,
       has_loaded_model: has_model,
+      active_meshes: active_meshes.length,
+      vertex_count: engine.load_model_step.vertex_count,
       renderer_created: true,
       context_lost: state.context_lost,
       render_loop_stopped: state.render_loop_stopped,
