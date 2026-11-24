@@ -65,7 +65,16 @@ export class SharedDraftController {
 
   attach (): () => void {
     const unsubscribe = this.bridge_provider()?.on_change(() => this.notify())
-    return () => { unsubscribe?.() }
+    // The live bridge can attach after this controller is constructed (rig
+    // loading is asynchronous). The event is a UI refresh signal only, so the
+    // GUI always reflects drafts created through MCP as well as GUI edits.
+    if (typeof window === 'undefined') return () => { unsubscribe?.() }
+    const on_document_changed = (): void => { this.notify() }
+    window.addEventListener('m2m-authoring-document-changed', on_document_changed)
+    return () => {
+      unsubscribe?.()
+      window.removeEventListener('m2m-authoring-document-changed', on_document_changed)
+    }
   }
 
   private async operation (operation: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {

@@ -33,6 +33,7 @@ export interface AuthoringHandlers {
   draft_import (payload: Record<string, unknown>): Promise<Record<string, unknown>>
   session_status (session_id: string): Promise<Record<string, unknown>>
   session_cancel (): Promise<Record<string, unknown>>
+  application_set_page? (payload: Record<string, unknown>): Promise<Record<string, unknown>>
 }
 
 function error_response (request: AuthoringRequest, code: AuthoringErrorCode, message: string): AuthoringResponse {
@@ -189,7 +190,8 @@ export class AuthoringDispatcher {
 
   private activeSessionLimitReached (operation: AuthoringOperation): boolean {
     return this.current_session !== null && BRIDGE_LIMITS.max_sessions === 1 &&
-      operation !== 'session.status' && operation !== 'session.cancel'
+      operation !== 'session.status' && operation !== 'session.cancel' &&
+      operation !== 'application.set_page'
   }
 
   private is_bridge_error_code (value: string): boolean {
@@ -218,6 +220,8 @@ export class AuthoringDispatcher {
       case 'draft.import': return this.handlers.draft_import(request.payload)
       case 'session.status': return this.handlers.session_status(request.session_id)
       case 'session.cancel': return this.handlers.session_cancel()
+      case 'application.set_page': return this.handlers.application_set_page?.(request.payload)
+        ?? Promise.reject(new Error('_PAGE_UNSUPPORTED'))
       default: return Promise.reject(new Error('UNKNOWN_OPERATION'))
     }
   }

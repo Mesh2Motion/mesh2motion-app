@@ -33,11 +33,12 @@ export type AuthoringOperation =
   | 'draft.import'
   | 'session.status'
   | 'session.cancel'
+  | 'application.set_page'
 
 export const AUTHORING_OPERATIONS: readonly AuthoringOperation[] = [
   'rig.catalog.get', 'draft.create', 'draft.set_keyframes', 'draft.validate', 'draft.preview.start',
   'draft.preview.stop', 'draft.commit', 'draft.cancel', 'draft.undo',
-  'draft.export', 'draft.import', 'session.status', 'session.cancel'
+  'draft.export', 'draft.import', 'session.status', 'session.cancel', 'application.set_page'
 ]
 
 export type AuthoringErrorCode =

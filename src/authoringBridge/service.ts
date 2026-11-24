@@ -108,6 +108,12 @@ export class FrontendAuthoringBridge {
 
   private notify_change (): void {
     for (const listener of this.change_listeners) listener()
+    // UI-only refresh signal. GUI controllers can miss the direct subscription
+    // when the bridge attached after their construction; this event has no
+    // authorization meaning and carries no payload.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('m2m-authoring-document-changed'))
+    }
   }
 
   /** M2M-031 — authoritative current document snapshot (GUI + MCP share this). */
@@ -429,6 +435,20 @@ export class FrontendAuthoringBridge {
       session_cancel: async () => {
         this.cleanup_session()
         return { cancelled: true }
+      },
+      application_set_page: async (payload) => {
+        const page = typeof payload.page === 'string' ? payload.page : ''
+        const target = page === 'new-animation' ? '/newAnimation/index.html'
+          : page === 'explore' ? '/index.html' : null
+        if (target === null || typeof window === 'undefined') {
+          throw new Error('BAD_REQUEST: unsupported page')
+        }
+        // Navigate only after this response is on its way; a synchronous
+        // location change destroys the page before the IPC reply can be sent.
+        if (window.location.pathname !== target) {
+          setTimeout(() => { window.location.href = target }, 150)
+        }
+        return { page } as Record<string, unknown>
       }
     }
   }
