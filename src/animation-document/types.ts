@@ -58,6 +58,13 @@ export interface AnimationDocument {
   schema_version: typeof ANIMATION_DOCUMENT_SCHEMA
   rig: AnimationDocumentRig
   bones: AnimationBoneIdentity[]
+  /** Bind-pose local transforms, stored so rig equivalence can be checked with
+   *  float tolerance instead of relying only on the quantized hash. Additive. */
+  rest_transforms?: Array<{
+    position: [number, number, number]
+    quaternion: [number, number, number, number]
+    scale: [number, number, number]
+  }>
   clip: { name: string, duration_seconds: number }
   channels: AnimationChannel[]
   revision: number

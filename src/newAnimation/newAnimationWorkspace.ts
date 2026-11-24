@@ -30,6 +30,12 @@ const STATIC_ROOT = '../'
 const SUPPORTED_RIGS: ReadonlyArray<{ value: SkeletonType, label: string }> = [
   { value: SkeletonType.Human, label: 'Human' },
   { value: SkeletonType.Fox, label: 'Fox' },
+  { value: SkeletonType.Bird, label: 'Bird' },
+  { value: SkeletonType.Dragon, label: 'Dragon' },
+  { value: SkeletonType.Kaiju, label: 'Kaiju' },
+  { value: SkeletonType.Spider, label: 'Spider' },
+  { value: SkeletonType.Snake, label: 'Snake' },
+  { value: SkeletonType.Fish, label: 'Fish' },
   { value: SkeletonType.Horse, label: 'Horse' }
 ]
 
@@ -387,6 +393,12 @@ export class NewAnimationWorkspace {
   }
 
   private async create_draft (): Promise<void> {
+    // "Create clip" is a one-time action. Recreating a draft because the user
+    // changed the name field discarded every keyframe in the editor.
+    if (this.controller.document() !== null) {
+      this.set_status('A draft is already open. Editing the name field does not recreate it — your keyframes are preserved.')
+      return
+    }
     const name = by_id<HTMLInputElement>('new-animation-name').value.trim() || 'Untitled Authored Clip'
     const duration = Number(by_id<HTMLInputElement>('new-animation-duration').value) || 2
     try {

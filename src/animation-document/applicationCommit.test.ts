@@ -166,12 +166,15 @@ describe('ApplicationCommitController', () => {
     })
   })
 
-  it('refuses a draft whose rig fingerprint no longer matches', () => {
+  it('refuses a draft when the live rig rest pose really changed', () => {
     const ctx = setup()
     ctx.controller.begin_draft(ctx.draft)
+    // A real rig change: the stored bind pose no longer matches the live rig.
     ctx.controller.update_draft((draft): AnimationDocument => ({
       ...draft,
-      rig: { ...draft.rig, fingerprint: 'deadbeef' }
+      rest_transforms: draft.rest_transforms?.map((rest, index) => index === 2
+        ? { ...rest, position: [rest.position[0] + 0.5, rest.position[1], rest.position[2]] }
+        : rest)
     }))
     expect(() => ctx.controller.show_preview()).toThrow(/incompatible live rig/)
     expect(ctx.store.current().revision).toBe(1)

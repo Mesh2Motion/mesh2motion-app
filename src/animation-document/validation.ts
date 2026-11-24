@@ -19,6 +19,8 @@ export interface ValidationOptions {
    * must match exactly, otherwise conversion is unsafe.
    */
   live_fingerprint?: string
+  /** Set when rig compatibility proved equivalence despite hash rounding noise. */
+  fingerprint_equivalent?: boolean
 }
 
 const EXPECTED_VALUE_COUNT = {
@@ -174,7 +176,7 @@ export function validate_document (document: AnimationDocument, options: Validat
     }
   }
 
-  if (options.live_fingerprint !== undefined &&
+  if (options.live_fingerprint !== undefined && options.fingerprint_equivalent !== true &&
       document.rig.fingerprint !== options.live_fingerprint) {
     errors.push(`rig.fingerprint: incompatible with live rig (${document.rig.fingerprint} != ${options.live_fingerprint})`)
   }

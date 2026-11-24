@@ -29,9 +29,11 @@ describe('read_live_rig', () => {
   })
 
   it('rejects unsupported rigs', () => {
-    expect(() => read_live_rig(create_agent_wave_skeleton(), 'dragon')).toThrow(UnsupportedRigError)
+    expect(() => read_live_rig(create_agent_wave_skeleton(), 'error')).toThrow(UnsupportedRigError)
     expect(is_supported_rig('horse')).toBe(true)
-    expect(SUPPORTED_RIG_IDENTIFIERS).toEqual(['human', 'fox', 'horse'])
+    expect(SUPPORTED_RIG_IDENTIFIERS).toEqual([
+      'human', 'fox', 'bird', 'dragon', 'kaiju', 'spider', 'snake', 'fish', 'horse'
+    ])
   })
 })
 
@@ -52,7 +54,7 @@ describe('create_document_from_live_rig', () => {
   it('rejects an unsupported rig identifier', () => {
     expect(() => create_document_from_live_rig({
       skeleton: create_agent_wave_skeleton(),
-      rig_identifier: 'spider',
+      rig_identifier: 'none',
       clip_name: 'x',
       duration_seconds: 1
     })).toThrow(UnsupportedRigError)

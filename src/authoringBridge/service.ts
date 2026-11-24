@@ -19,7 +19,7 @@ import {
   type AuthoringResponse
 } from './types'
 import { AuthoringDispatcher, type AuthoringHandlers } from './dispatcher'
-import { publish_live_rig_catalog, type AuthoringEngine } from './rigCatalog'
+import { live_skeleton_from_engine, publish_live_rig_catalog, type AuthoringEngine } from './rigCatalog'
 import { LiveDraftPreview } from './livePreview'
 import { NativeConfirmationPanel } from './confirmationPanel'
 import { AuthoringPermission } from './permission'
@@ -251,9 +251,20 @@ export class FrontendAuthoringBridge {
       },
       draft_create: async (payload) => {
         this.assert_live_rig()
+        // The rig watcher can hold an early fallback skeleton. Bind new drafts
+        // to the currently rendered SkinnedMesh skeleton so the saved document
+        // matches the live fingerprint and survives a library restore.
+        const live = live_skeleton_from_engine(this.app.engine)
+        if (live !== null && live.bones.length > 0) {
+          const live_fingerprint = compute_rig_fingerprint(live)
+          if (live_fingerprint !== this.preview.fingerprint()) {
+            this.app.skeleton = live
+            this.preview.set_skeleton(live)
+          }
+        }
         // Incremental authoring: an empty live-rig draft can be created from
         // name/duration alone; a full document remains accepted for import.
-        const document = is_animation_document(payload.document)
+        let document = is_animation_document(payload.document)
           ? this.require_document(payload)
           : create_document_from_live_rig({
             skeleton: this.app.skeleton,
@@ -261,7 +272,23 @@ export class FrontendAuthoringBridge {
             clip_name: typeof payload.name === 'string' && payload.name.length > 0 ? payload.name : 'Untitled Authored Clip',
             duration_seconds: typeof payload.duration_seconds === 'number' ? payload.duration_seconds : 2
           })
-        const validated = with_validation(document, { live_fingerprint: this.preview.fingerprint() })
+        // After a page switch the bridge can still hold an early fallback
+        // skeleton. Take the fingerprint from the same live-catalog path used by
+        // skeleton_get_catalog so the saved document survives library restore.
+        let live_fingerprint = this.preview.fingerprint()
+        try {
+          live_fingerprint = publish_live_rig_catalog(this.app.engine).rig.fingerprint
+          if (document.rig.fingerprint !== live_fingerprint) {
+            document = {
+              ...document,
+              rig: { ...document.rig, fingerprint: live_fingerprint }
+            }
+          }
+        } catch {
+          // Test/fake engines may not expose a live catalog; keep the bridge's
+          // own fingerprint in that case.
+        }
+        const validated = with_validation(document, { live_fingerprint })
         if (validated.validation.state !== 'valid') {
           throw new Error(`INVALID_DOCUMENT: ${validated.validation.errors.join('; ')}`)
         }
@@ -433,14 +460,28 @@ export class FrontendAuthoringBridge {
         this.notify_change()
         return { revision: this.draft.revision, validation: this.draft.validation } as unknown as Record<string, unknown>
       },
-      session_status: async (session_id) => ({
-        active: this.draft !== null,
-        session_id,
-        revision: this.store?.current().revision ?? 0,
-        rig_fingerprint: this.preview.fingerprint(),
-        previewing: this.preview.is_previewing(),
-        authoring_enabled: this.permission.is_enabled()
-      }) as Record<string, unknown>,
+      session_status: async (session_id) => {
+        const live = live_skeleton_from_engine(this.app.engine)
+        return {
+          active: this.draft !== null,
+          session_id,
+          revision: this.store?.current().revision ?? 0,
+          rig_fingerprint: this.preview.fingerprint(),
+          previewing: this.preview.is_previewing(),
+          authoring_enabled: this.permission.is_enabled(),
+          diagnostics: {
+            live_fingerprint: live === null ? null : compute_rig_fingerprint(live),
+            app_fingerprint: compute_rig_fingerprint(this.app.skeleton),
+            live_bones: live?.bones.length ?? 0,
+            app_bones: this.app.skeleton.bones.length,
+            draft_fingerprint: this.draft?.rig.fingerprint ?? null,
+            catalog_fingerprint: (() => {
+              try { return publish_live_rig_catalog(this.app.engine).rig.fingerprint }
+              catch { return null }
+            })()
+          }
+        } as Record<string, unknown>
+      },
       session_cancel: async () => {
         this.cleanup_session()
         return { cancelled: true }

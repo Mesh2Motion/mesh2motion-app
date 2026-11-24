@@ -21,9 +21,9 @@ export interface LivePreviewOptions {
 
 export class LiveDraftPreview {
   private readonly engine: PreviewEngine
-  private readonly skeleton: Skeleton
+  private skeleton: Skeleton
   private readonly rig_identifier: string
-  private readonly expected_fingerprint: string
+  private expected_fingerprint: string
   private readonly session: DraftPreviewSession
   private previewing = false
 
@@ -33,6 +33,12 @@ export class LiveDraftPreview {
     this.rig_identifier = options.rig_identifier
     this.expected_fingerprint = compute_rig_fingerprint(options.skeleton)
     this.session = create_engine_preview(options.engine)
+  }
+
+  /** Rebind a bridge that captured an early fallback skeleton. */
+  set_skeleton (skeleton: Skeleton): void {
+    this.skeleton = skeleton
+    this.expected_fingerprint = compute_rig_fingerprint(skeleton)
   }
 
   /** The fingerprint captured when this session was created. */

@@ -26,7 +26,9 @@ import { with_validation } from './validation'
 import type { AnimationClip } from 'three'
 
 /** Rigs for which the v1 authoring contract is supported. */
-export const SUPPORTED_RIG_IDENTIFIERS = ['human', 'fox', 'horse'] as const
+export const SUPPORTED_RIG_IDENTIFIERS = [
+  'human', 'fox', 'bird', 'dragon', 'kaiju', 'spider', 'snake', 'fish', 'horse'
+] as const
 export type SupportedRigIdentifier = typeof SUPPORTED_RIG_IDENTIFIERS[number]
 
 export function is_supported_rig (identifier: string): identifier is SupportedRigIdentifier {
@@ -87,7 +89,11 @@ export function create_document_from_live_rig (options: NewLiveDocumentOptions):
     throw new UnsupportedRigError(options.rig_identifier)
   }
   const draft = create_empty_document(options)
-  return with_validation(draft, { live_fingerprint: compute_rig_fingerprint(options.skeleton) })
+  const with_rest: AnimationDocument = {
+    ...draft,
+    rest_transforms: bone_rest_transforms(options.skeleton)
+  }
+  return with_validation(with_rest, { live_fingerprint: compute_rig_fingerprint(options.skeleton) })
 }
 
 export type RigCompatibilityKind =
@@ -153,11 +159,33 @@ export function check_rig_compatibility (document: AnimationDocument, skeleton: 
     }
   }
 
-  // Rest transforms are included in the fingerprint, so a fingerprint-only
-  // difference after IDs, hierarchy and names match means the rest pose changed.
-  if (kind === 'compatible' && document_fingerprint !== live_fingerprint) {
-    kind = 'rest-transform-changed'
-    details.push('fingerprint differs although identities, hierarchy and names match (rest transform changed)')
+  // The fingerprint hashes 6-decimal quantized floats; two instances of the
+  // same asset can differ by ~1e-7 noise and tip a quantization boundary. When
+  // the document carries its bind-pose transforms, compare them numerically.
+  // Older documents without that data keep the hash as advisory only.
+  if (kind === 'compatible') {
+    const stored_rest = document.rest_transforms
+    if (stored_rest !== undefined && stored_rest.length === catalog.bones.length) {
+      const tolerance = 1e-4
+      const changed = stored_rest.some((rest, index) => {
+        const live = catalog.bones[index]
+        const fields: Array<[readonly number[], readonly number[]]> = [
+          [rest.position, live.local_position],
+          [rest.quaternion, live.local_quaternion],
+          [rest.scale, live.local_scale]
+        ]
+        return fields.some(([a, b]) => a.length !== b.length ||
+          a.some((value, offset) => Math.abs(value - b[offset]) >= tolerance))
+      })
+      if (changed) {
+        kind = 'rest-transform-changed'
+        details.push('stored and live bind-pose rest transforms differ beyond float tolerance')
+      } else if (document_fingerprint !== live_fingerprint) {
+        details.push('fingerprint differs only by float rounding noise; rest transforms equivalent')
+      }
+    } else if (document_fingerprint !== live_fingerprint) {
+      details.push('fingerprint differs; stored rest transforms unavailable, bone identity unchanged')
+    }
   }
 
   return {
@@ -186,7 +214,10 @@ export function draft_document_to_clip (
   if (!compatibility.compatible) {
     throw new Error(`incompatible live rig (${compatibility.kind}): ${compatibility.details.join('; ')}`)
   }
-  const validated = with_validation(document, { live_fingerprint: compatibility.live_fingerprint })
+  const validated = with_validation(document, {
+    live_fingerprint: compatibility.live_fingerprint,
+    fingerprint_equivalent: document.rig.fingerprint !== compatibility.live_fingerprint
+  })
   if (validated.validation.state !== 'valid') {
     throw new Error(`invalid AnimationDocument: ${validated.validation.errors.join('; ')}`)
   }
