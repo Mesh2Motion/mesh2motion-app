@@ -4,8 +4,11 @@ import {
   authored_id_from_tags,
   can_delete_animation,
   delete_authored_document,
+  has_current_authored_preview,
   load_authored_documents,
-  save_authored_document
+  save_authored_document,
+  save_authored_document_once,
+  set_stored_preview_frames
 } from './authoredLibrary'
 import { create_empty_document, with_animation_channel } from './create'
 import { make_test_rig } from '../authoringObservation/testFixtures'
@@ -77,5 +80,25 @@ describe('authored clip library persistence and deletion protection', () => {
     const tags = ['authored-animation-document', `${AUTHORED_ID_TAG_PREFIX}authored-1`, 'rig:human']
     expect(authored_id_from_tags(tags)).toBe('authored-1')
     expect(authored_id_from_tags(['rig:human'])).toBeNull()
+  })
+
+  it('invalidates old helper-contaminated previews and replaces them on rehydrate', () => {
+    const document = document_fixture()
+    const id = save_authored_document(document)
+    set_stored_preview_frames(id, ['data:image/png;base64,OLD'])
+    const stored_old = load_authored_documents()[0]
+    expect(stored_old.preview_frames).toEqual(['data:image/png;base64,OLD'])
+    expect(has_current_authored_preview(stored_old)).toBe(true)
+
+    const legacy = { ...stored_old, preview_version: 1 }
+    expect(has_current_authored_preview(legacy)).toBe(false)
+  })
+
+  it('returns the existing storage id so duplicate commits can refresh their preview', () => {
+    const document = document_fixture()
+    const original_id = save_authored_document(document)
+    expect(save_authored_document_once(document)).toBe(original_id)
+    set_stored_preview_frames(original_id, ['data:image/png;base64,REFRESHED'])
+    expect(load_authored_documents()[0].preview_frames).toEqual(['data:image/png;base64,REFRESHED'])
   })
 })

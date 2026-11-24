@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Color, PerspectiveCamera, Scene, Vector3, Vector4, type WebGLRenderer } from 'three'
+import { Color, Object3D, PerspectiveCamera, Scene, Vector3, Vector4, type WebGLRenderer } from 'three'
 import { PoseObservationService, type ObservationEngine } from './service'
 import { create_empty_document, with_animation_channel } from '../animation-document/create'
 import { compute_rig_fingerprint } from '../animation-document/rigIdentity'
@@ -16,6 +16,7 @@ interface FakeRendererState {
   auto_clear: boolean
   render_calls: number
   disposed: boolean
+  render_hook?: () => void
 }
 
 function make_engine (): { engine: ObservationEngine, state: FakeRendererState, camera: PerspectiveCamera, scene: Scene } {
@@ -57,7 +58,7 @@ function make_engine (): { engine: ObservationEngine, state: FakeRendererState, 
       state.clear_alpha = alpha
     },
     clear: () => {},
-    render: () => { state.render_calls++ },
+    render: () => { state.render_calls++; state.render_hook?.() },
     readRenderTargetPixels: (_target: unknown, _x: number, _y: number, _w: number, _h: number, buffer: Uint8Array) => {
       buffer.fill(42)
     }
@@ -254,6 +255,31 @@ describe('PoseObservationService', () => {
     expect(scene.children).toHaveLength(before_children)
     expect(camera.position.equals(position)).toBe(true)
     expect(document.querySelectorAll('.m2m-authoring-cameras, .m2m-observation-camera')).toHaveLength(0)
+    service.dispose()
+  })
+
+  it('hides editor helpers only for offscreen render and restores them on errors', async () => {
+    const source = make_source()
+    const { engine, scene, state } = make_engine()
+    const gizmo = new Object3D()
+    scene.add(gizmo)
+    engine.capture_excluded_objects = () => [gizmo]
+    let fail_render = false
+    state.render_hook = () => {
+      expect(gizmo.visible).toBe(false)
+      if (fail_render) throw new Error('injected renderer failure')
+    }
+    const service = make_service(source, engine)
+    const payload = { ...capture_payload(source), views: ['front'] as ['front'] }
+
+    const success = await service.handle(request(source, payload))
+    expect(success.ok).toBe(true)
+    expect(gizmo.visible).toBe(true)
+
+    fail_render = true
+    const failure = await service.handle(request(source, payload))
+    expect(failure.error?.code).toBe('RENDER_FAILED')
+    expect(gizmo.visible).toBe(true)
     service.dispose()
   })
 

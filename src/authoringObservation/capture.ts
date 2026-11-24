@@ -15,6 +15,7 @@ import {
   UnsignedByteType,
   Vector3,
   Vector4,
+  type Object3D,
   WebGLRenderTarget,
   type Camera,
   type Scene,
@@ -28,6 +29,8 @@ export interface CaptureHost {
   renderer: WebGLRenderer
   scene: Scene
   active_skinned_meshes? (): readonly SkinnedMesh[]
+  /** Editor-only scene helpers that must never appear in model captures. */
+  capture_excluded_objects? (): readonly Object3D[]
 }
 
 export interface EncodedImage {
@@ -177,8 +180,11 @@ export class OffscreenCapture {
     const previous_clear_color = renderer.getClearColor(new Color())
     const previous_clear_alpha = renderer.getClearAlpha()
     const previous_auto_clear = renderer.autoClear
+    const excluded_objects = [...new Set(this.host.capture_excluded_objects?.() ?? [])]
+    const previous_visibility = excluded_objects.map((object) => [object, object.visible] as const)
 
     try {
+      for (const object of excluded_objects) object.visible = false
       renderer.setRenderTarget(target)
       renderer.setViewport(0, 0, width, height)
       renderer.setScissorTest(false)
@@ -193,6 +199,7 @@ export class OffscreenCapture {
       if (error instanceof ObservationError) throw error
       throw new ObservationError('RENDER_FAILED', error instanceof Error ? error.message : String(error), error)
     } finally {
+      for (const [object, visible] of previous_visibility) object.visible = visible
       renderer.setRenderTarget(previous_target)
       renderer.setViewport(previous_viewport)
       renderer.setScissor(previous_scissor)

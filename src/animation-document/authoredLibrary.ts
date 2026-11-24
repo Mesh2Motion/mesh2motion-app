@@ -6,7 +6,7 @@
  * only documents explicitly committed or imported by the user/MCP are stored.
  */
 
-import { Vector3, type Skeleton, type SkinnedMesh, type Scene, type WebGLRenderer } from 'three'
+import { Vector3, type Object3D, type Skeleton, type SkinnedMesh, type Scene, type WebGLRenderer } from 'three'
 import { AUTHORED_TAG } from '../authoringBridge/applicationOwner'
 import type { StepAnimationsListing } from '../lib/processes/animations-listing/StepAnimationsListing'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
@@ -20,6 +20,7 @@ const STORAGE_KEY = 'm2m.authored-animations.v1'
 const MAX_CLIPS = 20
 const MAX_BYTES = 4 * 1024 * 1024
 export const AUTHORED_ID_TAG_PREFIX = 'authored-id:'
+export const AUTHORED_PREVIEW_VERSION = 2
 
 export interface StoredAuthoredDocument {
   id: string
@@ -28,6 +29,8 @@ export interface StoredAuthoredDocument {
   saved_at: number
   /** Small PNG data URLs rendered from the live rig for the catalog poster/flipbook. */
   preview_frames?: string[]
+  /** Bumped when preview rendering rules change so stale images are regenerated. */
+  preview_version?: number
 }
 
 const restored_ids = new Set<string>()
@@ -36,6 +39,10 @@ const preview_frames_by_entry = new Map<string, string[]>()
 
 export function get_authored_preview_frames (entry_id: string): readonly string[] | null {
   return preview_frames_by_entry.get(entry_id) ?? null
+}
+
+export function has_current_authored_preview (entry: Pick<StoredAuthoredDocument, 'preview_frames' | 'preview_version'>): boolean {
+  return entry.preview_version === AUTHORED_PREVIEW_VERSION && (entry.preview_frames?.length ?? 0) > 0
 }
 
 /** Register generated preview frames for a library entry (used by restore and tests). */
@@ -84,11 +91,11 @@ export function save_authored_document_once (
   document: AnimationDocument,
   source_name: string | null = null
 ): string | null {
-  const duplicate = load_authored_documents().some((entry) =>
+  const duplicate = load_authored_documents().find((entry) =>
     entry.document.clip.name === document.clip.name &&
     entry.document.revision === document.revision &&
     entry.document.channels.length === document.channels.length)
-  return duplicate ? null : save_authored_document(document, source_name)
+  return duplicate?.id ?? save_authored_document(document, source_name)
 }
 
 /** Persist preview frames for a stored authored document (best effort). */
@@ -97,7 +104,11 @@ export function set_stored_preview_frames (id: string, frames: readonly string[]
     const entries = load_authored_documents()
     const index = entries.findIndex((entry) => entry.id === id)
     if (index < 0) return
-    entries[index] = { ...entries[index], preview_frames: [...frames] }
+    entries[index] = {
+      ...entries[index],
+      preview_frames: [...frames],
+      preview_version: AUTHORED_PREVIEW_VERSION
+    }
     write(entries)
   } catch {
     // A quota failure must never break the commit; the in-memory frames still work.
@@ -145,9 +156,15 @@ export function generate_authored_preview (
   renderer: WebGLRenderer,
   scene: Scene,
   meshes: readonly SkinnedMesh[],
+  excluded_objects: readonly Object3D[] = [],
   frame_count = 8
 ): string[] {
-  const capture = new OffscreenCapture({ renderer, scene, active_skinned_meshes: () => meshes })
+  const capture = new OffscreenCapture({
+    renderer,
+    scene,
+    active_skinned_meshes: () => meshes,
+    capture_excluded_objects: () => excluded_objects
+  })
   const frames: string[] = []
   try {
     for (let index = 0; index < frame_count; index++) {
@@ -241,7 +258,8 @@ export function restore_authored_documents (
   rig_identifier: string,
   renderer?: WebGLRenderer,
   scene?: Scene,
-  meshes?: readonly SkinnedMesh[]
+  meshes?: readonly SkinnedMesh[],
+  excluded_objects: readonly Object3D[] = []
 ): number {
   let restored = 0
   for (const stored of load_authored_documents()) {
@@ -267,22 +285,18 @@ export function restore_authored_documents (
       }
       const entry = listing.add_authored_animation(pair)
       if (renderer !== undefined && scene !== undefined && meshes !== undefined) {
-        const rendered = (stored.preview_frames?.length ?? 0) > 0
+        const current_preview = has_current_authored_preview(stored)
+        const rendered = current_preview
           ? stored.preview_frames!
-          : generate_authored_preview(document, skeleton, renderer, scene, meshes)
+          : generate_authored_preview(document, skeleton, renderer, scene, meshes, excluded_objects)
         const frames = rendered.length > 0 ? rendered : generate_skeleton_preview(document, skeleton)
         if (frames.length > 0) {
           // Register with the catalog first: a localStorage quota failure must
           // never prevent the tile from showing its generated poster/flipbook.
           preview_frames_by_entry.set(entry.id, frames)
-          if (stored.preview_frames === undefined) {
+          if (!current_preview) {
             try {
-              const entries = load_authored_documents()
-              const index = entries.findIndex((item) => item.id === stored.id)
-              if (index >= 0) {
-                entries[index] = { ...stored, preview_frames: frames }
-                write(entries)
-              }
+              set_stored_preview_frames(stored.id, frames)
             } catch {
               // Preview still works for this session; persistence is best-effort.
             }

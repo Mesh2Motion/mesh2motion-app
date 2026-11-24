@@ -81,6 +81,13 @@ export class Mesh2MotionEngine {
   public skeleton_helper: CustomSkeletonHelper | undefined = undefined
   public debugging_visual_object: Group = new Group()
 
+  /** Helpers belong to the visible editor, never to model-only offscreen renders. */
+  public capture_excluded_objects (): readonly THREE.Object3D[] {
+    const objects: THREE.Object3D[] = [this.transform_controls.getHelper(), this.debugging_visual_object]
+    if (this.skeleton_helper !== undefined) objects.push(this.skeleton_helper)
+    return objects
+  }
+
   // when editing the skeleton, what type of mesh will we see
   public mesh_preview_display_type: ModelPreviewDisplay = ModelPreviewDisplay.Textured
   public transform_controls_type: TransformControlType = TransformControlType.Translation
@@ -734,7 +741,8 @@ export class Mesh2MotionEngine {
           active_skeleton_type,
           this.renderer,
           this.scene,
-          this.weight_skin_step.final_skinned_meshes()
+          this.weight_skin_step.final_skinned_meshes(),
+          this.capture_excluded_objects()
         )
       }
 

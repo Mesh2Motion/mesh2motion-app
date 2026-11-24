@@ -10,7 +10,7 @@
  * restored document is inserted, and the previous selection is restored.
  */
 
-import { type AnimationClip, type Scene, type SkinnedMesh, type WebGLRenderer } from 'three'
+import { type AnimationClip, type Object3D, type Scene, type SkinnedMesh, type WebGLRenderer } from 'three'
 import type { AnimationApplicationOwner } from '../animation-document/applicationCommit'
 import type { AnimationDocument } from '../animation-document/types'
 import type { TransformedAnimationClipPair } from '../lib/processes/animations-listing/interfaces/TransformedAnimationClipPair'
@@ -36,6 +36,7 @@ export interface AuthoringApplicationEngine {
   renderer?: WebGLRenderer
   scene?: Scene
   active_skinned_meshes? (): SkinnedMesh[]
+  capture_excluded_objects? (): readonly Object3D[]
   load_skeleton_step?: { skeleton_type? (): string }
   edit_skeleton_step?: { skeleton? (): import('three').Skeleton }
 }
@@ -108,7 +109,14 @@ export class RealApplicationOwner implements AnimationApplicationOwner {
       if (skeleton === null || !check_rig_compatibility(document, skeleton).compatible) return false
       const meshes = this.engine.active_skinned_meshes?.() ?? []
       const rendered = this.engine.renderer !== undefined && this.engine.scene !== undefined && meshes.length > 0
-        ? generate_authored_preview(document, skeleton, this.engine.renderer, this.engine.scene, meshes)
+        ? generate_authored_preview(
+          document,
+          skeleton,
+          this.engine.renderer,
+          this.engine.scene,
+          meshes,
+          this.engine.capture_excluded_objects?.() ?? []
+        )
         : []
       const frames = rendered.length > 0 ? rendered : generate_skeleton_preview(document, skeleton)
       if (frames.length === 0) return false
