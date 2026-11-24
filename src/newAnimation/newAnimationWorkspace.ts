@@ -24,6 +24,7 @@ import { stable_bone_id } from '../animation-document/rigIdentity.ts'
 import { delete_authored_document, load_authored_documents } from '../animation-document/authoredLibrary.ts'
 import { is_animation_document } from '../authoringBridge/types.ts'
 import { KeyframeEditor } from './keyframeEditor.ts'
+import { AnimationLibrary } from '../lib/processes/animations-listing/AnimationLibrary.ts'
 
 const STATIC_ROOT = '../'
 const SUPPORTED_RIGS: ReadonlyArray<{ value: SkeletonType, label: string }> = [
@@ -49,6 +50,7 @@ export class NewAnimationWorkspace {
   private readonly controller: SharedDraftController
   private readonly editor: KeyframeEditor
   private readonly animation_loader = new AnimationLoader()
+  private readonly animation_library = new AnimationLibrary(this.animation_loader)
   private skinned_meshes: SkinnedMesh[] = []
   private rig_type: SkeletonType = SkeletonType.Human
   private mode: 'scratch' | 'existing' = 'scratch'
@@ -365,16 +367,22 @@ export class NewAnimationWorkspace {
 
   private refresh_library (): void {
     this.animation_loader.set_static_root_path(STATIC_ROOT)
-    const listing = this.engine.animations_listing_step
-    if (listing.library_entries().length === 0) listing.begin(this.rig_type, 1)
+    this.animation_library.reset(this.rig_type, 1)
     this.render_library('')
   }
 
   private render_library (filter: string): void {
     const list = by_id('new-animation-source-list')
     list.replaceChildren()
-    const entries = this.engine.animations_listing_step.library_entries().filter((entry) =>
-      entry.name.toLowerCase().includes(filter))
+    const authored: AnimationEntry[] = load_authored_documents().map((stored) => ({
+      id: `authored:${stored.id}`,
+      name: stored.document.clip.name,
+      metadata: { source_type: 'custom-import', tags: ['authored-animation-document'] },
+      state: 'loaded',
+      clip_pair: null
+    }))
+    const entries = [...this.animation_library.all(), ...authored]
+      .filter((entry) => entry.name.toLowerCase().includes(filter))
     for (const entry of entries) {
       const button = window.document.createElement('button')
       button.type = 'button'
@@ -406,7 +414,17 @@ export class NewAnimationWorkspace {
         this.set_status(`Created empty original clip "${name}" — no source animation was used.`)
       } else {
         if (this.selected_source === null) throw new Error('select a source animation first')
-        const entry = await this.engine.animations_listing_step.load_library_entry(this.selected_source.id)
+        if (this.selected_source.id.startsWith('authored:')) {
+          const id = this.selected_source.id.slice('authored:'.length)
+          const stored = load_authored_documents().find((item) => item.id === id)
+          if (stored === undefined) throw new Error(`authored animation ${id} is no longer stored`)
+          await this.controller.create_from_existing(stored.document, this.selected_source.name)
+          this.set_status(`Copied authored document "${this.selected_source.name}" into a new editable draft.`)
+          this.editor.set_time(0)
+          this.sync_controls()
+          return
+        }
+        const entry = await this.animation_library.load(this.selected_source.id)
         const clip: AnimationClip | undefined = entry.clip_pair?.original_animation_clip
           ?? entry.clip_pair?.display_animation_clip
         if (clip === undefined) throw new Error(`source animation ${entry.name} has no loadable clip`)
