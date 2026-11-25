@@ -10,7 +10,7 @@
   </tr>
 </table>
 
-Import a 3D Model and automatically assign and export animations with Mesh2Motion. This is kind of similar to a web application like Mixamo, but I would like it to be more flexible so it can support other model and skeleton types. Hopefully the open source nature means it can be expanded on and evolve more than than the closed tools have. 
+Import a 3D Model and automatically assign and export animations with Mesh2Motion. This is kind of similar to a web application like Mixamo, but I would like it to be more flexible so it can support other model and skeleton types. Hopefully the open source nature means it can be expanded on and evolve more than the closed tools have. 
 
 The marketing site that explains features and release notes: https://mesh2motion.org/
 
@@ -27,7 +27,7 @@ There are instructions built into the web application, but this is the general f
 5. Select which animations you want to use, then export (currently only GLB/GLTF supported format)
 
 ## Building and running locally
-The main dependency you need is Node.js. I am using 24, but other versions probably work fine too. Open you command line tool to the directory this readme is in. Run ths following commands to start the web server.
+The main dependency you need is Node.js. I am using 24, but other versions probably work fine too. Open you command line tool to the directory this readme is in. Run this following commands to start the web server.
 
     npm install
     npm run dev
@@ -38,7 +38,7 @@ We mostly just have typescript for this project, which web browsers cannot just 
     npm run build
 
 ## Running in Docker
-If you don't want to modify your local file system, you can alternitvely build and run the project from Docker. Make sure you have Docker and Docker Compose installed. Navigate your command line tool to this directory where your Dockerfile is at. Make sure Docker is actually started and running before you run this command.
+If you don't want to modify your local file system, you can alternatively build and run the project from Docker. Make sure you have Docker and Docker Compose installed. Navigate your command line tool to this directory where your Dockerfile is at. Make sure Docker is actually started and running before you run this command.
 
 Execute the following command.
 
