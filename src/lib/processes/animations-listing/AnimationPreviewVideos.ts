@@ -24,14 +24,31 @@ export class AnimationPreviewVideos {
   static create_video (src: string, width: number = 100, height: number = 120): HTMLVideoElement {
     const video = document.createElement('video')
     video.className = 'anim-preview'
-    video.src = src
     video.width = width
     video.height = height
     video.loop = true
     video.muted = true
     video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
     video.autoplay = true
+    void AnimationPreviewVideos.assign_src(video, src)
     return video
+  }
+
+  /**
+   * WebKitGTK on Linux refuses to load `<video>` from a custom URI scheme (such as
+   * Tauri's `tauri://` protocol) at all, independent of headers - a confirmed WebKitGTK
+   * bug (https://bugs.webkit.org/show_bug.cgi?id=328909), not something fixable from
+   * the app or Tauri side. Fetching the bytes ourselves and handing the element a
+   * blob: URL works around it, and behaves the same as a direct src everywhere else.
+   */
+  private static async assign_src (video: HTMLVideoElement, src: string): Promise<void> {
+    try {
+      const response = await fetch(src)
+      const blob = await response.blob()
+      video.src = URL.createObjectURL(blob)
+    } catch (error) {
+      console.error('Failed to load animation preview video:', src, error)
+    }
   }
 
   /**
