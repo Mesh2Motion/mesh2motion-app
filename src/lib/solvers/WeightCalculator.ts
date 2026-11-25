@@ -111,7 +111,7 @@ export class WeightCalculator {
 
     const position_tracking_bone_name: string = RigConfig.by_skeleton_type(this.skeleton_type as SkeletonType)?.position_tracking_bone_name || 'UNKNOWN POSITION BONE'
 
-    let position_tracking_bone_object: Bone | undefined = this.bones.find(b => {
+    const position_tracking_bone_object: Bone | undefined = this.bones.find(b => {
       const name = b.name.toLowerCase()
       return name.includes(position_tracking_bone_name.toLowerCase())
     })

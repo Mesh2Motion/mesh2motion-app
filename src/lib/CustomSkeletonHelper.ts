@@ -3,7 +3,7 @@
 // and ideas from
 // https://discourse.threejs.org/t/extend-skeletonhelper-to-accommodate-fat-lines-perhaps-with-linesegments2/59436/2
 
-import { Color, Matrix4, Quaternion, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, InstancedBufferAttribute, TextureLoader, InstancedMesh, MeshBasicMaterial, FrontSide, DynamicDrawUsage, type Bone, type Camera, type ColorRepresentation, type Material, type Texture } from 'three'
+import { Color, Matrix4, Quaternion, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, InstancedBufferAttribute, TextureLoader, InstancedMesh, MeshBasicMaterial, FrontSide, DynamicDrawUsage, type Bone, type Camera, type Object3D, type ColorRepresentation, type Material, type Texture } from 'three'
 import { BoneCategory, BoneClassifier } from './solvers/BoneClassifier'
 import { create_octahedral_bone_geometry } from './geometry/OctahedralBoneGeometry'
 
@@ -63,8 +63,8 @@ class CustomSkeletonHelper extends InstancedMesh {
   // kept for parity with three's own SkeletonHelper, which callers duck type against
   public readonly isSkeletonHelper: boolean = true
   public readonly type: string = 'CustomSkeletonHelper'
-  public readonly root: any
-  public readonly bones: any[]
+  public readonly root: Object3D
+  public readonly bones: Bone[]
 
   private readonly joint_points: Points
   private hide_right_side_joints: boolean = false
@@ -106,11 +106,11 @@ class CustomSkeletonHelper extends InstancedMesh {
     return shared_bone_opacity
   }
 
-  constructor (object: any, options: CustomSkeletonHelperOptions = {}) {
+  constructor (object: Object3D, options: CustomSkeletonHelperOptions = {}) {
     const bones = getBoneList(object)
     const segment_bone_indices: number[] = []
     for (let i = 0; i < bones.length; i++) {
-      if (bones[i].parent && bones[i].parent.isBone) {
+      if (bones[i].parent && (bones[i].parent as Bone).isBone) {
         segment_bone_indices.push(i)
       }
     }
@@ -141,6 +141,16 @@ class CustomSkeletonHelper extends InstancedMesh {
     super(create_octahedral_bone_geometry(), material, Math.max(segment_bone_indices.length, 1))
     this.count = segment_bone_indices.length
     this.instanceMatrix.setUsage(DynamicDrawUsage)
+
+    // InstancedMesh initializes every instance matrix to identity. Until the
+    // first onBeforeRender pass writes live bone transforms and instance
+    // colors, that exposes a full-size, black stack of template bones at the
+    // origin. Start hidden so loading a rig never flashes this artifact.
+    const hidden_instance = new Matrix4().makeScale(0, 0, 0)
+    for (let index = 0; index < this.count; index++) {
+      this.setMatrixAt(index, hidden_instance)
+    }
+    this.instanceMatrix.needsUpdate = true
 
     this.follows_shared_opacity = options.opacity === undefined
     live_helpers.add(this)
@@ -174,7 +184,7 @@ class CustomSkeletonHelper extends InstancedMesh {
       // Coloring by its own bone instead labeled the forearm as a hand and the
       // neck as a head, since each bone's joint sits at the segment's far tip
       const segment_colors = new Float32Array(segment_bone_indices.length * 3)
-      const bone_index_by_object = new Map<any, number>()
+      const bone_index_by_object = new Map<Object3D, number>()
       bones.forEach((bone, index) => bone_index_by_object.set(bone, index))
 
       segment_bone_indices.forEach((bone_index, segment) => {
@@ -247,7 +257,7 @@ class CustomSkeletonHelper extends InstancedMesh {
       const bone = bones[this.segment_bone_indices[segment]]
       const offset = segment * 3
 
-      _boneMatrix.multiplyMatrices(_matrixWorldInv, bone.parent.matrixWorld)
+      _boneMatrix.multiplyMatrices(_matrixWorldInv, bone.parent!.matrixWorld)
       _vector.setFromMatrixPosition(_boneMatrix)
       this.segment_heads[offset] = _vector.x
       this.segment_heads[offset + 1] = _vector.y
@@ -374,15 +384,15 @@ class CustomSkeletonHelper extends InstancedMesh {
   }
 }
 
-function getBoneList (object: any): any[] {
-  const boneList: any[] = []
+function getBoneList (object: Object3D): Bone[] {
+  const boneList: Bone[] = []
 
-  if (object.isBone === true) {
-    boneList.push(object)
+  if ((object as Bone).isBone === true) {
+    boneList.push(object as Bone)
   }
 
   for (let i = 0; i < object.children.length; i++) {
-    boneList.push.apply(boneList, getBoneList(object.children[i]))
+    boneList.push(...getBoneList(object.children[i]))
   }
 
   return boneList

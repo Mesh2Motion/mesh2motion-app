@@ -16,7 +16,7 @@ import {
   Vector3,
   Vector4
 } from 'three'
-import type { Camera, WebGLRenderer } from 'three'
+import type { Camera, Material, WebGLRenderer } from 'three'
 
 /**
  * A special type of helper that visualizes the camera's transformation
@@ -29,6 +29,8 @@ import type { Camera, WebGLRenderer } from 'three'
  * @augments Object3D
  * @three_import import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
  */
+type AxisUserData = { type: string }
+
 interface ViewHelperOptions {
   labelX?: string
   labelY?: string
@@ -36,6 +38,21 @@ interface ViewHelperOptions {
   font?: string
   color?: string
   radius?: number
+}
+
+type ViewportRect = Pick<DOMRectReadOnly, 'left' | 'top' | 'width' | 'height'>
+
+/**
+ * Compute the helper viewport in renderer-local coordinates. The hitbox is
+ * positioned in the page, while the renderer canvas may start after the
+ * Explore sidebar. Using offsetLeft directly double-counts that page offset
+ * once the canvas is hosted in #m2m-viewport.
+ */
+export function get_view_helper_viewport (hitbox: ViewportRect, canvas: ViewportRect, dim: number, is_webgpu: boolean): { x: number, y: number } {
+  return {
+    x: hitbox.left - canvas.left + hitbox.width - dim,
+    y: is_webgpu ? hitbox.height - dim : 0
+  }
 }
 
 export class CustomViewHelper extends Object3D {
@@ -113,12 +130,12 @@ export class CustomViewHelper extends Object3D {
     this.negXAxisHelper.material.opacity = 0.2
     this.negYAxisHelper.material.opacity = 0.2
     this.negZAxisHelper.material.opacity = 0.2;
-    (this.posXAxisHelper.userData as any).type = 'posX';
-    (this.posYAxisHelper.userData as any).type = 'posY';
-    (this.posZAxisHelper.userData as any).type = 'posZ';
-    (this.negXAxisHelper.userData as any).type = 'negX';
-    (this.negYAxisHelper.userData as any).type = 'negY';
-    (this.negZAxisHelper.userData as any).type = 'negZ'
+    (this.posXAxisHelper.userData as AxisUserData).type = 'posX';
+    (this.posYAxisHelper.userData as AxisUserData).type = 'posY';
+    (this.posZAxisHelper.userData as AxisUserData).type = 'posZ';
+    (this.negXAxisHelper.userData as AxisUserData).type = 'negX';
+    (this.negYAxisHelper.userData as AxisUserData).type = 'negY';
+    (this.negZAxisHelper.userData as AxisUserData).type = 'negZ'
     this.add(this.posXAxisHelper)
     this.add(this.posYAxisHelper)
     this.add(this.posZAxisHelper)
@@ -133,11 +150,15 @@ export class CustomViewHelper extends Object3D {
     this.updateMatrixWorld()
     this.point.set(0, 0, 1)
     this.point.applyQuaternion(this.camera.quaternion)
-    const x = this.domElement.offsetLeft + this.domElement.offsetWidth - this.dim
-    const y = (renderer as any).isWebGPURenderer ? this.domElement.offsetHeight - this.dim : 0
+    const viewport = get_view_helper_viewport(
+      this.domElement.getBoundingClientRect(),
+      renderer.domElement.getBoundingClientRect(),
+      this.dim,
+      'isWebGPURenderer' in renderer
+    )
     renderer.clearDepth()
     renderer.getViewport(this.viewport)
-    renderer.setViewport(x, y, this.dim, this.dim)
+    renderer.setViewport(viewport.x, viewport.y, this.dim, this.dim)
     renderer.render(this, this.orthoCamera)
     renderer.setViewport(this.viewport.x, this.viewport.y, this.viewport.z, this.viewport.w)
   }
@@ -161,6 +182,9 @@ export class CustomViewHelper extends Object3D {
     if (intersects.length > 0) {
       const intersection = intersects[0]
       const object = intersection.object
+      if (!(object instanceof Sprite)) {
+        return false
+      }
       this.prepare_animation_data(object, this.center)
       this.animating = true
       return true
@@ -195,9 +219,16 @@ export class CustomViewHelper extends Object3D {
 
   public dispose = (): void => {
     this.geometry.dispose()
-    this.xAxis.material.dispose()
-    this.yAxis.material.dispose()
-    this.zAxis.material.dispose()
+    const dispose_material = (material: Material | Material[]): void => {
+      if (Array.isArray(material)) {
+        material.forEach(one => { one.dispose() })
+      } else {
+        material.dispose()
+      }
+    }
+    dispose_material(this.xAxis.material)
+    dispose_material(this.yAxis.material)
+    dispose_material(this.zAxis.material)
     this.posXAxisHelper.material.map?.dispose()
     this.posYAxisHelper.material.map?.dispose()
     this.posZAxisHelper.material.map?.dispose()
@@ -213,7 +244,7 @@ export class CustomViewHelper extends Object3D {
   }
 
   private prepare_animation_data (object: Sprite, focusPoint: Vector3): void {
-    switch ((object.userData as any).type) {
+    switch ((object.userData as AxisUserData).type) {
       case 'posX':
         this.targetPosition.set(1, 0, 0)
         this.targetQuaternion.setFromEuler(new Euler(0, Math.PI * 0.5, 0))

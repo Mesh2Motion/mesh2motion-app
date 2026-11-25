@@ -121,8 +121,8 @@ describe('TextParser', () => {
 
     const geometry = tree.Objects.Geometry[140234]
     expect(geometry.attrType).toBe('Mesh')
-    expect(geometry.Vertices.a).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0])
-    expect(geometry.PolygonVertexIndex.a).toEqual([0, 1, -3])
+    expect(geometry.Vertices!.a).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0])
+    expect(geometry.PolygonVertexIndex!.a).toEqual([0, 1, -3])
   })
 
   it('handles arrays split across multiple lines', () => {
@@ -137,7 +137,7 @@ describe('TextParser', () => {
       '}'
     ].join('\n'))
 
-    expect(tree.Objects.Geometry[1].Vertices.a).toEqual([1, 2, 3, 4, 5, 6])
+    expect(tree.Objects.Geometry[1].Vertices!.a).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   it('reports the offending line instead of a TypeError on a truncated document', () => {

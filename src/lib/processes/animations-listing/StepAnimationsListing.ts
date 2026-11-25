@@ -11,6 +11,7 @@ import { ArmExtensionControl } from './ArmExtensionControl.ts'
 import { AnimationLoader } from './AnimationLoader.ts'
 import { type AnimationLoadProgress } from './interfaces/AnimationLoadProgress'
 import { AnimationLibrary } from './AnimationLibrary.ts'
+import { type AnimationEntry } from './interfaces/AnimationEntry.ts'
 import { type AnimationLibraryLoadProgress } from './interfaces/AnimationLibraryLoadProgress'
 import { AnimationLibraryProgressBar } from './AnimationLibraryProgressBar.ts'
 import { CustomAnimationImporter } from './CustomAnimationImporter.ts'
@@ -21,10 +22,11 @@ import { SkeletonType } from '../../enums/SkeletonType.ts'
 import { RigConfig } from '../../RigConfig.ts'
 import { Utility } from '../../Utilities.ts'
 import { type ThemeManager } from '../../ThemeManager.ts'
-import { AnimationSearch } from './AnimationSearch.ts'
+import { AnimationSearch } from '../../../features/animation-catalog/AnimationSearch.ts'
 import { type TransformedAnimationClipPair } from './interfaces/TransformedAnimationClipPair.ts'
 import { type AnimationClipExportSelection } from './interfaces/AnimationExportSelection.ts'
 import { PropsManager } from './props/PropsManager.ts'
+import { authored_id_from_tags, can_delete_animation, delete_authored_document } from '../../../animation-document/authoredLibrary.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepAnimationsListing extends EventTarget {
@@ -158,6 +160,7 @@ export class StepAnimationsListing extends EventTarget {
     this.skinned_meshes_to_animate = []
     this.animation_mixer = new AnimationMixer(new Object3D())
     this.current_playing_id = null
+    this.animation_search?.dispose()
     this.animation_search = null
     this.model_variation_pelvis_position_scale = 1.0
     this.reset_ui_elements()
@@ -191,6 +194,66 @@ export class StepAnimationsListing extends EventTarget {
   /** Shared timeline UI, also used by the optional weight painting step. */
   public get_animation_player (): AnimationPlayer {
     return this.animation_player
+  }
+
+  /**
+   * Read-only view of animations whose GLB has actually loaded. Used by the
+   * optional application-control API; does not mutate the library or player.
+   */
+  public loaded_animation_entries (): readonly AnimationEntry[] {
+    return this.animation_library.all().filter(entry => entry.state === 'loaded')
+  }
+
+  /**
+   * M2M-028A: application-owned insertion of an authored AnimationClip.
+   * Keeps the library, the search UI and the count label in sync; no external
+   * code touches private library state.
+   */
+  public add_authored_animation (clip_pair: TransformedAnimationClipPair): AnimationEntry {
+    const entries = this.animation_library.add_loaded_clips([clip_pair])
+    this.animation_search?.add_animations(entries)
+    this.update_filtered_animation_listing_ui()
+    return entries[0]
+  }
+
+  /** M2M-028A: current selection id, for preview/cancel restoration. */
+  public current_selection (): string | null {
+    return this.current_playing_id
+  }
+
+  /** M2M-028A: select an existing entry through the normal playback path. */
+  public select_animation (animation_id: string | null): void {
+    this.play_animation(animation_id)
+  }
+
+  /**
+   * M2M-028B: remove an authored entry as part of an undo. The search UI and
+   * count label are refreshed; if the removed entry was selected, fall back to
+   * the first remaining animation (or nothing when the library is empty).
+   */
+  public remove_authored_animation (animation_id: string): boolean {
+    if (!this.animation_library.remove_entry(animation_id)) return false
+    const remaining = this.animation_library.all()
+    this.animation_search?.initialize_animations(remaining)
+    this.update_filtered_animation_listing_ui()
+    if (this.current_playing_id === animation_id) {
+      const fallback = remaining[0]
+      this.play_animation(fallback?.id ?? null)
+    }
+    return true
+  }
+
+  /**
+   * User-facing deletion. Bundled manifest animations are protected: only
+   * custom-import entries (user imports or MCP/authored clips) can be deleted.
+   */
+  public delete_animation (animation_id: string): { deleted: boolean, protected?: boolean } {
+    const entry = this.animation_library.find(animation_id)
+    if (entry === undefined) return { deleted: false }
+    if (!can_delete_animation(entry)) return { deleted: false, protected: true }
+    const authored_id = authored_id_from_tags(entry.metadata?.tags)
+    if (authored_id !== null) delete_authored_document(authored_id)
+    return { deleted: this.remove_authored_animation(animation_id) }
   }
 
   // setup in the bootstrap.ts file and only called if we are actively
@@ -365,6 +428,11 @@ export class StepAnimationsListing extends EventTarget {
     // }
   }
 
+  /** Re-render tiles after asynchronously generated authored preview frames arrive. */
+  public refresh_animation_listing_ui (): void {
+    this.update_filtered_animation_listing_ui()
+  }
+
   private update_filtered_animation_listing_ui (): void {
     const animation_length_string: string = this.animation_search?.filtered_animations().length.toString() ?? '0'
     if (this.ui.dom_animations_listing_count != null) {
@@ -498,13 +566,25 @@ export class StepAnimationsListing extends EventTarget {
         this.update_download_button_enabled()
 
         if (event.target != null) {
-          const play_button = (event.target as HTMLElement).closest('button[data-action="play-animation"]')
-          if (play_button === null) {
+          const target_button = (event.target as HTMLElement).closest('button[data-action]')
+          if (target_button === null) return
+          const animation_id = target_button.getAttribute('data-animation-id')
+          if (animation_id === null) return
+
+          if (target_button.getAttribute('data-action') === 'delete-animation') {
+            event.stopPropagation()
+            const entry = this.animation_library.find(animation_id)
+            const label = entry?.name ?? 'this animation'
+            if (!window.confirm(`Delete "${label}"? This cannot be undone. Bundled animations are protected.`)) {
+              return
+            }
+            const outcome = this.delete_animation(animation_id)
+            if (outcome.protected === true) {
+              window.alert('Bundled animations are protected and cannot be deleted.')
+            }
             return
           }
-
-          const animation_id = play_button.getAttribute('data-animation-id')
-          if (animation_id != null) {
+          if (target_button.getAttribute('data-action') === 'play-animation') {
             this.play_animation(animation_id)
           }
         }
@@ -555,6 +635,7 @@ export class StepAnimationsListing extends EventTarget {
   public build_animation_clip_ui (theme_manager: ThemeManager): void {
     // Initialize AnimationSearch if not already done
     // we could switch skeleton types using navigation, so need to re-create in case this happens
+    this.animation_search?.dispose()
     this.animation_search = new AnimationSearch('animation-filter', 'animations-items', theme_manager, this.skeleton_type)
 
     // Use the animation search class to handle the UI

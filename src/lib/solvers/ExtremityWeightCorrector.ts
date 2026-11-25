@@ -40,6 +40,7 @@ export class ExtremityWeightCorrector {
    * assignments are what the smoother sees.
    */
   public apply_extremity_weight_correction (skin_indices: number[], skin_weights: number[]): void {
+    void skin_weights
     const vertex_count = this.geometry.attributes.position.array.length / 3
 
     // Cache the bone axis (start joint + direction toward child) for each

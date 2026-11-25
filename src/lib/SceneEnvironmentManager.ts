@@ -8,6 +8,15 @@ import { Generators } from './Generators.ts'
 import type { ThemeManager } from './ThemeManager.ts'
 import { type MeshDragBonePlacement } from './processes/edit-skeleton/MeshDragBonePlacement.ts'
 
+function viewport_layout_diagnostics_enabled (): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('m2m-layout-debug') === '1' ||
+      window.localStorage.getItem('m2m-layout-debug') === '1'
+  } catch {
+    return false
+  }
+}
+
 export class SceneEnvironmentManager {
   private readonly fog_near: number = 20
   private readonly fog_far: number = 80
@@ -18,6 +27,7 @@ export class SceneEnvironmentManager {
 
   private controls: OrbitControls | undefined = undefined
   private view_helper: CustomViewHelper | undefined = undefined
+  private viewport_container: HTMLElement | null = null
   private environment_container: Group = new Group()
 
   constructor (
@@ -30,7 +40,6 @@ export class SceneEnvironmentManager {
   ) {}
 
   public setup_environment (): void {
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.shadowMap.enabled = true
 
     // Set Filmic tone mapping for less saturated, more cinematic look
@@ -45,8 +54,48 @@ export class SceneEnvironmentManager {
     // this will help because we first want the user to rotate the model to face the front
     this.camera.position.set(0, 1.7, 15)
 
-    Generators.create_window_resize_listener(this.renderer, this.camera)
-    document.body.appendChild(this.renderer.domElement)
+    // The canvas lives in a dedicated viewport container whose real size is
+    // observed. This works for maximized, snapped and repeatedly resized KDE
+    // windows and avoids window-level resize listeners entirely.
+    let viewport = document.getElementById('m2m-viewport')
+    if (viewport === null) {
+      viewport = document.createElement('div')
+      viewport.id = 'm2m-viewport'
+      document.body.insertBefore(viewport, document.body.firstChild)
+    }
+    this.viewport_container = viewport
+
+    // Props controls share the renderer's real viewport containing block. Their
+    // inset is therefore independent of browser-window and sidebar pixel math.
+    const props_dock = document.getElementById('props-dock')
+    if (props_dock !== null && props_dock.parentElement !== viewport) {
+      viewport.appendChild(props_dock)
+    }
+    if (props_dock !== null && viewport_layout_diagnostics_enabled()) {
+      const report_layout = (): void => {
+        const view = viewport.getBoundingClientRect()
+        const dock = props_dock.getBoundingClientRect()
+        console.debug('[M2M viewport layout]', {
+          viewport: { x: view.x, y: view.y, width: view.width, height: view.height },
+          props: { x: dock.x, y: dock.y, width: dock.width, height: dock.height },
+          topInset: Math.round((dock.top - view.top) * 100) / 100,
+          rightInset: Math.round((view.right - dock.right) * 100) / 100,
+          devicePixelRatio: window.devicePixelRatio,
+          fullscreen: document.fullscreenElement !== null
+        })
+      }
+      const observer = new ResizeObserver(report_layout)
+      observer.observe(viewport)
+      observer.observe(props_dock)
+      window.addEventListener('resize', report_layout)
+      document.addEventListener('fullscreenchange', report_layout)
+      window.addEventListener('pagehide', () => {
+        observer.disconnect()
+        window.removeEventListener('resize', report_layout)
+        document.removeEventListener('fullscreenchange', report_layout)
+      }, { once: true })
+      report_layout()
+    }
 
     // center orbit controls around mid-section area with target change
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -80,6 +129,11 @@ export class SceneEnvironmentManager {
 
   public get_view_helper (): CustomViewHelper | undefined {
     return this.view_helper
+  }
+
+  public get_viewport_container (): HTMLElement {
+    if (this.viewport_container === null) throw new Error('Renderer viewport has not been created')
+    return this.viewport_container
   }
 
   public enable_orbit_controls (enabled: boolean): void {
@@ -210,5 +264,12 @@ export class SceneEnvironmentManager {
   private apply_scene_fog (): void {
     const { floor_color } = this.get_environment_colors()
     this.scene.fog = new THREE.Fog(floor_color, this.fog_near, this.fog_far)
+  }
+
+  /** Release the single resize observer when the page/engine is torn down. */
+  public dispose (): void {
+    this.viewport_container = null
+    this.controls?.dispose()
+    this.controls = undefined
   }
 }

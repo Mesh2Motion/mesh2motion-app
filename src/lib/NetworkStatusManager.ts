@@ -11,7 +11,7 @@
  */
 export class NetworkStatusManager {
 
-  private toast_timeout: number | null = null
+  private toast_timeout: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
     this.update(navigator.onLine, false)

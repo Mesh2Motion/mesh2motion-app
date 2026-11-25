@@ -9,7 +9,7 @@ import 'tippy.js/dist/tippy.css' // optional for styling
 import { Utility } from './lib/Utilities.ts'
 import { Generators } from './lib/Generators.ts'
 
-import { UI } from './lib/UI.ts'
+import { UI } from './ui/UI.ts'
 
 import { StepLoadModel } from './lib/processes/load-model/StepLoadModel.ts'
 import { StepLoadSkeleton } from './lib/processes/load-skeleton/StepLoadSkeleton.ts'
@@ -33,18 +33,26 @@ import { ModelPreviewDisplay } from './lib/enums/ModelPreviewDisplay.ts'
 import { TransformControlType } from './lib/enums/TransformControlType.ts'
 import { TransformSpace } from './lib/enums/TransformSpace.ts'
 import { ThemeManager } from './lib/ThemeManager.ts'
-import { SettingsDropdownManager } from './lib/SettingsDropdownManager.ts'
+import { SettingsDropdownManager } from './ui/settings/SettingsDropdownManager.ts'
 import { ModalDialog } from './lib/ModalDialog.ts'
 import { ModelCleanupUtility } from './lib/processes/load-model/ModelCleanupUtility.ts'
 import { SceneEnvironmentManager } from './lib/SceneEnvironmentManager.ts'
 import { CameraShake } from './lib/CameraShake.ts'
 import { DOMUtilities } from './lib/DOMUtilities.ts'
-import { PlatformManager } from './lib/PlatformManager.ts'
+import { PlatformAdapter } from './platform/PlatformAdapter.ts'
 import { NetworkStatusManager } from './lib/NetworkStatusManager.ts'
+import { mark, mark_error } from './lib/StartupDiagnostics.ts'
+import {
+  display_render_loop_error,
+  clear_fatal_startup_error,
+  RENDER_LOOP_ERROR_REASON
+} from './lib/WebGLStartup.ts'
+import { RendererLifecycle } from './rendering/RendererLifecycle.ts'
+import { restore_authored_documents } from './animation-document/authoredLibrary.ts'
 
 export class Mesh2MotionEngine {
   public readonly camera = Generators.create_camera()
-  public readonly renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  public readonly renderer = RendererLifecycle.create_renderer()
 
   public readonly transform_controls: CustomTransformControls = new CustomTransformControls(this.camera, this.renderer.domElement)
   public is_transform_controls_dragging: boolean = false
@@ -73,6 +81,13 @@ export class Mesh2MotionEngine {
   public skeleton_helper: CustomSkeletonHelper | undefined = undefined
   public debugging_visual_object: Group = new Group()
 
+  /** Helpers belong to the visible editor, never to model-only offscreen renders. */
+  public capture_excluded_objects (): readonly THREE.Object3D[] {
+    const objects: THREE.Object3D[] = [this.transform_controls.getHelper(), this.debugging_visual_object]
+    if (this.skeleton_helper !== undefined) objects.push(this.skeleton_helper)
+    return objects
+  }
+
   // when editing the skeleton, what type of mesh will we see
   public mesh_preview_display_type: ModelPreviewDisplay = ModelPreviewDisplay.Textured
   public transform_controls_type: TransformControlType = TransformControlType.Translation
@@ -86,13 +101,19 @@ export class Mesh2MotionEngine {
   private readonly scene_environment: SceneEnvironmentManager
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
+  private renderer_lifecycle: RendererLifecycle | null = null
+  private render_loop_error_shown = false
+  private first_frame_marked = false
 
   constructor () {
+    mark('engine-construct:start')
     this.initialize_shared_dom_mounts()
+    mark('engine-construct:dom-mounts-ready')
 
     // this will add a platform CSS file if we are running our desktop app
-    new PlatformManager().init();
+    new PlatformAdapter().init();
     new NetworkStatusManager();
+    mark('engine-construct:platform-ready')
 
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
@@ -132,12 +153,32 @@ export class Mesh2MotionEngine {
 
     this.settings_dropdown_manager = new SettingsDropdownManager(this.scene_environment)
 
+    mark('engine-construct:before-environment')
     this.setup_environment()
+    mark('engine-construct:environment-ready')
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
-    this.animate() // start the render loop which will continue rendering the scene
+    mark('engine-construct:initial-step-ready')
+    this.renderer_lifecycle = new RendererLifecycle(
+      this.renderer,
+      this.camera,
+      this.scene_environment.get_viewport_container(),
+      this.animate,
+      () => { console.warn('[M2M] WebGL context lost; pausing renders until it is restored') }
+    )
+    this.renderer_lifecycle.start()
+    mark('engine-construct:render-loop-started')
     this.inject_build_version()
     this.setup_tooltips()
+    window.addEventListener('pagehide', () => { this.dispose() }, { once: true })
+  }
+
+  /** Tear down owned observers and listeners when the document is unloaded. */
+  public dispose (): void {
+    this.load_model_step.dispose()
+    this.scene_environment.dispose()
+    this.renderer_lifecycle?.dispose()
+    this.renderer_lifecycle = null
   }
 
   public get_theme_manager(): ThemeManager {
@@ -149,6 +190,24 @@ export class Mesh2MotionEngine {
    */
   public get_scene (): Scene {
     return this.scene
+  }
+
+  /**
+   * Read-only renderer/loop state for the optional application-control API.
+   * Pure accessor: no control, MCP or Tauri dependency is introduced here.
+   */
+  public control_state (): {
+    first_frame_rendered: boolean
+    context_lost: boolean
+    render_loop_stopped: boolean
+    render_failures: number
+  } {
+    return {
+      first_frame_rendered: this.first_frame_marked,
+      context_lost: this.renderer_lifecycle?.context_lost() ?? false,
+      render_loop_stopped: this.renderer_lifecycle?.loop_stopped() ?? true,
+      render_failures: this.renderer_lifecycle?.failure_count() ?? 0
+    }
   }
 
   /* Add this attribute to an HTML element to give it a tooltip */
@@ -190,6 +249,12 @@ export class Mesh2MotionEngine {
    */
   public add_frame_listener (listener: (delta_time: number) => void): void {
     this.frame_listeners.push(listener)
+  }
+
+  /** M2M-028A addendum: remove a per-frame callback when its owner is disposed. */
+  public remove_frame_listener (listener: (delta_time: number) => void): void {
+    const index = this.frame_listeners.indexOf(listener)
+    if (index >= 0) this.frame_listeners.splice(index, 1)
   }
 
   public set_active_skinned_meshes_provider (provider: () => THREE.SkinnedMesh[]): void {
@@ -603,7 +668,6 @@ export class Mesh2MotionEngine {
       this.load_skeleton_step?.dispose()
 
       this.regenerate_skeleton_helper(this.edit_skeleton_step.skeleton())
-      process_step = ProcessStep.EditSkeleton
       this.edit_skeleton_step.begin(this.scene, this.load_skeleton_step.skeleton_type())
       this.update_edit_bone_interaction_mode()
       this.transform_controls.setMode(this.transform_controls_type) // 'translate', 'rotate'
@@ -652,7 +716,10 @@ export class Mesh2MotionEngine {
       this.download_settings.update_download_settings_ui_visibility(active_skeleton_type)
 
       // update reference of skeleton helper to use the final skinned mesh
-      this.regenerate_skeleton_helper(this.weight_skin_step.skeleton())
+      const final_skeleton = this.weight_skin_step.skeleton()
+      if (final_skeleton !== undefined) {
+        this.regenerate_skeleton_helper(final_skeleton)
+      }
       this.sync_skeleton_helper_joint_visibility()
 
       // hide skeleton by default in animations listing step
@@ -665,6 +732,20 @@ export class Mesh2MotionEngine {
 
       this.animations_listing_step.load_and_apply_default_animation_to_skinned_mesh(this.weight_skin_step.final_skinned_meshes())
 
+      // M2M-031: rehydrate persisted user/MCP authored clips into this engine's
+      // application-owned library so they are inspectable in the Explore tab.
+      if (final_skeleton !== undefined) {
+        restore_authored_documents(
+          this.animations_listing_step,
+          final_skeleton,
+          active_skeleton_type,
+          this.renderer,
+          this.scene,
+          this.weight_skin_step.final_skinned_meshes(),
+          this.capture_excluded_objects()
+        )
+      }
+
       if (this.skeleton_helper !== undefined) {
         this.skeleton_helper.hide() // hide skeleton helper in animations listing step
       }
@@ -675,30 +756,64 @@ export class Mesh2MotionEngine {
 
 
   private animate (): void {
-    requestAnimationFrame(this.animate)
+    const lifecycle = this.renderer_lifecycle
+    if (lifecycle === null || lifecycle.loop_stopped()) return
+    // Once the guard trips, stop scheduling frames instead of spinning on a
+    // render error that repeats every frame.
+    // The scheduler guarantees exactly one pending frame, including after a
+    // context restore. Do not call requestAnimationFrame directly here.
+    lifecycle.schedule_next()
     const delta_time: number = this.clock.getDelta()
 
-    this.scene_environment.frame_change()
+    try {
+      this.scene_environment.frame_change()
 
-    // camera shake effect
-    this.camera_shake.update(delta_time)
+      // camera shake effect
+      this.camera_shake.update(delta_time)
 
-    // if we are in the animation listing step, we can call
-    // render/update functions in that
-    if (this.process_step === ProcessStep.AnimationsListing) {
-      this.animations_listing_step.frame_change(delta_time)
-    } else if (this.process_step === ProcessStep.WeightPainting) {
-      this.weight_painting_step.frame_change(delta_time)
-    }
+      // Upstream per-step frame updates (animation listing, weight painting,
+      // remix/composer listeners) must all keep running.
+      if (this.process_step === ProcessStep.AnimationsListing) {
+        this.animations_listing_step.frame_change(delta_time)
+      } else if (this.process_step === ProcessStep.WeightPainting) {
+        this.weight_painting_step.frame_change(delta_time)
+      }
 
-    this.frame_listeners.forEach((listener) => { listener(delta_time) })
+      this.frame_listeners.forEach((listener) => { listener(delta_time) })
 
-    this.renderer.render(this.scene, this.camera)
+      // While the GL context is lost, skip GL calls but keep the loop alive so
+      // a `webglcontextrestored` event can resume rendering.
+      if (lifecycle.context_lost()) {
+        return
+      }
 
-    // view helper
-    this.view_helper.render(this.renderer) // updates current viewport
-    if (this.view_helper.animating) {
-      this.view_helper.update(delta_time) // updates animation when clicking on axis
+      this.renderer.render(this.scene, this.camera)
+
+      // view helper
+      if (this.view_helper !== undefined) {
+        this.view_helper.render(this.renderer) // updates current viewport
+        if (this.view_helper.is_animating()) {
+          this.view_helper.update(delta_time) // updates animation when clicking on axis
+        }
+      }
+
+      lifecycle.note_frame_success()
+      if (this.render_loop_error_shown) {
+        clear_fatal_startup_error(RENDER_LOOP_ERROR_REASON)
+        this.render_loop_error_shown = false
+        mark('render-loop-error-cleared')
+      }
+      if (!this.first_frame_marked) {
+        this.first_frame_marked = true
+        mark('first-successful-frame')
+      }
+    } catch (error) {
+      mark_error('render-frame', error)
+      if (lifecycle.note_frame_failure()) {
+        const detail = error instanceof Error ? error.message : String(error)
+        display_render_loop_error(new Error(`Rendering stopped after repeated failures: ${detail}`))
+        this.render_loop_error_shown = true
+      }
     }
   }
 
@@ -713,8 +828,10 @@ export class Mesh2MotionEngine {
     }
 
     // show/hide weight painted mesh depending on view
-    this.weight_skin_step.weight_painted_mesh_group().visible =
-      this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null) {
+      weight_painted_group.visible = this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted
+    }
 
     this.edit_skeleton_step.set_weight_paint_available(
       this.mesh_preview_display_type === ModelPreviewDisplay.WeightPainted)
@@ -772,6 +889,7 @@ export class Mesh2MotionEngine {
     // this returns 3 values, so we can destructure them. do not remove any of these
     // even if one of them is not used, otherwise there will be weird issues
     const [closest_bone, closest_bone_index, closest_distance] = Utility.raycast_closest_bone_test(this.camera, mouse_event, skeleton_to_test)
+    void closest_bone_index // destructuring must stay complete for raycast semantics
 
     // don't allow to select root bone for now
     if (closest_bone?.name === 'root') {
@@ -815,7 +933,7 @@ export class Mesh2MotionEngine {
   public remove_weight_painted_mesh_preview (): void {
     if (this.load_model_step.model_meshes() !== undefined) {
       const weight_painted_mesh = this.scene.getObjectByName('Weight Painted Mesh Preview')
-      if (weight_painted_mesh !== null) {
+      if (weight_painted_mesh !== null && weight_painted_mesh !== undefined) {
         this.scene.remove(weight_painted_mesh)
       }
     }
@@ -826,8 +944,9 @@ export class Mesh2MotionEngine {
     this.calculate_skin_weighting_for_models()
 
     // if the weight painted mesh is not in scene, add it
-    if (this.scene.getObjectByName('Weight Painted Mesh') === undefined) {
-      this.scene.add(this.weight_skin_step.weight_painted_mesh_group())
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null && this.scene.getObjectByName('Weight Painted Mesh') === undefined) {
+      this.scene.add(weight_painted_group)
     }
   }
 
@@ -839,7 +958,10 @@ export class Mesh2MotionEngine {
     this.remove_skinned_meshes_from_scene() // clean up in case we had skinned meshes in scene previously
     this.scene.add(...this.weight_skin_step.final_skinned_meshes()) // add final skinned mesh to scene
 
-    this.weight_skin_step.weight_painted_mesh_group().visible = false // hide weight painted mesh
+    const weight_painted_group = this.weight_skin_step.weight_painted_mesh_group()
+    if (weight_painted_group !== null) {
+      weight_painted_group.visible = false // hide weight painted mesh
+    }
   }
 
   /**
@@ -966,6 +1088,9 @@ export class Mesh2MotionEngine {
     // PropsManager as a field initializer, before this engine), so it cached null refs for
     // every element injected above. Re-query the DOM so those controls work.
     UI.getInstance().initialize_dom_elements()
+    // The settings manager was constructed before this markup existed, so it
+    // cached null element refs. Bind it now that the nav has been injected.
+    this.settings_dropdown_manager?.initialize()
   }
 
 } // end Mesh2Motion Engine

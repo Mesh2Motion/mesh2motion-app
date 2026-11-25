@@ -215,7 +215,6 @@ function create_entry (settings: RigSettings): RigConfigEntry | undefined {
  * Combines the app-specific settings above with the asset manifest exported from the assets repository.
  * To add a new rig, export it from the assets repository, then append one entry to `rig_settings`.
  */
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RigConfig {
   static readonly all: RigConfigEntry[] = rig_settings
     .map(create_entry)

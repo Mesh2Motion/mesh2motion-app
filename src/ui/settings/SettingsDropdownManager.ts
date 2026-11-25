@@ -1,0 +1,218 @@
+import { UI } from '../UI.ts'
+import { DOMUtilities } from '../../lib/DOMUtilities.ts'
+import { CustomSkeletonHelper } from '../../lib/CustomSkeletonHelper.ts'
+import { type SceneEnvironmentManager } from '../../lib/SceneEnvironmentManager.ts'
+import { mount_mcp_settings, type McpSettingsRefresh } from '../../integrations/mcp/McpSettingsPanel.ts'
+
+export class SettingsDropdownManager {
+  private readonly ui: UI = UI.getInstance()
+  private initialized: boolean = false
+  private is_open: boolean = false
+  private mcp_settings: McpSettingsRefresh | null = null
+  private readonly scene_environment?: SceneEnvironmentManager
+
+  constructor (scene_environment?: SceneEnvironmentManager) {
+    this.scene_environment = scene_environment
+    this.initialize()
+  }
+
+  /**
+   * Bind listeners once the shared nav markup exists. The engine builds this
+   * manager before DOMUtilities injects the dropdown, so it is safe to call
+   * again after UI.getInstance().initialize_dom_elements().
+   */
+  public initialize (): void {
+    if (this.initialized) {
+      return
+    }
+
+    const toggle_button = this.ui.dom_settings_toggle_button
+    const dropdown_container = this.ui.dom_settings_dropdown_container
+    const dropdown_content = this.ui.dom_settings_dropdown_content
+
+    if (toggle_button === null || dropdown_container === null || dropdown_content === null) {
+      return
+    }
+
+    this.initialized = true
+
+    toggle_button.addEventListener('click', (event: MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      this.toggle_dropdown()
+    })
+
+    document.addEventListener('click', (event: MouseEvent) => {
+      if (!this.is_open) {
+        return
+      }
+
+      const target = event.target as Node | null
+      if (target === null) {
+        return
+      }
+
+      if (!dropdown_container.contains(target)) {
+        this.close_dropdown()
+      }
+    })
+
+    // close the menu when one of its links (Learn, Contributors) opens a dialog
+    dropdown_content.querySelectorAll('.settings-dropdown-link').forEach((link) => {
+      link.addEventListener('click', () => { this.close_dropdown() })
+    })
+
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        this.close_dropdown()
+      }
+    })
+
+    this.initialize_light_intensity_setting()
+    this.initialize_turntable_speed_setting()
+    this.initialize_bone_opacity_setting()
+    this.initialize_floor_grid_setting()
+    this.initialize_background_setting()
+    this.initialize_mcp_settings(dropdown_content)
+  }
+
+  private initialize_mcp_settings (dropdown_content: HTMLElement): void {
+    const mount = dropdown_content.querySelector<HTMLElement>('#mcp-settings-mount')
+    if (mount === null) {
+      return
+    }
+    this.mcp_settings = mount_mcp_settings(mount)
+  }
+
+  private initialize_floor_grid_setting (): void {
+    if (this.scene_environment === undefined) {
+      return
+    }
+
+    const floor_grid_toggle = this.ui.dom_floor_grid_toggle
+    if (floor_grid_toggle === null) {
+      return
+    }
+
+    floor_grid_toggle.addEventListener('change', () => {
+      this.scene_environment?.set_floor_grid_visible(floor_grid_toggle.checked)
+    })
+  }
+
+  private initialize_background_setting (): void {
+    const solid_background_toggle = this.ui.dom_solid_background_toggle
+    if (solid_background_toggle === null) {
+      return
+    }
+
+    // keep the checkbox and body class in sync with the configured default on startup
+    solid_background_toggle.checked = DOMUtilities.settings_defaults.solid_background_enabled
+    this.apply_solid_background(solid_background_toggle.checked)
+
+    solid_background_toggle.addEventListener('change', () => {
+      this.apply_solid_background(solid_background_toggle.checked)
+    })
+  }
+
+  private apply_solid_background (is_enabled: boolean): void {
+    document.body.classList.toggle('solid-background', is_enabled)
+  }
+
+  private initialize_light_intensity_setting (): void {
+    if (this.scene_environment === undefined) {
+      return
+    }
+
+    const light_intensity_input = this.ui.dom_light_intensity_input
+    if (light_intensity_input === null) {
+      return
+    }
+
+    light_intensity_input.value = this.scene_environment.get_light_intensity_multiplier().toFixed(2)
+
+    light_intensity_input.addEventListener('input', () => {
+      const slider_value = Number(light_intensity_input.value)
+      if (!Number.isFinite(slider_value)) {
+        return
+      }
+
+      this.scene_environment?.set_light_intensity_multiplier(slider_value)
+    })
+  }
+
+  private initialize_turntable_speed_setting (): void {
+    if (this.scene_environment === undefined) {
+      return
+    }
+
+    const turntable_speed_input = this.ui.dom_turntable_speed_input
+    if (turntable_speed_input === null) {
+      return
+    }
+
+    turntable_speed_input.value = this.scene_environment.get_turntable_speed().toFixed(1)
+
+    turntable_speed_input.addEventListener('input', () => {
+      const slider_value = Number(turntable_speed_input.value)
+      if (!Number.isFinite(slider_value)) {
+        return
+      }
+
+      this.scene_environment?.set_turntable_speed(slider_value)
+    })
+  }
+
+  private initialize_bone_opacity_setting (): void {
+    const bone_opacity_input = this.ui.dom_bone_opacity_input
+    if (bone_opacity_input === null) {
+      return
+    }
+
+    // the slider markup carries the default, so push it to the helpers on startup
+    CustomSkeletonHelper.set_bone_opacity(Number(bone_opacity_input.value))
+
+    bone_opacity_input.addEventListener('input', () => {
+      const slider_value = Number(bone_opacity_input.value)
+      if (!Number.isFinite(slider_value)) {
+        return
+      }
+
+      CustomSkeletonHelper.set_bone_opacity(slider_value)
+    })
+  }
+
+  private open_dropdown (): void {
+    const toggle_button = this.ui.dom_settings_toggle_button
+    const dropdown_content = this.ui.dom_settings_dropdown_content
+
+    if (toggle_button === null || dropdown_content === null) {
+      return
+    }
+
+    this.is_open = true
+    dropdown_content.hidden = false
+    toggle_button.setAttribute('aria-expanded', 'true')
+    this.mcp_settings?.refresh()
+  }
+
+  private close_dropdown (): void {
+    const toggle_button = this.ui.dom_settings_toggle_button
+    const dropdown_content = this.ui.dom_settings_dropdown_content
+
+    if (toggle_button === null || dropdown_content === null) {
+      return
+    }
+
+    this.is_open = false
+    dropdown_content.hidden = true
+    toggle_button.setAttribute('aria-expanded', 'false')
+  }
+
+  private toggle_dropdown (): void {
+    if (this.is_open) {
+      this.close_dropdown()
+    } else {
+      this.open_dropdown()
+    }
+  }
+}

@@ -208,6 +208,7 @@ export class AnimationPlayer {
   }
 
   public update (_delta_time: number): void {
+    void _delta_time
     if (this.current_animation_actions.length === 0 || this.current_animation_clip === null || this.is_user_scrubbing) {
       return
     }

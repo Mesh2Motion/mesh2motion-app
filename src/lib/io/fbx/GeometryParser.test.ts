@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { GeometryParser } from './GeometryParser'
+import type { FBXRawNode } from './FBXNodes'
+
+type GeometryFixtureNode = {
+  Vertices: { a: number[] }
+  PolygonVertexIndex: { a: number[] }
+}
+
+interface SkeletonFixture {
+  rawBones: Array<{ indices: number[]; weights: number[] }>
+}
 
 /** A single triangle. PolygonVertexIndex marks the last vertex of a face as (index ^ -1). */
-function make_geo_node (): any {
+function make_geo_node (): GeometryFixtureNode {
   return {
     Vertices: { a: [0, 0, 0, 1, 0, 0, 0, 1, 0] },
     PolygonVertexIndex: { a: [0, 1, -3] }
@@ -10,7 +20,7 @@ function make_geo_node (): any {
 }
 
 /** Minimal stand-in for the skeleton deformer: each raw bone weights vertices by index. */
-function make_skeleton (raw_bones: Array<{ indices: number[], weights: number[] }>): any {
+function make_skeleton (raw_bones: SkeletonFixture['rawBones']): SkeletonFixture {
   return { rawBones: raw_bones }
 }
 
@@ -49,7 +59,6 @@ describe('GeometryParser skin weights', () => {
 
     // vertex 1 (second corner of the face) keeps both of its real influences
     const vertex_one_indices = buffers.weightsIndices.slice(4, 8)
-    const vertex_one_weights = buffers.vertexWeights.slice(4, 8)
     expect(vertex_one_indices).toContain(0)
     expect(vertex_one_indices).toContain(2)
 
@@ -73,5 +82,41 @@ describe('GeometryParser skin weights', () => {
     // vertex 2 had only zero-weight entries, so it pads out to joint 0 / weight 0
     expect(buffers.weightsIndices.slice(8, 12)).toEqual([0, 0, 0, 0])
     expect(buffers.vertexWeights.slice(8, 12)).toEqual([0, 0, 0, 0])
+  })
+})
+
+describe('GeometryParser layer node shapes', () => {
+  it('reads a numeric-keyed material layer record from binary FBX data', () => {
+    const node: FBXRawNode = {
+      Vertices: { a: [] },
+      PolygonVertexIndex: { a: [] },
+      LayerElementMaterial: {
+        '0': {
+          MappingInformationType: 'ByPolygon',
+          ReferenceInformationType: 'IndexToDirect',
+          Materials: { a: [2, 1] }
+        }
+      }
+    }
+
+    const result = new GeometryParser().parseGeoNode(node, null)
+
+    expect(result.material?.buffer).toEqual([2, 1])
+  })
+
+  it('accepts a single direct material layer record', () => {
+    const node: FBXRawNode = {
+      Vertices: { a: [] },
+      PolygonVertexIndex: { a: [] },
+      LayerElementMaterial: {
+        MappingInformationType: 'ByPolygon',
+        ReferenceInformationType: 'IndexToDirect',
+        Materials: { a: [1] }
+      }
+    }
+
+    const result = new GeometryParser().parseGeoNode(node, null)
+
+    expect(result.material?.buffer).toEqual([1])
   })
 })

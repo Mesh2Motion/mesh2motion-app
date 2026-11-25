@@ -34,6 +34,10 @@ import {
   SphereGeometry,
   TorusGeometry,
   Vector3,
+  Vector2,
+  Color,
+  type ColorRepresentation,
+  type Side,
 } from 'three'
 import { type CustomTransformControlsOptions } from './interfaces/CustomTransformControlsOptions'
 
@@ -54,6 +58,61 @@ const _changeEvent = { type: 'change' }
 const _mouseDownEvent: { type: string; mode: string | null } = { type: 'mouseDown', mode: null }
 const _mouseUpEvent: { type: string; mode: string | null } = { type: 'mouseUp', mode: null }
 const _objectChangeEvent = { type: 'objectChange' }
+
+/** Camera fields used by gizmo sizing, present on perspective or orthographic cameras. */
+type GizmoCamera = Camera & {
+  isOrthographicCamera?: boolean
+  top?: number
+  bottom?: number
+  fov?: number
+  zoom: number
+}
+
+/** Internal state mirrored onto gizmo and plane via defineProperty. */
+interface TransformInternalState {
+  object: Object3D | undefined
+  enabled: boolean
+  camera: GizmoCamera
+  mode: string
+  space: string
+  axis: string | null
+  size: number
+  dragging: boolean
+  worldPosition: Vector3
+  worldQuaternion: Quaternion
+  worldPositionStart: Vector3
+  worldQuaternionStart: Quaternion
+  showX: boolean
+  showY: boolean
+  showZ: boolean
+  eye: Vector3
+  rotationAxis: Vector3
+  cameraPosition: Vector3
+  cameraQuaternion: Quaternion
+  _parentPosition: Vector3
+  _parentQuaternion: Quaternion
+  _parentQuaternionInv: Quaternion
+  _parentScale: Vector3
+  _worldQuaternionInv: Quaternion
+  _worldScale: Vector3
+  _cameraScale: Vector3
+}
+
+interface GizmoMaterial {
+  color: Color
+  opacity: number
+  visible: boolean
+  wireframe: boolean
+  transparent: boolean
+  toneMapped: boolean
+  side: Side
+  _color?: Color
+  _opacity?: number
+}
+type GizmoMaterialLib = Record<string, GizmoMaterial>
+type GizmoDefinition = [Mesh | Line, (number[] | null)?, (number[] | null)?, (number[] | null)?, string?]
+type GizmoDefinitionMap = Record<string, GizmoDefinition[]>
+type GizmoHandle = Object3D & { tag?: string; material: GizmoMaterial }
 
 // ─── Main class ───────────────────────────────────────────────────────────────
 
@@ -265,12 +324,12 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
   pointerHover (pointer: { x: number; y: number } | null): void {
 
     if (this.object === undefined || this.dragging === true) return
-    if (pointer !== null) _raycaster.setFromCamera(pointer as any, this.camera)
+    if (pointer !== null) _raycaster.setFromCamera(new Vector2(pointer.x, pointer.y), this.camera)
 
-    const intersect = intersectObjectWithRay((this._gizmo as any).picker[this.mode], _raycaster)
+    const intersect = intersectObjectWithRay(this._gizmo.picker[this.mode], _raycaster)
 
     if (intersect) {
-      this.axis = (intersect as any).object.name
+      this.axis = intersect.object.name
     } else {
       this.axis = null
     }
@@ -283,7 +342,7 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
     if (this.axis !== null) {
 
-      if (pointer !== null) _raycaster.setFromCamera(pointer as any, this.camera)
+      if (pointer !== null) _raycaster.setFromCamera(new Vector2(pointer.x, pointer.y), this.camera)
 
       const planeIntersect = intersectObjectWithRay(this._plane, _raycaster, true)
 
@@ -298,13 +357,13 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
         this.object.matrixWorld.decompose(this.worldPositionStart, this.worldQuaternionStart, this._worldScaleStart)
 
-        this.pointStart.copy((planeIntersect as any).point).sub(this.worldPositionStart)
+        this.pointStart.copy(planeIntersect.point).sub(this.worldPositionStart)
 
       }
 
       this.dragging = true
       _mouseDownEvent.mode = this.mode
-      ;(this as any).dispatchEvent(_mouseDownEvent as any)
+      ;this.dispatchEvent(_mouseDownEvent)
 
     }
 
@@ -325,12 +384,12 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
     if (object === undefined || axis === null || this.dragging === false || (pointer !== null && pointer.button !== -1)) return
 
-    if (pointer !== null) _raycaster.setFromCamera(pointer as any, this.camera)
+    if (pointer !== null) _raycaster.setFromCamera(new Vector2(pointer.x, pointer.y), this.camera)
 
     const planeIntersect = intersectObjectWithRay(this._plane, _raycaster, true)
     if (!planeIntersect) return
 
-    this.pointEnd.copy((planeIntersect as any).point).sub(this.worldPositionStart)
+    this.pointEnd.copy(planeIntersect.point).sub(this.worldPositionStart)
 
     if (mode === 'translate') {
 
@@ -475,8 +534,8 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
     }
 
-    ;(this as any).dispatchEvent(_changeEvent as any)
-    ;(this as any).dispatchEvent(_objectChangeEvent as any)
+    ;this.dispatchEvent(_changeEvent)
+    ;this.dispatchEvent(_objectChangeEvent)
 
   }
 
@@ -486,7 +545,7 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
     if (this.dragging && this.axis !== null) {
       _mouseUpEvent.mode = this.mode
-      ;(this as any).dispatchEvent(_mouseUpEvent as any)
+      ;this.dispatchEvent(_mouseUpEvent)
     }
 
     this.dragging = false
@@ -511,7 +570,7 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
 
   detach (): this {
 
-    ;(this as any).object = undefined
+    ;(this as unknown as { object: Object3D | undefined }).object = undefined
     this.axis = null
     this._root.visible = false
     return this
@@ -528,8 +587,8 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
       this.object!.quaternion.copy(this._quaternionStart)
       this.object!.scale.copy(this._scaleStart)
 
-      ;(this as any).dispatchEvent(_changeEvent as any)
-      ;(this as any).dispatchEvent(_objectChangeEvent as any)
+      ;this.dispatchEvent(_changeEvent)
+      ;this.dispatchEvent(_objectChangeEvent)
 
       this.pointStart.copy(this.pointEnd)
 
@@ -569,9 +628,9 @@ class CustomTransformControls extends Controls<Record<string, Record<string, unk
     this.space = space
   }
 
-  setColors (xAxis: unknown, yAxis: unknown, zAxis: unknown, active: unknown): void {
+  setColors (xAxis: ColorRepresentation, yAxis: ColorRepresentation, zAxis: ColorRepresentation, active: ColorRepresentation): void {
 
-    const materialLib = (this._gizmo as any).materialLib
+    const materialLib = (this._gizmo as CustomTransformControlsGizmo).materialLib
 
     materialLib.xAxis.color.set(xAxis)
     materialLib.yAxis.color.set(yAxis)
@@ -707,7 +766,8 @@ class CustomTransformControlsRoot extends Object3D {
 
   updateMatrixWorld (force?: boolean): void {
 
-    const controls = this.controls
+    const controls = this.controls as unknown as TransformInternalState
+    const internal = controls
 
     if (controls.object !== undefined) {
 
@@ -717,20 +777,20 @@ class CustomTransformControlsRoot extends Object3D {
         console.error('CustomTransformControls: The attached 3D object must be a part of the scene graph.')
       } else {
         controls.object.parent.matrixWorld.decompose(
-          (controls as any)._parentPosition,
-          (controls as any)._parentQuaternion,
-          (controls as any)._parentScale
+          internal._parentPosition,
+          internal._parentQuaternion,
+          internal._parentScale
         )
       }
 
       controls.object.matrixWorld.decompose(
         controls.worldPosition,
         controls.worldQuaternion,
-        (controls as any)._worldScale
+        internal._worldScale
       )
 
-      ;(controls as any)._parentQuaternionInv.copy((controls as any)._parentQuaternion).invert()
-      ;(controls as any)._worldQuaternionInv.copy(controls.worldQuaternion).invert()
+      ;internal._parentQuaternionInv.copy(internal._parentQuaternion).invert()
+      ;internal._worldQuaternionInv.copy(controls.worldQuaternion).invert()
 
     }
 
@@ -738,10 +798,10 @@ class CustomTransformControlsRoot extends Object3D {
     controls.camera.matrixWorld.decompose(
       controls.cameraPosition,
       controls.cameraQuaternion,
-      (controls as any)._cameraScale
+      internal._cameraScale
     )
 
-    if ((controls.camera as any).isOrthographicCamera) {
+    if ((controls.camera as GizmoCamera).isOrthographicCamera) {
       controls.camera.getWorldDirection(controls.eye).negate()
     } else {
       controls.eye.copy(controls.cameraPosition).sub(controls.worldPosition).normalize()
@@ -754,8 +814,10 @@ class CustomTransformControlsRoot extends Object3D {
   dispose (): void {
 
     this.traverse(function (child) {
-      if ((child as any).geometry) (child as any).geometry.dispose()
-      if ((child as any).material) (child as any).material.dispose()
+      if ((child as Mesh | Line).geometry) (child as Mesh | Line).geometry.dispose()
+      const renderable = child as Mesh | Line
+      if (Array.isArray(renderable.material)) renderable.material.forEach(m => m.dispose())
+      else if (renderable.material) renderable.material.dispose()
     })
 
   }
@@ -767,7 +829,7 @@ class CustomTransformControlsRoot extends Object3D {
 class CustomTransformControlsGizmo extends Object3D {
 
   isTransformControlsGizmo: boolean
-  materialLib: Record<string, any>
+  materialLib: GizmoMaterialLib
   gizmo: Record<string, Object3D>
   picker: Record<string, Object3D>
   helper: Record<string, Object3D>
@@ -777,7 +839,7 @@ class CustomTransformControlsGizmo extends Object3D {
     super()
 
     this.isTransformControlsGizmo = true
-    ;(this as any).type = 'TransformControlsGizmo'
+    ;(this as unknown as { type: string }).type = 'TransformControlsGizmo'
 
     // ── Resolve options with defaults ─────────────────────────────────────────
     const arm       = options.armLength            ?? 0.25  // stock three.js: 0.5
@@ -890,7 +952,7 @@ class CustomTransformControlsGizmo extends Object3D {
 
     // ── Gizmo definitions ─────────────────────────────────────────────────────
 
-    const gizmoTranslate: Record<string, any[][]> = {
+    const gizmoTranslate: GizmoDefinitionMap = {
       X: [
         [new Mesh(arrowGeometry, matRed), [arm, 0, 0], [0, 0, -Math.PI / 2]],
         [new Mesh(arrowGeometry, matRed), [-arm, 0, 0], [0, 0, Math.PI / 2]],
@@ -912,7 +974,7 @@ class CustomTransformControlsGizmo extends Object3D {
       XZ: [[new Mesh(new BoxGeometry(planeSize, planeSize, 0.01), matGreenTransparent), [planeSize, 0, planeSize], [-Math.PI / 2, 0, 0]]],
     }
 
-    const pickerTranslate: Record<string, any[][]> = {
+    const pickerTranslate: GizmoDefinitionMap = {
       X: [
         [new Mesh(new CylinderGeometry(pickCylR, 0, pickCylH, 4), matInvisible), [pickerOff, 0, 0], [0, 0, -Math.PI / 2]],
         [new Mesh(new CylinderGeometry(pickCylR, 0, pickCylH, 4), matInvisible), [-pickerOff, 0, 0], [0, 0, Math.PI / 2]],
@@ -931,7 +993,7 @@ class CustomTransformControlsGizmo extends Object3D {
       XZ: [[new Mesh(new BoxGeometry(pickBox, pickBox, 0.01), matInvisible), [planeSize, 0, planeSize], [-Math.PI / 2, 0, 0]]],
     }
 
-    const helperTranslate: Record<string, any[][]> = {
+    const helperTranslate: GizmoDefinitionMap = {
       START: [[new Mesh(new OctahedronGeometry(0.01, 2), matHelper), null, null, null, 'helper']],
       END: [[new Mesh(new OctahedronGeometry(0.01, 2), matHelper), null, null, null, 'helper']],
       DELTA: [[new Line(TranslateHelperGeometry(), matHelper), null, null, null, 'helper']],
@@ -940,7 +1002,7 @@ class CustomTransformControlsGizmo extends Object3D {
       Z: [[new Line(lineGeometry, matHelper), [0, 0, -1e3], [0, -Math.PI / 2, 0], [1e6, 1, 1], 'helper']],
     }
 
-    const gizmoRotate: Record<string, any[][]> = {
+    const gizmoRotate: GizmoDefinitionMap = {
       XYZE: [[new Mesh(CircleGeometry(0.5, 1), matGray), null, [0, Math.PI / 2, 0]]],
       X: [[new Mesh(CircleGeometry(0.5, 0.5), matRed)]],
       Y: [[new Mesh(CircleGeometry(0.5, 0.5), matGreen), null, [0, 0, -Math.PI / 2]]],
@@ -948,11 +1010,11 @@ class CustomTransformControlsGizmo extends Object3D {
       E: [[new Mesh(CircleGeometry(0.75, 1), matYellowTransparent), null, [0, Math.PI / 2, 0]]],
     }
 
-    const helperRotate: Record<string, any[][]> = {
+    const helperRotate: GizmoDefinitionMap = {
       AXIS: [[new Line(lineGeometry, matHelper), [-1e3, 0, 0], null, [1e6, 1, 1], 'helper']],
     }
 
-    const pickerRotate: Record<string, any[][]> = {
+    const pickerRotate: GizmoDefinitionMap = {
       XYZE: [[new Mesh(new SphereGeometry(pickSph, 10, 8), matInvisible)]],
       X: [[new Mesh(new TorusGeometry(0.5, pickTorus, 4, 24), matInvisible), [0, 0, 0], [0, -Math.PI / 2, -Math.PI / 2]]],
       Y: [[new Mesh(new TorusGeometry(0.5, pickTorus, 4, 24), matInvisible), [0, 0, 0], [Math.PI / 2, 0, 0]]],
@@ -960,7 +1022,7 @@ class CustomTransformControlsGizmo extends Object3D {
       E: [[new Mesh(new TorusGeometry(0.75, pickTorus, 2, 24), matInvisible)]],
     }
 
-    const gizmoScale: Record<string, any[][]> = {
+    const gizmoScale: GizmoDefinitionMap = {
       X: [
         [new Mesh(scaleHandleGeometry, matRed), [arm, 0, 0], [0, 0, -Math.PI / 2]],
         [new Mesh(lineGeometry2, matRed), [0, 0, 0], [0, 0, -Math.PI / 2]],
@@ -982,7 +1044,7 @@ class CustomTransformControlsGizmo extends Object3D {
       XYZ: [[new Mesh(new BoxGeometry(0.1, 0.1, 0.1), matWhiteTransparent)]],
     }
 
-    const pickerScale: Record<string, any[][]> = {
+    const pickerScale: GizmoDefinitionMap = {
       X: [
         [new Mesh(new CylinderGeometry(pickCylR, 0, pickCylH, 4), matInvisible), [pickerOff, 0, 0], [0, 0, -Math.PI / 2]],
         [new Mesh(new CylinderGeometry(pickCylR, 0, pickCylH, 4), matInvisible), [-pickerOff, 0, 0], [0, 0, Math.PI / 2]],
@@ -1001,13 +1063,13 @@ class CustomTransformControlsGizmo extends Object3D {
       XYZ: [[new Mesh(new BoxGeometry(pickBox, pickBox, pickBox), matInvisible), [0, 0, 0]]],
     }
 
-    const helperScale: Record<string, any[][]> = {
+    const helperScale: GizmoDefinitionMap = {
       X: [[new Line(lineGeometry, matHelper), [-1e3, 0, 0], null, [1e6, 1, 1], 'helper']],
       Y: [[new Line(lineGeometry, matHelper), [0, -1e3, 0], [0, 0, Math.PI / 2], [1e6, 1, 1], 'helper']],
       Z: [[new Line(lineGeometry, matHelper), [0, 0, -1e3], [0, -Math.PI / 2, 0], [1e6, 1, 1], 'helper']],
     }
 
-    function setupGizmo (gizmoMap: Record<string, any[][]>): Object3D {
+    function setupGizmo (gizmoMap: GizmoDefinitionMap): Object3D {
 
       const gizmo = new Object3D()
 
@@ -1022,7 +1084,7 @@ class CustomTransformControlsGizmo extends Object3D {
           const tag = gizmoMap[name][i][4]
 
           object.name = name
-          object.tag = tag
+          ;(object as Object3D & { tag?: string }).tag = tag
 
           if (position) object.position.set(position[0], position[1], position[2])
           if (rotation) object.rotation.set(rotation[0], rotation[1], rotation[2])
@@ -1071,7 +1133,7 @@ class CustomTransformControlsGizmo extends Object3D {
 
   updateMatrixWorld (force?: boolean): void {
 
-    const self = this as any
+    const self = this as unknown as TransformInternalState
     const space = self.mode === 'scale' ? 'local' : self.space
 
     const quaternion = space === 'local' ? self.worldQuaternion : _identityQuaternion
@@ -1084,14 +1146,14 @@ class CustomTransformControlsGizmo extends Object3D {
     this.helper['rotate'].visible = self.mode === 'rotate'
     this.helper['scale'].visible = self.mode === 'scale'
 
-    let handles: any[] = []
+    let handles: Object3D[] = []
     handles = handles.concat(this.picker[self.mode].children)
     handles = handles.concat(this.gizmo[self.mode].children)
     handles = handles.concat(this.helper[self.mode].children)
 
     for (let i = 0; i < handles.length; i++) {
 
-      const handle = handles[i]
+      const handle = handles[i] as GizmoHandle
 
       handle.visible = true
       handle.rotation.set(0, 0, 0)
@@ -1099,12 +1161,12 @@ class CustomTransformControlsGizmo extends Object3D {
 
       let factor: number
 
-      if ((self.camera as any).isOrthographicCamera) {
-        factor = ((self.camera as any).top - (self.camera as any).bottom) / (self.camera as any).zoom
+      if ((self.camera as GizmoCamera).isOrthographicCamera) {
+        factor = (((self.camera as GizmoCamera).top ?? 0) - ((self.camera as GizmoCamera).bottom ?? 0)) / (self.camera as GizmoCamera).zoom
       } else {
         factor =
           self.worldPosition.distanceTo(self.cameraPosition) *
-          Math.min((1.9 * Math.tan((Math.PI * (self.camera as any).fov) / 360)) / (self.camera as any).zoom, 7)
+          Math.min((1.9 * Math.tan((Math.PI * ((self.camera as GizmoCamera).fov ?? 0)) / 360)) / (self.camera as GizmoCamera).zoom, 7)
       }
 
       handle.scale.set(1, 1, 1).multiplyScalar((factor * self.size) / 4)
@@ -1309,39 +1371,41 @@ class CustomTransformControlsPlane extends Mesh {
     )
 
     this.isTransformControlsPlane = true
-    ;(this as any).type = 'TransformControlsPlane'
+    ;(this as unknown as { type: string }).type = 'TransformControlsPlane'
 
   }
 
   updateMatrixWorld (force?: boolean): void {
 
-    let space = (this as any).space
+    const self = this as unknown as TransformInternalState
 
-    this.position.copy((this as any).worldPosition)
+    let space = self.space
 
-    if ((this as any).mode === 'scale') space = 'local'
+    this.position.copy(self.worldPosition)
 
-    _v1.copy(_unitX).applyQuaternion(space === 'local' ? (this as any).worldQuaternion : _identityQuaternion)
-    _v2.copy(_unitY).applyQuaternion(space === 'local' ? (this as any).worldQuaternion : _identityQuaternion)
-    _v3.copy(_unitZ).applyQuaternion(space === 'local' ? (this as any).worldQuaternion : _identityQuaternion)
+    if (self.mode === 'scale') space = 'local'
+
+    _v1.copy(_unitX).applyQuaternion(space === 'local' ? self.worldQuaternion : _identityQuaternion)
+    _v2.copy(_unitY).applyQuaternion(space === 'local' ? self.worldQuaternion : _identityQuaternion)
+    _v3.copy(_unitZ).applyQuaternion(space === 'local' ? self.worldQuaternion : _identityQuaternion)
 
     _alignVector.copy(_v2)
 
-    switch ((this as any).mode) {
+    switch (self.mode) {
 
       case 'translate':
       case 'scale':
-        switch ((this as any).axis) {
+        switch (self.axis) {
           case 'X':
-            _alignVector.copy((this as any).eye).cross(_v1)
+            _alignVector.copy(self.eye).cross(_v1)
             _dirVector.copy(_v1).cross(_alignVector)
             break
           case 'Y':
-            _alignVector.copy((this as any).eye).cross(_v2)
+            _alignVector.copy(self.eye).cross(_v2)
             _dirVector.copy(_v2).cross(_alignVector)
             break
           case 'Z':
-            _alignVector.copy((this as any).eye).cross(_v3)
+            _alignVector.copy(self.eye).cross(_v3)
             _dirVector.copy(_v3).cross(_alignVector)
             break
           case 'XY':
@@ -1368,7 +1432,7 @@ class CustomTransformControlsPlane extends Mesh {
     }
 
     if (_dirVector.length() === 0) {
-      this.quaternion.copy((this as any).cameraQuaternion)
+      this.quaternion.copy(self.cameraQuaternion)
     } else {
       _tempMatrix.lookAt(_tempVector.set(0, 0, 0), _dirVector, _alignVector)
       this.quaternion.setFromRotationMatrix(_tempMatrix)

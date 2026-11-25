@@ -1,5 +1,5 @@
 import { type Bone } from 'three'
-import { ModalDialog } from '../lib/ModalDialog.ts'
+import { ModalDialog } from '../ui/dialogs/ModalDialog.ts'
 
 export class TargetBoneTreeDialog {
   private target_bones: Map<string, Bone> = new Map<string, Bone>()

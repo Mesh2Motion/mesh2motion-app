@@ -29,6 +29,11 @@
     position: absolute;
     right: 0;
     min-width: 250px;
+    max-width: min(24rem, calc(100vw - 1rem));
+    max-height: calc(100dvh - var(--navigation-height) - 1rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
     background: var(--nav-background);
     border: 1px solid var(--bg-tertiary);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
@@ -78,15 +83,105 @@
     background: var(--bg-alternate);
 }
 
-.settings-dropdown-slider-row {
+/* Integrations / MCP section (compact desktop-only panel). */
+.mcp-settings {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.4rem;
+    max-width: min(22rem, 100%);
+    min-width: 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
 }
 
-.settings-dropdown-slider-row input[type="range"] {
-    width: 100%;
+.mcp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-.settings-dropdown-slider-row label {
-    margin-bottom: 0.2rem;
+.mcp-badge {
+    padding: 0.1rem 0.45rem;
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 0.8rem;
+    background: var(--bg-alternate);
+    font-size: 0.72rem;
+}
+
+.mcp-badge.is-enabled {
+    background: var(--button-primary-bg);
+}
+
+.mcp-row {
+    display: grid;
+    /* minmax(0, 1fr) prevents long paths/tool lists from expanding past the
+       column and overlapping the next row (the native layout defect). */
+    grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+    min-width: 0;
+}
+
+.mcp-label,
+.mcp-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+    font-size: 0.75rem;
+}
+
+.mcp-label {
+    opacity: 0.75;
+}
+
+.mcp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.mcp-button {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.mcp-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mcp-action-result,
+.mcp-note {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    color: var(--text-alternate);
+}
+
+.mcp-details {
+    border-top: 1px solid var(--bg-tertiary);
+    padding-top: 0.3rem;
+}
+
+.mcp-details summary {
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+.mcp-diagnostics {
+    max-height: 12rem;
+    overflow: auto;
+    font-size: 0.68rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 800px) {
+    .mcp-settings {
+        max-width: calc(100vw - 2rem);
+    }
 }

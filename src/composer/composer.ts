@@ -18,6 +18,9 @@ import { ComposerSlots } from './ComposerSlots.ts'
 import { type ComposerSlotName } from './interfaces/ComposerSlotName'
 import { type SlotAnimationDroppedDetail } from './interfaces/SlotAnimationDroppedDetail'
 import { ComposerExport } from './ComposerExport.ts'
+import { maybe_attach_desktop_control } from '../control/attachControl.ts'
+import { mark, mark_error } from '../lib/StartupDiagnostics.ts'
+import { display_fatal_startup_error } from '../lib/WebGLStartup.ts'
 
 /**
  * Composer page: combines the upper half of one animation with the lower half
@@ -56,6 +59,7 @@ class ComposerModule {
 
   constructor () {
     this.mesh2motion_engine = new Mesh2MotionEngine()
+    maybe_attach_desktop_control(this.mesh2motion_engine, { page: 'remix' })
     this.mesh2motion_engine.set_camera_position(new Vector3().set(6, 5, 11))
 
     this.preview = new ComposerPreview()
@@ -325,13 +329,21 @@ class ComposerModule {
   }
 }
 
-const composer_app = new ComposerModule()
+let composer_app: ComposerModule | undefined
+
+try {
+  composer_app = new ComposerModule()
+  mark('bootstrap:remix:ok')
+} catch (error) {
+  mark_error('bootstrap:remix', error)
+  display_fatal_startup_error(error)
+}
 
 // handy for trying combinations from the browser console during development
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && composer_app !== undefined) {
   (window as unknown as { composer_app: ComposerModule }).composer_app = composer_app
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  composer_app.start()
+  composer_app?.start()
 })

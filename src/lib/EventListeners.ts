@@ -64,7 +64,7 @@ export class EventListeners {
 
   public addEventListeners (): void {
     // monitor theme changes
-    this.bootstrap.theme_manager.addEventListener('theme-changed', (event: any) => {
+    this.bootstrap.theme_manager.addEventListener('theme-changed', () => {
       this.bootstrap.regenerate_floor_grid()
     })
 
@@ -135,7 +135,7 @@ export class EventListeners {
 
     // listen for view helper changes
     document.getElementById('view-control-hitbox')?.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (this.bootstrap.view_helper.handleClick(event)) {
+      if (this.bootstrap.view_helper?.handleClick(event) === true) {
         event.stopPropagation()
         event.preventDefault()
       }
@@ -352,9 +352,10 @@ export class EventListeners {
 
     // custom event listeners for the transform controls.
     // we can know about the "mouseup" event with this
-    this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: any) => {
-      this.bootstrap.is_transform_controls_dragging = event.value
-      this.bootstrap.enable_orbit_controls(!event.value)
+    this.bootstrap.transform_controls?.addEventListener('dragging-changed', (event: Record<string, unknown>) => {
+      const dragging = (event as { value: boolean }).value
+      this.bootstrap.is_transform_controls_dragging = dragging
+      this.bootstrap.enable_orbit_controls(!dragging)
 
       // show the overlay when the transform widget drag starts, hide when it ends
       // also switch to a grabbing cursor while dragging a bone
@@ -467,7 +468,10 @@ export class EventListeners {
 
     this.bootstrap.ui.dom_show_skeleton_checkbox?.addEventListener('click', (event: MouseEvent) => {
       if (this.bootstrap.skeleton_helper !== undefined) {
-        this.bootstrap.skeleton_helper.visible = event.target.checked
+        const checkbox = event.target as HTMLInputElement | null
+        if (checkbox !== null) {
+          this.bootstrap.skeleton_helper.visible = checkbox.checked
+        }
       } else {
         console.warn('Skeleton helper is undefined, so we cannot show it')
       }
@@ -526,7 +530,7 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_type_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform type change')
@@ -537,7 +541,7 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_transform_space_radio_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for transform space change')
@@ -549,7 +553,7 @@ export class EventListeners {
 
     // changing the 3d model preview while editing the skeleton bones
     this.bootstrap.ui.dom_mesh_preview_group?.addEventListener('change', (event: Event) => {
-      const radio_button_selected: string | null = event.target?.value
+      const radio_button_selected: string | null = (event.target as HTMLInputElement | null)?.value ?? null
 
       if (radio_button_selected === null) {
         console.warn('Null radio button selected for mesh preview type change')

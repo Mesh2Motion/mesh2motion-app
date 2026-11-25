@@ -1,6 +1,10 @@
 import * as THREE from 'three'
 import { type OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { type TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
+/** Minimal controls surface used for interaction-mode switching. */
+interface TransformControlsLike {
+  enabled: boolean
+  detach(): void
+}
 import { ProcessStep } from '../../enums/ProcessStep.ts'
 import { Utility } from '../../Utilities.ts'
 import { type StepEditSkeleton } from './StepEditSkeleton.ts'
@@ -28,7 +32,7 @@ export class MeshDragBonePlacement {
     return this.is_dragging_mode_active
   }
 
-  public sync_interaction_mode (process_step: ProcessStep, transform_controls: TransformControls): void {
+  public sync_interaction_mode (process_step: ProcessStep, transform_controls: TransformControlsLike): void {
     const using_mesh_drag_mode =
       process_step === ProcessStep.EditSkeleton &&
       this.edit_skeleton_step.is_mesh_drag_placement_enabled()
@@ -137,7 +141,7 @@ export class MeshDragBonePlacement {
     }
 
     const intersection_segment = this.get_edit_mesh_intersection_segment(mouse_event)
-    let target_world_position: Vector3 | null = null
+    let target_world_position: Vector3 | null
 
     if (intersection_segment !== null) {
       const [first_intersection, last_intersection] = intersection_segment

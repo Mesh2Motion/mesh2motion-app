@@ -19,7 +19,7 @@
 
     </head>
 
-    <body style="margin: 0">
+    <body class="tool-panel-page" style="margin: 0">
 
         <nav>
         <div style="display: inline-flex; align-items: center;">
@@ -29,6 +29,7 @@
             <a href="/create.html" >Use Your Model</a>
             <span class="active-nav-item">Use Your Rigged Model</span>
             <a href="/composer/index.html">Remix</a>
+            <a href="/newAnimation/index.html">New Animation</a>
         </div>
 
         <div style="display: inline-flex; align-items: center;">
@@ -47,7 +48,7 @@
                     <p style="margin: 0;">Import your rig and map the bones to continue. <a id="m2m-model-github-link" target="_blank" href="https://github.com/Mesh2Motion/mesh2motion-assets/tree/main/rigs">View M2M rigs from GitHub.</a></p>
                 </div>
 
-                <div style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
+                <div class="bone-map-grid" style="display: flex; flex-direction: row; gap: 1rem; margin-top: 1rem;">
                     <!-- Mesh2Motion skeleton (source) - draggable bones -->
                     <div class="bone-map-section">
                         <h2 class="bone-map-heading">
@@ -72,7 +73,7 @@
 
                     </div>
 
-                    <div style="align-self: center; font-size: 2rem; color: var(--text-secondary);">
+                    <div class="bone-map-arrow">
                         ⇨
                     </div>  
 

@@ -456,6 +456,8 @@ export class DOMUtilities {
             <input type="checkbox" id="solid-background-toggle" ${defaults.solid_background_enabled ? 'checked' : ''} />
           </div>
 
+          <div id="mcp-settings-mount"></div>
+
           <hr class="settings-dropdown-divider" />
 
           <a href="#" id="learn-link" class="settings-dropdown-row settings-dropdown-link">Learn</a>

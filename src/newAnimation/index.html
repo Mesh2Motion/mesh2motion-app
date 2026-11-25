@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Animation - Mesh2Motion</title>
+    <link rel="icon" type="image/png" href="../images/favicon.png"/>
+
+    <link href="../styles.css" rel="stylesheet" crossorigin="anonymous" />
+    <link rel="stylesheet" href="../radio-button-group.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="../animation-player.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="../settings-dropdown.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="../dialog.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="../offline.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="./newAnimation.css" crossorigin="anonymous" />
+</head>
+
+<body class="tool-panel-page" style="margin: 0">
+
+    <nav>
+        <div style="display: inline-flex; align-items: center;">
+            <a id="logo-branding" href="https://mesh2motion.org">
+                <img src="../images/mesh2motion.svg" width="130" alt="Mesh2Motion logo" />
+            </a>
+            <a href="/">Explore</a>
+            <a href="/create.html">Use Your Model</a>
+            <a href="/retarget/index.html">Use Your Rigged Model</a>
+            <a href="/composer/index.html">Remix</a>
+            <span class="active-nav-item">New Animation</span>
+        </div>
+        <div style="display: inline-flex; align-items: center;">
+            <div id="top-nav-links-mount"></div>
+        </div>
+    </nav>
+
+    <div id="header-ui-mount"></div>
+
+    <div id="tool-panel">
+        <div id="new-animation-panel">
+            <h1>New Animation</h1>
+            <p class="new-animation-intro">Author bone keyframes on the live rig, or copy tracks from an existing animation.</p>
+
+            <div id="new-animation-status" role="status" aria-live="polite">Loading…</div>
+
+            <fieldset>
+                <legend>Rig</legend>
+                <label for="new-animation-rig">Loaded rig</label>
+                <select id="new-animation-rig" aria-label="Loaded rig"></select>
+            </fieldset>
+
+            <fieldset>
+                <legend>Creation mode</legend>
+                <label><input type="radio" name="new-animation-mode" value="scratch" checked> From Scratch</label>
+                <label><input type="radio" name="new-animation-mode" value="existing"> From Existing Animation</label>
+            </fieldset>
+
+            <div class="new-animation-fields">
+                <label for="new-animation-name">Clip name</label>
+                <input type="text" id="new-animation-name" value="Untitled Authored Clip" aria-label="Clip name">
+
+                <label for="new-animation-duration">Duration (seconds)</label>
+                <input type="number" id="new-animation-duration" min="0.001" max="3600" step="0.1" value="2" aria-label="Duration in seconds">
+
+                <button id="new-animation-create" class="primary-button" type="button">Create clip</button>
+            </div>
+
+            <div id="new-animation-source-panel" hidden>
+                <label for="new-animation-source-filter">Existing animation</label>
+                <input type="text" id="new-animation-source-filter" placeholder="Filter animations" aria-label="Filter existing animations">
+                <div id="new-animation-source-list" class="new-animation-source-list"></div>
+            </div>
+
+            <fieldset>
+                <legend>Clip editor</legend>
+                <div id="new-animation-revision" aria-live="polite">no active draft</div>
+
+                <div class="m2m-clip-toolbar">
+                    <button id="new-animation-play" type="button" disabled aria-label="Play or pause">▶</button>
+                    <button id="new-animation-stop" type="button" disabled aria-label="Stop and rewind">■</button>
+                    <span id="new-animation-time" aria-live="off">0.000 s</span>
+                    <button id="new-animation-add-key" type="button" disabled>+ Keyframe</button>
+                    <button id="new-animation-remove-key" type="button">− Keyframe</button>
+                    <span class="m2m-clip-hint">Select a bone, scrub, then + Keyframe (or double-click a lane)</span>
+                </div>
+
+                <div id="new-animation-timeline" class="new-animation-timeline" aria-label="Keyframe timeline">
+                    <div id="new-animation-ruler" class="m2m-ruler" aria-label="Time ruler"></div>
+                    <div class="m2m-clip-body">
+                        <div id="new-animation-tracks" class="new-animation-tracks" aria-label="Bone channels"></div>
+                        <div id="new-animation-lanes" class="m2m-lanes" aria-label="Keyframe lanes">
+                            <div id="new-animation-playhead" class="m2m-playhead" aria-hidden="true"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="new-animation-values" class="new-animation-values" aria-label="Local transform values"></div>
+                <div class="new-animation-bone-tools">
+                    <strong>Bone editing</strong>
+                    <span id="new-animation-selected-bone" aria-live="polite">no bone selected</span>
+                    <label for="new-animation-bone-filter">Bone list</label>
+                    <input type="search" id="new-animation-bone-filter" placeholder="Filter bones by name" aria-label="Filter bones by name">
+                    <div id="new-animation-bone-list" class="new-animation-bone-list" aria-label="Live rig bones"></div>
+                    <button id="new-animation-clear-bone" type="button">Clear bone selection</button>
+                    <div class="new-animation-actions" role="group" aria-label="Transform mode">
+                        <button type="button" data-bone-mode="translate">Move</button>
+                        <button type="button" data-bone-mode="rotate" aria-pressed="true">Rotate</button>
+                        <button type="button" data-bone-mode="scale">Scale</button>
+                    </div>
+                    <label for="new-animation-bone-space">Space
+                        <select id="new-animation-bone-space" aria-label="Transform space">
+                            <option value="local">Local</option>
+                            <option value="world">World</option>
+                        </select>
+                    </label>
+                    <p class="new-animation-hint">Select a bone from the filtered list (most reliable), or click a joint in the viewport. Then drag the gizmo to write a keyframe at the current time. Create a clip first to save edits.</p>
+                </div>
+                <div class="new-animation-actions">
+                    <button id="new-animation-undo" type="button" disabled>Undo</button>
+                    <button id="new-animation-redo" type="button" disabled>Redo</button>
+                    <button id="new-animation-preview" type="button" disabled>Preview</button>
+                </div>
+            </fieldset>
+
+            <div class="new-animation-actions">
+                <button id="new-animation-save" type="button">Export JSON</button>
+                <button id="new-animation-import" type="button">Import document</button>
+                <input id="new-animation-import-input" type="file" accept=".json,application/json" hidden>
+                <button id="new-animation-commit" class="primary-button" type="button" disabled>Save clip</button>
+                <button id="new-animation-cancel" type="button">Cancel draft</button>
+            </div>
+
+            <fieldset>
+                <legend>Saved clips</legend>
+                <p class="new-animation-hint">Saved clips are added to the application library and can be inspected in the Explore tab. Only user/MCP clips can be deleted; bundled animations are protected.</p>
+                <div id="new-animation-saved-list" class="new-animation-saved-list" aria-label="Saved clips"></div>
+            </fieldset>
+        </div>
+    </div>
+
+    <div id="animation-player-mount"></div>
+    <div id="view-control-hitbox"></div>
+    <span id="build-version"></span>
+
+    <script type="module" src="./newAnimation.ts"></script>
+</body>
+</html>

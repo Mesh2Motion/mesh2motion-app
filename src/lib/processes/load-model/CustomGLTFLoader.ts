@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { EventDispatcher } from 'three'
 import { type GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { type Group } from 'three/src/objects/Group.js'
 import { type Scene } from 'three/src/scenes/Scene.js'
 import { ModalDialog } from '../../ModalDialog'
 
@@ -20,8 +21,8 @@ export class CustomGLTFLoader extends EventDispatcher {
    * Main entry: Loads a GLTF (with BIN and textures) from a ZIP file buffer, using in-memory URLs for all assets.
    */
   public async load_from_zip (zip_data: ArrayBuffer,
-    onLoad: (scene: Scene) => void,
-    onError?: (err: any) => void
+    onLoad: (scene: Scene | Group) => void,
+    onError?: (err: unknown) => void
   ): Promise<void> {
     try {
       // 1. Load and scan the ZIP for GLTF and BIN files
@@ -30,7 +31,7 @@ export class CustomGLTFLoader extends EventDispatcher {
       if (!gltf_files_result.gltf_file) throw new Error('No GLTF file found in ZIP')
 
       // 2. Parse GLTF JSON and patch buffer URI if needed
-      const gltf_json: any = await this.parse_gltf_json(gltf_files_result.gltf_file,
+      const gltf_json = await this.parse_gltf_json(gltf_files_result.gltf_file,
         gltf_files_result.bin_file, gltf_files_result.bin_filename)
 
       // 3. Build a map of all relevant files (textures, bin, gltf) by filename
@@ -50,8 +51,7 @@ export class CustomGLTFLoader extends EventDispatcher {
 
       // Load the GLTF from the in-memory URL
       this.loader.load(gltf_url, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        onLoad(loaded_scene)
+        onLoad(gltf.scene)
         URL.revokeObjectURL(gltf_url)
       },
       undefined,
@@ -67,15 +67,15 @@ export class CustomGLTFLoader extends EventDispatcher {
       }
     }
     // cleanup error handler
-    this.loader.manager.onError = null
+    this.loader.manager.onError = () => {}
   }
 
   /**
    * Scans the ZIP for .gltf and .bin files and returns their file objects and names.
    */
   private find_gltf_and_bin_files (zip: JSZip): GltfFilesResult {
-    let gltf_file: any = null
-    let bin_file: any = null
+    let gltf_file: JSZip.JSZipObject | null = null
+    let bin_file: JSZip.JSZipObject | null = null
     let gltf_filename = ''
     let bin_filename = ''
 
@@ -103,14 +103,15 @@ export class CustomGLTFLoader extends EventDispatcher {
   /**
    * Reads and parses the GLTF JSON, patching the buffer URI if a BIN file is present.
    */
-  private async parse_gltf_json (gltfFile: any, binFile: any, binFilename: string): Promise<any> {
+  private async parse_gltf_json (gltfFile: JSZip.JSZipObject, binFile: JSZip.JSZipObject | null, binFilename: string): Promise<GltfDocument> {
     const gltf_text = await gltfFile.async('text')
-    const gltf_json = JSON.parse(gltf_text)
-    if (binFile && gltf_json.buffers && gltf_json.buffers[0]) {
+    const parsed: unknown = JSON.parse(gltf_text)
+    if (!isGltfDocument(parsed)) throw new Error('Invalid GLTF document in ZIP')
+    if (binFile && parsed.buffers && parsed.buffers[0]) {
       const binNameOnly = binFilename.split('/').pop()
-      gltf_json.buffers[0].uri = binNameOnly
+      parsed.buffers[0].uri = binNameOnly
     }
-    return gltf_json
+    return parsed
   }
 
   /**
@@ -131,7 +132,9 @@ export class CustomGLTFLoader extends EventDispatcher {
             const decoded = decodeURIComponent(nameOnly)
             fileMap[decoded] = buffer
             fileMap[decoded.toLowerCase()] = buffer
-          } catch {}
+          } catch {
+            // Keep the original name when a ZIP entry contains malformed percent escapes.
+          }
         }
       }
     })
@@ -155,7 +158,9 @@ export class CustomGLTFLoader extends EventDispatcher {
         try {
           const decoded = decodeURIComponent(name_only)
           buffer = file_map[decoded] || file_map[decoded.toLowerCase()]
-        } catch {}
+        } catch {
+          // Keep the original path when a URL contains malformed percent escapes.
+        }
       }
 
       if (buffer) {
@@ -165,7 +170,7 @@ export class CustomGLTFLoader extends EventDispatcher {
         else if (/\.jpe?g$/i.test(name_only)) mime = 'image/jpeg'
         else if (/\.webp$/i.test(name_only)) mime = 'image/webp'
         else if (/\.gltf$/i.test(name_only)) mime = 'application/json'
-        const blob = new Blob([buffer], { type: mime })
+        const blob = new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: mime })
         return URL.createObjectURL(blob)
       }
 
@@ -186,8 +191,24 @@ export class CustomGLTFLoader extends EventDispatcher {
 
 
 interface GltfFilesResult {
-  gltf_file: any
-  bin_file: any
+  gltf_file: JSZip.JSZipObject | null
+  bin_file: JSZip.JSZipObject | null
   gltf_filename: string
   bin_filename: string
+}
+
+interface GltfDocument {
+  buffers?: Array<Record<string, unknown>>
+  [key: string]: unknown
+}
+
+function isRecord (value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isGltfDocument (value: unknown): value is GltfDocument {
+  if (!isRecord(value)) return false
+  return value.buffers === undefined || (
+    Array.isArray(value.buffers) && value.buffers.every(isRecord)
+  )
 }

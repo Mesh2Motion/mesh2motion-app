@@ -73,8 +73,9 @@ export class Pose {
       this.joints[i] = j
 
       // Link up parent-child relationshop
-      if ((b.parent?.isBone)) {
-        const name_index: number | undefined = this.nameIdx.get(b.parent.name)
+      const parent = b.parent
+      if (parent !== null && 'isBone' in parent && parent.isBone === true) {
+        const name_index: number | undefined = this.nameIdx.get(parent.name)
 
         if (name_index !== undefined) {
           j.pindex = name_index

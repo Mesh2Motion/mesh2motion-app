@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, type BufferGeometry, BoxGeometry, Group, Mesh, MeshStandardMaterial, PlaneGeometry, Scene, Vector3 } from 'three'
+import { Box3, BufferGeometry, BoxGeometry, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, PlaneGeometry, Scene, Vector3 } from 'three'
 import { ModelCleanupUtility } from './ModelCleanupUtility'
 
 function make_mesh (name: string, geometry: BufferGeometry = new BoxGeometry(1, 1, 1)): Mesh {
@@ -14,6 +14,31 @@ function mesh_bounds (mesh: Mesh): Box3 {
   mesh.geometry.computeBoundingBox()
   return new Box3().copy(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld)
 }
+
+describe('ModelCleanupUtility.calculate_mesh_metrics', () => {
+  it('counts only complete triangles and keeps triangle_count integral', () => {
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute(new Array(7 * 3).fill(0), 3))
+
+    expect(ModelCleanupUtility.calculate_mesh_metrics([geometry])).toEqual({
+      vertex_count: 7,
+      triangle_count: 2,
+      objects_count: 1
+    })
+  })
+
+  it('uses index count for indexed triangle geometry', () => {
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute(new Array(7 * 3).fill(0), 3))
+    geometry.setIndex([0, 1, 2, 2, 3, 4, 4, 5, 6, 6])
+
+    expect(ModelCleanupUtility.calculate_mesh_metrics([geometry])).toEqual({
+      vertex_count: 7,
+      triangle_count: 3,
+      objects_count: 1
+    })
+  })
+})
 
 describe('ModelCleanupUtility.bake_transforms_into_geometry', () => {
   it('keeps a mesh where it was, but with an identity transform', () => {

@@ -1,4 +1,4 @@
-import { EventDispatcher, type Object3DEventMap, type Group } from 'three'
+import { EventDispatcher, type Group } from 'three'
 import { FBXLoader } from '../../../lib/io/FBXLoader'
 import { ModalDialog } from '../../ModalDialog'
 import { type FBXResults } from './interfaces/FBXResults'
@@ -40,7 +40,7 @@ export class CustomFBXLoader extends EventDispatcher {
         ).show()
       }
 
-      this.loader.load(url, (fbx) => {
+      this.loader.load(url, (fbx: Group) => {
         // FBX files are often in centimeters, scale down to meters
         // scale down to normalize to 1 unit = 1 meter
         loaded_fbx = fbx
@@ -48,7 +48,7 @@ export class CustomFBXLoader extends EventDispatcher {
         check_if_complete()
       },
       undefined, // onProgress callback
-      (error) => {
+      (error: unknown) => {
         reject(error)
       }
       )

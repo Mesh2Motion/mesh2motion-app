@@ -1,4 +1,5 @@
 import { type CustomAnimationImporter } from './CustomAnimationImporter.ts'
+import { ModalDialog } from '../../ModalDialog.ts'
 
 /**
  * Connects an "Import animations" button and its hidden file input to a CustomAnimationImporter.
@@ -80,6 +81,14 @@ export class ImportAnimationsButton {
 
     try {
       await this.importer.import_files(files)
+    } catch (error) {
+      // The void call in the change handler cannot surface this rejection;
+      // show a user-visible error instead of leaking an unhandled promise.
+      console.error('Failed to import animations:', error)
+      new ModalDialog(
+        'Import failed',
+        'The selected animations could not be imported. Check the console for details.'
+      ).show()
     } finally {
       this.input.value = '' // lets the same file be picked again
       this.is_importing = false

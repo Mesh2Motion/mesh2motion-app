@@ -487,8 +487,9 @@ export class StepEditSkeleton extends EventTarget {
     })
 
     // Listen for undo/redo state changes to update button states
-    this.undo_redo_system.addEventListener('undoRedoStateChanged', (event: any) => {
-      this.update_undo_redo_button_states(event.detail.canUndo, event.detail.canRedo)
+    this.undo_redo_system.addEventListener('undoRedoStateChanged', (event: Event) => {
+      const detail = (event as CustomEvent<{ canUndo: boolean; canRedo: boolean }>).detail
+      this.update_undo_redo_button_states(detail.canUndo, detail.canRedo)
     })
 
     // Add preview plane event listeners
@@ -602,7 +603,7 @@ export class StepEditSkeleton extends EventTarget {
   private create_threejs_skeleton_object (): Skeleton {
     // create skeleton and helper to visualize
     this.threejs_skeleton = Generators.create_skeleton(this.edited_armature.children[0])
-    this.threejs_skeleton.name = 'Editing Skeleton'
+    ;(this.threejs_skeleton as Skeleton & { name: string }).name = 'Editing Skeleton'
 
     // update the world matrix for the skeleton
     // without this the skeleton helper won't appear when the bones are first loaded
@@ -661,6 +662,7 @@ export class StepEditSkeleton extends EventTarget {
     // we will only have a hover effect if the mouse is close enough to the bone
     const [closest_bone, closest_bone_index, closest_distance] =
       Utility.raycast_closest_bone_test(camera, event, this.threejs_skeleton)
+    void closest_bone_index // destructuring must stay complete for raycast semantics
 
     // only do selection if we are close
     // the orbit controls also have panning with alt-click, so we don't want to interfere with that

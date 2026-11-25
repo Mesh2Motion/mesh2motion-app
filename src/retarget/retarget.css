@@ -2,9 +2,27 @@ h1 {
     font-size: 1.7rem;
 }
 
+/* M2M-023D: keep the original two-column bone-map layout. The columns must
+   shrink to fit the tool panel instead of overflowing and being clipped by its
+   overflow-x: hidden. Never stack them vertically. */
+.bone-map-grid {
+    flex-wrap: nowrap;
+}
+
+.bone-map-arrow {
+    align-self: center;
+    flex: 0 0 auto;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+}
+
 .bone-map-section {
-    display: inline-flex; 
+    display: inline-flex;
     flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    box-sizing: border-box;
     border: 1px solid var(--bg-tertiary);
     padding: 0;
 }
@@ -13,17 +31,21 @@ h1 {
     display: inline-block;
     color: var(--text-primary);
     margin: 0;
-    padding: 1rem;
+    padding: 0.6rem;
+    overflow-wrap: anywhere;
     background: var(--bg-alternate);
     margin-bottom: 1rem;
 }
 
 .bone-map-content {
-    padding: 1rem;
+    padding: 0.6rem;
     padding-top: 0;
+    min-width: 0;
 }
 
 #source-bones-list, #target-bones-list {
+    min-width: 0;
+    overflow-x: hidden;
     height: calc(100vh - 490px); /* Hard-code the height to keep the UI consistent when filtering the lists */
     height: calc(100dvh - 490px); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
     overflow-y: auto;
@@ -65,6 +87,8 @@ h1 {
 
 /* Bone mapping list item styles with drag and drop styles */
 .bone-item {
+    min-width: 0;
+    overflow: hidden;
     padding: 0.5rem;
     border-bottom: 1px solid var(--bg-tertiary)
 }
@@ -95,6 +119,11 @@ h1 {
     cursor: grabbing;
 }
 
+.bone-item-source,
+.bone-item-target {
+    min-width: 0;
+}
+
 .bone-item-target {
     min-height: 2rem;
     display: flex;
@@ -109,6 +138,10 @@ h1 {
 }
 
 .mapping-source-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--bg-primary);
     background: var(--text-alternate);
     padding: 0.25rem 0.5rem;

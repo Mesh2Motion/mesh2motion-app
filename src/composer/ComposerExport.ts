@@ -1,4 +1,4 @@
-import { type AnimationClip, type SkinnedMesh } from 'three'
+import { type AnimationClip } from 'three'
 import { type DownloadSettings } from '../lib/processes/export-to-file/DownloadSettings.ts'
 import { type StepExportToFile } from '../lib/processes/export-to-file/StepExportToFile.ts'
 import { DownloadSuccessDialog } from '../lib/components/download-success/DownloadSuccessDialog.ts'

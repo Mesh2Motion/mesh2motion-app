@@ -74,7 +74,9 @@ nav {
     justify-content: space-between;
     border-bottom: 1px solid grey;
     position: relative;
-    z-index: 1;
+    /* The settings dropdown lives inside nav. It must outrank the fixed tool
+       panel (z-index 2) and props dock, otherwise it opens but is hidden. */
+    z-index: 30;
 }
 nav a, nav span {
     font-size: 1rem;
@@ -771,6 +773,19 @@ option {
      max-height: calc(100dvh - 30rem); /* dvh accounts for iPad/iOS browser toolbars; 100vh line above is the fallback */
 }
 
+#animations-items.virtualized-animation-catalog {
+    display: block;
+    position: relative;
+}
+
+.virtualized-catalog-content {
+    position: relative;
+}
+
+.virtualized-catalog-footer {
+    box-sizing: border-box;
+}
+
 #animations-items div {
     display: flex;
     padding: 0;
@@ -835,6 +850,63 @@ option {
     pointer-events: none;
 }
 
+/* M2M-023A: offline-generated poster stays visible whenever no video is playing. */
+.anim-play-button .anim-preview-placeholder {
+    position: relative;
+    display: block;
+    background-color: var(--bg-alternate);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    image-rendering: auto;
+}
+
+.anim-preview-poster {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.anim-preview-placeholder.poster-unavailable::after {
+    content: 'Poster unavailable';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    color: var(--text-alternate);
+    background: var(--bg-alternate);
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.anim-preview-placeholder--no-poster::after {
+    content: 'No preview';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text-alternate);
+    background: var(--bg-alternate);
+}
+
+.anim-play-button .anim-preview {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+}
+
 .anim-row-checkbox {
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
@@ -854,6 +926,33 @@ option {
 
 .anim-mirror-segmented {
     display: none;
+}
+
+/* Only custom/user-authored tiles carry the delete affordance. Bundled
+   animations have no such button and cannot be removed from the library. */
+.anim-delete-button {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 3;
+}
+
+.anim-delete-button:hover {
+    background: #9b2c2c;
+    color: #fff;
 }
 
 .anim-mirror-mode-toggle {
@@ -1290,3 +1389,213 @@ div.modal-dialog-body p.survey-thank-you {
     display: none;
 }
 
+
+/* ---------------------------------------------------------------------------
+   M2M-011: viewport container + responsive desktop layout.
+   --------------------------------------------------------------------------- */
+
+#m2m-viewport {
+    position: fixed;
+    top: var(--navigation-height);
+    left: 0;
+    right: var(--responsive-right-width, 24rem);
+    bottom: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#m2m-viewport canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: -1;
+    pointer-events: auto;
+}
+
+:root {
+    --responsive-left-width: 10.5rem;
+    --responsive-right-width: 24rem;
+}
+
+body.explore-page #m2m-viewport {
+    left: var(--explore-sidebar-width, var(--responsive-left-width));
+    right: var(--responsive-right-width);
+}
+
+body.tool-panel-page #m2m-viewport {
+    left: 0;
+    right: var(--responsive-right-width);
+}
+
+#tool-panel {
+    width: var(--responsive-right-width);
+    max-width: 100vw;
+    z-index: 2;
+}
+
+/* Tool-panel pages always reserve the right rail at every breakpoint, so
+   viewport-anchored controls cannot sit under (be occluded by) the panel. */
+body.tool-panel-page {
+    /* Match the upstream two-column rigging/import layout: the tool rail takes
+       roughly half the window so both bone-map columns fit without clipping. */
+    --responsive-right-width: clamp(32rem, 46vw, 54rem);
+    --viewport-right: var(--responsive-right-width);
+    --viewport-left: 0px;
+    --viewport-top: var(--navigation-height);
+}
+
+#animations-items {
+    width: 100%;
+    max-height: calc(100dvh - 23rem);
+}
+
+/* Medium tiled windows: tighter rails, no change in interaction model. */
+@media (max-width: 1200px) {
+    :root {
+        --responsive-left-width: 8.75rem;
+        --responsive-right-width: min(22rem, 42vw);
+    }
+    body.explore-page {
+        --explore-sidebar-width: var(--responsive-left-width);
+        --explore-tool-panel-width: var(--responsive-right-width);
+    }
+    body.explore-page #m2m-viewport {
+        left: var(--responsive-left-width);
+        right: var(--responsive-right-width);
+    }
+
+    body.tool-panel-page #m2m-viewport {
+        left: 0;
+        right: var(--responsive-right-width);
+    }
+    .model-selection-section {
+        width: var(--responsive-left-width);
+        padding: 0.5rem;
+    }
+    body.tool-panel-page #animation-player {
+        width: min(30rem, calc(100vw - var(--responsive-right-width) - 1rem)) !important;
+        left: calc(50% - var(--responsive-right-width) / 2) !important;
+    }
+    body.explore-page #animation-player {
+        width: min(30rem, calc(100vw - var(--responsive-right-width) - var(--responsive-left-width) - 1rem)) !important;
+        left: calc(50% + (var(--responsive-left-width) - var(--responsive-right-width)) / 2) !important;
+    }
+}
+
+/* Narrow tiled windows: keep both sidebars visible and share the remaining
+   viewport width with the animation canvas. */
+@media (max-width: 960px) {
+    :root {
+        --responsive-left-width: clamp(6.5rem, 22vw, 13rem);
+        --responsive-right-width: clamp(10rem, 30vw, 21rem);
+    }
+
+    body.explore-page {
+        --explore-sidebar-width: var(--responsive-left-width);
+        --explore-tool-panel-width: var(--responsive-right-width);
+    }
+    .model-selection-section {
+        position: fixed;
+        top: var(--navigation-height);
+        bottom: 0;
+        left: 0;
+        width: var(--responsive-left-width);
+        max-width: none;
+        z-index: 2;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    #tool-panel {
+        position: fixed;
+        top: var(--navigation-height);
+        bottom: 0;
+        right: 0;
+        width: var(--responsive-right-width);
+        max-width: none;
+        height: auto;
+        z-index: 2;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    body.explore-page #animation-player {
+        width: min(36rem, calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 1rem)) !important;
+        left: calc(50% + (var(--responsive-left-width) - var(--responsive-right-width)) / 2) !important;
+    }
+
+    body.tool-panel-page #animation-player {
+        width: min(36rem, calc(100vw - var(--responsive-right-width) - 1rem)) !important;
+        left: calc(50% - var(--responsive-right-width) / 2) !important;
+    }
+
+    body.explore-page #props-dock {
+        max-width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 1rem);
+    }
+
+    body.tool-panel-page #props-dock {
+        max-width: calc(100vw - var(--responsive-right-width) - 1rem);
+    }
+
+    body.tool-panel-page #props-panel {
+        max-width: calc(100vw - var(--responsive-right-width) - 2rem);
+        overflow-x: auto;
+    }
+
+    body.explore-page #props-panel {
+        max-width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 2rem);
+    }
+
+    #view-control-hitbox {
+        width: 90px;
+        height: 90px;
+    }
+}
+
+/* Very narrow restored windows: compact tiles and controls. */
+@media (max-width: 800px) {
+    nav a, nav span {
+        padding: 0 0.6rem;
+        font-size: 0.9rem;
+    }
+    #animations-items {
+        max-height: calc(100dvh - 26rem);
+        gap: 0.15rem;
+    }
+    .anim-item, .anim-custom-item {
+        width: 88px;
+        height: 145px;
+    }
+    body.explore-page #animation-player {
+        width: calc(100vw - var(--responsive-left-width) - var(--responsive-right-width) - 0.5rem) !important;
+    }
+    body.tool-panel-page #animation-player {
+        width: calc(100vw - var(--responsive-right-width) - 0.5rem) !important;
+    }
+    .mcp-settings {
+        max-width: calc(100vw - 2rem);
+    }
+}
+
+/* M2M-011C: static fallback when a native preview video cannot be presented. */
+.anim-preview-placeholder.preview-failed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg-alternate);
+}
+
+.preview-fallback {
+    display: block;
+    padding: 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    color: var(--text-alternate);
+    cursor: default;
+}

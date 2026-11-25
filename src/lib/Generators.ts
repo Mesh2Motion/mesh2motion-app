@@ -2,18 +2,17 @@ import {
   PerspectiveCamera, DoubleSide, FrontSide, DirectionalLight, GridHelper,
   Bone, MeshBasicMaterial, Skeleton, AmbientLight, PlaneGeometry, Mesh,
   SphereGeometry, MeshPhongMaterial, AxesHelper, ArrowHelper, ConeGeometry,
-  Vector3, BufferGeometry, type Object3D, type WebGLRenderer,
-  Group, Line, LineBasicMaterial, BufferAttribute, Vector2
+  Vector3, BufferGeometry, type Object3D,
+  BufferAttribute, Vector2
 } from 'three'
 
 import { Utility } from './Utilities'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class Generators {
   static create_material (wireframe_value = true, color_hex = 0x00ff00): MeshPhongMaterial {
     const material = new MeshPhongMaterial({ color: color_hex, wireframe: wireframe_value })
     material.side = DoubleSide
-    material.specular = 0.0
+    material.specular.set(0x000000)
     material.shininess = 0.0
     return material
   }
@@ -56,7 +55,7 @@ export class Generators {
     `
   }
 
-  static create_grid_helper (grid_color: number = 0x111155, floor_color: number = 0x4e4e7a): any[] {
+  static create_grid_helper (grid_color: number = 0x111155, floor_color: number = 0x4e4e7a): Object3D[] {
     // create floor mesh and add to scene to help with shadows
     const grid_size: number = 180
     const divisions: number = 100
@@ -138,7 +137,7 @@ export class Generators {
     const plane_width_segments = 2
     const plane_height_segments = 2
     const plane_geometry = new PlaneGeometry(plane_width, plane_height, plane_width_segments, plane_height_segments)
-    const plane_material: MeshBasicMaterial = Generators.create_material(false, color)
+    const plane_material: MeshPhongMaterial = Generators.create_material(false, color)
     const mesh_object = new Mesh(plane_geometry, plane_material)
     mesh_object.name = 'Plane Intersection Mesh'
     return mesh_object
@@ -176,18 +175,6 @@ export class Generators {
     return camera
   }
 
-  static create_window_resize_listener (renderer: WebGLRenderer, camera: PerspectiveCamera): void {
-    // there was a bit of horizontal and vertical scrollbars
-    // I tried doing overflow: none, but that wasn't working for some reason
-    const contraction_size = 2
-
-    window.addEventListener('resize', () => {
-      renderer.setSize(window.innerWidth-contraction_size, window.innerHeight-contraction_size)
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix() // update camera
-    })
-  }
-
   static create_bone_plane_mesh (bone_start: Bone, bone_end: Bone, rays_to_cast: number): Mesh {
     // create plane mesh to do the ray casting
     // we also want to offset it it half the bone distance up the bone
@@ -201,7 +188,7 @@ export class Generators {
 
     // create 4 reference points around the plane that will be used for raycasting
     const plane_point_geometry = new SphereGeometry(0.002, 3, 3)
-    const plane_point_material: MeshBasicMaterial = Generators.create_material(true, 0x00ffff)
+    const plane_point_material: MeshPhongMaterial = Generators.create_material(true, 0x00ffff)
 
     for (let i = 0; i < rays_to_cast; i++) {
       // have the points go around the plane in an even circle increments

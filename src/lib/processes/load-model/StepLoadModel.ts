@@ -15,13 +15,14 @@ import { ModelAnalysisReport } from './ModelAnalysisReport.ts'
 import { type ModelImportAnalysis } from './interfaces/ModelImportAnalysis'
 import { type SceneSnapshot } from './interfaces/SceneSnapshot'
 import { PlatformUtils } from '../../PlatformUtils.ts'
+import { mark, mark_error } from '../../StartupDiagnostics.ts'
 
 // Note: EventTarget is a built-ininterface and do not need to import it
 export class StepLoadModel extends EventTarget {
   private readonly gltf_loader = new GLTFLoader()
   private readonly custom_fbx_loader: CustomFBXLoader = new CustomFBXLoader()
   private readonly ui: UI = UI.getInstance()
-  private original_model_data: Scene | Group = new Scene()
+  private original_model_data: Scene = new Scene()
   private final_mesh_data: Scene = new Scene() // mesh data used when creating the skinned mesh
 
   // model data used for retargeting process. Only used during retargeting processes
@@ -41,6 +42,8 @@ export class StepLoadModel extends EventTarget {
   private readonly material_list: Material[] = []
 
   private _added_event_listeners: boolean = false
+  /** Owns every listener added by this step so dispose() can remove them all. */
+  private readonly listeners_abort_controller: AbortController = new AbortController()
 
   // this can happen when images are not loading. this
   // will mess up model and need to just replace the entire material
@@ -90,7 +93,7 @@ export class StepLoadModel extends EventTarget {
           // clone each material in the array and preserve array structure
           const materials = (child as Mesh).material as Material[]
           const cloned_materials = materials.map(mat => mat.clone())
-          this.material_list.push(cloned_materials as any)
+          this.material_list.push(cloned_materials as unknown as Material)
         } else {
           // single material case
           const new_material: Material = ((child as Mesh).material as Material).clone()
@@ -117,6 +120,7 @@ export class StepLoadModel extends EventTarget {
   }
 
   public add_event_listeners (): void {
+    const signal = this.listeners_abort_controller.signal
     // Populate the model reference dropdown from the central rig config
     const model_select = document.querySelector<HTMLSelectElement>('#model-selection')
     if (model_select !== null) {
@@ -126,10 +130,11 @@ export class StepLoadModel extends EventTarget {
     if (this.ui.dom_upload_model_button !== null) {
       // handle file upload
       this.ui.dom_upload_model_button.addEventListener('change', (event: Event) => {
-        const file = event.target.files[0]
+        const input = event.target as HTMLInputElement | null
+        const file = input?.files?.[0]
         if (file === undefined) return
         this.load_uploaded_file(file)
-      })
+      }, { signal })
 
       // iOS has a weird issue with accepted file extensions, so we need to just
       // accept everything for that platform
@@ -142,15 +147,16 @@ export class StepLoadModel extends EventTarget {
 
     if (this.ui.dom_load_model_debug_checkbox !== null) {
       this.ui.dom_load_model_debug_checkbox.addEventListener('change', (event: Event) => {
-        const debug_mode = event.target.checked
+        const checkbox = event.target as HTMLInputElement | null
+        const debug_mode = checkbox?.checked ?? false
         this.debug_model_loading = debug_mode
-      })
+      }, { signal })
     }
 
     if (this.ui.dom_load_model_button !== null) {
       this.ui.dom_load_model_button.addEventListener('click', () => {
         // get currently selected option out of the model-selection drop-down
-        const model_selection = document.querySelector('#model-selection')
+        const model_selection = document.querySelector<HTMLSelectElement>('#model-selection')
 
         if (model_selection !== null) {
           const file_name = model_selection.options[model_selection.selectedIndex].value
@@ -158,22 +164,23 @@ export class StepLoadModel extends EventTarget {
           this.source_file_name = file_name.split('/').pop() ?? file_name
           this.load_model_file(file_name, file_extension, true)
         }
-      })
+      }, { signal })
     }
   }
 
   private add_drop_zone_event_listeners (): void {
+    const signal = this.listeners_abort_controller.signal
     const drop_zone = document.querySelector<HTMLElement>('#model-drop-zone')
     if (drop_zone === null) return
 
     drop_zone.addEventListener('dragover', (event: DragEvent) => {
       event.preventDefault()
       drop_zone.classList.add('drag-over')
-    })
+    }, { signal })
 
     drop_zone.addEventListener('dragleave', () => {
       drop_zone.classList.remove('drag-over')
-    })
+    }, { signal })
 
     drop_zone.addEventListener('drop', (event: DragEvent) => {
       event.preventDefault()
@@ -182,12 +189,18 @@ export class StepLoadModel extends EventTarget {
       const file = event.dataTransfer?.files[0]
       if (file === undefined) return
       this.load_uploaded_file(file)
-    })
+    }, { signal })
 
     // a file dropped outside the drop zone would make the browser navigate away
     // and open it, which loses all progress. swallow those drops instead
-    window.addEventListener('dragover', (event: DragEvent) => { event.preventDefault() })
-    window.addEventListener('drop', (event: DragEvent) => { event.preventDefault() })
+    window.addEventListener('dragover', (event: DragEvent) => { event.preventDefault() }, { signal })
+    window.addEventListener('drop', (event: DragEvent) => { event.preventDefault() }, { signal })
+  }
+
+  /** Remove every listener owned by this step (including the window drag/drop guards). */
+  public dispose (): void {
+    this.listeners_abort_controller.abort()
+    this._added_event_listeners = false
   }
 
   private load_uploaded_file (file: File): void {
@@ -255,19 +268,43 @@ export class StepLoadModel extends EventTarget {
     // would keep forcing the fallback material onto every model loaded after it
     this.mesh_has_broken_material = false
 
+    mark('model-load:start', { path: String(model_file_path), format: file_extension })
     if (file_extension === 'fbx') {
       this.load_fbx_file(model_file_path)
     } else if (file_extension === 'glb') {
-      this.gltf_loader.load(model_file_path as string, (gltf) => {
-        const loaded_scene: Scene = gltf.scene
-        this.process_loaded_scene(loaded_scene)
-      })
+      this.gltf_loader.load(
+        model_file_path as string,
+        (gltf) => {
+          mark('model-load:glb:loaded', String(model_file_path))
+          this.process_loaded_scene(new Scene().add(gltf.scene))
+        },
+        undefined,
+        (error: unknown) => {
+          this.handle_model_load_error('GLB', model_file_path, error)
+        }
+      )
     } else if (file_extension === 'zip') {
       console.log('ZIP file can contain GLTF+BIN model data')
       this.handle_zip_file(model_file_path)
     } else {
       console.error('Unsupported file format to load. Only acccepts FBX, (ZIP)GLTF+BIN, GLB:', model_file_path)
     }
+  }
+
+  /**
+   * Shared failure path for model loads. Previously the GLB branch had no
+   * error callback at all, so a failed local asset fetch silently stalled the
+   * startup chain. Keep the existing event flow intact and only add an error
+   * notification.
+   */
+  private handle_model_load_error (format: string, model_file_path: string | ArrayBuffer | null, error: unknown): void {
+    mark_error(`model-load:${format.toLowerCase()}`, error)
+    console.error(`Failed to load ${format} model:`, error)
+    // Fixed message: file paths are not interpolated into ModalDialog HTML.
+    new ModalDialog('Error loading model', 'The model file could not be loaded. Check the console for details.').show()
+    this.dispatchEvent(new CustomEvent('modelLoadError', {
+      detail: { format, path: model_file_path, error }
+    }))
   }
 
   private load_fbx_file (model_file_path: string | ArrayBuffer | null): void {
@@ -307,7 +344,7 @@ export class StepLoadModel extends EventTarget {
       } catch (err) {
         // if no GLTF file found, or other error, show dialog
         console.error('Failed to load model from ZIP:', err)
-        new ModalDialog('Failed to load model from ZIP: ', err?.message || err).show()
+        new ModalDialog('Failed to load model from ZIP: ', err instanceof Error ? err.message : String(err)).show()
       }
     }
 
@@ -333,16 +370,18 @@ export class StepLoadModel extends EventTarget {
     }
   }
 
-  private process_loaded_scene (loaded_scene: Scene): void {
+  private process_loaded_scene (loaded_scene: Scene | Group): void {
     // capture the file contents before any cleanup/normalization runs. this has to
     // happen first because the steps below mutate geometry that is shared with the
     // scene the loader handed us
     const imported_snapshot: SceneSnapshot = ModelAnalysisReport.snapshot_scene(loaded_scene)
+    // GLTF loaders return a Group; normalize once so all downstream steps see a Scene.
+    const normalized_scene: Scene = loaded_scene instanceof Scene ? loaded_scene : new Scene().add(loaded_scene)
 
     if (this.preserve_skinned_mesh) {
-      this.original_model_data = loaded_scene
+      this.original_model_data = normalized_scene
     } else {
-      this.original_model_data = loaded_scene.clone()
+      this.original_model_data = normalized_scene.clone()
       this.original_model_data.name = 'Cloned Scene'
     }
 
@@ -429,7 +468,7 @@ export class StepLoadModel extends EventTarget {
     console.log('final mesh data should be prepared at this point', this.final_mesh_data)
 
     this.import_analysis = this.build_import_analysis(imported_snapshot, this.final_mesh_data)
-
+    mark('model-load:processed')
     this.dispatchEvent(new CustomEvent('modelLoaded'))
   }
 

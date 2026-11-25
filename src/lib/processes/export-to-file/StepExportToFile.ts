@@ -1,4 +1,5 @@
 import { UI } from '../../UI.ts'
+import { download_blob } from '../../BlobDownload.ts'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { type AnimationClip, Scene, type SkinnedMesh, type Object3D } from 'three'
@@ -155,9 +156,9 @@ export class StepExportToFile extends EventTarget {
 
       gltf_exporter.parse(
         exported_scene,
-        (result: ArrayBuffer) => {
-          // Handle the result of the export
-          if (result !== null) {
+        (result: ArrayBuffer | { [key: string]: unknown }) => {
+          // The GLTFExporter also permits a JSON object result; only binary GLB is exported here.
+          if (result instanceof ArrayBuffer) {
             const cleaned_result = GlbSkinCleanupService.remove_skin_skeleton_properties(result)
             this.save_array_buffer(cleaned_result, `${file_name}.glb`)
             resolve() // Resolve the promise when the export is complete
@@ -166,7 +167,7 @@ export class StepExportToFile extends EventTarget {
             reject(new Error('Export result is not an ArrayBuffer'))
           }
         },
-        (error: any) => {
+        (error: unknown) => {
           console.log('An error happened during parsing', error)
           reject(error) // Reject the promise if an error occurs
         },
@@ -203,9 +204,7 @@ export class StepExportToFile extends EventTarget {
 
   private save_file (blob: Blob, filename: string): void {
     if (this.ui.dom_export_button_hidden_link != null) {
-      this.ui.dom_export_button_hidden_link.href = URL.createObjectURL(blob)
-      this.ui.dom_export_button_hidden_link.download = filename
-      this.ui.dom_export_button_hidden_link.click()
+      download_blob(blob, filename, this.ui.dom_export_button_hidden_link)
     } else {
       console.log('ERROR: dom_export_button_hidden_link is null')
     }
@@ -218,6 +217,6 @@ export class StepExportToFile extends EventTarget {
 
   // used for FBX exporter to turn content into a byte array for saving
   private save_uint8_array (buffer: Uint8Array, filename: string): void {
-    this.save_file(new Blob([buffer], { type: 'application/octet-stream' }), filename)
+    this.save_file(new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: 'application/octet-stream' }), filename)
   }
 }

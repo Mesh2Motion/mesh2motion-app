@@ -29,10 +29,13 @@ export default defineConfig({
       sourcemap: true,
       rollupOptions: {
         input: {
-          main: resolve(__dirname, 'src/index.html'),
-          create: resolve(__dirname, 'src/create.html'),
-          retarget: resolve(__dirname, 'src/retarget/index.html'),
-          composer: resolve(__dirname, 'src/composer/index.html')
+          main: resolve(import.meta.dirname, 'src/index.html'),
+          create: resolve(import.meta.dirname, 'src/create.html'),
+          retarget: resolve(import.meta.dirname, 'src/retarget/index.html'),
+          composer: resolve(import.meta.dirname, 'src/composer/index.html'),
+          'new-animation': resolve(import.meta.dirname, 'src/newAnimation/index.html'),
+          // Developer-only internal camera harness; deliberately not linked in the UI.
+          'pose-inspect': resolve(import.meta.dirname, 'src/authoringObservation/inspect.html')
         }
       }
     },

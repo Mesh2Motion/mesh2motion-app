@@ -167,7 +167,7 @@ export class AnimationLoader extends EventTarget {
     let total_bytes_total = 0
     let files_in_progress = 0
 
-    this.file_progress_map.forEach((progress, file_path) => {
+    this.file_progress_map.forEach((progress) => {
       total_bytes_loaded += progress.loaded
       total_bytes_total += progress.total
       if (progress.loaded < progress.total) {

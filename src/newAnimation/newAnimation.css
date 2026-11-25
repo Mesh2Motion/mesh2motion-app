@@ -1,0 +1,370 @@
+/* M2M-031 — New Animation workspace. Fits the existing tool-panel layout. */
+
+#new-animation-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#new-animation-panel h1 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.new-animation-intro {
+    font-size: 0.82rem;
+    opacity: 0.85;
+    margin: 0;
+}
+
+#new-animation-status {
+    font-size: 0.78rem;
+    min-height: 1.2em;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.12);
+}
+
+#new-animation-panel fieldset {
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    border-radius: 6px;
+    min-width: 0;
+    padding: 0.5rem;
+}
+
+#new-animation-panel legend {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 0.25rem;
+}
+
+.new-animation-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+}
+
+.new-animation-fields input,
+.new-animation-fields select,
+#new-animation-source-filter {
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+/*
+ * WebKitGTK ignores background/color on a native <select> unless appearance is
+ * disabled. Use the same themed surface as the working text inputs
+ * (input[type="text"] in styles.css) so the rig picker is readable in both
+ * light and dark themes.
+ */
+#new-animation-rig,
+#new-animation-panel select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 4px;
+    padding: 0.5rem 1.75rem 0.5rem 0.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1 1.5 6 6.5 11 1.5 9.5 0 6 3.5 2.5 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    cursor: pointer;
+}
+
+#new-animation-rig option,
+#new-animation-panel select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Light theme needs a dark chevron on the pale textbox surface. */
+html[data-theme='light'] #new-animation-rig,
+html[data-theme='light'] #new-animation-panel select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%232c3e50' d='M1 1.5 6 6.5 11 1.5 9.5 0 6 3.5 2.5 0z'/%3E%3C/svg%3E");
+}
+
+.new-animation-source-list,
+.new-animation-tracks {
+    overflow-y: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Flex containers shrink their children by default; with 66 bones that turned
+   the list into unreadable slivers. Keep every row at its natural height. */
+.new-animation-bone-list .m2m-track-row {
+    flex: 0 0 auto;
+    min-height: 1.65rem;
+    line-height: 1.2;
+}
+
+#new-animation-panel input[type="search"] {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 4px;
+    padding: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.m2m-track-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.m2m-track-row[aria-selected="true"],
+.m2m-track-row[aria-pressed="true"] {
+    border-color: var(--nav-active-item-bg, #4a90d9);
+    background: rgba(127, 127, 127, 0.18);
+}
+
+/* Godot-style clip editor: time ruler over per-channel lanes with a playhead. */
+.m2m-clip-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+}
+
+.m2m-clip-toolbar button {
+    min-width: 2rem;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.m2m-clip-hint { opacity: 0.72; }
+
+.new-animation-timeline {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(127, 127, 127, 0.4);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.14);
+    user-select: none;
+}
+
+.m2m-ruler {
+    position: relative;
+    touch-action: none;
+    height: 1.5rem;
+    margin-left: 8.5rem;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.45);
+    cursor: ew-resize;
+    overflow: hidden;
+}
+
+.m2m-ruler-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid rgba(127, 127, 127, 0.4);
+    font-size: 0.65rem;
+    padding-left: 2px;
+    pointer-events: none;
+}
+
+.m2m-clip-body {
+    position: relative;
+    display: flex;
+    height: 15rem;
+    max-height: 15rem;
+    overflow: hidden;
+}
+
+.new-animation-tracks {
+    flex: 0 0 8.5rem;
+    width: 8.5rem;
+    border-right: 1px solid rgba(127, 127, 127, 0.45);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.m2m-lanes {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.m2m-lane {
+    position: relative;
+    height: 1.65rem;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.18);
+    cursor: crosshair;
+}
+
+.m2m-lane:nth-child(even) { background: rgba(127, 127, 127, 0.07); }
+
+.m2m-lane-empty {
+    padding: 1rem 0.6rem;
+    font-size: 0.76rem;
+    opacity: 0.75;
+}
+
+.m2m-lane.selected { background: rgba(74, 144, 217, 0.18); }
+
+.m2m-keyframe-marker {
+    position: absolute;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin-top: -4.5px;
+    padding: 0;
+    border-radius: 2px;
+    transform: translateX(-50%) rotate(45deg);
+    background: #7fb4e8;
+    border: 1px solid #dcecff;
+    cursor: ew-resize;
+    touch-action: none;
+}
+
+.m2m-keyframe-marker.selected { background: #ffd166; border-color: #fff3c4; }
+
+.m2m-lane-label {
+    flex: 0 0 auto;
+    height: 1.65rem;
+    line-height: 1.65rem;
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.m2m-lane-label.selected { background: rgba(74, 144, 217, 0.25); }
+
+.m2m-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #6ee7b7;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.m2m-playhead::before {
+    content: '';
+    position: absolute;
+    top: -1.5rem;
+    left: -4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #6ee7b7;
+}
+
+.new-animation-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+}
+
+.new-animation-values input {
+    width: 5.5rem;
+    min-width: 0;
+}
+
+.new-animation-saved-list {
+    max-height: 8rem;
+    overflow-y: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.new-animation-saved-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.76rem;
+    min-height: 1.6rem;
+    flex: 0 0 auto;
+}
+
+.new-animation-saved-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.new-animation-bone-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(127, 127, 127, 0.3);
+    font-size: 0.78rem;
+}
+
+.new-animation-bone-tools strong { font-size: 0.8rem; }
+.new-animation-hint { margin: 0; opacity: 0.8; }
+
+.new-animation-bone-list {
+    max-height: 7rem;
+    overflow-y: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid rgba(127, 127, 127, 0.3);
+    border-radius: 4px;
+    padding: 0.2rem;
+}
+
+.new-animation-bone-list .m2m-track-row[aria-selected="true"] {
+    font-weight: 600;
+}
+
+.new-animation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.new-animation-actions button {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.5rem;
+}
+
+@media (max-width: 900px) {
+    #new-animation-panel {
+        gap: 0.5rem;
+    }
+    .new-animation-source-list,
+    .new-animation-tracks {
+        max-height: 6rem;
+    }
+}

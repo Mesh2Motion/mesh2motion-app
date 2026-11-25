@@ -1,4 +1,5 @@
 import { Scene, type AnimationClip, type Object3D, type SkinnedMesh } from 'three'
+import { download_blob } from '../../lib/BlobDownload.ts'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { FBXExporter } from '@comfyorg/fbx-exporter-three'
 import { AnimationRetargetService } from '../AnimationRetargetService'
@@ -185,9 +186,7 @@ export class StepExportRetargetedAnimations extends EventTarget {
   private save_file (blob: Blob, filename: string): void {
     const export_button_hidden_link: HTMLAnchorElement | null = document.querySelector('#download-hidden-link')
     if (export_button_hidden_link != null) {
-      export_button_hidden_link.href = URL.createObjectURL(blob)
-      export_button_hidden_link.download = filename
-      export_button_hidden_link.click()
+      download_blob(blob, filename, export_button_hidden_link)
     } else {
       console.log('ERROR: dom_export_button_hidden_link is null')
     }
@@ -199,6 +198,6 @@ export class StepExportRetargetedAnimations extends EventTarget {
   }
 
   private save_uint8_array (buffer: Uint8Array, filename: string): void {
-    this.save_file(new Blob([buffer], { type: 'application/octet-stream' }), filename)
+    this.save_file(new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: 'application/octet-stream' }), filename)
   }
 }

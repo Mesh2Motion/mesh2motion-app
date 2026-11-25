@@ -4,6 +4,9 @@ import { SkeletonType } from '../lib/enums/SkeletonType'
 import { Mesh2MotionEngine } from '../Mesh2MotionEngine'
 import { ModelVariationSwitcher } from '../lib/processes/animations-listing/ModelVariationSwitcher'
 import { RigConfig } from '../lib/RigConfig'
+import { mark, mark_error } from '../lib/StartupDiagnostics.ts'
+import { display_fatal_startup_error } from '../lib/WebGLStartup.ts'
+import { maybe_attach_desktop_control } from '../control/attachControl.ts'
 
 export class MarketingBootstrap {
   private mesh2motion_engine: Mesh2MotionEngine
@@ -12,6 +15,7 @@ export class MarketingBootstrap {
 
   constructor () {
     this.mesh2motion_engine = new Mesh2MotionEngine()
+    maybe_attach_desktop_control(this.mesh2motion_engine, { page: 'explore' })
     this.mesh2motion_engine.animations_listing_step.set_model_variation_switcher(this.model_variation_switcher)
     this.add_event_listeners()
 
@@ -134,7 +138,7 @@ export class MarketingBootstrap {
     skinned_meshes.forEach((mesh) => {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       materials.forEach((mat) => {
-        (mat as any).wireframe = is_wireframe
+        if ('wireframe' in mat) mat.wireframe = is_wireframe
       })
     })
   }
@@ -144,4 +148,10 @@ export class MarketingBootstrap {
 
 
 // instantiate the class to setup event listeners
-const app = new MarketingBootstrap()
+try {
+  new MarketingBootstrap()
+  mark('bootstrap:marketing:ok')
+} catch (error) {
+  mark_error('bootstrap:marketing', error)
+  display_fatal_startup_error(error)
+}

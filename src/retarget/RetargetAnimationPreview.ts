@@ -1,4 +1,5 @@
 import { type AnimationClip, AnimationMixer, Object3D, type SkinnedMesh, type AnimationAction } from 'three'
+import { AnimationLoopController } from '../lib/AnimationLoopController.ts'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { AnimationUtility } from '../lib/processes/animations-listing/AnimationUtility.ts'
@@ -21,6 +22,11 @@ export class RetargetAnimationPreview extends EventTarget {
   private retargeted_animation_clip: AnimationClip | null = null
 
   private is_preview_active: boolean = false
+  private readonly animation_loop: AnimationLoopController = new AnimationLoopController(
+    requestAnimationFrame,
+    cancelAnimationFrame,
+    delta_time => { if (this.is_preview_active) this.animation_frame_logic(delta_time) }
+  )
   private has_added_event_listeners: boolean = false
 
   constructor (step_bone_mapping: StepBoneMapping) {
@@ -42,13 +48,14 @@ export class RetargetAnimationPreview extends EventTarget {
       this.update_preview_animation()
     })
 
-    this.setup_animation_loop()
+    this.animation_loop.start()
   }
 
   /**
    * Start the preview system by loading the first available animation
    */
   public async start_preview (): Promise<void> {
+    this.animation_loop.start()
     this.is_preview_active = true
 
     // we have already loaded an animation and retargeted it, just play it again
@@ -86,7 +93,14 @@ export class RetargetAnimationPreview extends EventTarget {
     this.current_animation_clip = null
     this.retargeted_animation_clip = null
     this.is_preview_active = false
+    this.animation_loop.stop()
     console.log('Preview stopped')
+  }
+
+  /** Release the owned animation loop when the module is discarded. */
+  public dispose (): void {
+    this.animation_loop.dispose()
+    this.stop_preview()
   }
 
   /**
@@ -118,7 +132,7 @@ export class RetargetAnimationPreview extends EventTarget {
       await new Promise<void>((resolve, reject) => {
         this.gltf_loader.load(
           animation_file_path,
-          (gltf: any) => {
+          (gltf: { animations: AnimationClip[] }) => {
             if (gltf.animations !== null && gltf.animations !== undefined && gltf.animations.length > 0) {
               this.current_animation_clip = gltf.animations[0]
 
@@ -212,23 +226,6 @@ export class RetargetAnimationPreview extends EventTarget {
       action.reset()
       action.play() // should loop automatically
     })
-  }
-
-  private setup_animation_loop (): void {
-    let last_time = performance.now()
-    const animate = (): void => {
-      requestAnimationFrame(animate)
-
-      // calculate delta time and pass it into preview
-      const current_time = performance.now()
-      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
-      last_time = current_time
-
-      if (this.is_preview_active) {
-        this.animation_frame_logic(delta_time)
-      }
-    }
-    animate()
   }
 
   private animation_frame_logic (delta_time: number): void {

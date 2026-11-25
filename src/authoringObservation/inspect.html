@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M2M pose inspection (developer only)</title>
+    <style>
+        body { font-family: sans-serif; background: #1d2b35; color: #fff; margin: 1rem; }
+        .grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 0.75rem; }
+        figure { margin: 0; }
+        figure figcaption { font-size: 0.85rem; margin-top: 0.25rem; }
+        img, canvas { width: 100%; background: #263845; image-rendering: auto; }
+        #views { margin-top: 1rem; }
+        label, input, select { margin-right: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>M2M-030A internal pose inspection</h1>
+    <p>Developer-only harness for the internal MCP cameras. Not linked from the application navigation.</p>
+    <div>
+        <label>Animation document <input id="doc" type="file" accept=".json" aria-label="Animation document"></label>
+        <label>Time (s) <input id="time" type="range" min="0" max="4" step="0.01" value="0" aria-label="Time"></label>
+        <span id="timeLabel">0.00 s</span>
+        <label>Projection <select id="projection" aria-label="Projection"><option value="orthographic">orthographic</option><option value="perspective">perspective</option></select></label>
+    </div>
+    <div id="status" role="status">Loading rig…</div>
+    <div id="views" class="grid"></div>
+    <script type="module" src="./inspect.ts"></script>
+</body>
+</html>

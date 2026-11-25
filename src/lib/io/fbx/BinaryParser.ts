@@ -1,20 +1,38 @@
 import { unzlibSync } from 'three/addons/libs/fflate.module.js'
 import { BinaryReader } from './BinaryReader'
 import { FBXTree } from './FBXTree'
+import type { FBXNodeObject, FBXNodeValue } from './FBXNodes'
+import { readFBXNodeArray, readFBXNodeObject, readFBXString } from './FBXNodeValidation'
 
 /** Scalar or array property value stored in an FBX node's property list. */
 type FBXPropertyValue = boolean | number | string | ArrayBuffer | boolean[] | number[]
 
+/** Binary FBX attribute slots may encode numeric or boolean names as scalars. */
+function readFBXAttribute (value: FBXNodeValue, context: string): string {
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+        throw new Error(`Invalid FBX attribute at ${context}`);
+    }
+    return String(value);
+}
+
 /** A parsed FBX node with well-known fields and arbitrary dynamic children. */
-interface FBXNode {
+interface FBXNode extends FBXNodeObject {
     name: string
-    id?: number
+    id?: number | string
     attrName?: string
     attrType?: string
     singleProperty?: boolean
-    propertyList: FBXPropertyValue[]
-    connections?: Array<Array<number | string>>
-    [key: string]: any
+    propertyList: FBXNodeValue[]
+    connections?: FBXNodeValue[]
+}
+
+/** Dynamic children are object-shaped even though the tree value type is a union. */
+function as_node_object (value: FBXNodeValue): FBXNodeObject {
+    return readFBXNodeObject(value, 'binary parser node');
+}
+
+function as_node_array (value: FBXNodeValue): FBXNodeValue[] {
+    return readFBXNodeArray(value, 'binary parser list');
 }
 
 /**
@@ -82,7 +100,12 @@ class BinaryParser {
         const endOffset = (version >= 7500) ? reader.getUint64() : reader.getUint32();
         const numProperties = (version >= 7500) ? reader.getUint64() : reader.getUint32();
 
-        (version >= 7500) ? reader.getUint64() : reader.getUint32(); // the returned propertyListLen is not used
+        // the returned propertyListLen is not used
+        if (version >= 7500) {
+            reader.getUint64();
+        } else {
+            reader.getUint32();
+        }
 
         const nameLen = reader.getUint8();
         const name = reader.getString(nameLen);
@@ -100,8 +123,8 @@ class BinaryParser {
 
         // Regards the first three elements in propertyList as id, attrName, and attrType
         const id = propertyList.length > 0 ? propertyList[0] : '';
-        const attrName = propertyList.length > 1 ? propertyList[1] as string : '';
-        const attrType = propertyList.length > 2 ? propertyList[2] as string : '';
+        const attrName = propertyList.length > 1 ? readFBXAttribute(propertyList[1], 'binary node attribute name') : '';
+        const attrType = propertyList.length > 2 ? readFBXAttribute(propertyList[2], 'binary node attribute type') : '';
 
         // check if this node represents just a single property
         // like (name, 0) set or (name2, [0, 1, 2]) set of {name: 0, name2: [0, 1, 2]}
@@ -147,9 +170,9 @@ class BinaryParser {
 
         } else if (name === 'Connections' && subNode.name === 'C') {
 
-            const array: any[] = [];
+            const array: FBXNodeValue[] = [];
 
-            subNode.propertyList.forEach(function (property: FBXPropertyValue, i: number) {
+            subNode.propertyList.forEach(function (property: FBXNodeValue, i: number) {
 
                 // first Connection is FBX type (OO, OP, etc.). We'll discard these
                 if (i !== 0) array.push(property);
@@ -176,8 +199,8 @@ class BinaryParser {
 
         } else if (name === 'Properties70' && subNode.name === 'P') {
 
-            let innerPropName = subNode.propertyList[0] as string;
-            let innerPropType1 = subNode.propertyList[1] as string;
+            let innerPropName = readFBXString(subNode.propertyList[0], 'Properties70 property name');
+            let innerPropType1 = readFBXString(subNode.propertyList[1], 'Properties70 property type');
             const innerPropType2 = subNode.propertyList[2];
             const innerPropFlag = subNode.propertyList[3];
             let innerPropValue;
@@ -214,7 +237,7 @@ class BinaryParser {
             if (typeof subNode.id === 'number') {
 
                 node[subNode.name] = {};
-                node[subNode.name][subNode.id] = subNode;
+                as_node_object(node[subNode.name])[String(subNode.id)] = subNode;
 
             } else {
 
@@ -232,11 +255,11 @@ class BinaryParser {
 
                 }
 
-                node[subNode.name].push(subNode);
+                as_node_array(node[subNode.name]).push(subNode);
 
-            } else if (subNode.id !== undefined && node[subNode.name][subNode.id] === undefined) {
+            } else if (subNode.id !== undefined && as_node_object(node[subNode.name])[String(subNode.id)] === undefined) {
 
-                node[subNode.name][subNode.id] = subNode;
+                as_node_object(node[subNode.name])[String(subNode.id)] = subNode;
 
             }
 
@@ -283,7 +306,7 @@ class BinaryParser {
             case 'f':
             case 'i':
             case 'l':
-
+            {
                 const arrayLength = reader.getUint32();
                 const encoding = reader.getUint32(); // 0: non-compressed, 1: compressed
                 const compressedLength = reader.getUint32();
@@ -336,6 +359,7 @@ class BinaryParser {
                 }
 
                 break; // cannot happen but is required by the DeepScan
+            }
 
             default:
                 throw new Error('THREE.FBXLoader: Unknown property type ' + type);
